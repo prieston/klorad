@@ -24,6 +24,7 @@
     "@mui/material": "^6.4.1",
     "@next/bundle-analyzer": "^14.0.4",
     "@prisma/client": "^5.22.0",
+    "@prisma/extension-accelerate": "^1.0.0",
     "@react-email/components": "^1.0.1",
     "@types/node": "^20.11.30",
     "@types/react": "^19.0.0",
