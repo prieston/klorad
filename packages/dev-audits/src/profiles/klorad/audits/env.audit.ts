@@ -19,8 +19,8 @@ const REQUIRED_ENV_VARS = {
   },
   DATABASE_URL: {
     required: true,
-    pattern: /^postgresql:\/\//,
-    description: "PostgreSQL connection string",
+    pattern: /^(postgresql|prisma):\/\//,
+    description: "PostgreSQL or Prisma Accelerate connection string",
   },
   // Note: NEXT_PUBLIC_CESIUM_ION_KEY is validated in apps/editor/lib/env/client.ts
   // and apps/editor/lib/env/server.ts, so we don't need to check it here
