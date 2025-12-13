@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useRef } from "react";
 import { Grid } from "@mui/material";
 import {
   Page,
@@ -40,62 +40,106 @@ const DashboardPage = () => {
     assetType: "cesiumIonAsset",
   });
   const { activities, loadingActivity } = useActivity({ limit: 10 });
-  const [metrics, setMetrics] = useState<DashboardMetrics>({
-    projects: 0,
-    models: 0,
-    sensors: 0,
-    tilesets: 0,
-    storageUsed: "0 GB",
-  });
-  const [loadingMetrics, setLoadingMetrics] = useState(true);
 
-  useEffect(() => {
-    if (!loadingProjects && !loadingModels && !loadingTilesets) {
-      // Calculate storage from assets
-      let totalBytes = 0;
-      [...models, ...tilesets].forEach((asset) => {
-        // For regular models: use fileSize column
-        if (asset.fileSize) {
-          const size =
-            typeof asset.fileSize === "bigint"
-              ? Number(asset.fileSize)
-              : asset.fileSize;
-          totalBytes += size;
-        }
-        // For Cesium Ion assets: check metadata.bytes
-        else if (
-          asset.assetType === "cesiumIonAsset" &&
-          asset.metadata &&
-          typeof asset.metadata === "object"
-        ) {
-          const metadata = asset.metadata as Record<string, unknown>;
-          if (typeof metadata.bytes === "number") {
-            totalBytes += metadata.bytes;
-          }
-        }
-      });
+  // Format storage helper function
+  const formatStorage = (bytes: number): string => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+  };
 
-      // Format storage
-      const formatStorage = (bytes: number): string => {
-        if (bytes === 0) return "0 B";
-        const k = 1024;
-        const sizes = ["B", "KB", "MB", "GB", "TB"];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
-      };
+  // Use refs to cache previous calculations and prevent infinite loops
+  const prevStorageRef = useRef<number>(0);
+  const prevModelsIdsRef = useRef<string>("");
+  const prevTilesetsIdsRef = useRef<string>("");
+  const prevModelsLengthRef = useRef<number>(-1);
+  const prevTilesetsLengthRef = useRef<number>(-1);
 
-      const storageUsed = formatStorage(totalBytes);
+  // Calculate storage only when data actually changes
+  const totalStorageBytes = useMemo(() => {
+    const modelsLength = models.length;
+    const tilesetsLength = tilesets.length;
 
-      setMetrics({
-        projects: projects.length,
-        models: models.length,
-        sensors: 0, // Always 0 - coming soon
-        tilesets: tilesets.length,
-        storageUsed,
-      });
-      setLoadingMetrics(false);
+    // Create stable IDs for comparison (just IDs, not fileSize to avoid recalculation)
+    const modelsIds = models.map((m) => m.id).join(",");
+    const tilesetsIds = tilesets.map((t) => t.id).join(",");
+
+    // Check if nothing changed - return cached value
+    if (
+      modelsLength === prevModelsLengthRef.current &&
+      tilesetsLength === prevTilesetsLengthRef.current &&
+      modelsIds === prevModelsIdsRef.current &&
+      tilesetsIds === prevTilesetsIdsRef.current
+    ) {
+      return prevStorageRef.current;
     }
-  }, [projects, models, tilesets, loadingProjects, loadingModels, loadingTilesets]);
+
+    // Update refs
+    prevModelsLengthRef.current = modelsLength;
+    prevTilesetsLengthRef.current = tilesetsLength;
+    prevModelsIdsRef.current = modelsIds;
+    prevTilesetsIdsRef.current = tilesetsIds;
+
+    // Recalculate storage
+    let totalBytes = 0;
+    [...models, ...tilesets].forEach((asset) => {
+      // For regular models: use fileSize column
+      if (asset.fileSize) {
+        const size =
+          typeof asset.fileSize === "bigint"
+            ? Number(asset.fileSize)
+            : asset.fileSize;
+        totalBytes += size;
+      }
+      // For Cesium Ion assets: check metadata.bytes
+      else if (
+        asset.assetType === "cesiumIonAsset" &&
+        asset.metadata &&
+        typeof asset.metadata === "object"
+      ) {
+        const metadata = asset.metadata as Record<string, unknown>;
+        if (typeof metadata.bytes === "number") {
+          totalBytes += metadata.bytes;
+        }
+      }
+    });
+
+    prevStorageRef.current = totalBytes;
+    return totalBytes;
+  }, [models, tilesets]);
+
+  // Memoize metrics calculation to prevent infinite loops
+  const metrics = useMemo<DashboardMetrics>(() => {
+    if (loadingProjects || loadingModels || loadingTilesets) {
+      return {
+        projects: 0,
+        models: 0,
+        sensors: 0,
+        tilesets: 0,
+        storageUsed: "0 GB",
+      };
+    }
+
+    return {
+      projects: projects.length,
+      models: models.length,
+      sensors: 0, // Always 0 - coming soon
+      tilesets: tilesets.length,
+      storageUsed: formatStorage(totalStorageBytes),
+    };
+  }, [
+    projects.length,
+    models.length,
+    tilesets.length,
+    totalStorageBytes,
+    loadingProjects,
+    loadingModels,
+    loadingTilesets,
+  ]);
+
+  const loadingMetrics = loadingProjects || loadingModels || loadingTilesets;
 
   // Format activities for RecentActivity component
   const recentActivity = activities.map((activity) => {

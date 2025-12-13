@@ -12,10 +12,10 @@ export default async function AccountNotLinkedPage() {
   }
 
   // Fetch user's firstName
-  const user = await prisma.user.findUnique({
+  const user = await (prisma.user.findUnique as any)({
     where: { id: session.user.id },
     select: { name: true },
-  });
+  }) as { name: string | null } | null;
 
   const firstName = user?.name?.split(" ")[0] || null;
 

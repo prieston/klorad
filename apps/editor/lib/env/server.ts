@@ -8,7 +8,7 @@ import { z } from "zod";
 const serverEnvSchema = z.object({
   // Database
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  SHADOW_DATABASE_URL: z.string().min(1, "SHADOW_DATABASE_URL is required"),
+  SHADOW_DATABASE_URL: z.string().optional(), // Optional: only needed for prisma migrate dev
 
   // Environment
   NODE_ENV: z

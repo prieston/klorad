@@ -5,7 +5,7 @@ declare namespace NodeJS {
   interface ProcessEnv {
     // Database
     DATABASE_URL: string;
-    SHADOW_DATABASE_URL: string;
+    SHADOW_DATABASE_URL?: string; // Optional: only needed for prisma migrate dev
 
     // Environment
     NODE_ENV?: "development" | "production" | "test";

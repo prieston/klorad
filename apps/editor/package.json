@@ -38,6 +38,7 @@
     "@mui/material": "^6.4.1",
     "@next/bundle-analyzer": "^14.0.4",
     "@prisma/client": "^5.22.0",
+    "@prisma/extension-accelerate": "^1.0.0",
     "@react-email/components": "^1.0.1",
     "@react-email/render": "^2.0.0",
     "@react-spring/three": "^9.7.3",

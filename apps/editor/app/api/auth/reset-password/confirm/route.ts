@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user with matching reset code
-    const user = await prisma.user.findFirst({
+    const user = await (prisma.user.findFirst as any)({
       where: {
         passwordResetToken: code,
         passwordResetTokenExp: {

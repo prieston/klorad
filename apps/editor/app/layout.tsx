@@ -2,6 +2,8 @@ import "@/global.css";
 import "react-toastify/dist/ReactToastify.css";
 import { ReactNode } from "react";
 import { ThemeWrapper } from "./ThemeWrapper";
+import { auth } from "@/auth";
+import { SessionProviderWrapper } from "./components/SessionProviderWrapper";
 
 export const metadata = {
   title: "Klorad | Platform",
@@ -9,11 +11,13 @@ export const metadata = {
   icons: { icon: "/klorad-favicon.png" },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: ReactNode;
 }) {
+  const session = await auth();
+
   return (
     <html lang="en" className="dark">
       <head>
@@ -46,7 +50,9 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <ThemeWrapper>{children}</ThemeWrapper>
+        <SessionProviderWrapper session={session}>
+          <ThemeWrapper>{children}</ThemeWrapper>
+        </SessionProviderWrapper>
       </body>
     </html>
   );

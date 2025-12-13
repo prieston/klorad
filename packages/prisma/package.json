@@ -10,7 +10,7 @@
   "types": "./index.ts",
   "scripts": {
     "prisma": "prisma",
-    "generate": "prisma generate",
+    "generate": "prisma generate --no-engine",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "migrate": "prisma migrate"
@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@prisma/extension-accelerate": "^1.0.0",
     "prisma": "^5.22.0"
   }
 }

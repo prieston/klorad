@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
     // Find user
     const user = await prisma.user.findUnique({
       where: { email },
-    });
+      select: { id: true, email: true, password: true, name: true },
+    }) as { id: string; email: string | null; password: string | null; name: string | null } | null;
 
     // Don't reveal if user exists or not (security best practice)
     // Always return success message
