@@ -6,9 +6,6 @@ import { Box, Typography } from "@mui/material";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import useProject from "@/app/hooks/useProject";
-import { XRButton, createXRStore } from "@react-three/xr";
-
-const xrStore = createXRStore();
 
 export default function Scene() {
   const { projectId } = useParams();
@@ -125,39 +122,10 @@ export default function Scene() {
     );
   }
   return (
-    <Box sx={{ width: "100vw", height: "100vh", position: "relative" }}>
-      <PreviewScene
-        initialSceneData={project.sceneData}
-        renderObservationPoints={false}
-        enableXR={true}
-      />
-      <Box
-        sx={{
-          position: "absolute",
-          top: 16,
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 1000,
-        }}
-      >
-        <XRButton
-          store={xrStore}
-          mode="immersive-vr"
-          style={{
-            padding: "12px 24px",
-            fontSize: "16px",
-            fontWeight: 600,
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            color: "white",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-            boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-          }}
-        >
-          Enter VR
-        </XRButton>
-      </Box>
-    </Box>
+    <PreviewScene
+      initialSceneData={project.sceneData}
+      renderObservationPoints={false}
+      enableXR={true}
+    />
   );
 }
