@@ -96,6 +96,10 @@ export function ImageryRenderer({
           );
         }
 
+        // Remove all existing imagery layers (including default Cesium World Imagery)
+        // before adding the custom imagery
+        viewer.imageryLayers.removeAll();
+
         // Add provider to viewer
         viewer.imageryLayers.addImageryProvider(imageryProvider);
 

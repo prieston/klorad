@@ -1,7 +1,7 @@
 "use client";
 
 /* eslint-disable no-console */
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   Button,
@@ -14,10 +14,13 @@ import {
   FormControlLabel,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import { CloseIcon, CameraAltIcon } from "@klorad/ui";
+import { CloseIcon, CameraAltIcon, ImageryBasemapSelector } from "@klorad/ui";
 import { FitScreen } from "@mui/icons-material";
 import { captureCesiumScreenshot } from "@/app/utils/screenshotCapture";
 import { CesiumMinimalViewer } from "@klorad/engine-cesium";
+import { useOrgId } from "@/app/hooks/useOrgId";
+import useModels from "@/app/hooks/useModels";
+import type { Asset } from "@/app/utils/api";
 
 interface CesiumPreviewDialogProps {
   open: boolean;
@@ -44,8 +47,10 @@ const CesiumPreviewDialog: React.FC<CesiumPreviewDialogProps> = ({
   const viewerRef = useRef<any>(null);
   const tilesetRef = useRef<any>(null);
   const originalTerrainProviderRef = useRef<any>(null);
+  const currentImageryProviderRef = useRef<any>(null);
   const isCapturingRef = useRef(false); // Track if capture is in progress to prevent cleanup
   const isUploadingRef = useRef(false); // Track if upload is in progress to prevent cleanup
+  const dropdownInitializedRef = useRef(false); // Track if dropdown has been initialized for this dialog session
   const [loading, setLoading] = useState(true);
   const [capturing, setCapturing] = useState(false);
   const [uploading, setUploading] = useState(false); // Track upload state after capture
@@ -53,17 +58,177 @@ const CesiumPreviewDialog: React.FC<CesiumPreviewDialogProps> = ({
   const [locationNotSet, setLocationNotSet] = useState(false);
   const [tilesetReady, setTilesetReady] = useState(false);
   const [showTerrain, setShowTerrain] = useState(true);
+  const [selectedImageryAssetId, setSelectedImageryAssetId] = useState<
+    string | null
+  >(null);
 
-  const handleViewerReady = (viewer: any) => {
+  const orgId = useOrgId();
+  const { models, loadingModels } = useModels({
+    assetType: "cesiumIonAsset",
+    orgId: orgId || undefined,
+  });
+
+  // Filter for IMAGERY assets
+  const imageryAssets = models.filter(
+    (asset: Asset) =>
+      asset.fileType === "IMAGERY" && asset.cesiumAssetId && asset.cesiumApiKey
+  );
+
+  // Detect what imagery is currently loaded in the viewer
+  const detectLoadedImagery = useCallback(async (): Promise<string | null> => {
+    if (!viewerRef.current || !imageryAssets.length) {
+      return null;
+    }
+
+    try {
+      const Cesium = await import("cesium");
+      const imageryLayers = viewerRef.current.imageryLayers;
+
+      // Check each imagery layer
+      for (let i = 0; i < imageryLayers.length; i++) {
+        const layer = imageryLayers.get(i);
+        if (layer?.imageryProvider) {
+          const provider = layer.imageryProvider;
+
+          // Check if it's an IonImageryProvider
+          if (provider instanceof Cesium.IonImageryProvider) {
+            const assetId = (provider as any).assetId;
+            if (assetId) {
+              // Find matching asset in imageryAssets
+              const matchingAsset = imageryAssets.find(
+                (asset: Asset) =>
+                  String(asset.cesiumAssetId) === String(assetId)
+              );
+              if (matchingAsset) {
+                return matchingAsset.id;
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error(
+        "[CesiumPreviewDialog] Error detecting loaded imagery:",
+        err
+      );
+    }
+
+    return null;
+  }, [imageryAssets]);
+
+  // Reset dropdown initialization flag when dialog closes
+  useEffect(() => {
+    if (!open) {
+      dropdownInitializedRef.current = false;
+    }
+  }, [open]);
+
+  // Sync selectedImageryAssetId with the initial asset if it's an IMAGERY type
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    // Only initialize dropdown once per dialog session
+    if (dropdownInitializedRef.current) {
+      return;
+    }
+
+    // For non-IMAGERY assets, set dropdown to "None" (no basemap selected) only on initial open
+    if (assetType !== "IMAGERY") {
+      setSelectedImageryAssetId(null);
+      dropdownInitializedRef.current = true;
+      return;
+    }
+
+    // For IMAGERY assets, sync dropdown to show the current imagery asset
+    if (assetType === "IMAGERY" && cesiumAssetId) {
+      if (imageryAssets.length > 0) {
+        // First try to match by cesiumAssetId prop
+        const matchingAsset = imageryAssets.find(
+          (asset: Asset) =>
+            String(asset.cesiumAssetId) === String(cesiumAssetId)
+        );
+        if (matchingAsset) {
+          setSelectedImageryAssetId(matchingAsset.id);
+          dropdownInitializedRef.current = true;
+        } else {
+          // If no match, try to detect what's actually loaded
+          // This handles cases where viewer already has imagery loaded
+          if (viewerRef.current) {
+            detectLoadedImagery().then((detectedId) => {
+              if (detectedId) {
+                setSelectedImageryAssetId(detectedId);
+              }
+              dropdownInitializedRef.current = true;
+            });
+          } else {
+            dropdownInitializedRef.current = true;
+          }
+        }
+      } else {
+        dropdownInitializedRef.current = true;
+      }
+    }
+  }, [
+    open,
+    assetType,
+    cesiumAssetId,
+    imageryAssets,
+    detectLoadedImagery,
+    // Removed selectedImageryAssetId from dependencies to prevent resetting user selections
+  ]);
+
+  const handleViewerReady = async (viewer: any) => {
     viewerRef.current = viewer;
     // Don't store terrain provider here - it might be the default EllipsoidTerrainProvider
     // We'll store it when tileset is ready or when we first check it
     setLoading(false);
+
+    // If opening with an IMAGERY asset, check what's loaded after a delay
+    if (assetType === "IMAGERY") {
+      // Check after a delay to allow ImageryRenderer to load
+      setTimeout(async () => {
+        if (imageryAssets.length > 0) {
+          const detectedAssetId = await detectLoadedImagery();
+          if (detectedAssetId && detectedAssetId !== selectedImageryAssetId) {
+            setSelectedImageryAssetId(detectedAssetId);
+          }
+        }
+      }, 1000); // Increased delay to ensure ImageryRenderer has finished
+    }
   };
 
   const handleTilesetReady = async (tileset: any) => {
     tilesetRef.current = tileset;
     setTilesetReady(true);
+
+    // Remove any default imagery for non-IMAGERY assets
+    // (useCesiumViewer should have already removed it, but this is a safety net)
+    if (viewerRef.current && assetType !== "IMAGERY") {
+      try {
+        const imageryLayers = viewerRef.current.imageryLayers;
+        if (imageryLayers && imageryLayers.length > 0) {
+          imageryLayers.removeAll();
+          viewerRef.current.scene.requestRender();
+        }
+      } catch (err) {
+        // Silently ignore - this is non-critical
+      }
+    }
+
+    // For IMAGERY assets, detect what's actually loaded and sync dropdown
+    if (assetType === "IMAGERY") {
+      // Wait a bit for ImageryRenderer to finish loading
+      setTimeout(async () => {
+        if (imageryAssets.length > 0) {
+          const detectedAssetId = await detectLoadedImagery();
+          if (detectedAssetId && detectedAssetId !== selectedImageryAssetId) {
+            setSelectedImageryAssetId(detectedAssetId);
+          }
+        }
+      }, 500);
+    }
 
     // Check terrain provider after a delay to allow it to load asynchronously
     // The terrain provider might be set after the tileset is ready
@@ -194,6 +359,106 @@ const CesiumPreviewDialog: React.FC<CesiumPreviewDialogProps> = ({
     }
   };
 
+  const handleImageryChange = async (assetId: string | null) => {
+    if (!viewerRef.current || !viewerRef.current.scene) {
+      return;
+    }
+
+    try {
+      const Cesium = await import("cesium");
+
+      // Remove all existing imagery layers (including default Cesium World Imagery)
+      viewerRef.current.imageryLayers.removeAll();
+
+      // If no asset selected, remove all imagery layers
+      // Note: Cesium Viewer has a default basemap, but we'll remove it for consistency
+      if (!assetId) {
+        setSelectedImageryAssetId(null);
+        currentImageryProviderRef.current = null;
+        // Don't add default basemap back - user selected "None"
+        viewerRef.current.scene.requestRender();
+        return;
+      }
+
+      // Find the selected asset
+      const selectedAsset = imageryAssets.find(
+        (asset: Asset) => asset.id === assetId
+      );
+
+      if (
+        !selectedAsset ||
+        !selectedAsset.cesiumAssetId ||
+        !selectedAsset.cesiumApiKey
+      ) {
+        console.error(
+          "[CesiumPreviewDialog] Selected asset not found or missing required fields"
+        );
+        return;
+      }
+
+      // Set API key before loading
+      const originalToken = Cesium.Ion.defaultAccessToken;
+      if (selectedAsset.cesiumApiKey) {
+        Cesium.Ion.defaultAccessToken = selectedAsset.cesiumApiKey;
+      }
+
+      try {
+        let imageryProvider;
+
+        // Use fromAssetId if available (async method)
+        if (
+          Cesium.IonImageryProvider &&
+          typeof (Cesium.IonImageryProvider as any).fromAssetId === "function"
+        ) {
+          imageryProvider = await (
+            Cesium.IonImageryProvider as any
+          ).fromAssetId(parseInt(selectedAsset.cesiumAssetId));
+        } else {
+          // Fallback: use constructor
+          imageryProvider = new Cesium.IonImageryProvider({
+            assetId: parseInt(selectedAsset.cesiumAssetId),
+          } as any);
+
+          // Wait for readyPromise if it exists
+          if ((imageryProvider as any).readyPromise) {
+            await (imageryProvider as any).readyPromise;
+          } else {
+            // Fallback: poll for tilingScheme
+            let attempts = 0;
+            while (!imageryProvider.tilingScheme && attempts < 50) {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+              attempts++;
+            }
+          }
+        }
+
+        // Verify tilingScheme is available
+        if (!imageryProvider.tilingScheme) {
+          throw new Error(
+            "Imagery provider tilingScheme not initialized after waiting"
+          );
+        }
+
+        // Add provider to viewer
+        viewerRef.current.imageryLayers.addImageryProvider(imageryProvider);
+        currentImageryProviderRef.current = imageryProvider;
+
+        // Request render
+        viewerRef.current.scene.requestRender();
+
+        setSelectedImageryAssetId(assetId);
+      } finally {
+        // Restore original token
+        Cesium.Ion.defaultAccessToken = originalToken;
+      }
+    } catch (err) {
+      console.error("[CesiumPreviewDialog] Error changing imagery:", err);
+      handleError(
+        err instanceof Error ? err : new Error("Failed to change basemap")
+      );
+    }
+  };
+
   const handleError = (err: Error) => {
     // Don't display errors if viewer is destroyed or being cleaned up
     // These are expected during rapid open/close cycles
@@ -262,7 +527,9 @@ const CesiumPreviewDialog: React.FC<CesiumPreviewDialogProps> = ({
       setUploading(false);
       setCapturing(false);
       setShowTerrain(true);
+      setSelectedImageryAssetId(null);
       originalTerrainProviderRef.current = null;
+      currentImageryProviderRef.current = null;
 
       // Wait longer if capture or upload was in progress to ensure async operations complete
       const delay = wasCapturing || wasUploading ? 1000 : 100;
@@ -537,6 +804,32 @@ const CesiumPreviewDialog: React.FC<CesiumPreviewDialogProps> = ({
             Rotate the model to your desired angle, then click &quot;Capture
             Screenshot&quot;
           </Typography>
+
+          {/* Basemap Selector */}
+          {viewerRef.current && !loading && !error && (
+            <Box sx={{ mb: 2 }}>
+              <ImageryBasemapSelector
+                assets={imageryAssets.map((asset: Asset) => ({
+                  id: asset.id,
+                  cesiumAssetId: asset.cesiumAssetId || "",
+                  cesiumApiKey: asset.cesiumApiKey || "",
+                  name: asset.name,
+                  originalFilename: asset.originalFilename,
+                }))}
+                loading={loadingModels}
+                value={selectedImageryAssetId}
+                onChange={handleImageryChange}
+                disabled={
+                  loading ||
+                  !!error ||
+                  !viewerRef.current ||
+                  assetType === "IMAGERY"
+                }
+                label="Basemap"
+                showNoneOption={true}
+              />
+            </Box>
+          )}
 
           {/* Terrain Toggle Switch */}
           <Box

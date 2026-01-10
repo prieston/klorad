@@ -19,6 +19,8 @@ export function getViewerOptions() {
     shouldAnimate: false,
     requestRenderMode: true,
     maximumRenderTimeChange: Infinity,
+    // Disable default imagery provider so viewer starts with no basemap
+    imageryProvider: false,
   };
 }
 
