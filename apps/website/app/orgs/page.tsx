@@ -1,24 +1,20 @@
+"use client";
+
 import Link from "next/link";
-import type { Metadata } from "next";
+import useSWR from "swr";
 import { GeometricHint } from "@/components/geometric-hint";
-import { getOrganizations } from "@/lib/organizations";
+import { organizationsFetcher } from "@/lib/api";
 
-export const metadata: Metadata = {
-  title: "Organizations | Klorad",
-  description:
-    "Browse all organizations on Klorad's geospatial platform. Explore published worlds and projects from different organizations.",
-  openGraph: {
-    title: "Organizations | Klorad",
-    description:
-      "Browse all organizations on Klorad's geospatial platform.",
-  },
-  alternates: {
-    canonical: "/orgs",
-  },
-};
-
-export default async function OrgsPage() {
-  const organizations = await getOrganizations();
+export default function OrgsPage() {
+  const { data: organizations = [], isLoading, error } = useSWR(
+    "/api/orgs",
+    organizationsFetcher,
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      refreshInterval: 0, // Disable auto-refresh, but allow manual revalidation
+    }
+  );
 
   return (
     <article className="space-y-0">
@@ -45,7 +41,19 @@ export default async function OrgsPage() {
       {/* Organizations Grid Section */}
       <section className="relative left-1/2 w-screen -translate-x-1/2 bg-[#090D12] pt-36 pb-32 md:pt-44 md:pb-36">
         <div className="relative mx-auto max-w-container px-6 md:px-8">
-          {organizations.length > 0 ? (
+          {isLoading ? (
+            <div className="py-24 text-center">
+              <p className="text-lg font-light text-text-secondary">
+                Loading organizations...
+              </p>
+            </div>
+          ) : error ? (
+            <div className="py-24 text-center">
+              <p className="text-lg font-light text-text-secondary">
+                Failed to load organizations. Please try again later.
+              </p>
+            </div>
+          ) : organizations.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {organizations.map((org) => (
                 <Link
