@@ -99,6 +99,7 @@ export function CesiumMinimalViewer({
           cesiumAssetId={cesiumAssetId}
           enableLocationEditing={enableLocationEditing}
           initialTransform={initialTransform}
+          onTilesetReady={handleTilesetReady}
           onError={onError}
         />
       )}

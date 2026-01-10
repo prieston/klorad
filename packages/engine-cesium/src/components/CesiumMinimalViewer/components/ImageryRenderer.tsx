@@ -9,6 +9,7 @@ interface ImageryRendererProps {
   cesiumAssetId: string;
   enableLocationEditing: boolean;
   initialTransform?: number[];
+  onTilesetReady?: (tileset: any) => void;
   onError?: (error: Error) => void;
 }
 
@@ -21,6 +22,7 @@ export function ImageryRenderer({
   cesiumAssetId,
   enableLocationEditing,
   initialTransform,
+  onTilesetReady,
   onError,
 }: ImageryRendererProps) {
   const { positionCamera } = useCameraPosition({ viewer, Cesium });
@@ -111,6 +113,14 @@ export function ImageryRenderer({
             },
           });
         }
+
+        // Signal that imagery is ready (even though it's not a tileset)
+        // This allows the preview dialog to know it can capture screenshots
+        if (onTilesetReady) {
+          // Pass null since imagery doesn't have a tileset object
+          // The preview dialog checks for tilesetReady state, not the tileset itself
+          onTilesetReady(null);
+        }
       } catch (err) {
         console.error("[ImageryRenderer] Failed to load imagery:", err);
         if (onError) {
@@ -131,6 +141,7 @@ export function ImageryRenderer({
     enableLocationEditing,
     initialTransform,
     onError,
+    onTilesetReady,
     positionCamera,
   ]);
 

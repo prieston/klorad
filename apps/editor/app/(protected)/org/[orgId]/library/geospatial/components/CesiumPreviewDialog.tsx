@@ -10,6 +10,8 @@ import {
   IconButton,
   CircularProgress,
   Divider,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { CloseIcon, CameraAltIcon } from "@klorad/ui";
@@ -41,6 +43,7 @@ const CesiumPreviewDialog: React.FC<CesiumPreviewDialogProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<any>(null);
   const tilesetRef = useRef<any>(null);
+  const originalTerrainProviderRef = useRef<any>(null);
   const isCapturingRef = useRef(false); // Track if capture is in progress to prevent cleanup
   const isUploadingRef = useRef(false); // Track if upload is in progress to prevent cleanup
   const [loading, setLoading] = useState(true);
@@ -49,15 +52,35 @@ const CesiumPreviewDialog: React.FC<CesiumPreviewDialogProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [locationNotSet, setLocationNotSet] = useState(false);
   const [tilesetReady, setTilesetReady] = useState(false);
+  const [showTerrain, setShowTerrain] = useState(true);
 
   const handleViewerReady = (viewer: any) => {
     viewerRef.current = viewer;
+    // Don't store terrain provider here - it might be the default EllipsoidTerrainProvider
+    // We'll store it when tileset is ready or when we first check it
     setLoading(false);
   };
 
-  const handleTilesetReady = (tileset: any) => {
+  const handleTilesetReady = async (tileset: any) => {
     tilesetRef.current = tileset;
     setTilesetReady(true);
+
+    // Check terrain provider after a delay to allow it to load asynchronously
+    // The terrain provider might be set after the tileset is ready
+    setTimeout(async () => {
+      if (viewerRef.current && viewerRef.current.terrainProvider) {
+        const Cesium = await import("cesium");
+        const currentProvider = viewerRef.current.terrainProvider;
+        const isEllipsoid =
+          currentProvider instanceof Cesium.EllipsoidTerrainProvider;
+
+        // Only store if it's not EllipsoidTerrainProvider (which is the default)
+        if (!isEllipsoid) {
+          // Current provider is a real terrain provider, store it
+          originalTerrainProviderRef.current = currentProvider;
+        }
+      }
+    }, 500); // Wait 500ms for terrain provider to load
   };
 
   const handleResetZoom = async () => {
@@ -99,6 +122,75 @@ const CesiumPreviewDialog: React.FC<CesiumPreviewDialogProps> = ({
       } catch (fallbackErr) {
         console.error("Error in fallback zoom:", fallbackErr);
       }
+    }
+  };
+
+  const handleTerrainToggle = async (checked: boolean) => {
+    if (!viewerRef.current || !viewerRef.current.scene) {
+      return;
+    }
+
+    try {
+      const Cesium = await import("cesium");
+      const currentProvider = viewerRef.current.terrainProvider;
+      const currentIsEllipsoid =
+        currentProvider instanceof Cesium.EllipsoidTerrainProvider;
+
+      if (checked) {
+        // Show terrain: restore original terrain provider
+        // First check if the stored provider is actually a real terrain provider (not Ellipsoid)
+        let terrainProviderToUse = null;
+
+        if (originalTerrainProviderRef.current) {
+          const storedIsEllipsoid =
+            originalTerrainProviderRef.current instanceof
+            Cesium.EllipsoidTerrainProvider;
+          if (!storedIsEllipsoid) {
+            // We have a stored non-Ellipsoid provider, use it
+            terrainProviderToUse = originalTerrainProviderRef.current;
+          }
+        }
+
+        // If we don't have a valid stored provider, load Cesium World Terrain
+        if (!terrainProviderToUse) {
+          terrainProviderToUse = await Cesium.createWorldTerrainAsync({
+            requestWaterMask: true,
+            requestVertexNormals: true,
+          });
+          originalTerrainProviderRef.current = terrainProviderToUse;
+        }
+
+        // Set the terrain provider
+        viewerRef.current.terrainProvider = terrainProviderToUse;
+
+        // Ensure globe is visible and enable depth testing against terrain
+        if (viewerRef.current.scene.globe) {
+          viewerRef.current.scene.globe.show = true;
+          viewerRef.current.scene.globe.depthTestAgainstTerrain = true;
+        }
+
+        // Request render to update the scene with terrain
+        viewerRef.current.scene.requestRender();
+      } else {
+        // Hide terrain: use flat EllipsoidTerrainProvider
+        // Before hiding, store the current terrain provider if it's not Ellipsoid
+        if (!currentIsEllipsoid) {
+          originalTerrainProviderRef.current = currentProvider;
+        }
+
+        viewerRef.current.terrainProvider =
+          new Cesium.EllipsoidTerrainProvider();
+        if (viewerRef.current.scene.globe) {
+          viewerRef.current.scene.globe.depthTestAgainstTerrain = false;
+        }
+
+        // Request render to update the scene
+        viewerRef.current.scene.requestRender();
+      }
+
+      setShowTerrain(checked);
+    } catch (err) {
+      console.error("[CesiumPreviewDialog] Error toggling terrain:", err);
     }
   };
 
@@ -169,6 +261,8 @@ const CesiumPreviewDialog: React.FC<CesiumPreviewDialogProps> = ({
       setTilesetReady(false);
       setUploading(false);
       setCapturing(false);
+      setShowTerrain(true);
+      originalTerrainProviderRef.current = null;
 
       // Wait longer if capture or upload was in progress to ensure async operations complete
       const delay = wasCapturing || wasUploading ? 1000 : 100;
@@ -443,6 +537,55 @@ const CesiumPreviewDialog: React.FC<CesiumPreviewDialogProps> = ({
             Rotate the model to your desired angle, then click &quot;Capture
             Screenshot&quot;
           </Typography>
+
+          {/* Terrain Toggle Switch */}
+          <Box
+            sx={(theme) => ({
+              backgroundColor:
+                theme.palette.mode === "dark"
+                  ? "#14171A"
+                  : "rgba(255, 255, 255, 0.92)",
+              borderRadius: "4px",
+              border:
+                theme.palette.mode === "dark"
+                  ? "1px solid rgba(255, 255, 255, 0.05)"
+                  : "1px solid rgba(226, 232, 240, 0.8)",
+              mb: 2,
+            })}
+          >
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showTerrain}
+                  onChange={(e) => handleTerrainToggle(e.target.checked)}
+                  disabled={loading || !!error || !viewerRef.current}
+                  sx={(theme) => ({
+                    "& .MuiSwitch-switchBase.Mui-checked": {
+                      color: theme.palette.primary.main,
+                    },
+                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                      backgroundColor: theme.palette.primary.main,
+                    },
+                  })}
+                />
+              }
+              label="Show Terrain"
+              sx={(theme) => ({
+                margin: 0,
+                padding: "8.5px 14px",
+                width: "100%",
+                display: "flex",
+                justifyContent: "space-between",
+                "& .MuiFormControlLabel-label": {
+                  fontSize: "0.75rem",
+                  fontWeight: 400,
+                  color: theme.palette.text.secondary,
+                  flex: 1,
+                },
+              })}
+              labelPlacement="start"
+            />
+          </Box>
 
           <Box
             ref={containerRef}
