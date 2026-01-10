@@ -211,4 +211,10 @@ export interface SceneState {
       drillPickCount?: number;
     } | null
   ) => void;
+  selectingPosition: boolean;
+  onPositionSelected: ((position: [number, number, number]) => void) | null;
+  setSelectingPosition: (selecting: boolean) => void;
+  setOnPositionSelected: (
+    callback: ((position: [number, number, number]) => void) | null
+  ) => void;
 }

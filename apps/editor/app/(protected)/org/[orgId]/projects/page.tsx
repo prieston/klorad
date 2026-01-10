@@ -51,6 +51,7 @@ const ProjectsPage = () => {
     saving,
     setTitle,
     setDescription,
+    setEngine,
     handleCreateProject,
     handleEditProject,
     handleCloseDrawer,
@@ -333,6 +334,7 @@ const ProjectsPage = () => {
         onClose={handleCloseDrawer}
         onTitleChange={setTitle}
         onDescriptionChange={setDescription}
+        onEngineChange={setEngine}
         onSave={handleSaveProject}
       />
     </>

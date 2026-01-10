@@ -82,6 +82,7 @@ export function createObservationActions(set: any) {
         const nextPoint = state.observationPoints[newIndex];
 
         return {
+          previewMode: true, // Enable preview mode to trigger camera animation
           previewIndex: newIndex,
           selectedObservation: nextPoint || state.selectedObservation,
         };
@@ -100,6 +101,7 @@ export function createObservationActions(set: any) {
         const prevPoint = state.observationPoints[newIndex];
 
         return {
+          previewMode: true, // Enable preview mode to trigger camera animation
           previewIndex: newIndex,
           selectedObservation: prevPoint || state.selectedObservation,
         };

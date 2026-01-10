@@ -23,13 +23,14 @@ export const useProjectForm = ({ projects, setProjects: _setProjects }: UseProje
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [engine] = useState("cesium");
+  const [engine, setEngine] = useState<"cesium" | "three">("cesium");
   const [saving, setSaving] = useState(false);
 
   const handleCreateProject = useCallback(() => {
     setEditingProjectId(null);
     setTitle("");
     setDescription("");
+    setEngine("cesium");
     setDrawerOpen(true);
   }, []);
 
@@ -40,6 +41,7 @@ export const useProjectForm = ({ projects, setProjects: _setProjects }: UseProje
         setEditingProjectId(projectId);
         setTitle(project.title || "");
         setDescription(project.description || "");
+        setEngine((project.engine as "cesium" | "three") || "cesium");
         setDrawerOpen(true);
       }
     },
@@ -51,6 +53,7 @@ export const useProjectForm = ({ projects, setProjects: _setProjects }: UseProje
     setEditingProjectId(null);
     setTitle("");
     setDescription("");
+    setEngine("cesium");
   }, []);
 
   const handleSaveProject = useCallback(async () => {
@@ -106,6 +109,7 @@ export const useProjectForm = ({ projects, setProjects: _setProjects }: UseProje
     saving,
     setTitle,
     setDescription,
+    setEngine,
     handleCreateProject,
     handleEditProject,
     handleCloseDrawer,

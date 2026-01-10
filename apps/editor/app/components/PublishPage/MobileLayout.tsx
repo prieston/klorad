@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import {
   IconButton,
   Drawer,
@@ -9,7 +10,9 @@ import {
   Typography,
   Toolbar,
   useTheme,
+  Button,
 } from "@mui/material";
+import { ViewInAr } from "@mui/icons-material";
 import {
   MobileAppBar,
   MobileSceneContainer,
@@ -50,6 +53,8 @@ interface MobileLayoutProps {
   prevObservation: () => void;
   drawerOpen: boolean;
   setDrawerOpen: (value: boolean) => void;
+  projectId: string;
+  engine: "three" | "cesium";
 }
 
 const MobileLayout: React.FC<MobileLayoutProps> = ({
@@ -63,8 +68,15 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
   prevObservation,
   drawerOpen,
   setDrawerOpen,
+  projectId,
+  engine,
 }) => {
   const theme = useTheme();
+  const router = useRouter();
+
+  const handleEnterVR = () => {
+    router.push(`/publish/${projectId}/xr`);
+  };
   const sceneContainerHeight = `calc(100vh - ${
     TOP_APPBAR_HEIGHT + BOTTOM_BAR_HEIGHT
   }px)`;
@@ -147,6 +159,24 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
               }
               label={previewMode ? "Preview Mode" : "Free Navigation"}
             />
+            {engine === "three" && (
+              <div style={{ marginTop: 16 }}>
+                <Button
+                  variant="contained"
+                  onClick={handleEnterVR}
+                  fullWidth
+                  startIcon={<ViewInAr />}
+                  sx={{
+                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #5568d3 0%, #6a4190 100%)",
+                    },
+                  }}
+                >
+                  Enter VR Mode
+                </Button>
+              </div>
+            )}
           </div>
         </MobileDetailsContainer>
       </Drawer>

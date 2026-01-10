@@ -34,9 +34,7 @@ export const getLeftPanelConfig = (
         gridEnabled,
         setGridEnabled,
         skyboxType,
-        setSkyboxType,
-        ambientLightIntensity,
-        setAmbientLightIntensity
+        setSkyboxType
       );
     case "cesium":
       return createCesiumLeftPanelConfig(
@@ -54,9 +52,7 @@ export const getLeftPanelConfig = (
         gridEnabled,
         setGridEnabled,
         skyboxType,
-        setSkyboxType,
-        ambientLightIntensity,
-        setAmbientLightIntensity
+        setSkyboxType
       ); // Default to ThreeJS
   }
 };

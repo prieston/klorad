@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useSceneStore, useWorldStore } from "@klorad/core";
 import ModelPositioningOverlay from "./ModelPositioningOverlay";
-import * as THREE from "three";
 import { setupCesiumClickSelector } from "@klorad/engine-cesium";
 
 interface PendingModel {
@@ -34,62 +33,33 @@ const ModelPositioningManager: React.FC<ModelPositioningManagerProps> = ({
   onCancel,
 }) => {
   const { engine } = useWorldStore();
-  // Combine store subscriptions to reduce from 4 to 1
-  const sceneState = useSceneStore((s) => ({
-    viewMode: s.viewMode,
-    cesiumViewer: s.cesiumViewer,
-    orbitControlsRef: s.orbitControlsRef,
-    scene: s.scene,
-  }));
+  const setSelectingPosition = useSceneStore((s) => s.setSelectingPosition);
+  const setOnPositionSelected = useSceneStore((s) => s.setOnPositionSelected);
+  // Use individual selectors to avoid object reference issues
+  const viewMode = useSceneStore((s) => s.viewMode);
+  const cesiumViewer = useSceneStore((s) => s.cesiumViewer);
+
+  // Use ref to store the callback to avoid dependency issues
+  const onPositionSelectedRef = useRef(onPositionSelected);
+  useEffect(() => {
+    onPositionSelectedRef.current = onPositionSelected;
+  }, [onPositionSelected]);
 
   useEffect(() => {
-    if (!selectingPosition) return;
-    if (sceneState.viewMode === "firstPerson") return;
-
-    // THREE.JS BRANCH (DOM listener on renderer canvas)
+    // For Three.js, the ModelPositioningHandler inside Canvas will handle clicks
+    // We just need to set the store state
     if (engine === "three") {
-      const canvas: HTMLCanvasElement =
-        ((sceneState.scene as any)?.renderer
-          ?.domElement as HTMLCanvasElement) ||
-        (document.querySelector("canvas") as HTMLCanvasElement);
-
-      if (!canvas || !sceneState.orbitControlsRef || !sceneState.scene) return;
-
-      const handleClick = (event: MouseEvent) => {
-        const rect = (event.target as HTMLElement).getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        const mouse = new THREE.Vector2();
-        mouse.x = (x / rect.width) * 2 - 1;
-        mouse.y = -(y / rect.height) * 2 + 1;
-
-        const camera = (sceneState.scene as any).camera;
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, camera);
-
-        // Get all meshes in scene
-        const meshes: THREE.Object3D[] = [];
-        sceneState.scene.traverse((obj) => {
-          if ((obj as THREE.Mesh).isMesh) {
-            meshes.push(obj);
-          }
-        });
-
-        const intersects = raycaster.intersectObjects(meshes, false);
-        if (intersects.length > 0) {
-          const point = intersects[0].point;
-          onPositionSelected([point.x, point.y, point.z]);
-        }
-      };
-
-      canvas.addEventListener("click", handleClick);
-      return () => canvas.removeEventListener("click", handleClick);
+      setSelectingPosition(selectingPosition);
+      // Always update callback when selectingPosition changes
+      setOnPositionSelected(
+        selectingPosition ? onPositionSelectedRef.current : null
+      );
+      return;
     }
 
     // CESIUM BRANCH
-    if (engine === "cesium" && sceneState.cesiumViewer) {
+    if (engine === "cesium" && cesiumViewer) {
       const Cesium = (window as any).Cesium;
-      const { cesiumViewer } = sceneState;
       const { camera, scene } = cesiumViewer;
 
       const cleanup = setupCesiumClickSelector(
@@ -175,7 +145,7 @@ const ModelPositioningManager: React.FC<ModelPositioningManagerProps> = ({
               return;
             }
 
-            onPositionSelected([longitude, latitude, height]);
+            onPositionSelectedRef.current([longitude, latitude, height]);
           } catch (error) {
             console.error("Error converting position:", error);
           }
@@ -187,12 +157,11 @@ const ModelPositioningManager: React.FC<ModelPositioningManagerProps> = ({
     }
   }, [
     selectingPosition,
-    sceneState.viewMode,
+    viewMode,
     engine,
-    sceneState.cesiumViewer,
-    sceneState.orbitControlsRef,
-    sceneState.scene,
-    onPositionSelected,
+    cesiumViewer,
+    setSelectingPosition,
+    setOnPositionSelected,
   ]);
 
   // Show overlay when either placing a new model or repositioning an existing one

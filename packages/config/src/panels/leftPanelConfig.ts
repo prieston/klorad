@@ -5,9 +5,7 @@ export const createThreeJSLeftPanelConfig = (
   gridEnabled: boolean,
   setGridEnabled: (enabled: boolean) => void,
   skyboxType: "default" | "none",
-  setSkyboxType: (type: "default" | "none") => void,
-  ambientLightIntensity: number,
-  setAmbientLightIntensity: (intensity: number) => void
+  setSkyboxType: (type: "default" | "none") => void
 ): PanelConfiguration => {
   return {
     id: "left-panel",
@@ -50,24 +48,6 @@ export const createThreeJSLeftPanelConfig = (
               { value: "none", label: "No Sky" },
             ],
             onChange: (value: "default" | "none") => setSkyboxType(value),
-          },
-          {
-            id: "ambient-light",
-            type: "slider",
-            label: "Ambient Light",
-            description: "Adjust the intensity of ambient lighting",
-            defaultValue: ambientLightIntensity,
-            min: 0,
-            max: 1,
-            step: 0.1,
-            marks: true,
-            onChange: (value: number) => setAmbientLightIntensity(value),
-          },
-          {
-            id: "location-search",
-            type: "custom",
-            label: "Location & Tiles",
-            customComponent: "ThreeJSLocationSearchSection",
           },
         ],
       },
