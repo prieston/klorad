@@ -47,6 +47,8 @@ const useSceneStore = create<SceneState>((set, get) => ({
   },
   isCalculatingVisibility: false,
   lastVisibilityCalculation: null,
+  selectingPosition: false,
+  onPositionSelected: null,
 
   // Simple setters
   setGridEnabled: (enabled) => set({ gridEnabled: enabled }),
@@ -65,6 +67,22 @@ const useSceneStore = create<SceneState>((set, get) => ({
   setScene: (scene) => set({ scene }),
   setSelectedAssetId: (assetId) => set({ selectedAssetId: assetId }),
   setSelectedLocation: (location) => set({ selectedLocation: location }),
+  setSelectingPosition: (selecting) =>
+    set((state) => {
+      // Only update if value actually changed
+      if (state.selectingPosition === selecting) return state;
+      return { selectingPosition: selecting };
+    }),
+  setOnPositionSelected: (callback) =>
+    set((state) => {
+      // Don't compare function references - just update if callback is provided/changed
+      // Compare by checking if both are null/undefined or both are functions
+      const currentIsNull = !state.onPositionSelected;
+      const newIsNull = !callback;
+      if (currentIsNull && newIsNull) return state;
+      // Always update if one is null and the other isn't, or if both are functions
+      return { onPositionSelected: callback };
+    }),
   startVisibilityCalculation: (objectId) =>
     set({
       isCalculatingVisibility: true,

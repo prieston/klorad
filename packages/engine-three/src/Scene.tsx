@@ -13,9 +13,10 @@ import SceneObservationPoints from "./components/Scene/SceneObservationPoints";
 import SceneTransformControls from "./components/Scene/SceneTransformControls";
 import CameraPOVCaptureHandler from "./components/Scene/CameraPOVCaptureHandler";
 import ObservationPointHandler from "./components/Scene/ObservationPointHandler";
+import ModelPositioningHandler from "./components/Scene/ModelPositioningHandler";
 import SceneControls from "./components/Scene/controls/SceneControls";
 import Loader from "./components/Scene/Loader";
-import { CesiumIonTiles } from "./components";
+import { CesiumIonTiles, CameraSpringController } from "./components";
 
 // Create a component to handle deselection
 const DeselectionHandler = () => {
@@ -154,6 +155,7 @@ export default function Scene({
       >
         <Suspense fallback={null}>
           <DeselectionHandler />
+          <ModelPositioningHandler />
           {canRenderTiles && (
             <CesiumIonTiles
               apiKey={"" as any}
@@ -206,6 +208,7 @@ export default function Scene({
 
           <SceneControls />
 
+          <CameraSpringController />
           <CameraPOVCaptureHandler />
           <ObservationPointHandler />
         </Suspense>

@@ -32,6 +32,14 @@ export type {
 } from "./Environment/BasemapSelector";
 // LocationSearch
 export { default as LocationSearch } from "./LocationSearch/LocationSearch";
+// ImageryBasemapSelector
+export {
+  ImageryBasemapSelector,
+} from "./ImageryBasemapSelector";
+export type {
+  ImageryAsset,
+  ImageryBasemapSelectorProps,
+} from "./ImageryBasemapSelector";
 // BuilderActions
 export * from "./BuilderActions";
 // PageLayout

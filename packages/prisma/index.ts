@@ -21,8 +21,12 @@ const prismaClient =
   });
 
 // Extend with Accelerate if Accelerate URL is detected, otherwise use direct connection
-export const prisma = isAccelerateUrl(databaseUrl)
+const prismaExtended = isAccelerateUrl(databaseUrl)
   ? prismaClient.$extends(withAccelerate())
   : prismaClient;
+
+// Export as any to avoid TypeScript union type issues with Accelerate extension
+// The runtime behavior is correct, but TypeScript can't resolve the union type
+export const prisma = prismaExtended as any as PrismaClient;
 
 globalForPrisma.prisma = prismaClient;

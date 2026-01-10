@@ -79,8 +79,10 @@ const LocationSearch: React.FC<LocationSearchProps> = ({
       }
 
       setLocations(
-        data.map((result: any) => ({
-          id: `${result.lat}-${result.lon}`,
+        data.map((result: any, index: number) => ({
+          id: result.place_id
+            ? `place-${result.place_id}`
+            : `location-${result.lat}-${result.lon}-${index}`,
           name: result.display_name,
           latitude: parseFloat(result.lat),
           longitude: parseFloat(result.lon),

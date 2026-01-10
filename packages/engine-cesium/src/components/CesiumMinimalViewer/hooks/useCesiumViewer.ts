@@ -69,11 +69,24 @@ export function useCesiumViewer({
 
         viewerRef.current = viewer;
 
+        // Remove any default imagery layers as a safety net
+        // (imageryProvider: false in viewer options should prevent this, but we ensure it's removed)
+        try {
+          if (viewer.imageryLayers && viewer.imageryLayers.length > 0) {
+            viewer.imageryLayers.removeAll();
+          }
+        } catch (imageryErr) {
+          // Silently ignore - this is non-critical
+        }
+
         // Configure scene defaults (wrap in try-catch to prevent errors from breaking initialization)
         try {
           configureScene(viewer, Cesium as any, { enableAtmosphere });
         } catch (configErr) {
-          console.warn("[useCesiumViewer] Scene configuration error (non-critical):", configErr);
+          console.warn(
+            "[useCesiumViewer] Scene configuration error (non-critical):",
+            configErr
+          );
           // Continue with initialization even if scene config fails
         }
 
@@ -142,4 +155,3 @@ export function useCesiumViewer({
     error,
   };
 }
-

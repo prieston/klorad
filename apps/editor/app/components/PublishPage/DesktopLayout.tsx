@@ -2,7 +2,9 @@
 
 import React from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { Button, FormControlLabel, Switch, Typography, Box } from "@mui/material";
+import { ViewInAr } from "@mui/icons-material";
 import { LeftPanelContainer } from "@klorad/ui";
 import {
   DesktopContainer,
@@ -42,6 +44,8 @@ interface DesktopLayoutProps {
   observationPoints: Observation[];
   nextObservation: () => void;
   prevObservation: () => void;
+  projectId: string;
+  engine: "three" | "cesium";
 }
 
 const DesktopLayout: React.FC<DesktopLayoutProps> = ({
@@ -53,7 +57,14 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = ({
   observationPoints,
   nextObservation,
   prevObservation,
+  projectId,
+  engine,
 }) => {
+  const router = useRouter();
+
+  const handleEnterVR = () => {
+    router.push(`/publish/${projectId}/xr`);
+  };
   return (
     <DesktopContainer>
       <DesktopSceneContainer>
@@ -82,16 +93,40 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = ({
           </SidebarHeader>
 
           <SidebarHeader>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={previewMode}
-                  onChange={(e) => setPreviewMode(e.target.checked)}
-                  color="primary"
-                />
-              }
-              label={previewMode ? "Preview Mode" : "Free Navigation"}
-            />
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={previewMode}
+                    onChange={(e) => setPreviewMode(e.target.checked)}
+                    color="primary"
+                  />
+                }
+                label={previewMode ? "Preview Mode" : "Free Navigation"}
+              />
+              {engine === "three" && (
+                <Button
+                  variant="contained"
+                  onClick={handleEnterVR}
+                  fullWidth
+                  startIcon={<ViewInAr />}
+                  sx={{
+                    background: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                        : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    "&:hover": {
+                      background: (theme) =>
+                        theme.palette.mode === "dark"
+                          ? "linear-gradient(135deg, #5568d3 0%, #6a4190 100%)"
+                          : "linear-gradient(135deg, #5568d3 0%, #6a4190 100%)",
+                    },
+                  }}
+                >
+                  Enter VR Mode
+                </Button>
+              )}
+            </Box>
           </SidebarHeader>
 
           <ButtonGroupContainer>

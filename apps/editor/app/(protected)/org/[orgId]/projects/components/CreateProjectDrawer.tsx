@@ -9,6 +9,10 @@ import {
   TextField,
   IconButton,
   Divider,
+  RadioGroup,
+  Radio,
+  FormControl,
+  FormControlLabel,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { CloseIcon } from "@klorad/ui";
@@ -28,6 +32,7 @@ interface CreateProjectDrawerProps {
   onClose: () => void;
   onTitleChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
+  onEngineChange: (value: "cesium" | "three") => void;
   onSave: () => void;
 }
 
@@ -36,11 +41,12 @@ export const CreateProjectDrawer: React.FC<CreateProjectDrawerProps> = ({
   editingProjectId,
   title,
   description,
-  engine: _engine,
+  engine,
   saving,
   onClose,
   onTitleChange,
   onDescriptionChange,
+  onEngineChange,
   onSave,
 }) => {
   return (
@@ -145,6 +151,80 @@ export const CreateProjectDrawer: React.FC<CreateProjectDrawerProps> = ({
               sx={textFieldStyles}
             />
           </SettingContainer>
+
+          {!editingProjectId && (
+            <SettingContainer sx={{ borderBottom: "none", padding: 0 }}>
+              <SettingLabel>World Type</SettingLabel>
+              <FormControl component="fieldset" fullWidth>
+                <RadioGroup
+                  value={engine === "cesium" ? "geospatial" : "independent"}
+                  onChange={(e) =>
+                    onEngineChange(e.target.value === "geospatial" ? "cesium" : "three")
+                  }
+                  sx={{ gap: 1.5 }}
+                >
+                  <FormControlLabel
+                    value="geospatial"
+                    control={
+                      <Radio
+                        sx={{
+                          color: "text.secondary",
+                          "&.Mui-checked": {
+                            color: "primary.main",
+                          },
+                        }}
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          Geospatial Virtual World
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: "text.secondary", display: "block", mt: 0.5 }}
+                        >
+                          A world anchored to real Earth locations, scale, and orientation.
+                          Best for representing places, landscapes, cities, and large-scale
+                          environments.
+                        </Typography>
+                      </Box>
+                    }
+                    sx={{ marginLeft: 0, alignItems: "flex-start" }}
+                  />
+                  <FormControlLabel
+                    value="independent"
+                    control={
+                      <Radio
+                        sx={{
+                          color: "text.secondary",
+                          "&.Mui-checked": {
+                            color: "primary.main",
+                          },
+                        }}
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          Independent Virtual World
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: "text.secondary", display: "block", mt: 0.5 }}
+                        >
+                          A self-contained virtual space with no real-world location
+                          constraints. Best for rooms, buildings, objects, and fully designed
+                          environments.
+                        </Typography>
+                      </Box>
+                    }
+                    sx={{ marginLeft: 0, alignItems: "flex-start" }}
+                  />
+                </RadioGroup>
+              </FormControl>
+            </SettingContainer>
+          )}
 
           {/* Actions */}
           <Box sx={{ display: "flex", gap: 2, mt: 2 }}>

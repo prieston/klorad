@@ -8,9 +8,15 @@ import {
   Typography,
   IconButton,
   Divider,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import { CloseIcon, LocationSearch } from "@klorad/ui";
+import { CloseIcon, LocationSearch, ImageryBasemapSelector } from "@klorad/ui";
+import { OpenWith as OpenWithIcon, RotateRight as RotateRightIcon } from "@mui/icons-material";
+import { useOrgId } from "@/app/hooks/useOrgId";
+import useModels from "@/app/hooks/useModels";
+import type { Asset } from "@/app/utils/api";
 import {
   extractLocationFromTransform,
   extractHPRFromTransform,
@@ -29,6 +35,7 @@ import { ManualAdjustmentsForm } from "./AdjustTilesetLocationDialog/components/
 import { CurrentLocationDisplay } from "./AdjustTilesetLocationDialog/components/CurrentLocationDisplay";
 import { CesiumViewerContainer } from "./AdjustTilesetLocationDialog/components/CesiumViewerContainer";
 import { PositionConfirmationDialog } from "./AdjustTilesetLocationDialog/components/PositionConfirmationDialog";
+import { TilesetGizmo } from "./AdjustTilesetLocationDialog/components/TilesetGizmo";
 
 interface AdjustTilesetLocationDialogProps {
   open: boolean;
@@ -66,6 +73,27 @@ const AdjustTilesetLocationDialog: React.FC<
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetch imagery assets
+  const orgId = useOrgId();
+  const { models, loadingModels } = useModels({
+    assetType: "cesiumIonAsset",
+    orgId: orgId || undefined,
+  });
+
+  // Filter for IMAGERY assets
+  const imageryAssets = models.filter(
+    (asset: Asset) =>
+      asset.fileType === "IMAGERY" && asset.cesiumAssetId && asset.cesiumApiKey
+  );
+  const [gizmoMode, setGizmoMode] = useState<"translate" | "rotate">("translate");
+  const [gizmoEnabled, setGizmoEnabled] = useState(false);
+  const [selectedImageryAssetId, setSelectedImageryAssetId] = useState<string | null>(null);
+  const currentImageryProviderRef = useRef<any>(null);
+  const dropdownInitializedRef = useRef(false);
+  const isApplyingManualChangesRef = useRef(false);
+  const previousLocationRef = useRef<typeof locationState.currentLocation>(null);
+  const previousTransformRef = useRef<typeof locationState.currentTransform>(undefined);
+
   // Location state management
   const locationState = useTilesetLocationState(initialTransform);
 
@@ -86,17 +114,74 @@ const AdjustTilesetLocationDialog: React.FC<
     cesiumRef,
     viewerRef,
     onTransformApplied: (transform, location) => {
+      isApplyingManualChangesRef.current = true;
       locationState.setCurrentTransform(transform);
       locationState.setCurrentLocation(location);
       locationState.setLastConfirmedTransform(transform);
       georeferencingDetection.setIsGeoreferencedByDefault(false);
+      // Reset flag after state updates
+      setTimeout(() => {
+        isApplyingManualChangesRef.current = false;
+      }, 0);
     },
     onError: setError,
   });
 
+  // Handle gizmo transform changes
+  const handleGizmoTransformChange = useCallback(
+    (transform: number[], location: { longitude: number; latitude: number; height: number }) => {
+      isApplyingManualChangesRef.current = true;
+      locationState.setCurrentTransform(transform);
+      locationState.setCurrentLocation(location);
+      locationState.setLastConfirmedTransform(transform);
+      georeferencingDetection.setIsGeoreferencedByDefault(false);
+
+      // Update manual inputs to reflect gizmo changes
+      const updateManualInputs = async () => {
+        try {
+          const Cesium = await import("cesium");
+          const hpr = extractHPRFromTransform(Cesium, transform);
+          manualInputs.setValues(location, hpr);
+        } catch (err) {
+          console.error("Failed to update manual inputs from gizmo:", err);
+        }
+      };
+      updateManualInputs();
+
+      // Reset flag after state updates
+      setTimeout(() => {
+        isApplyingManualChangesRef.current = false;
+      }, 0);
+    },
+    [locationState, georeferencingDetection, manualInputs]
+  );
+
   // Initialize manual inputs when location is detected
   useEffect(() => {
+    // Skip if we're currently applying manual changes to avoid overwriting user input
+    if (isApplyingManualChangesRef.current) {
+      return;
+    }
+
+    const isInitialLoad = previousLocationRef.current === null && locationState.currentLocation !== null;
+
+    // Check if location or transform actually changed by comparing values
+    const locationChanged =
+      locationState.currentLocation !== previousLocationRef.current ||
+      (locationState.currentLocation && previousLocationRef.current &&
+        (locationState.currentLocation.longitude !== previousLocationRef.current.longitude ||
+         locationState.currentLocation.latitude !== previousLocationRef.current.latitude ||
+         locationState.currentLocation.height !== previousLocationRef.current.height)) ||
+      locationState.currentTransform !== previousTransformRef.current ||
+      (locationState.currentTransform && previousTransformRef.current &&
+        JSON.stringify(locationState.currentTransform) !== JSON.stringify(previousTransformRef.current));
+
+    if (!locationChanged && !isInitialLoad) {
+      return;
+    }
+
     if (
+      isInitialLoad &&
       locationState.currentLocation &&
       initialTransform &&
       initialTransform.length === 16
@@ -111,10 +196,29 @@ const AdjustTilesetLocationDialog: React.FC<
         }
       };
       initializeManualInputs();
+    } else if (locationState.currentLocation && locationState.currentTransform) {
+      // Extract HPR from current transform to preserve rotation values
+      const updateManualInputs = async () => {
+        try {
+          const Cesium = await import("cesium");
+          const hpr = extractHPRFromTransform(Cesium, locationState.currentTransform!);
+          manualInputs.setValues(locationState.currentLocation!, hpr);
+        } catch (err) {
+          console.error("Failed to update manual inputs:", err);
+          // Fallback: preserve current rotation values by reading them from state
+          manualInputs.setValues(locationState.currentLocation!);
+        }
+      };
+      updateManualInputs();
     } else if (locationState.currentLocation) {
+      // Only reset rotation if there's no transform (initial state)
       manualInputs.setValues(locationState.currentLocation);
     }
-  }, [locationState.currentLocation, initialTransform, manualInputs]);
+
+    // Update refs after processing
+    previousLocationRef.current = locationState.currentLocation;
+    previousTransformRef.current = locationState.currentTransform;
+  }, [locationState.currentLocation, locationState.currentTransform, initialTransform]);
 
   // Click mode
   const clickMode = useClickMode({
@@ -147,12 +251,123 @@ const AdjustTilesetLocationDialog: React.FC<
     onReset: handleDialogReset,
   });
 
+  // Cleanup imagery provider when dialog closes
+  useEffect(() => {
+    return () => {
+      if (viewerRef.current?.imageryLayers && currentImageryProviderRef.current) {
+        try {
+          viewerRef.current.imageryLayers.removeAll();
+          currentImageryProviderRef.current = null;
+        } catch (error) {
+          // Ignore errors during cleanup
+        }
+      }
+    };
+  }, []);
+
   // Cursor style
   useCursorStyle(viewerRef, clickMode.clickModeEnabled, open);
 
+  // Detect loaded imagery
+  const detectLoadedImagery = useCallback(async (): Promise<string | null> => {
+    if (!viewerRef.current || !imageryAssets.length) {
+      return null;
+    }
+
+    try {
+      const Cesium = await import("cesium");
+      const imageryLayers = viewerRef.current.imageryLayers;
+
+      // Check each imagery layer
+      for (let i = 0; i < imageryLayers.length; i++) {
+        const layer = imageryLayers.get(i);
+        if (layer?.imageryProvider) {
+          const provider = layer.imageryProvider;
+
+          // Check if it's an IonImageryProvider
+          if (provider instanceof Cesium.IonImageryProvider) {
+            const assetId = (provider as any).assetId;
+            if (assetId) {
+              // Find matching asset in imageryAssets
+              const matchingAsset = imageryAssets.find(
+                (asset: Asset) =>
+                  String(asset.cesiumAssetId) === String(assetId)
+              );
+              if (matchingAsset) {
+                return matchingAsset.id;
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error(
+        "[AdjustTilesetLocationDialog] Error detecting loaded imagery:",
+        err
+      );
+    }
+
+    return null;
+  }, [imageryAssets]);
+
+  // Sync imagery selector with loaded imagery
+  useEffect(() => {
+    if (!open || !viewerRef.current || loading) {
+      return;
+    }
+
+    // Only initialize dropdown once per dialog session
+    if (dropdownInitializedRef.current) {
+      return;
+    }
+
+    // Small delay to ensure viewer is fully initialized
+    const timeoutId = setTimeout(() => {
+      // Detect what imagery is currently loaded
+      detectLoadedImagery().then((detectedId) => {
+        if (detectedId) {
+          setSelectedImageryAssetId(detectedId);
+          // Store the current provider ref
+          if (viewerRef.current?.imageryLayers?.length > 0) {
+            const layer = viewerRef.current.imageryLayers.get(0);
+            if (layer?.imageryProvider) {
+              currentImageryProviderRef.current = layer.imageryProvider;
+            }
+          }
+        } else {
+          // No matching imagery asset detected - remove any default imagery
+          if (viewerRef.current?.imageryLayers?.length > 0) {
+            viewerRef.current.imageryLayers.removeAll();
+          }
+          setSelectedImageryAssetId(null);
+        }
+        dropdownInitializedRef.current = true;
+      });
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [open, viewerRef, loading, detectLoadedImagery]);
+
+  // Reset dropdown initialization flag when dialog closes
+  useEffect(() => {
+    if (!open) {
+      dropdownInitializedRef.current = false;
+    }
+  }, [open]);
+
   // Viewer ready handler
-  const handleViewerReady = useCallback((viewer: any) => {
+  const handleViewerReady = useCallback(async (viewer: any) => {
     viewerRef.current = viewer;
+
+    // Ensure no default imagery is loaded
+    try {
+      if (viewer.imageryLayers && viewer.imageryLayers.length > 0) {
+        viewer.imageryLayers.removeAll();
+      }
+    } catch (err) {
+      // Ignore errors
+    }
+
     setLoading(false);
   }, []);
 
@@ -207,6 +422,108 @@ const AdjustTilesetLocationDialog: React.FC<
       }
     }
   }, []);
+
+  // Imagery change handler (similar to useImageryControl)
+  const handleImageryChange = useCallback(
+    async (assetId: string | null) => {
+      if (!viewerRef.current || !viewerRef.current.scene) {
+        return;
+      }
+
+      try {
+        const Cesium = await import("cesium");
+
+        // Remove all existing imagery layers (including default Cesium World Imagery)
+        viewerRef.current.imageryLayers.removeAll();
+
+        // If no asset selected, remove all imagery layers
+        if (!assetId) {
+          setSelectedImageryAssetId(null);
+          currentImageryProviderRef.current = null;
+          viewerRef.current.scene.requestRender();
+          return;
+        }
+
+        // Find the selected asset
+        const selectedAsset = imageryAssets.find(
+          (asset: Asset) => asset.id === assetId
+        );
+
+        if (
+          !selectedAsset ||
+          !selectedAsset.cesiumAssetId ||
+          !selectedAsset.cesiumApiKey
+        ) {
+          console.error(
+            "[AdjustTilesetLocationDialog] Selected asset not found or missing required fields"
+          );
+          return;
+        }
+
+        // Set API key before loading
+        const originalToken = Cesium.Ion.defaultAccessToken;
+        if (selectedAsset.cesiumApiKey) {
+          Cesium.Ion.defaultAccessToken = selectedAsset.cesiumApiKey;
+        }
+
+        try {
+          let imageryProvider;
+
+          // Use fromAssetId if available (async method)
+          if (
+            Cesium.IonImageryProvider &&
+            typeof (Cesium.IonImageryProvider as any).fromAssetId === "function"
+          ) {
+            imageryProvider = await (
+              Cesium.IonImageryProvider as any
+            ).fromAssetId(parseInt(selectedAsset.cesiumAssetId));
+          } else {
+            // Fallback: use constructor
+            imageryProvider = new Cesium.IonImageryProvider({
+              assetId: parseInt(selectedAsset.cesiumAssetId),
+            } as any);
+
+            // Wait for readyPromise if it exists
+            if ((imageryProvider as any).readyPromise) {
+              await (imageryProvider as any).readyPromise;
+            } else {
+              // Fallback: poll for tilingScheme
+              let attempts = 0;
+              while (!imageryProvider.tilingScheme && attempts < 50) {
+                await new Promise((resolve) => setTimeout(resolve, 100));
+                attempts++;
+              }
+            }
+          }
+
+          // Verify tilingScheme is available
+          if (!imageryProvider.tilingScheme) {
+            throw new Error(
+              "Imagery provider tilingScheme not initialized after waiting"
+            );
+          }
+
+          // Add provider to viewer
+          viewerRef.current.imageryLayers.addImageryProvider(imageryProvider);
+          currentImageryProviderRef.current = imageryProvider;
+
+          // Request render
+          viewerRef.current.scene.requestRender();
+
+          setSelectedImageryAssetId(assetId);
+        } finally {
+          // Restore original token
+          Cesium.Ion.defaultAccessToken = originalToken;
+        }
+      } catch (err) {
+        console.error("[AdjustTilesetLocationDialog] Error changing imagery:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to change basemap"
+        );
+      }
+    },
+    [imageryAssets]
+  );
 
   // Location select handler (for LocationSearch)
   const handleLocationSelect = useCallback(
@@ -419,11 +736,103 @@ const AdjustTilesetLocationDialog: React.FC<
               onToggle={clickMode.toggleClickMode}
             />
 
+            {/* Gizmo Controls */}
+            {!georeferencingDetection.isGeoreferencedByDefault && (
+              <Box
+                sx={{
+                  p: 2,
+                  backgroundColor: "rgba(255, 255, 255, 0.03)",
+                  borderRadius: "4px",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: "0.813rem",
+                    fontWeight: 600,
+                    mb: 1.5,
+                  }}
+                >
+                  Transform Gizmo
+                </Typography>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                  <Button
+                    variant={gizmoEnabled ? "contained" : "outlined"}
+                    onClick={() => setGizmoEnabled(!gizmoEnabled)}
+                    fullWidth
+                    size="small"
+                    sx={{
+                      textTransform: "none",
+                      fontSize: "0.75rem",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {gizmoEnabled ? "Disable Gizmo" : "Enable Gizmo"}
+                  </Button>
+                  {gizmoEnabled && (
+                    <ToggleButtonGroup
+                      value={gizmoMode}
+                      exclusive
+                      onChange={(_, newMode) => {
+                        if (newMode !== null) {
+                          setGizmoMode(newMode);
+                        }
+                      }}
+                      fullWidth
+                      size="small"
+                      sx={{
+                        "& .MuiToggleButton-root": {
+                          textTransform: "none",
+                          fontSize: "0.75rem",
+                          px: 1,
+                        },
+                      }}
+                    >
+                      <ToggleButton value="translate">
+                        <OpenWithIcon sx={{ fontSize: "1rem", mr: 0.5 }} />
+                        Move
+                      </ToggleButton>
+                      <ToggleButton value="rotate">
+                        <RotateRightIcon sx={{ fontSize: "1rem", mr: 0.5 }} />
+                        Rotate
+                      </ToggleButton>
+                    </ToggleButtonGroup>
+                  )}
+                </Box>
+              </Box>
+            )}
+
             {!georeferencingDetection.isGeoreferencedByDefault && (
               <Box>
                 <LocationSearch
                   onAssetSelect={handleLocationSelect}
                   boxPadding={1}
+                />
+              </Box>
+            )}
+
+            {/* Basemap Selector */}
+            {viewerRef.current && !loading && !error && (
+              <Box sx={{ mb: 0 }}>
+                <ImageryBasemapSelector
+                  assets={imageryAssets.map((asset: Asset) => ({
+                    id: asset.id,
+                    cesiumAssetId: asset.cesiumAssetId || "",
+                    cesiumApiKey: asset.cesiumApiKey || "",
+                    name: asset.name,
+                    originalFilename: asset.originalFilename,
+                  }))}
+                  loading={loadingModels}
+                  value={selectedImageryAssetId}
+                  onChange={handleImageryChange}
+                  disabled={
+                    loading ||
+                    !!error ||
+                    !viewerRef.current ||
+                    assetType === "IMAGERY"
+                  }
+                  label="Basemap"
+                  showNoneOption={true}
                 />
               </Box>
             )}
@@ -478,6 +887,27 @@ const AdjustTilesetLocationDialog: React.FC<
               onLocationClick={clickMode.handleLocationClick}
               onResetZoom={handleResetZoom}
             />
+
+            {/* Gizmo Component */}
+            {gizmoEnabled &&
+              viewerRef.current &&
+              tilesetRef.current &&
+              cesiumRef.current &&
+              locationState.currentLocation &&
+              locationState.currentTransform &&
+              !georeferencingDetection.isGeoreferencedByDefault &&
+              !clickMode.clickModeEnabled && (
+                <TilesetGizmo
+                  viewer={viewerRef.current}
+                  tileset={tilesetRef.current}
+                  Cesium={cesiumRef.current}
+                  currentTransform={locationState.currentTransform}
+                  currentLocation={locationState.currentLocation}
+                  onTransformChange={handleGizmoTransformChange}
+                  transformMode={gizmoMode}
+                  enabled={gizmoEnabled && !clickMode.clickModeEnabled}
+                />
+              )}
 
             {clickMode.showPositionConfirm && locationState.pendingLocation && (
               <PositionConfirmationDialog

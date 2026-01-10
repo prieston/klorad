@@ -21,6 +21,7 @@ const PublishedScenePage = () => {
   const [project, setProject] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const setActiveWorld = useWorldStore((s) => s.setActiveWorld);
+  const engine = useWorldStore((s) => s.engine);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -239,6 +240,8 @@ const PublishedScenePage = () => {
       prevObservation={prevObservation}
       drawerOpen={drawerOpen}
       setDrawerOpen={setDrawerOpen}
+      projectId={projectId as string}
+      engine={engine}
     />
   ) : (
     <DesktopLayout
@@ -250,6 +253,8 @@ const PublishedScenePage = () => {
       observationPoints={observationPoints}
       nextObservation={nextObservation}
       prevObservation={prevObservation}
+      projectId={projectId as string}
+      engine={engine}
     />
   );
 };
