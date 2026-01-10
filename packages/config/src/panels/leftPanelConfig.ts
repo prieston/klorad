@@ -4,6 +4,8 @@ import { PanelConfiguration } from "../types/panelConfig";
 export const createThreeJSLeftPanelConfig = (
   gridEnabled: boolean,
   setGridEnabled: (enabled: boolean) => void,
+  groundPlaneEnabled: boolean,
+  setGroundPlaneEnabled: (enabled: boolean) => void,
   skyboxType: "default" | "none",
   setSkyboxType: (type: "default" | "none") => void
 ): PanelConfiguration => {
@@ -36,6 +38,14 @@ export const createThreeJSLeftPanelConfig = (
             description: "Toggle the visibility of the grid helper",
             defaultValue: gridEnabled,
             onChange: (value: boolean) => setGridEnabled(value),
+          },
+          {
+            id: "ground-plane-enabled",
+            type: "switch",
+            label: "Ground at 0",
+            description: "Show a large ground plane at Y=0",
+            defaultValue: groundPlaneEnabled,
+            onChange: (value: boolean) => setGroundPlaneEnabled(value),
           },
           {
             id: "skybox-type",

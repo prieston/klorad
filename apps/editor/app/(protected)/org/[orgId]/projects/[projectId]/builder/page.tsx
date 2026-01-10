@@ -22,7 +22,11 @@ const sanitizeSceneData = (
   cesiumIonAssets,
   cesiumLightingEnabled,
   cesiumShadowsEnabled,
-  cesiumCurrentTime
+  cesiumCurrentTime,
+  gridEnabled,
+  groundPlaneEnabled,
+  skyboxType,
+  ambientLightIntensity
 ) => {
   // Ensure we have valid arrays to work with
   const safeObjects = Array.isArray(objects) ? objects : [];
@@ -232,6 +236,10 @@ const sanitizeSceneData = (
     cesiumLightingEnabled: cesiumLightingEnabled || false,
     cesiumShadowsEnabled: cesiumShadowsEnabled || false,
     cesiumCurrentTime: cesiumCurrentTime || null,
+    gridEnabled: gridEnabled !== undefined ? gridEnabled : true,
+    groundPlaneEnabled: groundPlaneEnabled !== undefined ? groundPlaneEnabled : false,
+    skyboxType: skyboxType || "default",
+    ambientLightIntensity: ambientLightIntensity !== undefined ? ambientLightIntensity : 0.5,
   };
 };
 
@@ -281,6 +289,10 @@ export default function BuilderPage() {
             cesiumLightingEnabled?: boolean;
             cesiumShadowsEnabled?: boolean;
             cesiumCurrentTime?: unknown;
+            gridEnabled?: boolean;
+            groundPlaneEnabled?: boolean;
+            skyboxType?: "default" | "none";
+            ambientLightIntensity?: number;
           };
           const {
             objects,
@@ -293,6 +305,10 @@ export default function BuilderPage() {
             cesiumLightingEnabled,
             cesiumShadowsEnabled,
             cesiumCurrentTime,
+            gridEnabled,
+            groundPlaneEnabled,
+            skyboxType,
+            ambientLightIntensity,
           } = sceneData;
 
           if (Array.isArray(objects)) {
@@ -458,6 +474,19 @@ export default function BuilderPage() {
               cesiumCurrentTime: String(cesiumCurrentTime),
             });
           }
+          // Restore environment settings
+          if (gridEnabled !== undefined) {
+            useSceneStore.setState({ gridEnabled });
+          }
+          if (groundPlaneEnabled !== undefined) {
+            useSceneStore.setState({ groundPlaneEnabled });
+          }
+          if (skyboxType !== undefined) {
+            useSceneStore.setState({ skyboxType });
+          }
+          if (ambientLightIntensity !== undefined) {
+            useSceneStore.setState({ ambientLightIntensity });
+          }
         }
       } catch (error) {
         console.error("Error initializing project:", error);
@@ -490,7 +519,11 @@ export default function BuilderPage() {
         storeState.cesiumIonAssets,
         storeState.cesiumLightingEnabled,
         storeState.cesiumShadowsEnabled,
-        storeState.cesiumCurrentTime
+        storeState.cesiumCurrentTime,
+        storeState.gridEnabled,
+        storeState.groundPlaneEnabled,
+        storeState.skyboxType,
+        storeState.ambientLightIntensity
       );
 
       await updateProjectScene(projectIdStr, sceneData);

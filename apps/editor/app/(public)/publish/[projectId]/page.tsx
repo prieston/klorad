@@ -89,6 +89,10 @@ const PublishedScenePage = () => {
         cesiumLightingEnabled?: boolean;
         cesiumShadowsEnabled?: boolean;
         cesiumCurrentTime?: unknown;
+        gridEnabled?: boolean;
+        groundPlaneEnabled?: boolean;
+        skyboxType?: "default" | "none";
+        ambientLightIntensity?: number;
       };
       const {
         objects,
@@ -100,6 +104,10 @@ const PublishedScenePage = () => {
         cesiumLightingEnabled,
         cesiumShadowsEnabled,
         cesiumCurrentTime,
+        gridEnabled,
+        groundPlaneEnabled,
+        skyboxType,
+        ambientLightIntensity,
       } = sceneData;
 
       // Initialize objects (GLB models, etc.)
@@ -136,6 +144,19 @@ const PublishedScenePage = () => {
       }
       if (cesiumCurrentTime !== undefined && cesiumCurrentTime !== null) {
         useSceneStore.setState({ cesiumCurrentTime: String(cesiumCurrentTime) });
+      }
+      // Restore environment settings
+      if (gridEnabled !== undefined) {
+        useSceneStore.setState({ gridEnabled });
+      }
+      if (groundPlaneEnabled !== undefined) {
+        useSceneStore.setState({ groundPlaneEnabled });
+      }
+      if (skyboxType !== undefined) {
+        useSceneStore.setState({ skyboxType });
+      }
+      if (ambientLightIntensity !== undefined) {
+        useSceneStore.setState({ ambientLightIntensity });
       }
     }
   }, [fetchedProject, setActiveWorld, setObservationPoints, selectObservation]);

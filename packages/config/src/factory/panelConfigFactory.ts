@@ -16,6 +16,8 @@ import { getEngine } from "../utils/worldStore";
 export const getLeftPanelConfig = (
   gridEnabled: boolean,
   setGridEnabled: (enabled: boolean) => void,
+  groundPlaneEnabled: boolean,
+  setGroundPlaneEnabled: (enabled: boolean) => void,
   skyboxType: "default" | "none",
   setSkyboxType: (type: "default" | "none") => void,
   ambientLightIntensity: number,
@@ -33,6 +35,8 @@ export const getLeftPanelConfig = (
       return createThreeJSLeftPanelConfig(
         gridEnabled,
         setGridEnabled,
+        groundPlaneEnabled,
+        setGroundPlaneEnabled,
         skyboxType,
         setSkyboxType
       );
@@ -51,6 +55,8 @@ export const getLeftPanelConfig = (
       return createThreeJSLeftPanelConfig(
         gridEnabled,
         setGridEnabled,
+        groundPlaneEnabled,
+        setGroundPlaneEnabled,
         skyboxType,
         setSkyboxType
       ); // Default to ThreeJS
