@@ -21,6 +21,7 @@ const useSceneStore = create<SceneState>((set, get) => ({
   cesiumInstance: null,
   basemapType: "none",
   gridEnabled: true,
+  groundPlaneEnabled: false,
   ambientLightIntensity: 0.5,
   skyboxType: "default",
   showTiles: false,
@@ -52,6 +53,7 @@ const useSceneStore = create<SceneState>((set, get) => ({
 
   // Simple setters
   setGridEnabled: (enabled) => set({ gridEnabled: enabled }),
+  setGroundPlaneEnabled: (enabled) => set({ groundPlaneEnabled: enabled }),
   setAmbientLightIntensity: (intensity) =>
     set({ ambientLightIntensity: intensity }),
   setSkyboxType: (type) => set({ skyboxType: type }),
@@ -128,6 +130,7 @@ const useSceneStore = create<SceneState>((set, get) => ({
       previewMode: false,
       previewIndex: 0,
       gridEnabled: true,
+      groundPlaneEnabled: false,
       ambientLightIntensity: 0.5,
       skyboxType: "default",
       viewMode: "orbit",

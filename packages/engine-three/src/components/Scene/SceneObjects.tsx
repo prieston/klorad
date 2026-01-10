@@ -8,6 +8,7 @@ import Model from "../Model";
 const SceneObjects: React.FC<SceneObjectsProps> = ({
   objects,
   previewMode,
+  enableXR,
   isPublishMode = false,
 }) => {
   const selectedObject = useSceneStore((state) => state.selectedObject);
@@ -26,7 +27,7 @@ const SceneObjects: React.FC<SceneObjectsProps> = ({
             rotation={obj.rotation}
             scale={obj.scale}
             selected={selectedObject?.id === obj.id}
-            onSelect={previewMode || isPublishMode ? undefined : selectObject}
+            onSelect={previewMode || isPublishMode || enableXR ? undefined : selectObject}
             assetId={obj.assetId || undefined}
             isObservationModel={obj.isObservationModel}
             observationProperties={
@@ -40,7 +41,7 @@ const SceneObjects: React.FC<SceneObjectsProps> = ({
           />
         )
     );
-  }, [objects, selectedObject?.id, previewMode, isPublishMode, selectObject]);
+  }, [objects, selectedObject?.id, previewMode, enableXR, isPublishMode, selectObject]);
 
   return <>{memoizedObjects}</>;
 };

@@ -11,12 +11,11 @@ import SceneLights from "./components/Scene/SceneLights";
 import SceneObjects from "./components/Scene/SceneObjects";
 import SceneObservationPoints from "./components/Scene/SceneObservationPoints";
 import SceneTransformControls from "./components/Scene/SceneTransformControls";
-import CameraPOVCaptureHandler from "./components/Scene/CameraPOVCaptureHandler";
-import ObservationPointHandler from "./components/Scene/ObservationPointHandler";
 import ModelPositioningHandler from "./components/Scene/ModelPositioningHandler";
 import SceneControls from "./components/Scene/controls/SceneControls";
 import Loader from "./components/Scene/Loader";
-import { CesiumIonTiles, CameraSpringController } from "./components";
+import GroundPlane from "./components/Scene/GroundPlane";
+import { CesiumIonTiles, XRWrapper } from "./components";
 
 // Create a component to handle deselection
 const DeselectionHandler = () => {
@@ -60,7 +59,7 @@ export default function Scene({
   initialSceneData,
   renderObservationPoints = true,
   onSceneDataChange,
-  enableXR: _enableXR = false,
+  enableXR = false,
   isPublishMode = false,
 }: SceneProps) {
   // Combine all scene store subscriptions into a single selector to reduce subscriptions from 17 to 1
@@ -70,6 +69,7 @@ export default function Scene({
     selectedObject: state.selectedObject,
     previewMode: state.previewMode,
     gridEnabled: state.gridEnabled,
+    groundPlaneEnabled: state.groundPlaneEnabled,
     ambientLightIntensity: state.ambientLightIntensity,
     skyboxType: state.skyboxType,
     selectedAssetId: state.selectedAssetId,
@@ -90,6 +90,7 @@ export default function Scene({
     selectedObject,
     previewMode,
     gridEnabled,
+    groundPlaneEnabled,
     ambientLightIntensity,
     skyboxType,
     selectedAssetId,
@@ -151,67 +152,76 @@ export default function Scene({
         gl={{ preserveDrawingBuffer: true }}
         onCreated={({ gl }) => {
           (gl as any).setClearColor?.("#000000");
+          // Configure WebGL context for Meta Quest compatibility
+          if (enableXR) {
+            const canvas = gl.domElement;
+            const context = canvas.getContext("webgl2") || canvas.getContext("webgl");
+            if (context && "makeXRCompatible" in context && typeof (context as any).makeXRCompatible === "function") {
+              (context as any).makeXRCompatible().catch(() => {
+                // Ignore errors if XR is not available
+              });
+            }
+          }
         }}
       >
-        <Suspense fallback={null}>
-          <DeselectionHandler />
-          <ModelPositioningHandler />
-          {canRenderTiles && (
-            <CesiumIonTiles
-              apiKey={"" as any}
-              assetId={selectedAssetId}
-              latitude={selectedLocation?.latitude as number}
-              longitude={selectedLocation?.longitude as number}
+        <XRWrapper enabled={enableXR}>
+          <Suspense fallback={null}>
+            <DeselectionHandler />
+            <ModelPositioningHandler />
+            {canRenderTiles && (
+              <CesiumIonTiles
+                apiKey={"" as any}
+                assetId={selectedAssetId}
+                latitude={selectedLocation?.latitude as number}
+                longitude={selectedLocation?.longitude as number}
+              />
+            )}
+
+            {skyboxType === "default" && (
+              <Sky
+                distance={450000}
+                sunPosition={[10, 20, 10]}
+                inclination={0.49}
+                azimuth={0.25}
+              />
+            )}
+            {gridEnabled && (
+              <Grid
+                position={[0, 0, 0]}
+                args={[20, 20]}
+                cellSize={1}
+                cellThickness={0.5}
+                sectionSize={5}
+                sectionThickness={1}
+                fadeDistance={100}
+                sectionColor="white"
+                cellColor="gray"
+                renderOrder={-1}
+              />
+            )}
+            {groundPlaneEnabled && <GroundPlane size={100000} />}
+
+            <SceneLights ambientLightIntensity={ambientLightIntensity} />
+            <SceneObjects
+              objects={objects as Model[]}
+              previewMode={previewMode}
+              enableXR={enableXR}
+              isPublishMode={isPublishMode}
             />
-          )}
-
-          {skyboxType === "default" && (
-            <Sky
-              distance={450000}
-              sunPosition={[10, 20, 10]}
-              inclination={0.49}
-              azimuth={0.25}
+            <SceneObservationPoints
+              points={observationPoints}
+              previewMode={previewMode}
+              enableXR={enableXR}
+              renderObservationPoints={renderObservationPoints}
             />
-          )}
-          {gridEnabled && (
-            <Grid
-              position={[0, 0, 0]}
-              args={[20, 20]}
-              cellSize={1}
-              cellThickness={0.5}
-              sectionSize={5}
-              sectionThickness={1}
-              fadeDistance={100}
-              sectionColor="white"
-              cellColor="gray"
-              renderOrder={-1}
+            <SceneTransformControls
+              selectedObject={selectedObject as Model | null}
+              transformControlsRef={transformControlsRef}
             />
-          )}
 
-          <SceneLights ambientLightIntensity={ambientLightIntensity} />
-          <SceneObjects
-            objects={objects as Model[]}
-            previewMode={previewMode}
-            enableXR={false}
-            isPublishMode={isPublishMode}
-          />
-          <SceneObservationPoints
-            points={observationPoints}
-            previewMode={previewMode}
-            enableXR={false}
-            renderObservationPoints={renderObservationPoints}
-          />
-          <SceneTransformControls
-            selectedObject={selectedObject as Model | null}
-            transformControlsRef={transformControlsRef}
-          />
-
-          <SceneControls />
-
-          <CameraSpringController />
-          <CameraPOVCaptureHandler />
-          <ObservationPointHandler />
-        </Suspense>
+            <SceneControls />
+          </Suspense>
+        </XRWrapper>
       </Canvas>
       <Loader />
     </>

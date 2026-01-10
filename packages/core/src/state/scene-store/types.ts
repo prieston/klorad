@@ -110,6 +110,7 @@ export interface SceneState {
   cesiumInstance: any | null;
   basemapType: "cesium" | "google" | "google-photorealistic" | "bing" | "none";
   gridEnabled: boolean;
+  groundPlaneEnabled: boolean;
   ambientLightIntensity: number;
   skyboxType: "default" | "none";
   showTiles: boolean;
@@ -131,6 +132,7 @@ export interface SceneState {
   orbitControlsRef: any | null;
   scene: THREE.Scene | null;
   setGridEnabled: (enabled: boolean) => void;
+  setGroundPlaneEnabled: (enabled: boolean) => void;
   setAmbientLightIntensity: (intensity: number) => void;
   setSkyboxType: (type: "default" | "none") => void;
   setShowTiles: (show: boolean) => void;

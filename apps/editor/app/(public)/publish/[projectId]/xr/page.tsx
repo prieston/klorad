@@ -40,6 +40,10 @@ export default function Scene() {
         cesiumLightingEnabled?: boolean;
         cesiumShadowsEnabled?: boolean;
         cesiumCurrentTime?: unknown;
+        gridEnabled?: boolean;
+        groundPlaneEnabled?: boolean;
+        skyboxType?: "default" | "none";
+        ambientLightIntensity?: number;
       };
       const {
         objects,
@@ -50,6 +54,10 @@ export default function Scene() {
         cesiumLightingEnabled,
         cesiumShadowsEnabled,
         cesiumCurrentTime,
+        gridEnabled,
+        groundPlaneEnabled,
+        skyboxType,
+        ambientLightIntensity,
       } = sceneData;
 
       // Initialize objects (GLB models, etc.)
@@ -83,6 +91,19 @@ export default function Scene() {
           }
           if (cesiumCurrentTime !== undefined && cesiumCurrentTime !== null) {
             useSceneStore.setState({ cesiumCurrentTime: String(cesiumCurrentTime) });
+          }
+          // Restore environment settings
+          if (gridEnabled !== undefined) {
+            useSceneStore.setState({ gridEnabled });
+          }
+          if (groundPlaneEnabled !== undefined) {
+            useSceneStore.setState({ groundPlaneEnabled });
+          }
+          if (skyboxType !== undefined) {
+            useSceneStore.setState({ skyboxType });
+          }
+          if (ambientLightIntensity !== undefined) {
+            useSceneStore.setState({ ambientLightIntensity });
           }
     }
   }, [fetchedProject]);

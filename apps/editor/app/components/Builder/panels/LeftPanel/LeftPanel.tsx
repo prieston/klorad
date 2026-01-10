@@ -14,6 +14,8 @@ const LeftPanel: React.FC = () => {
     previewMode: state.previewMode,
     gridEnabled: state.gridEnabled,
     setGridEnabled: state.setGridEnabled,
+    groundPlaneEnabled: state.groundPlaneEnabled,
+    setGroundPlaneEnabled: state.setGroundPlaneEnabled,
     skyboxType: state.skyboxType,
     setSkyboxType: state.setSkyboxType,
     ambientLightIntensity: state.ambientLightIntensity,
@@ -29,6 +31,8 @@ const LeftPanel: React.FC = () => {
     previewMode,
     gridEnabled,
     setGridEnabled,
+    groundPlaneEnabled,
+    setGroundPlaneEnabled,
     skyboxType,
     setSkyboxType,
     ambientLightIntensity,
@@ -41,6 +45,8 @@ const LeftPanel: React.FC = () => {
     return getLeftPanelConfig(
       gridEnabled,
       setGridEnabled,
+      groundPlaneEnabled,
+      setGroundPlaneEnabled,
       skyboxType,
       setSkyboxType,
       ambientLightIntensity,
@@ -50,7 +56,7 @@ const LeftPanel: React.FC = () => {
       { engine }
     );
     // Zustand setters are stable and don't need to be in dependency array
-  }, [engine, gridEnabled, skyboxType, ambientLightIntensity, basemapType]);
+  }, [engine, gridEnabled, groundPlaneEnabled, skyboxType, ambientLightIntensity, basemapType]);
 
   return (
     <LeftPanelContainer
