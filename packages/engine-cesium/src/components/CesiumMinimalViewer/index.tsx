@@ -6,6 +6,7 @@ import { useImagery } from "./hooks/useImagery";
 import { useTerrain } from "./hooks/useTerrain";
 import { TilesetRenderer } from "./components/TilesetRenderer";
 import { ImageryRenderer } from "./components/ImageryRenderer";
+import { TerrainRenderer } from "./components/TerrainRenderer";
 import { LocationClickHandler } from "./components/LocationClickHandler";
 import { CesiumLoadingScreen } from "../CesiumLoadingScreen";
 import type { CesiumMinimalViewerProps } from "./types";
@@ -76,17 +77,15 @@ export function CesiumMinimalViewer({
 
   return (
     <>
-      {/* Render tileset for 3D Tiles and other types */}
-      {cesiumAssetId && assetType !== "IMAGERY" && (
-        <TilesetRenderer
+      {/* Render terrain for TERRAIN type assets */}
+      {cesiumAssetId && assetType === "TERRAIN" && (
+        <TerrainRenderer
           viewer={viewer}
           Cesium={Cesium}
           cesiumAssetId={cesiumAssetId}
-          metadata={metadata}
-          initialTransform={initialTransform}
+          cesiumApiKey={cesiumApiKey}
           enableLocationEditing={enableLocationEditing}
-          enableAtmosphere={enableAtmosphere}
-          assetType={assetType}
+          initialTransform={initialTransform}
           onTilesetReady={handleTilesetReady}
           onError={onError}
         />
@@ -100,6 +99,22 @@ export function CesiumMinimalViewer({
           cesiumAssetId={cesiumAssetId}
           enableLocationEditing={enableLocationEditing}
           initialTransform={initialTransform}
+          onError={onError}
+        />
+      )}
+
+      {/* Render tileset for 3D Tiles and other types (excluding TERRAIN and IMAGERY) */}
+      {cesiumAssetId && assetType !== "IMAGERY" && assetType !== "TERRAIN" && (
+        <TilesetRenderer
+          viewer={viewer}
+          Cesium={Cesium}
+          cesiumAssetId={cesiumAssetId}
+          metadata={metadata}
+          initialTransform={initialTransform}
+          enableLocationEditing={enableLocationEditing}
+          enableAtmosphere={enableAtmosphere}
+          assetType={assetType}
+          onTilesetReady={handleTilesetReady}
           onError={onError}
         />
       )}

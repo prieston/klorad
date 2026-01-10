@@ -61,11 +61,27 @@ const CesiumPreviewDialog: React.FC<CesiumPreviewDialogProps> = ({
   };
 
   const handleResetZoom = async () => {
-    if (!viewerRef.current || !tilesetRef.current) return;
+    if (!viewerRef.current) return;
 
     try {
       // Dynamically import Cesium
       const Cesium = await import("cesium");
+
+      // For terrain assets, fly to a default globe view
+      if (assetType === "TERRAIN") {
+        viewerRef.current.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(0, 0, 20000000),
+          orientation: {
+            heading: 0,
+            pitch: Cesium.Math.toRadians(-90), // Look straight down
+            roll: 0,
+          },
+        });
+        return;
+      }
+
+      // For other asset types, zoom to tileset
+      if (!tilesetRef.current) return;
 
       // Use zoomTo for all cases - this doesn't set a rotation target
       // so left-click drag continues to pan instead of rotating around model
