@@ -18,12 +18,16 @@ export const useModelSelection = ({
 
   const handlePointerDown = (e: any) => {
     e.stopPropagation();
+    // Ignore right-click (button 2) and middle-click (button 1)
+    if (e.button === 2 || e.button === 1) return;
     if (previewMode || !onSelect) return;
     pointerDown.current = { x: e.clientX, y: e.clientY };
   };
 
   const handlePointerUp = (e: any) => {
     e.stopPropagation();
+    // Ignore right-click (button 2) and middle-click (button 1)
+    if (e.button === 2 || e.button === 1) return;
     if (previewMode || !onSelect || !pointerDown.current) return;
 
     const dx = e.clientX - pointerDown.current.x;

@@ -24,6 +24,8 @@ const DeselectionHandler = () => {
 
   const handleClick = (e: MouseEvent) => {
     if (e.target !== (gl as any).domElement) return;
+    // Ignore right-click (button 2) and middle-click (button 1)
+    if (e.button === 2 || e.button === 1) return;
 
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
