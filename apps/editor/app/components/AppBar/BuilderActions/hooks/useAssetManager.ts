@@ -45,6 +45,8 @@ export const useAssetManager = ({
       }
       const data = await getModels({ organizationId: orgId });
       // Convert Asset[] to LibraryAsset[]
+      // Note: LibraryAsset.metadata is typed as Record<string, string> but we preserve
+      // the full structure (including nested supportiveData) by casting to unknown first
       const libraryAssets: LibraryAsset[] = (data.assets || []).map((asset) => ({
         id: asset.id,
         name: asset.name || asset.originalFilename || "",
@@ -53,7 +55,7 @@ export const useAssetManager = ({
         fileType: asset.fileType,
         thumbnail: asset.thumbnail || undefined,
         description: asset.description || undefined,
-        metadata: asset.metadata as Record<string, string> | undefined,
+        metadata: asset.metadata as unknown as Record<string, string> | undefined,
         assetType: asset.assetType,
         cesiumAssetId: asset.cesiumAssetId || undefined,
         cesiumApiKey: asset.cesiumApiKey || undefined,
@@ -292,6 +294,7 @@ export const useAssetManager = ({
       const data = await updateModelMetadata(assetId, updates);
       showToast("Asset updated successfully.");
       // Update local state with the returned asset data
+      // Note: Preserve full metadata structure including nested supportiveData
       const updatedLibraryAsset: LibraryAsset = {
         id: data.asset.id,
         name: data.asset.name || data.asset.originalFilename || "",
@@ -300,7 +303,7 @@ export const useAssetManager = ({
         fileType: data.asset.fileType,
         thumbnail: data.asset.thumbnail || undefined,
         description: data.asset.description || undefined,
-        metadata: data.asset.metadata as Record<string, string> | undefined,
+        metadata: data.asset.metadata as unknown as Record<string, string> | undefined,
         assetType: data.asset.assetType,
         cesiumAssetId: data.asset.cesiumAssetId || undefined,
         cesiumApiKey: data.asset.cesiumApiKey || undefined,

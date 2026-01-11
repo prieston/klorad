@@ -67,6 +67,7 @@ export function createNewModel(
     material: model.material || { color: "#ffffff" },
     coordinateSystem,
     isObservationModel: model.isObservationModel || false,
+    interactable: model.interactable !== undefined ? model.interactable : true,
     observationProperties: model.observationProperties,
   };
 }

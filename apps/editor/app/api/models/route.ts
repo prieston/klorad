@@ -119,7 +119,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const { fileName, fileType } = await request.json();
+    const { fileName, fileType, prefix } = await request.json();
     if (!fileName || !fileType) {
       return NextResponse.json({ error: "Missing file data" }, { status: 400 });
     }
@@ -133,7 +133,9 @@ export async function PATCH(request: NextRequest) {
       },
     });
     const bucketName = serverEnv.DO_SPACES_BUCKET;
-    const key = `models/${Date.now()}-${fileName}`;
+    // Use provided prefix (e.g., "supportive-data") or default to "models"
+    const folderPrefix = prefix || "models";
+    const key = `${folderPrefix}/${Date.now()}-${fileName}`;
     const command = new PutObjectCommand({
       Bucket: bucketName,
       Key: key,

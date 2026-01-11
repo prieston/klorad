@@ -4,7 +4,7 @@ import { LocationOnIcon } from "@klorad/ui";
 import { SettingContainer, SettingLabel } from "@klorad/ui";
 import { googleMapsLinkForLatLon, textFieldStyles } from "@klorad/ui";
 import { ModelObject, GeographicCoords } from "./types";
-import { useSceneStore } from "@klorad/core";
+import { useSceneStore, useWorldStore } from "@klorad/core";
 
 interface TransformLocationSectionProps {
   object: ModelObject;
@@ -33,6 +33,7 @@ const TransformLocationSection: React.FC<TransformLocationSectionProps> =
       const liveObject =
         useSceneStore((s) => s.objects.find((o) => o.id === object.id)) ||
         object;
+      const engine = useWorldStore((s) => s.engine);
 
       // String-based local state while editing
       const [editing, setEditing] = useState<string | null>(null);
@@ -42,8 +43,8 @@ const TransformLocationSection: React.FC<TransformLocationSectionProps> =
         <SettingContainer>
           <SettingLabel>Transform & Location</SettingLabel>
 
-          {/* View on Google Maps */}
-          {geographicCoords && (
+          {/* View on Google Maps - Only show for Cesium engine */}
+          {geographicCoords && engine === "cesium" && (
             <Button
               variant="outlined"
               startIcon={<LocationOnIcon />}
@@ -73,91 +74,101 @@ const TransformLocationSection: React.FC<TransformLocationSectionProps> =
             </Button>
           )}
 
-          {/* Geographic Coordinates */}
+          {/* Position Coordinates - Different labels for ThreeJS vs Cesium */}
           <Box sx={{ mb: 2 }}>
             <Box display="flex" gap={1}>
               <Box sx={{ flex: 1 }}>
-                <InputLabel>Longitude</InputLabel>
+                <InputLabel>
+                  {engine === "three" ? "X Position" : "Longitude"}
+                </InputLabel>
                 <TextField
-                  id={`object-longitude-${object.id}`}
-                  name="object-longitude"
+                  id={`object-position-x-${object.id}`}
+                  name="object-position-x"
                   type="number"
                   value={
-                    editing === "lon"
-                      ? localStr.lon
+                    editing === "posX"
+                      ? localStr.posX
                       : (liveObject.position?.[0] ?? 0)
                   }
                   onFocus={(e) => {
-                    setEditing("lon");
-                    setLocalStr((prev) => ({ ...prev, lon: e.target.value }));
+                    setEditing("posX");
+                    setLocalStr((prev) => ({ ...prev, posX: e.target.value }));
                   }}
                   onChange={(e) => {
-                    setLocalStr((prev) => ({ ...prev, lon: e.target.value }));
+                    setLocalStr((prev) => ({ ...prev, posX: e.target.value }));
                   }}
                   onBlur={() => {
-                    const val = Number(localStr.lon);
+                    const val = Number(localStr.posX);
                     if (!isNaN(val)) {
                       onPropertyChange("position.0", val);
                     }
                     setEditing(null);
                   }}
                   size="small"
-                  inputProps={{ step: 0.000001 }}
+                  inputProps={{
+                    step: engine === "three" ? 0.01 : 0.000001,
+                  }}
                   fullWidth
                   sx={textFieldStyles}
                 />
               </Box>
               <Box sx={{ flex: 1 }}>
-                <InputLabel>Latitude</InputLabel>
+                <InputLabel>
+                  {engine === "three" ? "Y Position" : "Latitude"}
+                </InputLabel>
                 <TextField
-                  id={`object-latitude-${object.id}`}
-                  name="object-latitude"
+                  id={`object-position-y-${object.id}`}
+                  name="object-position-y"
                   type="number"
                   value={
-                    editing === "lat"
-                      ? localStr.lat
+                    editing === "posY"
+                      ? localStr.posY
                       : (liveObject.position?.[1] ?? 0)
                   }
                   onFocus={(e) => {
-                    setEditing("lat");
-                    setLocalStr((prev) => ({ ...prev, lat: e.target.value }));
+                    setEditing("posY");
+                    setLocalStr((prev) => ({ ...prev, posY: e.target.value }));
                   }}
                   onChange={(e) => {
-                    setLocalStr((prev) => ({ ...prev, lat: e.target.value }));
+                    setLocalStr((prev) => ({ ...prev, posY: e.target.value }));
                   }}
                   onBlur={() => {
-                    const val = Number(localStr.lat);
+                    const val = Number(localStr.posY);
                     if (!isNaN(val)) {
                       onPropertyChange("position.1", val);
                     }
                     setEditing(null);
                   }}
                   size="small"
-                  inputProps={{ step: 0.000001 }}
+                  inputProps={{
+                    step: engine === "three" ? 0.01 : 0.000001,
+                  }}
                   fullWidth
                   sx={textFieldStyles}
                 />
               </Box>
               <Box sx={{ flex: 1 }}>
-                <InputLabel>Altitude (m)</InputLabel>
+                <InputLabel>
+                  {engine === "three" ? "Z Position" : "Altitude (m)"}
+                </InputLabel>
                 <TextField
-                  id={`object-altitude-${object.id}`}
-                  name="object-altitude"
+                  id={`object-position-z-${object.id}`}
+                  name="object-position-z"
                   type="number"
                   value={
-                    editing === "alt"
-                      ? localStr.alt
+                    editing === "posZ"
+                      ? localStr.posZ
                       : (liveObject.position?.[2] ?? 0)
                   }
                   onFocus={(e) => {
-                    setEditing("alt");
-                    setLocalStr((prev) => ({ ...prev, alt: e.target.value }));
+                    setEditing("posZ");
+                    setLocalStr((prev) => ({ ...prev, posZ: e.target.value }));
                   }}
                   onChange={(e) => {
-                    setLocalStr((prev) => ({ ...prev, alt: e.target.value }));
+                    setLocalStr((prev) => ({ ...prev, posZ: e.target.value }));
                   }}
                   onBlur={() => {
-                    const val = Number(localStr.alt);
+                    const val = Number(localStr.posZ);
                     if (!isNaN(val)) {
                       onPropertyChange("position.2", val);
                     }

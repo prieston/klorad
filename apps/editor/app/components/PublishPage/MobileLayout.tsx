@@ -24,6 +24,7 @@ import {
 import { MenuIcon, NavigateBeforeIcon, NavigateNextIcon } from "@klorad/ui";
 import LogoHeader from "../AppBar/LogoHeader";
 import type { SceneProps } from "@klorad/engine-three";
+import { ConnectedModelDisplay } from "./ConnectedModelDisplay";
 
 const PreviewScene = dynamic(() => import("../Builder/Scene/PreviewScene"), {
   ssr: false,
@@ -33,6 +34,7 @@ type Observation = {
   id?: string | number;
   title?: string;
   description?: string;
+  connectedModelId?: string;
 };
 
 type Project = {
@@ -147,6 +149,13 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
             <Typography variant="body2">
               {currentObservation?.description || "No description provided."}
             </Typography>
+            {currentObservation && (
+              <ConnectedModelDisplay
+                connectedModelId={currentObservation.connectedModelId}
+                sceneObjects={project.sceneData.objects || []}
+                projectId={projectId}
+              />
+            )}
           </div>
           <div style={{ marginTop: 16 }}>
             <FormControlLabel

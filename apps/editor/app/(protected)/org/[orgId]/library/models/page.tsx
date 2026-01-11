@@ -36,7 +36,8 @@ import {
   ModelPreviewDialog,
 } from "@klorad/ui";
 import { UploadModelDrawer } from "./components/UploadModelDrawer";
-import { deleteModel, updateModelMetadata } from "@/app/utils/api";
+import { SupportiveDataSection } from "./components/SupportiveDataSection";
+import { deleteModel, updateModelMetadata, type Asset } from "@/app/utils/api";
 import useModels from "@/app/hooks/useModels";
 import { useOrgId } from "@/app/hooks/useOrgId";
 
@@ -87,7 +88,8 @@ const LibraryModelsPage = () => {
         fileType: model.fileType,
         thumbnail: model.thumbnail,
         description: model.description,
-        metadata: model.metadata as Record<string, string> | undefined,
+        // Preserve full metadata structure (not just string values) to support nested supportiveData
+        metadata: model.metadata as Record<string, unknown> | undefined,
         assetType: model.assetType || "model", // Default to "model" if null
         fileSize: model.fileSize ? (typeof model.fileSize === 'bigint' ? Number(model.fileSize) : model.fileSize) : null,
       }));
@@ -145,8 +147,14 @@ const LibraryModelsPage = () => {
     if (!isEditing) {
       const newName = updatedModel.name || updatedModel.originalFilename || "";
       const newDescription = updatedModel.description || "";
+      // Convert metadata to MetadataRow[], filtering out supportiveData (which is nested)
       const newMetadata: MetadataRow[] = updatedModel.metadata
-        ? Object.entries(updatedModel.metadata).map(([label, value]) => ({ label, value }))
+        ? Object.entries(updatedModel.metadata)
+            .filter(([key]) => key !== "supportiveData") // Exclude supportiveData from metadata table
+            .map(([label, value]) => ({
+              label,
+              value: String(value) // Convert to string for metadata table
+            }))
         : [];
 
       // Only update if values actually changed
@@ -183,11 +191,14 @@ const LibraryModelsPage = () => {
     setIsEditing(false);
     setEditedName(model.name || model.originalFilename || "");
     setEditedDescription(model.description || "");
+    // Convert metadata to MetadataRow[], filtering out supportiveData (which is nested)
     const metadataArray: MetadataRow[] = model.metadata
-      ? Object.entries(model.metadata).map(([label, value]) => ({
-          label,
-          value,
-        }))
+      ? Object.entries(model.metadata)
+          .filter(([key]) => key !== "supportiveData") // Exclude supportiveData from metadata table
+          .map(([label, value]) => ({
+            label,
+            value: String(value), // Convert to string for metadata table
+          }))
       : [];
     setEditedMetadata(metadataArray);
   };
@@ -203,9 +214,13 @@ const LibraryModelsPage = () => {
       setEditedName(selectedModel.name || selectedModel.originalFilename || "");
       setEditedDescription(selectedModel.description || "");
       if (selectedModel.metadata) {
-        const metadataArray: MetadataRow[] = Object.entries(
-          selectedModel.metadata
-        ).map(([label, value]) => ({ label, value }));
+        // Convert metadata object to array, filtering out supportiveData (nested structure)
+        const metadataArray: MetadataRow[] = Object.entries(selectedModel.metadata)
+          .filter(([key]) => key !== "supportiveData") // Exclude supportiveData from metadata table
+          .map(([label, value]) => ({
+            label,
+            value: String(value), // Convert to string for metadata table
+          }));
         setEditedMetadata(metadataArray);
       }
     }
@@ -223,8 +238,14 @@ const LibraryModelsPage = () => {
           }
           return acc;
         },
-        {} as Record<string, string>
+        {} as Record<string, unknown>
       );
+
+      // Preserve supportiveData if it exists in the original metadata
+      const originalMetadata = selectedModel.metadata as Record<string, unknown> | undefined;
+      if (originalMetadata?.supportiveData) {
+        metadataObject.supportiveData = originalMetadata.supportiveData;
+      }
 
       await updateModelMetadata(selectedModel.id, {
         name: editedName,
@@ -549,6 +570,17 @@ const LibraryModelsPage = () => {
                     onRetakePhoto={handleRetakePhoto}
                     canUpdate={true}
                     showAddToScene={false}
+                    renderAfterMetadata={
+                      <SupportiveDataSection
+                        asset={{
+                          ...selectedModel,
+                          organizationId: orgId || "",
+                          createdAt: new Date(),
+                          updatedAt: new Date(),
+                        } as Asset}
+                        onUpdate={mutate}
+                      />
+                    }
                   />
                 ) : (
                   <Box

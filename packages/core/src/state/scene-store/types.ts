@@ -31,6 +31,7 @@ export interface Model {
     [key: string]: any;
   };
   isObservationModel?: boolean;
+  interactable?: boolean;
   observationProperties?: {
     sensorType: "cone" | "rectangle";
     fov: number;
@@ -75,6 +76,7 @@ export interface ObservationPoint {
   description: string;
   position: [number, number, number] | null;
   target: [number, number, number] | null;
+  connectedModelId?: string;
 }
 
 export type ViewMode =

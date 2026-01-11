@@ -1,7 +1,25 @@
 import React, { useState } from "react";
-import { Box, Typography, Button, IconButton, TextField, LinearProgress, Alert, Tooltip, Menu, MenuItem } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Button,
+  IconButton,
+  TextField,
+  LinearProgress,
+  Alert,
+  Tooltip,
+  Menu,
+  MenuItem,
+} from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import { Delete, Edit, Save, Close, AddCircleOutline, CameraAlt, Refresh, LocationOn, MoreVert } from "@mui/icons-material";
+import {
+  Save,
+  AddCircleOutline,
+  CameraAlt,
+  Refresh,
+  LocationOn,
+  MoreVert,
+} from "@mui/icons-material";
 import { MetadataTable, type MetadataRow } from "../../../table";
 import type { LibraryAsset } from "../MyLibraryTab";
 import { textFieldStyles } from "../../../../styles/inputStyles";
@@ -44,6 +62,7 @@ interface AssetDetailViewProps {
   onAdjustLocation?: () => void; // Callback for adjusting tileset location
   canUpdate?: boolean;
   showAddToScene?: boolean;
+  renderAfterMetadata?: React.ReactNode; // Optional content to render after metadata table
 }
 
 export const AssetDetailView: React.FC<AssetDetailViewProps> = ({
@@ -65,6 +84,7 @@ export const AssetDetailView: React.FC<AssetDetailViewProps> = ({
   onAdjustLocation,
   canUpdate = true,
   showAddToScene = true,
+  renderAfterMetadata,
 }) => {
   // Menu state
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
@@ -92,7 +112,8 @@ export const AssetDetailView: React.FC<AssetDetailViewProps> = ({
   const tilingStatus = metadata?.tilingStatus as string | undefined;
   const cesiumStatus = metadata?.status as string | undefined; // Status from Cesium Ion API (for synced assets)
   const tilingProgress = metadata?.tilingProgress as number | undefined;
-  const isCesiumIonAsset = asset.assetType === "cesiumIonAsset" || !!asset.cesiumAssetId;
+  const isCesiumIonAsset =
+    asset.assetType === "cesiumIonAsset" || !!asset.cesiumAssetId;
 
   // Check if tiling is complete:
   // 1. If tilingStatus is explicitly "COMPLETE" (for newly uploaded assets)
@@ -100,7 +121,8 @@ export const AssetDetailView: React.FC<AssetDetailViewProps> = ({
   //    Synced assets from Cesium Ion integrations don't have tilingStatus but have status from API
   const isTilingComplete =
     tilingStatus === "COMPLETE" ||
-    (tilingStatus === undefined && (cesiumStatus === "COMPLETE" || cesiumStatus === "ACTIVE"));
+    (tilingStatus === undefined &&
+      (cesiumStatus === "COMPLETE" || cesiumStatus === "ACTIVE"));
 
   const isTilingInProgress = tilingStatus === "IN_PROGRESS";
   const isTilingError = tilingStatus === "ERROR";
@@ -359,7 +381,8 @@ export const AssetDetailView: React.FC<AssetDetailViewProps> = ({
                     color: "text.secondary",
                   }}
                 >
-                  {asset.fileType}{asset.fileSize ? ` • ${formatFileSize(asset.fileSize)}` : ""}
+                  {asset.fileType}
+                  {asset.fileSize ? ` • ${formatFileSize(asset.fileSize)}` : ""}
                 </Typography>
               </>
             )}
@@ -385,6 +408,9 @@ export const AssetDetailView: React.FC<AssetDetailViewProps> = ({
             onChange={onMetadataChange}
           />
         </Box>
+
+        {/* Optional content after metadata (e.g., supportive data) */}
+        {renderAfterMetadata}
       </Box>
 
       {/* Three-Dot Menu */}
@@ -485,7 +511,10 @@ export const AssetDetailView: React.FC<AssetDetailViewProps> = ({
           >
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
               <Typography variant="caption">
-                Tiling failed. {onRetryTiling ? "Click Retry to check status again." : "Please try uploading again."}
+                Tiling failed.{" "}
+                {onRetryTiling
+                  ? "Click Retry to check status again."
+                  : "Please try uploading again."}
               </Typography>
             </Box>
           </Alert>
@@ -552,8 +581,8 @@ export const AssetDetailView: React.FC<AssetDetailViewProps> = ({
                 isGeoreferencedByDefault
                   ? "This model is already georeferenced. Location adjustment is disabled."
                   : !isTilingComplete
-                  ? "Tiling must be complete before adjusting location."
-                  : ""
+                    ? "Tiling must be complete before adjusting location."
+                    : ""
               }
             >
               <span>
@@ -647,4 +676,3 @@ export const AssetDetailView: React.FC<AssetDetailViewProps> = ({
     </>
   );
 };
-

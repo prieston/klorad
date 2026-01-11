@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, Typography, Switch, FormControlLabel } from "@mui/material";
 import {
   FlightTakeoffIcon,
   LocationOnIcon,
@@ -15,6 +15,9 @@ interface ObjectActionsSectionProps {
   showGizmoControls?: boolean;
   transformMode?: "translate" | "rotate" | "scale";
   onTransformModeChange?: (mode: "translate" | "rotate" | "scale") => void;
+  interactable?: boolean;
+  onInteractableChange?: (interactable: boolean) => void;
+  engine?: "three" | "cesium";
 }
 
 const ObjectActionsSection: React.FC<ObjectActionsSectionProps> = ({
@@ -24,6 +27,9 @@ const ObjectActionsSection: React.FC<ObjectActionsSectionProps> = ({
   showGizmoControls = false,
   transformMode = "translate",
   onTransformModeChange,
+  interactable = true,
+  onInteractableChange,
+  engine,
 }) => {
   return (
     <SettingContainer>
@@ -76,6 +82,59 @@ const ObjectActionsSection: React.FC<ObjectActionsSectionProps> = ({
           </Button>
         )}
       </Box>
+
+      {/* Interactable Switch - Only for ThreeJS */}
+      {engine === "three" && onInteractableChange && (
+        <Box
+          sx={(theme) => ({
+            backgroundColor:
+              theme.palette.mode === "dark"
+                ? theme.palette.background.paper
+                : theme.palette.common.white,
+            borderRadius: "4px",
+            border:
+              theme.palette.mode === "dark"
+                ? "1px solid rgba(255, 255, 255, 0.08)"
+                : "1px solid rgba(255, 255, 255, 0.08)",
+            mt: 2,
+            mb: showGizmoControls && onTransformModeChange ? 0 : 0,
+          })}
+        >
+          <FormControlLabel
+            control={
+              <Switch
+                id="interactable-enabled"
+                name="interactable-enabled"
+                checked={interactable}
+                onChange={(e) => onInteractableChange(e.target.checked)}
+                sx={(theme) => ({
+                  "& .MuiSwitch-switchBase.Mui-checked": {
+                    color: theme.palette.primary.main,
+                  },
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                    backgroundColor: theme.palette.primary.main,
+                  },
+                })}
+              />
+            }
+            label="Interactable"
+            sx={(theme) => ({
+              margin: 0,
+              padding: "8.5px 14px",
+              width: "100%",
+              display: "flex",
+              justifyContent: "space-between",
+              "& .MuiFormControlLabel-label": {
+                fontSize: "0.75rem",
+                fontWeight: 400,
+                color: theme.palette.text.secondary,
+                flex: 1,
+              },
+            })}
+            labelPlacement="start"
+          />
+        </Box>
+      )}
 
       {/* Gizmo Transform Controls */}
       {showGizmoControls && onTransformModeChange && (

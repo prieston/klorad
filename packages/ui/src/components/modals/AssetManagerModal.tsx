@@ -81,6 +81,8 @@ export interface AssetManagerModalProps {
     apiKey?: string;
   }) => Promise<unknown>;
   onIonAssetAdded?: () => void;
+  // Supportive data render function
+  renderSupportiveData?: (asset: LibraryAsset, onUpdate: () => void) => React.ReactNode;
 }
 
 const AssetManagerModal: React.FC<AssetManagerModalProps> = ({
@@ -102,6 +104,8 @@ const AssetManagerModal: React.FC<AssetManagerModalProps> = ({
   // Add Ion Asset
   onCesiumAssetAdd,
   onIonAssetAdded,
+  // Supportive data
+  renderSupportiveData,
 }) => {
   const [activeTab, setActiveTab] = useState(0);
 
@@ -206,6 +210,7 @@ const AssetManagerModal: React.FC<AssetManagerModalProps> = ({
             onAssetSelect={handleModelSelectWrapper}
             onAssetDelete={onAssetDelete}
             onAssetUpdate={onAssetUpdate}
+            renderSupportiveData={renderSupportiveData}
           />
         )}
 

@@ -60,6 +60,7 @@ export interface ObservationPoint {
   showVisibleArea?: boolean;
   showActualArea?: boolean;
   visibilityRadius?: number;
+  connectedModelId?: string;
   [key: string]: unknown;
 }
 

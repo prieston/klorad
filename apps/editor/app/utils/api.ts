@@ -452,6 +452,28 @@ export interface Asset {
   updatedAt: Date;
 }
 
+export interface SupportiveData {
+  images?: Array<{
+    url: string;
+    caption?: string;
+    uploadedAt?: string;
+  }>;
+  pdfs?: Array<{
+    url: string;
+    title?: string;
+    uploadedAt?: string;
+  }>;
+  textDescriptions?: Array<{
+    content: string;
+    title?: string;
+  }>;
+  externalLinks?: Array<{
+    url: string;
+    label: string;
+    description?: string;
+  }>;
+}
+
 export interface Activity {
   id: string;
   organizationId: string;
@@ -523,12 +545,23 @@ export async function updateModelTransform(
   );
 }
 
+/**
+ * Update asset metadata including supportive data.
+ *
+ * To update supportive data, pass it in the metadata object:
+ * updateModelMetadata(assetId, {
+ *   metadata: {
+ *     ...existingMetadata,
+ *     supportiveData: { images: [...], pdfs: [...], ... }
+ *   }
+ * })
+ */
 export async function updateModelMetadata(
   assetId: string,
   data: {
     name?: string;
     description?: string;
-    metadata?: Asset["metadata"];
+    metadata?: Asset["metadata"]; // Can include supportiveData: SupportiveData
     thumbnail?: string;
     thumbnailSize?: number; // Thumbnail file size in bytes
   }
@@ -570,6 +603,20 @@ export async function getThumbnailUploadUrl(data: {
     {
       method: "PATCH",
       body: JSON.stringify(data),
+    }
+  );
+}
+
+// Get signed URL for supportive data file upload (images, PDFs) (PATCH endpoint)
+export async function getSupportiveDataUploadUrl(data: {
+  fileName: string;
+  fileType: string;
+}): Promise<{ signedUrl: string; key: string; acl: string }> {
+  return apiRequest<{ signedUrl: string; key: string; acl: string }>(
+    "/api/models",
+    {
+      method: "PATCH",
+      body: JSON.stringify({ ...data, prefix: "supportive-data" }),
     }
   );
 }
