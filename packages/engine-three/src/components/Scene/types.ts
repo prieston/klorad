@@ -99,6 +99,7 @@ export interface SceneProps {
   }) => void;
   enableXR?: boolean;
   isPublishMode?: boolean;
+  projectId?: string;
 }
 
 export interface SceneObjectsProps {

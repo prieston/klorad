@@ -36,14 +36,8 @@ const DeselectionHandler = () => {
 
     raycaster.setFromCamera(mouse, camera as any);
 
-    const allObjects: any[] = [];
-    (scene as any).traverse((object: any) => {
-      if ((object as any).isMesh) {
-        allObjects.push(object);
-      }
-    });
-
-    const intersects = raycaster.intersectObjects(allObjects, true);
+    // Use recursive intersectObject instead of traversing scene
+    const intersects = raycaster.intersectObject(scene, true);
     if (intersects.length === 0) {
       deselectObject();
     }
@@ -63,6 +57,7 @@ export default function Scene({
   onSceneDataChange,
   enableXR = false,
   isPublishMode = false,
+  projectId,
 }: SceneProps) {
   // Combine all scene store subscriptions into a single selector to reduce subscriptions from 17 to 1
   const sceneState = useSceneStore((state) => ({
@@ -154,21 +149,11 @@ export default function Scene({
         gl={{ preserveDrawingBuffer: true }}
         onCreated={({ gl }) => {
           (gl as any).setClearColor?.("#000000");
-          // Configure WebGL context for Meta Quest compatibility
-          if (enableXR) {
-            const canvas = gl.domElement;
-            const context = canvas.getContext("webgl2") || canvas.getContext("webgl");
-            if (context && "makeXRCompatible" in context && typeof (context as any).makeXRCompatible === "function") {
-              (context as any).makeXRCompatible().catch(() => {
-                // Ignore errors if XR is not available
-              });
-            }
-          }
         }}
       >
-        <XRWrapper enabled={enableXR}>
+        <XRWrapper enabled={enableXR} projectId={projectId}>
           <Suspense fallback={null}>
-            <DeselectionHandler />
+            {!enableXR && <DeselectionHandler />}
             <ModelPositioningHandler />
             {canRenderTiles && (
               <CesiumIonTiles

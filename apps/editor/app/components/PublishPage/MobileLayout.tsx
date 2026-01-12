@@ -99,7 +99,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
         />
       </MobileSceneContainer>
       <MobileBottomNav>
-        <IconButton color="inherit" onClick={() => setDrawerOpen(true)}>
+        <IconButton color="inherit" onClick={() => setDrawerOpen(!drawerOpen)}>
           <MenuIcon />
         </IconButton>
         <IconButton
@@ -176,9 +176,11 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
                   fullWidth
                   startIcon={<ViewInAr />}
                   sx={{
-                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    background:
+                      "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                     "&:hover": {
-                      background: "linear-gradient(135deg, #5568d3 0%, #6a4190 100%)",
+                      background:
+                        "linear-gradient(135deg, #5568d3 0%, #6a4190 100%)",
                     },
                   }}
                 >
