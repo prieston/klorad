@@ -66,7 +66,7 @@
     "glslify-loader": "^2.0.0",
     "leva": "^0.10.0",
     "multer": "^1.4.5-lts.1",
-    "next": "^15.1.9",
+    "next": "15.1.11",
     "next-auth": "5.0.0-beta.30",
     "postcss": "^8.4.32",
     "postcss-loader": "^8.1.1",
