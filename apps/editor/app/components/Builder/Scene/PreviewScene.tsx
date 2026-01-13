@@ -17,12 +17,14 @@ const PreviewScene = ({
   onSceneDataChange,
   enableXR = false,
   isPublishMode = false,
+  projectId,
 }: {
   initialSceneData: SceneData;
   renderObservationPoints?: boolean;
   onSceneDataChange?: SceneProps["onSceneDataChange"];
   enableXR?: boolean;
   isPublishMode?: boolean;
+  projectId?: string;
 }) => {
   const engine = useWorldStore((s) => s.engine);
   return (
@@ -44,6 +46,7 @@ const PreviewScene = ({
           onSceneDataChange={onSceneDataChange}
           enableXR={enableXR}
           isPublishMode={isPublishMode}
+          projectId={projectId}
         />
       )}
     </div>
