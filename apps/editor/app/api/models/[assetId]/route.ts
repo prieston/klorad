@@ -12,9 +12,12 @@ type RouteContext = {
 };
 
 export async function GET(request: NextRequest, context: RouteContext) {
-  const session = (await auth()) as Session;
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Try to get session, but allow unauthenticated access for published projects
+  let session: Session | null = null;
+  try {
+    session = (await auth()) as Session;
+  } catch {
+    session = null;
   }
 
   const { assetId } = (await context.params);
@@ -36,13 +39,50 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Asset not found" }, { status: 404 });
     }
 
-    // Verify user is a member of the asset's organization
-    const isMember = await isUserMemberOfOrganization(
-      session.user.id,
-      asset.organizationId
-    );
-    if (!isMember) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    // Check if request includes projectId query parameter (from published world)
+    const { searchParams } = new URL(request.url);
+    const projectId = searchParams.get("projectId");
+
+    let allowPublicAccess = false;
+
+    if (projectId) {
+      // Verify the project exists, is published, and contains this asset
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: {
+          id: true,
+          isPublished: true,
+          sceneData: true,
+          organizationId: true,
+        },
+      });
+
+      if (project && project.isPublished && project.organizationId === asset.organizationId) {
+        // Check if asset is used in this project's scene data
+        const sceneData = project.sceneData as { objects?: Array<{ assetId?: string }> } | null;
+        const objects = sceneData?.objects || [];
+        const assetUsedInProject = objects.some((obj) => obj.assetId === assetId);
+
+        if (assetUsedInProject) {
+          allowPublicAccess = true;
+        }
+      }
+    }
+
+    // If not allowed public access, require authentication
+    if (!allowPublicAccess) {
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      // Verify user is a member of the asset's organization
+      const isMember = await isUserMemberOfOrganization(
+        session.user.id,
+        asset.organizationId
+      );
+      if (!isMember) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
     }
 
     // Convert BigInt fileSize and thumbnailSize to number for JSON serialization

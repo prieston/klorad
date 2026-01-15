@@ -15,6 +15,7 @@ import ModelInformationSection from "../../ModelInformationSection";
 import ObservationModelSection from "../../ObservationModelSection";
 import IoTDevicePropertiesPanel from "../../IoTDevicePropertiesPanel";
 import TransformLocationSection from "../../TransformLocationSection";
+import { SupportiveDataDisplay } from "../../SupportiveDataDisplay";
 import { usePropertyChange } from "../hooks/usePropertyChange";
 import { useGeographicCoords } from "../hooks/useGeographicCoords";
 
@@ -174,6 +175,18 @@ export const ObjectPropertiesView: React.FC<ObjectPropertiesViewProps> = memo(
       startVisibilityCalculation(selectedObject?.id || "");
     }, [startVisibilityCalculation, selectedObject?.id]);
 
+    const handleInteractableChange = useCallback(
+      (interactable: boolean) => {
+        if (selectedObject?.id) {
+          updateObjectProperty(selectedObject.id, "interactable", interactable);
+        }
+      },
+      [selectedObject?.id, updateObjectProperty]
+    );
+
+    // Get interactable value, default to true if not set
+    const interactable = selectedObject?.interactable ?? true;
+
     // Compute if "Fly To" is possible (for future use or passing to ObjectActionsSection)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const canFlyTo =
@@ -192,6 +205,9 @@ export const ObjectPropertiesView: React.FC<ObjectPropertiesViewProps> = memo(
           showGizmoControls={!isCesiumIonAsset}
           transformMode={transformMode}
           onTransformModeChange={setTransformMode}
+          interactable={interactable}
+          onInteractableChange={handleInteractableChange}
+          engine={engine}
         />
 
         {repositioning && !isCesiumIonAsset && onCancelRepositioning && (
@@ -217,9 +233,14 @@ export const ObjectPropertiesView: React.FC<ObjectPropertiesViewProps> = memo(
           onPropertyChange={handlePropertyChange}
         />
 
-        {/* Only show these sections for regular models, not Cesium Ion assets */}
+        {/* Supportive Data - only show for interactable models with assetId */}
+        {interactable && selectedObject?.assetId && (
+          <SupportiveDataDisplay assetId={selectedObject.assetId} />
+        )}
+
+        {/* Only show these sections for regular models, not Cesium Ion assets, and only for Cesium engine */}
         {/* Using Collapse to prevent layout shift and maintain scroll position */}
-        <Collapse in={!isCesiumIonAsset} timeout={0} unmountOnExit={false}>
+        <Collapse in={!isCesiumIonAsset && engine === "cesium"} timeout={0} unmountOnExit={false}>
           <ObservationModelSection
             object={selectedObject}
             onPropertyChange={handlePropertyChange}
@@ -233,14 +254,15 @@ export const ObjectPropertiesView: React.FC<ObjectPropertiesViewProps> = memo(
             onPropertyChange={handlePropertyChange}
             geographicCoords={geographicCoords}
           />
-
-          <TransformLocationSection
-            object={selectedObject}
-            geographicCoords={geographicCoords}
-            onPropertyChange={handlePropertyChange}
-            updateObjectProperty={updateObjectProperty}
-          />
         </Collapse>
+
+        {/* Transform controls - always visible for both engines */}
+        <TransformLocationSection
+          object={selectedObject}
+          geographicCoords={geographicCoords}
+          onPropertyChange={handlePropertyChange}
+          updateObjectProperty={updateObjectProperty}
+        />
       </ScrollContainer>
     );
   }

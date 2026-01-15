@@ -1,11 +1,20 @@
 "use client";
-import PreviewScene from "@/app/components/Builder/Scene/PreviewScene";
+import dynamic from "next/dynamic";
 import { useSceneStore } from "@klorad/core";
 import { LoadingScreen } from "@klorad/ui";
 import { Box, Typography } from "@mui/material";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import useProject from "@/app/hooks/useProject";
+
+// Dynamically import PreviewScene to avoid SSR issues with 3d-tiles-renderer
+const PreviewScene = dynamic(
+  () => import("@/app/components/Builder/Scene/PreviewScene"),
+  {
+    ssr: false,
+    loading: () => <LoadingScreen message="Loading XR scene..." />,
+  }
+);
 
 export default function Scene() {
   const { projectId } = useParams();
@@ -108,7 +117,7 @@ export default function Scene() {
     }
   }, [fetchedProject]);
 
-  if (loadingProject || !project) {
+  if (loadingProject) {
     return <LoadingScreen message="Loading XR scene..." />;
   }
 
@@ -121,11 +130,21 @@ export default function Scene() {
       </Box>
     );
   }
+
+  if (!project.sceneData) {
+    return (
+      <Box sx={{ p: 5 }}>
+        <Typography variant="h6">No scene data available.</Typography>
+      </Box>
+    );
+  }
+
   return (
     <PreviewScene
       initialSceneData={project.sceneData}
       renderObservationPoints={false}
       enableXR={true}
+      projectId={projectId as string}
     />
   );
 }

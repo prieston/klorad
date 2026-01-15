@@ -24,6 +24,7 @@ import {
 import { MenuIcon, NavigateBeforeIcon, NavigateNextIcon } from "@klorad/ui";
 import LogoHeader from "../AppBar/LogoHeader";
 import type { SceneProps } from "@klorad/engine-three";
+import { ConnectedModelDisplay } from "./ConnectedModelDisplay";
 
 const PreviewScene = dynamic(() => import("../Builder/Scene/PreviewScene"), {
   ssr: false,
@@ -33,6 +34,7 @@ type Observation = {
   id?: string | number;
   title?: string;
   description?: string;
+  connectedModelId?: string;
 };
 
 type Project = {
@@ -97,7 +99,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
         />
       </MobileSceneContainer>
       <MobileBottomNav>
-        <IconButton color="inherit" onClick={() => setDrawerOpen(true)}>
+        <IconButton color="inherit" onClick={() => setDrawerOpen(!drawerOpen)}>
           <MenuIcon />
         </IconButton>
         <IconButton
@@ -147,6 +149,13 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
             <Typography variant="body2">
               {currentObservation?.description || "No description provided."}
             </Typography>
+            {currentObservation && (
+              <ConnectedModelDisplay
+                connectedModelId={currentObservation.connectedModelId}
+                sceneObjects={project.sceneData.objects || []}
+                projectId={projectId}
+              />
+            )}
           </div>
           <div style={{ marginTop: 16 }}>
             <FormControlLabel
@@ -167,9 +176,11 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
                   fullWidth
                   startIcon={<ViewInAr />}
                   sx={{
-                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    background:
+                      "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                     "&:hover": {
-                      background: "linear-gradient(135deg, #5568d3 0%, #6a4190 100%)",
+                      background:
+                        "linear-gradient(135deg, #5568d3 0%, #6a4190 100%)",
                     },
                   }}
                 >

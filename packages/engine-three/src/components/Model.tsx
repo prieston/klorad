@@ -72,10 +72,13 @@ const Model = ({
     if (originalObject) {
       const clone = originalObject.clone(true);
       clone.userData.isModel = true;
+      clone.userData.modelId = id;
       clone.traverse((child: any) => {
         if (child.isMesh && child.material) {
           child.material = child.material.clone();
         }
+        // Propagate modelId to all children
+        child.userData.modelId = id;
       });
       return clone;
     }

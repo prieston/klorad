@@ -14,7 +14,7 @@ export interface LibraryAsset {
   originalFilename?: string;
   thumbnailUrl?: string;
   thumbnail?: string;
-  metadata?: Record<string, string>;
+  metadata?: Record<string, unknown>;
   fileUrl: string;
   fileType: string;
   description?: string;
@@ -38,6 +38,8 @@ interface MyLibraryTabProps {
       thumbnail?: string;
     }
   ) => void;
+  renderAfterMetadata?: React.ReactNode; // Optional content to render after metadata (e.g., supportive data)
+  renderSupportiveData?: (asset: LibraryAsset, onUpdate: () => void) => React.ReactNode; // Render function for supportive data
 }
 
 const MyLibraryTab: React.FC<MyLibraryTabProps> = ({
@@ -45,6 +47,8 @@ const MyLibraryTab: React.FC<MyLibraryTabProps> = ({
   onAssetSelect,
   onAssetDelete,
   onAssetUpdate,
+  renderAfterMetadata,
+  renderSupportiveData,
 }) => {
   const [selectedAsset, setSelectedAsset] = useState<LibraryAsset | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -69,7 +73,12 @@ const MyLibraryTab: React.FC<MyLibraryTabProps> = ({
           if (updatedAsset.metadata) {
             const metadataArray: MetadataRow[] = Object.entries(
               updatedAsset.metadata
-            ).map(([label, value]) => ({ label, value }));
+            )
+              .filter(([key]) => key !== "supportiveData") // Exclude supportiveData
+              .map(([label, value]) => ({
+                label,
+                value: String(value) // Convert to string
+              }));
             setEditedMetadata(metadataArray);
           }
         }
@@ -85,12 +94,14 @@ const MyLibraryTab: React.FC<MyLibraryTabProps> = ({
     setEditedName(asset.name || asset.originalFilename || "");
     setEditedDescription(asset.description || "");
 
-    // Convert metadata object to array
+    // Convert metadata object to array, filtering out supportiveData (nested structure)
     const metadataArray: MetadataRow[] = asset.metadata
-      ? Object.entries(asset.metadata).map(([label, value]) => ({
-          label,
-          value,
-        }))
+      ? Object.entries(asset.metadata)
+          .filter(([key]) => key !== "supportiveData") // Exclude supportiveData from metadata table
+          .map(([label, value]) => ({
+            label,
+            value: String(value), // Convert to string for metadata table
+          }))
       : [];
     setEditedMetadata(metadataArray);
   };
@@ -109,7 +120,12 @@ const MyLibraryTab: React.FC<MyLibraryTabProps> = ({
       if (selectedAsset.metadata) {
         const metadataArray: MetadataRow[] = Object.entries(
           selectedAsset.metadata
-        ).map(([label, value]) => ({ label, value }));
+        )
+          .filter(([key]) => key !== "supportiveData") // Exclude supportiveData
+          .map(([label, value]) => ({
+            label,
+            value: String(value) // Convert to string
+          }));
         setEditedMetadata(metadataArray);
       }
     }
@@ -125,13 +141,19 @@ const MyLibraryTab: React.FC<MyLibraryTabProps> = ({
           }
           return acc;
         },
-        {} as Record<string, string>
+        {} as Record<string, unknown>
       );
+
+      // Preserve supportiveData if it exists in the original metadata
+      const originalMetadata = selectedAsset.metadata as Record<string, unknown> | undefined;
+      if (originalMetadata?.supportiveData) {
+        metadataObject.supportiveData = originalMetadata.supportiveData;
+      }
 
       onAssetUpdate(selectedAsset.id, {
         name: editedName,
         description: editedDescription,
-        metadata: metadataObject,
+        metadata: metadataObject as Record<string, string>, // Type assertion for API compatibility
       });
 
       setIsEditing(false);
@@ -261,6 +283,18 @@ const MyLibraryTab: React.FC<MyLibraryTabProps> = ({
             onAddToScene={handleAddToScene}
             onRetakePhoto={handleRetakePhoto}
             canUpdate={!!onAssetUpdate}
+            renderAfterMetadata={
+              renderAfterMetadata ||
+              (renderSupportiveData && selectedAsset
+                ? renderSupportiveData(selectedAsset, () => {
+                    // Refresh assets - this will be handled by the parent
+                    const updatedAsset = assets.find((a) => a.id === selectedAsset.id);
+                    if (updatedAsset) {
+                      setSelectedAsset(updatedAsset);
+                    }
+                  })
+                : undefined)
+            }
           />
         ) : (
           <Box

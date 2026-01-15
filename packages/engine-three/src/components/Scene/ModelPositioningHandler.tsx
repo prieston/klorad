@@ -24,6 +24,8 @@ const ModelPositioningHandler = () => {
 
     const handleClick = (e: MouseEvent) => {
       if (e.target !== (gl as any).domElement) return;
+      // Ignore right-click (button 2) and middle-click (button 1)
+      if (e.button === 2 || e.button === 1) return;
 
       // Stop propagation to prevent other handlers from interfering
       e.stopPropagation();

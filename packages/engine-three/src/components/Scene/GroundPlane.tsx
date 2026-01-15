@@ -17,6 +17,7 @@ const GroundPlane: React.FC<GroundPlaneProps> = ({ size = 100000 }) => {
       rotation={[-Math.PI / 2, 0, 0]}
       position={[0, 0, 0]}
       receiveShadow
+      userData={{ isTeleportable: true }}
     >
       <planeGeometry args={[size, size]} />
       <meshStandardMaterial

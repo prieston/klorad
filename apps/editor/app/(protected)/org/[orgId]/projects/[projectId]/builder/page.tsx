@@ -57,6 +57,7 @@ const sanitizeSceneData = (
         apiKey: rest.apiKey || undefined,
         component: rest.component || undefined,
         cesiumAssetId: rest.cesiumAssetId || undefined, // Include cesiumAssetId for matching
+        interactable: rest.interactable !== undefined ? rest.interactable : true,
       };
 
       // Include observation model data if present
@@ -183,6 +184,7 @@ const sanitizeSceneData = (
         description: point.description || "",
         position,
         target,
+        connectedModelId: point.connectedModelId || undefined,
       };
     })
     .filter(Boolean);

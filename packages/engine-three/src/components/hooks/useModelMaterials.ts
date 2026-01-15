@@ -8,15 +8,16 @@ interface UseModelMaterialsProps {
 
 export function useModelMaterials({
   modelRef,
-  selected,
-  previewMode,
+  selected: _selected,
+  previewMode: _previewMode,
 }: UseModelMaterialsProps) {
   if (!modelRef.current) return;
 
   modelRef.current.traverse((child: any) => {
     if (child.isMesh && child.material) {
-      child.material.transparent = true;
-      child.material.opacity = selected ? 1.0 : 0.9;
+      // Keep models fully opaque at all times - no transparency effect
+      child.material.opacity = 1.0;
+      child.material.transparent = false;
     }
   });
 }

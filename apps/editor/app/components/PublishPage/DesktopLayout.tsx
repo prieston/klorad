@@ -16,11 +16,13 @@ import {
 } from "./DesktopLayout.styles";
 import LogoHeader from "../AppBar/LogoHeader";
 import type { SceneProps } from "@klorad/engine-three";
+import { ConnectedModelDisplay } from "./ConnectedModelDisplay";
 
 type Observation = {
   id?: string | number;
   title?: string;
   description?: string;
+  connectedModelId?: string;
 };
 
 type Project = {
@@ -191,6 +193,11 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                 >
                   {currentObservation.description || "No description provided."}
                 </Typography>
+                <ConnectedModelDisplay
+                  connectedModelId={currentObservation.connectedModelId}
+                  sceneObjects={project.sceneData.objects || []}
+                  projectId={projectId}
+                />
               </>
             ) : (
               <Typography

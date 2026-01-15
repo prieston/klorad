@@ -14,6 +14,8 @@ import ReportGenerator from "../../Report/ReportGenerator";
 import ProjectSettingsModal from "../../Builder/ProjectSettingsModal";
 import { useAssetManager } from "./hooks/useAssetManager";
 import { useCesiumIon } from "./hooks/useCesiumIon";
+import { SupportiveDataSection } from "@/app/(protected)/org/[orgId]/library/models/components/SupportiveDataSection";
+import type { Asset } from "@/app/utils/api";
 
 interface PendingModel {
   name: string;
@@ -138,6 +140,30 @@ const BuilderActions: React.FC<BuilderActionsProps> = ({
         // Add Ion Asset
         onCesiumAssetAdd={handleCesiumAssetAdd}
         onIonAssetAdded={fetchUserAssets}
+        // Supportive Data - pass render function
+        renderSupportiveData={(asset, onUpdate) => {
+          // Convert LibraryAsset to Asset format expected by SupportiveDataSection
+          const assetForComponent: Asset = {
+            id: asset.id,
+            name: asset.name || null,
+            originalFilename: asset.originalFilename || asset.name || "",
+            fileUrl: asset.fileUrl,
+            fileType: asset.fileType,
+            organizationId: "", // Not needed for supportive data
+            assetType: asset.assetType || "model",
+            description: asset.description || null,
+            thumbnail: asset.thumbnail || null,
+            metadata: asset.metadata as Record<string, unknown> | null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          return (
+            <SupportiveDataSection
+              asset={assetForComponent}
+              onUpdate={onUpdate}
+            />
+          );
+        }}
       />
 
       <ActionButton

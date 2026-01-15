@@ -1,7 +1,7 @@
 "use client";
 
-import React, { memo, useCallback, useState, useEffect, useRef } from "react";
-import { Box, Button, TextField } from "@mui/material";
+import React, { memo, useCallback, useState, useEffect, useRef, useMemo } from "react";
+import { Box, Button, TextField, MenuItem, Select, FormControl } from "@mui/material";
 import { CameraIcon, FlightTakeoffIcon } from "@klorad/ui";
 import { useSceneStore, useWorldStore } from "@klorad/core";
 import { createLogger } from "@klorad/core";
@@ -69,13 +69,28 @@ export const ObservationPointView: React.FC<ObservationPointViewProps> = memo(
       }
     }, [selectedObservation.id, selectedObservation.title, selectedObservation.description]);
 
+    // Get available models from scene
+    const objects = useSceneStore((state) => state.objects);
+    const availableModels = useMemo(() => {
+      return objects.filter((obj) => obj.url && obj.id); // Only models with URLs
+    }, [objects]);
+
     // Type-safe property updates
-    type ObsKey = "title" | "description" | "position" | "target";
+    type ObsKey = "title" | "description" | "position" | "target" | "connectedModelId";
     const handleObservationChange = useCallback(
       <K extends ObsKey>(key: K, value: ObservationPoint[K]) => {
         updateObservationPoint(selectedObservation.id, {
           [key]: value,
         } as Pick<ObservationPoint, K>);
+      },
+      [selectedObservation.id, updateObservationPoint]
+    );
+
+    const handleModelConnectionChange = useCallback(
+      (modelId: string) => {
+        updateObservationPoint(selectedObservation.id, {
+          connectedModelId: modelId === "" ? undefined : modelId,
+        });
       },
       [selectedObservation.id, updateObservationPoint]
     );
@@ -255,6 +270,28 @@ export const ObservationPointView: React.FC<ObservationPointViewProps> = memo(
               }}
               sx={textFieldStyles}
             />
+          </Box>
+
+          {/* Connected Model Selection */}
+          <Box sx={{ mb: 2 }}>
+            <InputLabel>Connected Model</InputLabel>
+            <FormControl fullWidth size="small">
+              <Select
+                value={selectedObservation.connectedModelId || ""}
+                onChange={(e) => handleModelConnectionChange(e.target.value)}
+                displayEmpty
+                sx={textFieldStyles}
+              >
+                <MenuItem value="">
+                  <em>None</em>
+                </MenuItem>
+                {availableModels.map((model) => (
+                  <MenuItem key={model.id} value={model.id}>
+                    {model.name || model.id}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Box>
 
           {/* Position Info - Display Only */}

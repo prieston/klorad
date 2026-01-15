@@ -27,7 +27,8 @@ const SceneObjects: React.FC<SceneObjectsProps> = ({
             rotation={obj.rotation}
             scale={obj.scale}
             selected={selectedObject?.id === obj.id}
-            onSelect={previewMode || isPublishMode || enableXR ? undefined : selectObject}
+            // Non-interactable models cannot be selected via scene clicks, but can still be selected from the objects list
+            onSelect={previewMode || isPublishMode || enableXR || obj.interactable === false ? undefined : selectObject}
             assetId={obj.assetId || undefined}
             isObservationModel={obj.isObservationModel}
             observationProperties={

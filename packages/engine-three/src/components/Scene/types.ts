@@ -10,6 +10,7 @@ export interface Model {
   assetId?: string;
   component?: string;
   isObservationModel?: boolean;
+  interactable?: boolean;
   observationProperties?: {
     // Sensor Configuration
     sensorType: "cone" | "rectangle";
@@ -71,6 +72,7 @@ export interface ObservationPoint {
   description: string;
   position: [number, number, number] | null;
   target: [number, number, number] | null;
+  connectedModelId?: string;
 }
 
 export interface SceneProps {
@@ -97,6 +99,7 @@ export interface SceneProps {
   }) => void;
   enableXR?: boolean;
   isPublishMode?: boolean;
+  projectId?: string;
 }
 
 export interface SceneObjectsProps {

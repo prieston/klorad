@@ -42,6 +42,8 @@ const SceneObjectsListWrapper: React.FC = () => {
       sceneState.deselectObject();
     } else {
       const object = sceneState.objects.find((obj) => obj.id === id);
+      // List selection bypasses interactable check - allows selecting non-interactable models from the list
+      // Scene clicks respect the interactable property (handled in SceneObjects.tsx)
       sceneState.selectObject(id, object?.ref || null);
     }
   };
