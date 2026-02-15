@@ -57,8 +57,8 @@ const ModelPositioningManager: React.FC<ModelPositioningManagerProps> = ({
       return;
     }
 
-    // CESIUM BRANCH
-    if (engine === "cesium" && cesiumViewer) {
+    // CESIUM BRANCH — only set up click selector when actively positioning
+    if (engine === "cesium" && cesiumViewer && selectingPosition) {
       const Cesium = (window as any).Cesium;
       const { camera, scene } = cesiumViewer;
 

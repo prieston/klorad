@@ -80,6 +80,7 @@ export function createModelEntity(
     position: [number, number, number];
     rotation?: [number, number, number];
     scale?: [number, number, number];
+    interactable?: boolean;
   },
   longitude: number,
   latitude: number,
@@ -113,6 +114,7 @@ export function createModelEntity(
       id: entityId,
       position: entityPosition,
       orientation,
+      pickable: obj.interactable !== false, // Default to true if undefined
       model: {
         uri: obj.url,
         scale: uniformScale,
@@ -172,6 +174,12 @@ export function createModelEntity(
         (entity.label as any).text = newLabelText;
       }
     }
+
+    // Update pickable property if interactable changed
+    const newPickable = obj.interactable !== false; // Default to true if undefined
+    if (entity.pickable !== newPickable) {
+      entity.pickable = newPickable;
+    }
     // Note: Cesium automatically requests render when entity properties change,
     // so we don't need to call requestRender() manually
   }
@@ -189,6 +197,7 @@ export function createPointEntity(
     id: string;
     name?: string;
     position: [number, number, number];
+    interactable?: boolean;
   },
   longitude: number,
   latitude: number,
@@ -207,6 +216,7 @@ export function createPointEntity(
     viewer.entities.add({
       id: entityId,
       position: pos,
+      pickable: obj.interactable !== false, // Default to true if undefined
       point: {
         pixelSize: 10,
         color: Cesium.Color.RED,
@@ -238,6 +248,12 @@ export function createPointEntity(
       if (currentLabelText !== newLabelText) {
         (entity.label as any).text = newLabelText;
       }
+    }
+
+    // Update pickable property if interactable changed
+    const newPickable = obj.interactable !== false; // Default to true if undefined
+    if (entity.pickable !== newPickable) {
+      entity.pickable = newPickable;
     }
     // Note: Cesium automatically requests render when entity properties change
   }

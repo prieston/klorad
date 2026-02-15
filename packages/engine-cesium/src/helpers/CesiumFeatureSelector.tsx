@@ -22,6 +22,7 @@ const CesiumFeatureSelector: React.FC = () => {
     selectedCesiumFeature: s.selectedCesiumFeature,
     setSelectedCesiumFeature: s.setSelectedCesiumFeature,
     deselectObject: s.deselectObject,
+    selectingPosition: s.selectingPosition,
   }));
 
   // Destructure for cleaner lookups
@@ -32,10 +33,14 @@ const CesiumFeatureSelector: React.FC = () => {
     selectedCesiumFeature,
     setSelectedCesiumFeature,
     deselectObject,
+    selectingPosition,
   } = sceneState;
   const handlerRef = useRef<any>(null);
   const highlightedFeatureRef = useRef<any>(null);
   const originalColorRef = useRef<any>(null);
+  // Use ref to avoid stale closure in click handler
+  const selectingPositionRef = useRef(selectingPosition);
+  selectingPositionRef.current = selectingPosition;
 
   // Helper to restore previous feature's color
   const restoreHighlight = useCallback(() => {
@@ -78,22 +83,6 @@ const CesiumFeatureSelector: React.FC = () => {
     const scene = cesiumViewer.scene;
     const canvas = scene?.canvas;
     if (!canvas) return;
-
-    // Check if repositioning is active by checking if cursor is crosshair
-    // (setupCesiumClickSelector sets cursor to crosshair during repositioning)
-    const isRepositioning = canvas.style.cursor === "crosshair";
-    if (isRepositioning) {
-      // Cleanup handler if it exists
-      if (handlerRef.current) {
-        try {
-          handlerRef.current.destroy();
-        } catch {
-          // Ignore cleanup errors
-        }
-        handlerRef.current = null;
-      }
-      return;
-    }
 
     // cleanup old handler
     if (handlerRef.current) {
@@ -177,8 +166,8 @@ const CesiumFeatureSelector: React.FC = () => {
 
     // Primary click: pick topmost feature
     handler.setInputAction((movement: any) => {
-      // Skip if repositioning is active (cursor is crosshair)
-      if (canvas.style.cursor === "crosshair") {
+      // Skip if repositioning/positioning mode is active
+      if (selectingPositionRef.current) {
         return;
       }
 
@@ -202,11 +191,12 @@ const CesiumFeatureSelector: React.FC = () => {
           });
           return;
         }
+
         // Clicked empty or non-feature: clear selection and restore highlight
         restoreHighlight();
         setSelectedCesiumFeature(null);
       } catch (err) {
-        console.error("Error picking Cesium feature:", err);
+        console.error("[CesiumFeatureSelector] Error picking Cesium feature:", err);
         setSelectedCesiumFeature(null);
       }
     }, cesiumInstance.ScreenSpaceEventType.LEFT_CLICK);
@@ -214,8 +204,8 @@ const CesiumFeatureSelector: React.FC = () => {
     // Shift+click: drill pick (all features under cursor)
     handler.setInputAction(
       (movement: any) => {
-        // Skip if repositioning is active (cursor is crosshair)
-        if (canvas.style.cursor === "crosshair") {
+        // Skip if repositioning/positioning mode is active
+        if (selectingPositionRef.current) {
           return;
         }
 

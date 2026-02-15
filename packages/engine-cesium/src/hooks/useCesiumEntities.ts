@@ -30,6 +30,7 @@ export function useCesiumEntities(
         scale?: number[];
         url?: string;
         name?: string;
+        interactable?: boolean;
       }
     >
   >(new Map());
@@ -48,6 +49,7 @@ export function useCesiumEntities(
           scale?: number[];
           url?: string;
           name?: string;
+          interactable?: boolean;
         }
       >();
 
@@ -77,6 +79,7 @@ export function useCesiumEntities(
             scale: obj.scale,
             url: obj.url,
             name: obj.name,
+            interactable: obj.interactable,
           };
 
           // Compare values precisely to avoid false positives from floating point precision
@@ -97,7 +100,8 @@ export function useCesiumEntities(
             !arraysEqual(prevObj.rotation, objData.rotation) ||
             !arraysEqual(prevObj.scale, objData.scale) ||
             prevObj.url !== objData.url ||
-            prevObj.name !== objData.name;
+            prevObj.name !== objData.name ||
+            prevObj.interactable !== objData.interactable;
 
           currentObjects.set(obj.id, objData);
 
@@ -145,6 +149,7 @@ export function useCesiumEntities(
                       | [number, number, number]
                       | undefined,
                     scale: obj.scale as [number, number, number] | undefined,
+                    interactable: obj.interactable,
                   },
                   longitude,
                   latitude,
@@ -159,6 +164,7 @@ export function useCesiumEntities(
                     id: obj.id,
                     name: obj.name,
                     position: obj.position as [number, number, number],
+                    interactable: obj.interactable,
                   },
                   longitude,
                   latitude,
@@ -174,6 +180,7 @@ export function useCesiumEntities(
                   id: obj.id,
                   name: obj.name,
                   position: obj.position as [number, number, number],
+                  interactable: obj.interactable,
                 },
                 longitude,
                 latitude,
