@@ -4,6 +4,7 @@ import { hasUserRoleInOrganization } from "@/lib/organizations";
 import { prisma } from "@/lib/prisma";
 import { serverEnv } from "@/lib/env/server";
 import Stripe from "stripe";
+import { getBaseUrl } from "@/lib/utils/url";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-11-17.clover",
@@ -136,8 +137,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.NEXTAUTH_URL}/org/${orgId}/billing?success=true`,
-      cancel_url: `${process.env.NEXTAUTH_URL}/org/${orgId}/billing?canceled=true`,
+      success_url: `${getBaseUrl(request)}/org/${orgId}/billing?success=true`,
+      cancel_url: `${getBaseUrl(request)}/org/${orgId}/billing?canceled=true`,
       metadata: {
         organizationId: orgId,
         planCode: planCode,

@@ -24,7 +24,7 @@ const serverEnvSchema = z.object({
 
   // Authentication
   SECRET: z.string().min(1, "SECRET is required"),
-  NEXTAUTH_URL: z.string().min(1, "NEXTAUTH_URL is required"),
+  NEXTAUTH_URL: z.string().optional(), // Optional - NextAuth will auto-detect from request headers
   NEXTAUTH_COOKIE_DOMAIN: z
     .string()
     .min(1, "NEXTAUTH_COOKIE_DOMAIN is required"),
