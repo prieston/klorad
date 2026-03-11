@@ -12,6 +12,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
   secret: process.env.SECRET,
+  trustHost: true, // Allow NextAuth to auto-detect base URL from request headers
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
