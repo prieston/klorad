@@ -13,9 +13,9 @@ import type {
 
 const REQUIRED_ENV_VARS = {
   NEXTAUTH_URL: {
-    required: true,
+    required: false, // Optional - NextAuth will auto-detect from request headers when trustHost: true
     pattern: /^https?:\/\//,
-    description: "NextAuth base URL",
+    description: "NextAuth base URL (optional - auto-detected when not set)",
   },
   DATABASE_URL: {
     required: true,
