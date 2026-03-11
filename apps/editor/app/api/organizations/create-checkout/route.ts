@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { serverEnv } from "@/lib/env/server";
 import Stripe from "stripe";
 import { isGodUser } from "@/lib/config/godusers";
+import { getBaseUrl } from "@/lib/utils/url";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-11-17.clover",
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
 
       // Return success URL instead of Stripe checkout URL
       return NextResponse.json({
-        url: `${process.env.NEXTAUTH_URL}/org/${organization.id}/dashboard?org_created=true`,
+        url: `${getBaseUrl(request)}/org/${organization.id}/dashboard?org_created=true`,
         bypassed: true,
       });
     }
@@ -176,8 +177,8 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.NEXTAUTH_URL}/dashboard?org_created=true`,
-      cancel_url: `${process.env.NEXTAUTH_URL}/dashboard?org_canceled=true`,
+      success_url: `${getBaseUrl(request)}/dashboard?org_created=true`,
+      cancel_url: `${getBaseUrl(request)}/dashboard?org_canceled=true`,
       metadata: {
         userId: userId,
         orgName: orgName.trim(),
