@@ -45,6 +45,16 @@ export const getTopBarConfig = (
         previewMode,
         positioningProps
       );
+    case "mapbox":
+      return createCesiumTopBarConfig(
+        selectedObject,
+        transformMode,
+        onTransformModeChange,
+        onSave,
+        onPublish,
+        previewMode,
+        positioningProps
+      );
     default:
       return createThreeJSTopBarConfig(
         selectedObject,

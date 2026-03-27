@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { Vector3 } from "three";
+import type { MapboxSceneData } from "../../types/mapbox-scene";
 
 export interface CesiumIonAsset {
   id: string;
@@ -70,6 +71,13 @@ export interface Model {
   [key: string]: any;
 }
 
+/** Mapbox engine: camera at capture time (fly-to reproduces the POV). */
+export interface MapboxObservationCamera {
+  pitch: number;
+  bearing: number;
+  zoom: number;
+}
+
 export interface ObservationPoint {
   id: number;
   title: string;
@@ -77,6 +85,9 @@ export interface ObservationPoint {
   position: [number, number, number] | null;
   target: [number, number, number] | null;
   connectedModelId?: string;
+  mapboxCamera?: MapboxObservationCamera | null;
+  /** When true, Mapbox replays via free camera (position + look-at); legacy points use flyTo + mapboxCamera. */
+  mapboxUseFreeCameraPose?: boolean;
 }
 
 export type ViewMode =
@@ -100,6 +111,12 @@ export interface SceneState {
     worldPosition?: any;
     drillPickCount?: number;
   } | null;
+  /** Mapbox Standard basemap building feature (Interactions API). */
+  selectedMapboxBuilding: {
+    properties: Record<string, unknown>;
+    lng?: number;
+    lat?: number;
+  } | null;
   selectedAssetId: string;
   selectedLocation: {
     latitude: number;
@@ -110,6 +127,9 @@ export interface SceneState {
   cesiumIonAssets: CesiumIonAsset[];
   cesiumViewer: any | null;
   cesiumInstance: any | null;
+  /** Mapbox GL map instance (Map type from mapbox-gl); stored as unknown to avoid core depending on mapbox types. */
+  mapboxMap: unknown | null;
+  mapboxSceneData: MapboxSceneData;
   basemapType: "cesium" | "google" | "google-photorealistic" | "bing" | "none";
   gridEnabled: boolean;
   groundPlaneEnabled: boolean;
@@ -141,6 +161,9 @@ export interface SceneState {
   setMagnetEnabled: (enabled: boolean) => void;
   setCesiumViewer: (viewer: any) => void;
   setCesiumInstance: (instance: any) => void;
+  setMapboxMap: (map: unknown | null) => void;
+  setMapboxSceneData: (partial: Partial<MapboxSceneData>) => void;
+  resetMapboxSceneData: () => void;
   setBasemapType: (
     type: "cesium" | "google" | "google-photorealistic" | "bing" | "none"
   ) => void;
@@ -213,6 +236,13 @@ export interface SceneState {
       properties: Record<string, unknown>;
       worldPosition?: any;
       drillPickCount?: number;
+    } | null
+  ) => void;
+  setSelectedMapboxBuilding: (
+    feature: {
+      properties: Record<string, unknown>;
+      lng?: number;
+      lat?: number;
     } | null
   ) => void;
   selectingPosition: boolean;

@@ -33,10 +33,11 @@ const SceneObjectsListWrapper: React.FC = () => {
   }));
 
   const handleSelect = (id: string) => {
-    // Clear Cesium feature selection when selecting a scene object
-    const setSelectedCesiumFeature =
-      useSceneStore.getState().setSelectedCesiumFeature;
+    // Clear map feature selection when selecting a scene object
+    const { setSelectedCesiumFeature, setSelectedMapboxBuilding } =
+      useSceneStore.getState();
     setSelectedCesiumFeature(null);
+    setSelectedMapboxBuilding(null);
 
     if (sceneState.selectedObject?.id === id) {
       sceneState.deselectObject();

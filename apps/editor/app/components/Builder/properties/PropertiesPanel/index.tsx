@@ -6,6 +6,7 @@ import { ModelObject, ObservationPoint } from "../types";
 import { ObjectPropertiesView } from "./views/ObjectPropertiesView";
 import { ObservationPointView } from "./views/ObservationPointView";
 import { CesiumFeatureView } from "./views/CesiumFeatureView";
+import { MapboxBuildingFeatureView } from "./views/MapboxBuildingFeatureView";
 import { EmptyStateView } from "./views/EmptyStateView";
 
 interface PropertiesPanelProps {
@@ -29,6 +30,7 @@ interface PropertiesPanelProps {
  * - ObjectPropertiesView: For 3D models
  * - ObservationPointView: For camera observation points
  * - CesiumFeatureView: For IFC/BIM elements
+ * - MapboxBuildingFeatureView: For Mapbox Standard basemap buildings
  * - EmptyStateView: When nothing is selected
  *
  * Uses default memo (shallow prop comparison) - child views handle their own memoization
@@ -45,6 +47,9 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = memo(
     onCancelRepositioning,
   }) => {
     const selectedCesiumFeature = useSceneStore((s) => s.selectedCesiumFeature);
+    const selectedMapboxBuilding = useSceneStore(
+      (s) => s.selectedMapboxBuilding
+    );
 
     // Priority 1: Cesium Feature (IFC/BIM elements)
     if (selectedCesiumFeature) {
@@ -53,7 +58,16 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = memo(
       );
     }
 
-    // Priority 2: Selected Object (3D Models)
+    // Priority 2: Mapbox Standard building
+    if (selectedMapboxBuilding) {
+      return (
+        <MapboxBuildingFeatureView
+          selectedMapboxBuilding={selectedMapboxBuilding}
+        />
+      );
+    }
+
+    // Priority 3: Selected Object (3D Models)
     if (selectedObject) {
       return (
         <ObjectPropertiesView
@@ -65,7 +79,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = memo(
       );
     }
 
-    // Priority 3: Observation Point
+    // Priority 4: Observation Point
     if (selectedObservation) {
       return (
         <ObservationPointView

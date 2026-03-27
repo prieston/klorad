@@ -13,6 +13,7 @@ import { apiOrgAudit } from "./audits/api-org.audit.js";
 import { uiBoundariesAudit } from "./audits/ui-boundaries.audit.js";
 import { cesiumEngineBoundariesAudit } from "./audits/cesium-engine-boundaries.audit.js";
 import { threejsEngineBoundariesAudit } from "./audits/threejs-engine-boundaries.audit.js";
+import { mapboxEngineBoundariesAudit } from "./audits/mapbox-engine-boundaries.audit.js";
 
 // Import advisory audits
 import { sizeComplexityAudit } from "./advisory/size-complexity.audit.js";
@@ -32,6 +33,7 @@ export const kloradProfile: ProjectProfile = {
       uiBoundariesAudit,
       cesiumEngineBoundariesAudit,
       threejsEngineBoundariesAudit,
+      mapboxEngineBoundariesAudit,
     ];
   },
   async getAdvisoryAudits(_rootDir: string): Promise<AuditDefinition[]> {

@@ -19,6 +19,7 @@ export function createObjectActions(set: any, _get: any) {
         return {
           selectedObject: found ? (found as any) : null,
           selectedObservation: null,
+          selectedMapboxBuilding: null,
         } as any;
       }),
 
@@ -64,7 +65,8 @@ export function createObjectActions(set: any, _get: any) {
         ),
       })),
 
-    deselectObject: () => set({ selectedObject: null }),
+    deselectObject: () =>
+      set({ selectedObject: null, selectedMapboxBuilding: null }),
 
     setModelPosition: (id: string, newPosition: any) =>
       set((state: any) => ({

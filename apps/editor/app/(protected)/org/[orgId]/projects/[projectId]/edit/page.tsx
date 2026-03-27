@@ -24,7 +24,7 @@ const EditProjectPage = () => {
   const orgId = useOrgId();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [engine] = useState("cesium");
+  const [engine, setEngine] = useState<"three" | "cesium" | "mapbox">("three");
   const { project, loadingProject } = useProject(projectIdStr);
 
   // Sync project data to form when it loads
@@ -32,6 +32,7 @@ const EditProjectPage = () => {
     if (project) {
       setTitle(project.title);
       setDescription(project.description || "");
+      setEngine(project.engine);
     }
   }, [project]);
 
@@ -40,7 +41,7 @@ const EditProjectPage = () => {
   // Handler to save updated project details
   const handleSave = async () => {
     try {
-      await updateProject(projectIdStr, { title, description, engine: engine as "three" | "cesium" });
+      await updateProject(projectIdStr, { title, description, engine });
       showToast("Project saved successfully!");
       if (orgId) {
         router.push(`/org/${orgId}/dashboard`);

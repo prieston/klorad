@@ -1,0 +1,63 @@
+{
+  "name": "@klorad/engine-mapbox",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "files": [
+    "dist/**",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./components": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.js",
+      "default": "./dist/components/index.js"
+    },
+    "./components/*": {
+      "types": "./dist/components/*.d.ts",
+      "import": "./dist/components/*.js",
+      "default": "./dist/components/*.js"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.js",
+      "default": "./dist/utils/index.js"
+    }
+  },
+  "peerDependencies": {
+    "@klorad/core": "workspace:*",
+    "@klorad/ui": "workspace:*",
+    "@mui/material": ">=5",
+    "mapbox-gl": ">=3.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@types/mapbox-gl": "^3.4.1",
+    "@types/node": "^20.11.30",
+    "@types/react": "^19.0.0",
+    "three": "^0.170.0",
+    "threebox-plugin": "2.2.7"
+  },
+  "devDependencies": {
+    "@klorad/ui": "workspace:*",
+    "@types/three": "^0.170.0"
+  },
+  "scripts": {
+    "clean": "rimraf dist *.tsbuildinfo",
+    "build": "tsup",
+    "dev": "tsup --watch"
+  }
+}

@@ -56,7 +56,7 @@ interface MobileLayoutProps {
   drawerOpen: boolean;
   setDrawerOpen: (value: boolean) => void;
   projectId: string;
-  engine: "three" | "cesium";
+  engine: "three" | "cesium" | "mapbox";
 }
 
 const MobileLayout: React.FC<MobileLayoutProps> = ({

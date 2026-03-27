@@ -44,7 +44,8 @@ const TransformLocationSection: React.FC<TransformLocationSectionProps> =
           <SettingLabel>Transform & Location</SettingLabel>
 
           {/* View on Google Maps - Only show for Cesium engine */}
-          {geographicCoords && engine === "cesium" && (
+          {geographicCoords &&
+            (engine === "cesium" || engine === "mapbox") && (
             <Button
               variant="outlined"
               startIcon={<LocationOnIcon />}

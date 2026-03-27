@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useWorldStore, useSceneStore } from "@klorad/core";
-import { captureThreeJSScreenshot, captureCesiumScreenshot } from "@/app/utils/screenshotCapture";
+import {
+  captureThreeJSScreenshot,
+  captureCesiumScreenshot,
+  captureMapboxScreenshot,
+} from "@/app/utils/screenshotCapture";
 import { showToast } from "@klorad/ui";
 import {
   getThumbnailUploadUrl,
@@ -27,6 +31,7 @@ export function useProjectThumbnailCapture({
   const sceneState = useSceneStore((s) => ({
     scene: s.scene,
     cesiumViewer: s.cesiumViewer,
+    mapboxMap: s.mapboxMap,
   }));
 
   const captureScreenshot = async () => {
@@ -39,6 +44,12 @@ export function useProjectThumbnailCapture({
         }
       } else if (engine === "cesium") {
         const dataUrl = await captureCesiumScreenshot(sceneState.cesiumViewer);
+        if (dataUrl) {
+          setCapturedImage(dataUrl);
+          return;
+        }
+      } else if (engine === "mapbox") {
+        const dataUrl = await captureMapboxScreenshot(sceneState.mapboxMap);
         if (dataUrl) {
           setCapturedImage(dataUrl);
           return;

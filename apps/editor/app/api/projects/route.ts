@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     } = body as {
       title?: string;
       description?: string;
-      engine?: "three" | "cesium";
+      engine?: "three" | "cesium" | "mapbox";
       organizationId?: string;
     };
 

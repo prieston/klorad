@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.lib.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "./dist",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "module": "ES2020",
+    "moduleResolution": "Bundler",
+    "skipLibCheck": true,
+    "strict": true,
+    "sourceMap": true
+  },
+  "include": ["src/**/*", "tests/**/*.typecheck.ts"],
+  "exclude": ["dist", "node_modules", "**/*.test.*", "**/*.spec.*"]
+}

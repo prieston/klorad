@@ -32,7 +32,7 @@ interface CreateProjectDrawerProps {
   onClose: () => void;
   onTitleChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
-  onEngineChange: (value: "cesium" | "three") => void;
+  onEngineChange: (value: "cesium" | "three" | "mapbox") => void;
   onSave: () => void;
 }
 
@@ -157,10 +157,19 @@ export const CreateProjectDrawer: React.FC<CreateProjectDrawerProps> = ({
               <SettingLabel>World Type</SettingLabel>
               <FormControl component="fieldset" fullWidth>
                 <RadioGroup
-                  value={engine === "cesium" ? "geospatial" : "independent"}
-                  onChange={(e) =>
-                    onEngineChange(e.target.value === "geospatial" ? "cesium" : "three")
+                  value={
+                    engine === "cesium"
+                      ? "geospatial"
+                      : engine === "mapbox"
+                        ? "campus"
+                        : "independent"
                   }
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "geospatial") onEngineChange("cesium");
+                    else if (v === "campus") onEngineChange("mapbox");
+                    else onEngineChange("three");
+                  }}
                   sx={{ gap: 1.5 }}
                 >
                   <FormControlLabel
@@ -187,6 +196,34 @@ export const CreateProjectDrawer: React.FC<CreateProjectDrawerProps> = ({
                           A world anchored to real Earth locations, scale, and orientation.
                           Best for representing places, landscapes, cities, and large-scale
                           environments.
+                        </Typography>
+                      </Box>
+                    }
+                    sx={{ marginLeft: 0, alignItems: "flex-start" }}
+                  />
+                  <FormControlLabel
+                    value="campus"
+                    control={
+                      <Radio
+                        sx={{
+                          color: "text.secondary",
+                          "&.Mui-checked": {
+                            color: "primary.main",
+                          },
+                        }}
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          Campus & Map World
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: "text.secondary", display: "block", mt: 0.5 }}
+                        >
+                          Map-first 2D/3D campus navigation with Mapbox: routes, POIs, floor
+                          plans, and observation tours for universities and sites.
                         </Typography>
                       </Box>
                     }

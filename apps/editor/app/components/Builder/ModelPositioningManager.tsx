@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from "react";
 import { useSceneStore, useWorldStore } from "@klorad/core";
 import ModelPositioningOverlay from "./ModelPositioningOverlay";
 import { setupCesiumClickSelector } from "@klorad/engine-cesium";
+import { setupMapboxClickSelector } from "@klorad/engine-mapbox";
 
 interface PendingModel {
   name: string;
@@ -38,6 +39,7 @@ const ModelPositioningManager: React.FC<ModelPositioningManagerProps> = ({
   // Use individual selectors to avoid object reference issues
   const viewMode = useSceneStore((s) => s.viewMode);
   const cesiumViewer = useSceneStore((s) => s.cesiumViewer);
+  const mapboxMap = useSceneStore((s) => s.mapboxMap);
 
   // Use ref to store the callback to avoid dependency issues
   const onPositionSelectedRef = useRef(onPositionSelected);
@@ -55,6 +57,15 @@ const ModelPositioningManager: React.FC<ModelPositioningManagerProps> = ({
         selectingPosition ? onPositionSelectedRef.current : null
       );
       return;
+    }
+
+    if (engine === "mapbox" && mapboxMap && selectingPosition) {
+      const map = mapboxMap as Parameters<
+        typeof setupMapboxClickSelector
+      >[0];
+      return setupMapboxClickSelector(map, (position) => {
+        onPositionSelectedRef.current(position);
+      });
     }
 
     // CESIUM BRANCH — only set up click selector when actively positioning
@@ -160,6 +171,7 @@ const ModelPositioningManager: React.FC<ModelPositioningManagerProps> = ({
     viewMode,
     engine,
     cesiumViewer,
+    mapboxMap,
     setSelectingPosition,
     setOnPositionSelected,
   ]);

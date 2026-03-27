@@ -6,6 +6,7 @@ import { CameraIcon, FlightTakeoffIcon } from "@klorad/ui";
 import { useSceneStore, useWorldStore } from "@klorad/core";
 import { createLogger } from "@klorad/core";
 import { flyToCesiumPosition } from "@klorad/engine-cesium";
+import { easeToObservationPoints } from "@klorad/engine-mapbox";
 import { textFieldStyles } from "@klorad/ui";
 
 const logger = createLogger("ObservationPointView");
@@ -41,6 +42,7 @@ export const ObservationPointView: React.FC<ObservationPointViewProps> = memo(
   ({ selectedObservation, updateObservationPoint, setCapturingPOV }) => {
     const engine = useWorldStore((s) => s.engine);
     const cesiumViewer = useSceneStore((s) => s.cesiumViewer);
+    const mapboxMap = useSceneStore((s) => s.mapboxMap);
 
     // Local state for inputs to prevent focus loss on re-renders
     const [title, setTitle] = useState(selectedObservation.title || "");
@@ -146,6 +148,17 @@ export const ObservationPointView: React.FC<ObservationPointViewProps> = memo(
           // Fallback to simple flyTo if no target
           flyToCesiumPosition(cesiumViewer, lon, lat, alt);
         }
+      } else if (engine === "mapbox" && mapboxMap) {
+        if (
+          hasVec3(selectedObservation.position) &&
+          hasVec3(selectedObservation.target)
+        ) {
+          easeToObservationPoints(
+            mapboxMap as Parameters<typeof easeToObservationPoints>[0],
+            selectedObservation,
+            1500
+          );
+        }
       } else if (engine === "three") {
         // For Three.js, enable preview mode to animate to the observation point
         // This will trigger the CameraSpringController to handle the animation
@@ -159,7 +172,14 @@ export const ObservationPointView: React.FC<ObservationPointViewProps> = memo(
           setPreviewMode(true);
         }
       }
-    }, [engine, cesiumViewer, selectedObservation.position, selectedObservation.target, selectedObservation.id]);
+    }, [
+      engine,
+      cesiumViewer,
+      mapboxMap,
+      selectedObservation.position,
+      selectedObservation.target,
+      selectedObservation.id,
+    ]);
 
     const handleCapturePosition = useCallback(
       () => setCapturingPOV(true),
@@ -299,11 +319,17 @@ export const ObservationPointView: React.FC<ObservationPointViewProps> = memo(
             label="Camera Position"
             value={
               hasVec3(selectedObservation.position)
-                ? `Lat: ${selectedObservation.position[0].toFixed(
-                    6
-                  )}, Lon: ${selectedObservation.position[1].toFixed(
-                    6
-                  )}, Alt: ${selectedObservation.position[2].toFixed(2)}m`
+                ? engine === "mapbox"
+                  ? `Lng: ${selectedObservation.position[0].toFixed(
+                      6
+                    )}, Lat: ${selectedObservation.position[1].toFixed(
+                      6
+                    )}, Alt: ${selectedObservation.position[2].toFixed(2)}m`
+                  : `Lat: ${selectedObservation.position[0].toFixed(
+                      6
+                    )}, Lon: ${selectedObservation.position[1].toFixed(
+                      6
+                    )}, Alt: ${selectedObservation.position[2].toFixed(2)}m`
                 : "Not captured"
             }
           />
@@ -313,11 +339,17 @@ export const ObservationPointView: React.FC<ObservationPointViewProps> = memo(
             label="Camera Target"
             value={
               hasVec3(selectedObservation.target)
-                ? `Lat: ${selectedObservation.target[0].toFixed(
-                    6
-                  )}, Lon: ${selectedObservation.target[1].toFixed(
-                    6
-                  )}, Alt: ${selectedObservation.target[2].toFixed(2)}m`
+                ? engine === "mapbox"
+                  ? `Lng: ${selectedObservation.target[0].toFixed(
+                      6
+                    )}, Lat: ${selectedObservation.target[1].toFixed(
+                      6
+                    )}, Alt: ${selectedObservation.target[2].toFixed(2)}m`
+                  : `Lat: ${selectedObservation.target[0].toFixed(
+                      6
+                    )}, Lon: ${selectedObservation.target[1].toFixed(
+                      6
+                    )}, Alt: ${selectedObservation.target[2].toFixed(2)}m`
                 : "Not captured"
             }
           />
