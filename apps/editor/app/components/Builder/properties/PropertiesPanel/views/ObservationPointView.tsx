@@ -149,13 +149,37 @@ export const ObservationPointView: React.FC<ObservationPointViewProps> = memo(
           flyToCesiumPosition(cesiumViewer, lon, lat, alt);
         }
       } else if (engine === "mapbox" && mapboxMap) {
-        if (
-          hasVec3(selectedObservation.position) &&
-          hasVec3(selectedObservation.target)
-        ) {
+        const pos = selectedObservation.position;
+        const targ = selectedObservation.target;
+        if (hasVec3(pos) && hasVec3(targ)) {
+          const pointPayload: NonNullable<
+            Parameters<typeof easeToObservationPoints>[1]
+          > = {
+            position: [pos[0], pos[1], pos[2]],
+            target: [targ[0], targ[1], targ[2]],
+          };
+          const mcRaw = selectedObservation.mapboxCamera;
+          if (
+            mcRaw &&
+            typeof mcRaw === "object" &&
+            mcRaw !== null &&
+            "pitch" in mcRaw &&
+            "bearing" in mcRaw &&
+            "zoom" in mcRaw
+          ) {
+            const pitch = Number((mcRaw as { pitch: number }).pitch);
+            const bearing = Number((mcRaw as { bearing: number }).bearing);
+            const zoom = Number((mcRaw as { zoom: number }).zoom);
+            if ([pitch, bearing, zoom].every(Number.isFinite)) {
+              pointPayload.mapboxCamera = { pitch, bearing, zoom };
+            }
+          }
+          if (selectedObservation.mapboxUseFreeCameraPose === true) {
+            pointPayload.mapboxUseFreeCameraPose = true;
+          }
           easeToObservationPoints(
             mapboxMap as Parameters<typeof easeToObservationPoints>[0],
-            selectedObservation,
+            pointPayload,
             1500
           );
         }
