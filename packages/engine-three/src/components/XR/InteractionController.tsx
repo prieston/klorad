@@ -5,13 +5,13 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useXR, useXREvent, useXRInputSourceState } from "@react-three/xr";
 import * as THREE from "three";
 import { useXRStore, useSceneStore } from "@klorad/core";
-import type { Model } from "@klorad/core/src/state/scene-store/types";
+import type { Model } from "@klorad/core";
 import { InteractionRay } from "./InteractionRay";
 import { findInteractableModel } from "./utils/interactionUtils";
 import { useHapticFeedback } from "./hooks/useHapticFeedback";
 
 export const InteractionController: React.FC = () => {
-  const xr = useXR();
+  useXR();
   const right = useXRInputSourceState("controller", "right");
   const { scene } = useThree();
   const raycasterRef = useRef(new THREE.Raycaster());

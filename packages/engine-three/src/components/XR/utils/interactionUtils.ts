@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { Model } from "@klorad/core/src/state/scene-store/types";
+import type { Model } from "@klorad/core";
 
 // Cache for candidate objects keyed by scene UUID
 const candidateObjectsCache = new Map<
