@@ -330,7 +330,7 @@ export interface Project {
   id: string;
   title: string;
   description: string | null;
-  engine: "three" | "cesium";
+  engine: "three" | "cesium" | "mapbox";
   organizationId: string;
   sceneData: unknown;
   isPublished: boolean;
@@ -354,7 +354,7 @@ export async function getProject(
 export async function createProject(data: {
   title?: string;
   description?: string;
-  engine?: "three" | "cesium";
+  engine?: "three" | "cesium" | "mapbox";
   organizationId: string; // Required: organization must be specified
 }): Promise<{ project: Project }> {
   return apiRequest<{ project: Project }>("/api/projects", {
@@ -368,7 +368,7 @@ export async function updateProject(
   data: {
     title?: string;
     description?: string;
-    engine?: "three" | "cesium";
+    engine?: "three" | "cesium" | "mapbox";
     thumbnail?: string | null;
   }
 ): Promise<{ project: Project }> {

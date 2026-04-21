@@ -17,7 +17,7 @@ interface ObjectActionsSectionProps {
   onTransformModeChange?: (mode: "translate" | "rotate" | "scale") => void;
   interactable?: boolean;
   onInteractableChange?: (interactable: boolean) => void;
-  engine?: "three" | "cesium";
+  engine?: "three" | "cesium" | "mapbox";
 }
 
 const ObjectActionsSection: React.FC<ObjectActionsSectionProps> = ({

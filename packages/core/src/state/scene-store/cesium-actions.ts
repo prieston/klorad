@@ -18,7 +18,10 @@ export function createCesiumActions(set: any, get: any) {
     setCesiumCurrentTime: (time: string | null) =>
       set({ cesiumCurrentTime: time }),
     setSelectedCesiumFeature: (feature: any) =>
-      set({ selectedCesiumFeature: feature }),
+      set({
+        selectedCesiumFeature: feature,
+        ...(feature ? { selectedMapboxBuilding: null } : {}),
+      }),
     setTilesRenderer: (renderer: any) => set({ tilesRenderer: renderer }),
 
     addGoogleTiles: (apiKey: string) =>

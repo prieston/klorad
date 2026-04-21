@@ -22,7 +22,7 @@ export const useGeographicCoords = (
 
     const { engine } = useWorldStore.getState();
 
-    if (engine === "cesium") {
+    if (engine === "cesium" || engine === "mapbox") {
       return {
         longitude: x,
         latitude: y,

@@ -20,15 +20,15 @@ import {
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
+  BusinessIcon,
   DashboardIcon,
+  ExpandMoreIcon,
   FolderIcon,
+  HelpOutlineIcon,
+  LeftPanelContainer,
   LibraryBooksIcon,
   SettingsIcon,
-  ExpandMoreIcon,
-  BusinessIcon,
-  HelpOutlineIcon,
 } from "@klorad/ui";
-import { LeftPanelContainer } from "@klorad/ui";
 import LogoHeader from "@/app/components/AppBar/LogoHeader";
 import UserAccountMenu from "@/app/components/AppBar/UserAccountMenu";
 import useOrganization from "@/app/hooks/useOrganization";

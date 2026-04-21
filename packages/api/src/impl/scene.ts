@@ -1,5 +1,5 @@
 import { useSceneStore } from "@klorad/core";
-import type { SceneAPI, DigitalTwinAPI, VirtualMuseumAPI } from "../types/interfaces";
+import type { SceneAPI, DigitalTwinAPI, VirtualMuseumAPI, CampusAPI } from "../types/interfaces";
 import type { SceneData, SceneObject, Vector3, Engine, SceneMode } from "../types";
 import { createObjectsAPI } from "./objects";
 import { createTourAPI } from "./tour";
@@ -9,6 +9,7 @@ import { createCameraAPI } from "./camera";
 import { createEventBus } from "./events";
 import { createSensorsAPI, createIoTAPI } from "../extensions/digital-twin";
 import { createExhibitsAPI } from "../extensions/museum";
+import { createCampusExtension } from "../extensions/campus";
 
 type RawObject = ReturnType<typeof useSceneStore.getState>["objects"][number];
 type RawPoint = ReturnType<typeof useSceneStore.getState>["observationPoints"][number];
@@ -113,22 +114,19 @@ function buildBaseAPI(engine: Engine): SceneAPI {
   };
 }
 
-export function createSceneAPI(engine: Engine, mode: SceneMode): SceneAPI | DigitalTwinAPI | VirtualMuseumAPI {
+export function createSceneAPI(engine: Engine, mode: SceneMode): SceneAPI | DigitalTwinAPI | VirtualMuseumAPI | CampusAPI {
   const base = buildBaseAPI(engine);
 
   if (mode === "digital-twin") {
-    return {
-      ...base,
-      sensors: createSensorsAPI(),
-      iot: createIoTAPI(),
-    } as DigitalTwinAPI;
+    return { ...base, sensors: createSensorsAPI(), iot: createIoTAPI() } as DigitalTwinAPI;
   }
 
   if (mode === "museum") {
-    return {
-      ...base,
-      exhibits: createExhibitsAPI(),
-    } as VirtualMuseumAPI;
+    return { ...base, exhibits: createExhibitsAPI() } as VirtualMuseumAPI;
+  }
+
+  if (mode === "campus") {
+    return { ...base, ...createCampusExtension() } as CampusAPI;
   }
 
   return base;

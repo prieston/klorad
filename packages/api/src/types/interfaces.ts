@@ -1,3 +1,4 @@
+import type { POI, POIInput, DataLayer } from "./campus";
 import type {
   Engine,
   GeoPosition,
@@ -167,4 +168,29 @@ export interface ExhibitsAPI {
 
 export interface VirtualMuseumAPI extends SceneAPI {
   readonly exhibits: ExhibitsAPI;
+}
+
+// ---------------------------------------------------------------------------
+// Domain: Campus / University Map
+// ---------------------------------------------------------------------------
+
+export interface POIManagerAPI {
+  add(input: POIInput): POI;
+  update(id: string, patch: Partial<POI>): void;
+  remove(id: string): void;
+  getAll(): POI[];
+  search(query: string): POI[];
+  flyTo(id: string): Promise<void>;
+}
+
+export interface LayersAPI {
+  register(layer: DataLayer): void;
+  toggle(layerId: string, visible: boolean): void;
+  update(layerId: string, data: Record<string, unknown>): void;
+  getAll(): DataLayer[];
+}
+
+export interface CampusAPI extends SceneAPI {
+  readonly poi: POIManagerAPI;
+  readonly layers: LayersAPI;
 }

@@ -126,3 +126,38 @@ export const createCesiumLeftPanelConfig = (
     ],
   };
 };
+
+export const createMapboxLeftPanelConfig = (): PanelConfiguration => {
+  return {
+    id: "left-panel",
+    name: "Left Panel",
+    tabs: [
+      {
+        id: "assets",
+        label: "Scene",
+        icon: ViewInAr,
+        settings: [
+          {
+            id: "scene-objects",
+            type: "custom",
+            label: "Scene Objects",
+            customComponent: "SceneObjectsList",
+          },
+        ],
+      },
+      {
+        id: "environment",
+        label: "Environment",
+        icon: Landscape,
+        settings: [
+          {
+            id: "mapbox-environment",
+            type: "custom",
+            label: "Map & atmosphere",
+            customComponent: "MapboxEnvironmentSection",
+          },
+        ],
+      },
+    ],
+  };
+};

@@ -70,6 +70,14 @@
         "../packages/engine-cesium/dist/*",
         "../packages/engine-cesium/dist/*.js"
       ],
+      "@klorad/engine-mapbox": [
+        "../packages/engine-mapbox/dist/index.d.ts",
+        "../packages/engine-mapbox/dist/index.js"
+      ],
+      "@klorad/engine-mapbox/*": [
+        "../packages/engine-mapbox/dist/*",
+        "../packages/engine-mapbox/dist/*.js"
+      ],
       "@klorad/ion-sdk": [
         "../packages/ion-sdk/dist/index.d.ts",
         "../packages/ion-sdk/dist/index.js"

@@ -55,7 +55,7 @@ interface ProjectDetail {
   id: string;
   title: string;
   description: string | null;
-  engine: "three" | "cesium";
+  engine: "three" | "cesium" | "mapbox";
   organizationId: string;
   sceneData: unknown;
   isPublished: boolean;
@@ -603,19 +603,33 @@ const ProjectDetailPage = () => {
                         </Typography>
                       </Box>
                       <Chip
-                        label={project.engine === "cesium" ? "Cesium" : "Three.js"}
+                        label={
+                          project.engine === "cesium"
+                            ? "Cesium"
+                            : project.engine === "mapbox"
+                              ? "Mapbox"
+                              : "Three.js"
+                        }
                         size="small"
                         sx={{
                           backgroundColor:
                             project.engine === "cesium"
                               ? "rgba(99, 102, 241, 0.15)"
-                              : "rgba(245, 158, 11, 0.15)",
+                              : project.engine === "mapbox"
+                                ? "rgba(14, 165, 233, 0.15)"
+                                : "rgba(245, 158, 11, 0.15)",
                           color:
-                            project.engine === "cesium" ? "#6366f1" : "#f59e0b",
+                            project.engine === "cesium"
+                              ? "#6366f1"
+                              : project.engine === "mapbox"
+                                ? "#0ea5e9"
+                                : "#f59e0b",
                           border: `1px solid ${
                             project.engine === "cesium"
                               ? "rgba(99, 102, 241, 0.4)"
-                              : "rgba(245, 158, 11, 0.4)"
+                              : project.engine === "mapbox"
+                                ? "rgba(14, 165, 233, 0.4)"
+                                : "rgba(245, 158, 11, 0.4)"
                           }`,
                         }}
                       />

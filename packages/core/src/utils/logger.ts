@@ -10,11 +10,11 @@
  */
 
 // These will be replaced at compile time via DefinePlugin/webpack
-// @ts-ignore - Compile-time constants defined via webpack DefinePlugin
+// @ts-expect-error - Compile-time constants defined via webpack DefinePlugin
 declare const __DEV__: boolean;
-// @ts-ignore
+// @ts-expect-error - Compile-time constant
 declare const __LOG_LEVEL__: "debug" | "info" | "warn" | "error" | "silent";
-// @ts-ignore
+// @ts-expect-error - Compile-time constant
 declare const DEBUG_SENSORS: boolean;
 
 // Fallback for environments where constants aren't defined

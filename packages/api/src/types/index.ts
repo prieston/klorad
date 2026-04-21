@@ -2,8 +2,8 @@
 // Primitives
 // ---------------------------------------------------------------------------
 
-export type Engine = "three" | "cesium";
-export type SceneMode = "editor" | "digital-twin" | "museum" | "viewer";
+export type Engine = "three" | "cesium" | "mapbox";
+export type SceneMode = "editor" | "digital-twin" | "museum" | "campus" | "viewer";
 export type Vector3 = [number, number, number];
 export type TransformMode = "translate" | "rotate" | "scale";
 export type ViewMode = "orbit" | "firstPerson" | "flight" | "car" | "thirdPerson";
@@ -143,10 +143,8 @@ export interface IoTConfig {
 // Domain: Virtual Museum
 // ---------------------------------------------------------------------------
 
-export type MediaType = "image" | "video" | "audio" | "document";
-
 export interface ExhibitMedia {
-  type: MediaType;
+  type: "image" | "video" | "audio" | "document";
   url: string;
   caption?: string;
 }
