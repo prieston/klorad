@@ -23,8 +23,8 @@ import TourIcon from "@mui/icons-material/Tour";
 import { createSceneAPI } from "@klorad/api";
 import type { CampusAPI, POI, TourStop } from "@klorad/api";
 
-const MapboxViewer = dynamic<Record<string, never>>(
-  () => import("@klorad/engine-mapbox").then((m) => m.default) as never,
+const MapboxViewer = dynamic(
+  () => import("@klorad/engine-mapbox").then((m) => ({ default: m.MapboxViewer })),
   { ssr: false, loading: () => <MapLoadingFallback /> }
 );
 
@@ -48,21 +48,35 @@ export default function PublicViewerClient({ mapId }: Props) {
   const [pois, setPois] = useState<POI[]>([]);
   const [tourStops, setTourStops] = useState<TourStop[]>([]);
   const [currentStop, setCurrentStop] = useState<number>(-1);
+  const [sceneReady, setSceneReady] = useState(false);
   const apiRef = useRef<CampusAPI | null>(null);
 
   useEffect(() => {
-    apiRef.current = createSceneAPI("mapbox", "campus") as CampusAPI;
-    setPois(apiRef.current.poi.getAll());
-    setTourStops(apiRef.current.tour.getAll());
+    const api = createSceneAPI("mapbox", "campus") as CampusAPI;
+    apiRef.current = api;
 
-    fetch(`/api/maps/${mapId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.sceneData) apiRef.current?.load(data.sceneData);
-        setPois(apiRef.current?.poi.getAll() ?? []);
-        setTourStops(apiRef.current?.tour.getAll() ?? []);
-      })
-      .catch(() => {});
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/maps/${mapId}`);
+        if (!res.ok) throw new Error("Failed to load map");
+        const data = await res.json();
+        if (cancelled) return;
+        if (data?.sceneData && typeof data.sceneData === "object" && Object.keys(data.sceneData).length > 0) {
+          api.load(data.sceneData);
+        }
+        setPois(api.poi.getAll());
+        setTourStops(api.tour.getAll());
+      } catch {
+        // unreachable map — show empty viewer rather than crash
+      } finally {
+        if (!cancelled) setSceneReady(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [mapId]);
 
   const filteredPois = query.trim()
@@ -88,7 +102,7 @@ export default function PublicViewerClient({ mapId }: Props) {
 
   return (
     <Box sx={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden" }}>
-      <MapboxViewer />
+      {sceneReady ? <MapboxViewer /> : <MapLoadingFallback />}
 
       {/* Floating controls */}
       <Box

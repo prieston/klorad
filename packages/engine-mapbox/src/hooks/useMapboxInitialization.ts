@@ -51,16 +51,20 @@ export function useMapboxInitialization(
     setError(null);
   }, [accessToken, tearDown]);
 
+  const appliedStyleUrlRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!accessToken || !containerRef.current || mapRef.current) return;
 
     mapboxgl.accessToken = accessToken;
     const data = useSceneStore.getState().mapboxSceneData;
+    const initialStyle = data.styleUrl || "mapbox://styles/mapbox/streets-v12";
+    appliedStyleUrlRef.current = initialStyle;
 
     try {
       const mapInstance = new mapboxgl.Map({
         container: containerRef.current,
-        style: data.styleUrl || "mapbox://styles/mapbox/streets-v12",
+        style: initialStyle,
         center: data.center,
         zoom: data.zoom,
         pitch: data.pitch,
@@ -86,7 +90,7 @@ export function useMapboxInitialization(
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create map");
     }
-  }, [accessToken, mapboxSceneData, setMapboxMap]);
+  }, [accessToken, setMapboxMap]);
 
   useEffect(() => {
     const m = mapRef.current;
@@ -140,9 +144,12 @@ export function useMapboxInitialization(
   useEffect(() => {
     const m = mapRef.current;
     if (!m || !mapboxSceneData.styleUrl) return;
+    if (appliedStyleUrlRef.current === mapboxSceneData.styleUrl) return;
+    const nextStyle = mapboxSceneData.styleUrl;
     const run = () => {
       try {
-        m.setStyle(mapboxSceneData.styleUrl);
+        m.setStyle(nextStyle);
+        appliedStyleUrlRef.current = nextStyle;
       } catch {
         /* ignore */
       }

@@ -88,6 +88,8 @@ export interface SceneData {
   tourStops: TourStop[];
   assets: SceneAsset[];
   environment: SceneEnvironment;
+  /** Mapbox-specific scene config (center, zoom, style, terrain, etc.). */
+  mapboxScene?: unknown;
 }
 
 // ---------------------------------------------------------------------------

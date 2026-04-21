@@ -124,7 +124,7 @@ export interface SceneAPI {
   readonly assets: AssetsAPI;
   readonly environment: EnvironmentAPI;
   readonly events: SceneEventBusAPI;
-  load(data: SceneData): void;
+  load(data: Partial<SceneData>): void;
   export(): SceneData;
   reset(): void;
 }
@@ -193,4 +193,6 @@ export interface LayersAPI {
 export interface CampusAPI extends SceneAPI {
   readonly poi: POIManagerAPI;
   readonly layers: LayersAPI;
+  /** Re-center the campus map on a new location (persisted on save). */
+  setLocation(lng: number, lat: number, options?: { zoom?: number; pitch?: number; bearing?: number; fly?: boolean }): void;
 }

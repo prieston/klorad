@@ -19,8 +19,6 @@ import {
   Divider,
 } from "@mui/material";
 import MapIcon from "@mui/icons-material/Map";
-import DashboardIcon from "@mui/icons-material/Dashboard";
-import SettingsIcon from "@mui/icons-material/Settings";
 import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { signOut, useSession } from "next-auth/react";
@@ -28,9 +26,7 @@ import { signOut, useSession } from "next-auth/react";
 const DRAWER_WIDTH = 220;
 
 const NAV_ITEMS = [
-  { label: "Overview", icon: <DashboardIcon fontSize="small" />, path: "" },
   { label: "Maps", icon: <MapIcon fontSize="small" />, path: "/maps" },
-  { label: "Settings", icon: <SettingsIcon fontSize="small" />, path: "/settings" },
 ];
 
 export default function DashboardShell({ children }: { children: ReactNode }) {

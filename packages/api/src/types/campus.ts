@@ -19,6 +19,12 @@ export interface AccessibilityInfo {
   notes?: string;
 }
 
+export interface POIView {
+  zoom?: number;
+  pitch?: number;
+  bearing?: number;
+}
+
 export interface POI {
   id: string;
   name: string;
@@ -31,6 +37,8 @@ export interface POI {
   hours?: string;
   floor?: number;
   accessibility?: AccessibilityInfo;
+  /** Camera framing when flying to this POI. */
+  view?: POIView;
 }
 
 export type POIInput = Omit<POI, "id" | "objectId"> & { id?: string };

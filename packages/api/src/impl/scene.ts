@@ -56,45 +56,58 @@ function exportScene(): SceneData {
       lightingEnabled: s.cesiumLightingEnabled,
       simulationTime: s.cesiumCurrentTime ?? undefined,
     },
+    mapboxScene: s.mapboxSceneData,
   };
 }
 
-function loadScene(data: SceneData, events: ReturnType<typeof createEventBus>): void {
+function loadScene(data: Partial<SceneData>, events: ReturnType<typeof createEventBus>): void {
   const s = useSceneStore.getState();
 
-  s.setObjects(data.objects as Parameters<typeof s.setObjects>[0]);
-  s.setObservationPoints(
-    data.tourStops.map((stop) => ({
-      id: stop.id,
-      title: stop.title,
-      description: stop.description,
-      position: stop.cameraPosition,
-      target: stop.cameraTarget,
-      connectedModelId: stop.linkedObjectId,
-    }))
-  );
-  s.setCesiumIonAssets(
-    data.assets.map((a) => ({
-      id: a.id,
-      name: a.name,
-      assetId: a.assetId ?? "",
-      apiKey: a.apiKey ?? "",
-      enabled: a.enabled,
-      transform: a.transform,
-    }))
-  );
+  if (data.objects) {
+    s.setObjects(data.objects as Parameters<typeof s.setObjects>[0]);
+  }
+  if (data.tourStops) {
+    s.setObservationPoints(
+      data.tourStops.map((stop) => ({
+        id: stop.id,
+        title: stop.title,
+        description: stop.description,
+        position: stop.cameraPosition,
+        target: stop.cameraTarget,
+        connectedModelId: stop.linkedObjectId,
+      }))
+    );
+  }
+  if (data.assets) {
+    s.setCesiumIonAssets(
+      data.assets.map((a) => ({
+        id: a.id,
+        name: a.name,
+        assetId: a.assetId ?? "",
+        apiKey: a.apiKey ?? "",
+        enabled: a.enabled,
+        transform: a.transform,
+      }))
+    );
+  }
 
   const env = data.environment;
-  s.setBasemapType(env.basemap);
-  s.setSkyboxType(env.skybox);
-  s.setAmbientLightIntensity(env.ambientLightIntensity);
-  s.setGridEnabled(env.gridEnabled);
-  s.setGroundPlaneEnabled(env.groundPlaneEnabled);
-  s.setCesiumShadowsEnabled(env.shadowsEnabled);
-  s.setCesiumLightingEnabled(env.lightingEnabled);
-  if (env.simulationTime) s.setCesiumCurrentTime(env.simulationTime);
+  if (env) {
+    if (env.basemap !== undefined) s.setBasemapType(env.basemap);
+    if (env.skybox !== undefined) s.setSkyboxType(env.skybox);
+    if (env.ambientLightIntensity !== undefined) s.setAmbientLightIntensity(env.ambientLightIntensity);
+    if (env.gridEnabled !== undefined) s.setGridEnabled(env.gridEnabled);
+    if (env.groundPlaneEnabled !== undefined) s.setGroundPlaneEnabled(env.groundPlaneEnabled);
+    if (env.shadowsEnabled !== undefined) s.setCesiumShadowsEnabled(env.shadowsEnabled);
+    if (env.lightingEnabled !== undefined) s.setCesiumLightingEnabled(env.lightingEnabled);
+    if (env.simulationTime) s.setCesiumCurrentTime(env.simulationTime);
+  }
 
-  events.emit("scene:change", { data });
+  if (data.mapboxScene && typeof data.mapboxScene === "object") {
+    s.setMapboxSceneData(data.mapboxScene as Parameters<typeof s.setMapboxSceneData>[0]);
+  }
+
+  events.emit("scene:change", { data: data as SceneData });
 }
 
 function buildBaseAPI(engine: Engine): SceneAPI {
@@ -108,7 +121,7 @@ function buildBaseAPI(engine: Engine): SceneAPI {
     assets: createAssetsAPI(),
     environment: createEnvironmentAPI(),
     events,
-    load: (data: SceneData) => loadScene(data, events),
+    load: (data: Partial<SceneData>) => loadScene(data, events),
     export: exportScene,
     reset: () => useSceneStore.getState().resetScene(),
   };
