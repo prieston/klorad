@@ -7,30 +7,32 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogContent,
-  DialogTitle,
   Divider,
-  Drawer,
   IconButton,
   List,
   ListItemButton,
   ListItemText,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
-import AddLocationAltIcon from "@mui/icons-material/AddLocationAlt";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import MyLocationIcon from "@mui/icons-material/MyLocation";
-import FlightTakeoffIcon from "@mui/icons-material/FlightTakeoff";
-import SaveIcon from "@mui/icons-material/Save";
-import ShareIcon from "@mui/icons-material/Share";
-import CloseIcon from "@mui/icons-material/Close";
-import PublicIcon from "@mui/icons-material/Public";
-import { LocationSearch } from "@klorad/ui";
+import { alpha } from "@mui/material/styles";
+import {
+  LocationSearch,
+  RightPanelContainer,
+  TextField,
+  FormField,
+  ActionButton,
+  AddLocationAltIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  DeleteOutlineIcon,
+  MyLocationIcon,
+  FlightTakeoffIcon,
+  SaveIcon,
+  ShareIcon,
+  CloseIcon,
+  PublicIcon,
+} from "@klorad/ui";
 import { toast } from "react-toastify";
 import { createSceneAPI } from "@klorad/api";
 import type { CampusAPI, POI, POICategory } from "@klorad/api";
@@ -51,7 +53,7 @@ function MapLoadingFallback() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        bgcolor: "#0a0d10",
+        bgcolor: "background.default",
       }}
     >
       <CircularProgress size={32} />
@@ -88,9 +90,10 @@ export default function BuilderClient({ mapId }: Props) {
   const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [placingPoi, setPlacingPoi] = useState(false);
-  const [locationDialogOpen, setLocationDialogOpen] = useState(false);
+  const [activeView, setActiveView] = useState<"poi" | "location">("poi");
   const [sceneReady, setSceneReady] = useState(false);
   const apiRef = useRef<CampusAPI | null>(null);
+  const mapboxScene = useSceneStore((s) => s.mapboxSceneData);
 
   useEffect(() => {
     const api = createSceneAPI("mapbox", "campus") as CampusAPI;
@@ -186,6 +189,33 @@ export default function BuilderClient({ mapId }: Props) {
     setPois(apiRef.current.poi.getAll());
   };
 
+  const handleFlyToSavedLocation = () => {
+    const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
+    if (!map) return;
+    const { center, zoom, pitch, bearing } = useSceneStore.getState().mapboxSceneData;
+    map.flyTo({
+      center: [center[0], center[1]],
+      zoom,
+      pitch,
+      bearing,
+      duration: 1500,
+      essential: true,
+    });
+  };
+
+  const handleSetCameraAsLocation = () => {
+    const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
+    if (!map || !apiRef.current) return;
+    const c = map.getCenter();
+    apiRef.current.setLocation(c.lng, c.lat, {
+      zoom: map.getZoom(),
+      pitch: map.getPitch(),
+      bearing: map.getBearing(),
+      fly: false,
+    });
+    toast.success("Camera position saved as project location");
+  };
+
   const handleCaptureView = () => {
     if (!apiRef.current || !selectedPoiId) return;
     const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
@@ -248,7 +278,6 @@ export default function BuilderClient({ mapId }: Props) {
 
   const handlePickLocation = (lat: number, lng: number) => {
     apiRef.current?.setLocation(lng, lat, { zoom: 17 });
-    setLocationDialogOpen(false);
     toast.success("Map location updated — save to persist");
   };
 
@@ -280,103 +309,253 @@ export default function BuilderClient({ mapId }: Props) {
           </Box>
         )}
 
-        {/* Top toolbar */}
-        <Box
+      </Box>
+
+      {/* Sidebar toggle (collapsed only) */}
+      {!sidebarOpen && (
+        <IconButton
+          onClick={() => setSidebarOpen(true)}
           sx={{
-            position: "absolute",
-            top: 12,
-            right: sidebarOpen ? 260 : 12,
-            display: "flex",
-            gap: 1,
-            transition: "right 0.2s",
+            position: "fixed",
+            right: 16,
+            top: 16,
+            zIndex: 1401,
+            bgcolor: "var(--glass-bg)",
+            border: "1px solid var(--glass-border)",
+            backdropFilter: "blur(24px)",
+            "&:hover": { bgcolor: "var(--glass-bg)" },
           }}
         >
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<PublicIcon />}
-            onClick={() => setLocationDialogOpen(true)}
-            sx={{ textTransform: "none" }}
-          >
-            Location
-          </Button>
-          <Button
-            size="small"
-            variant={placingPoi ? "outlined" : "contained"}
-            color={placingPoi ? "warning" : "primary"}
-            startIcon={placingPoi ? <CloseIcon /> : <AddLocationAltIcon />}
-            onClick={() => (placingPoi ? setPlacingPoi(false) : handleStartPlacingPoi())}
-            sx={{ textTransform: "none" }}
-          >
-            {placingPoi ? "Cancel" : "Add POI"}
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<ShareIcon />}
-            onClick={handleCopyShareUrl}
-            sx={{ textTransform: "none" }}
-          >
-            Share
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={saving ? <CircularProgress size={14} /> : <SaveIcon />}
-            onClick={handleSave}
-            disabled={saving}
-            sx={{ textTransform: "none" }}
-          >
-            Save
-          </Button>
-        </Box>
-      </Box>
-
-      {/* Sidebar toggle */}
-      <Box sx={{ position: "absolute", right: sidebarOpen ? 248 : 0, top: "50%", zIndex: 10 }}>
-        <IconButton
-          size="small"
-          onClick={() => setSidebarOpen((v) => !v)}
-          sx={{ bgcolor: "#14171a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "4px 0 0 4px" }}
-        >
-          {sidebarOpen ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
+          <ChevronLeftIcon fontSize="small" />
         </IconButton>
-      </Box>
+      )}
 
-      {/* Sidebar */}
-      <Drawer
-        variant="persistent"
-        anchor="right"
-        open={sidebarOpen}
-        sx={{
-          width: 256,
-          flexShrink: 0,
-          "& .MuiDrawer-paper": {
-            width: 256,
-            position: "relative",
-            height: "100%",
-            bgcolor: "#0d1117",
-            border: "none",
-            borderLeft: "1px solid rgba(255,255,255,0.06)",
-          },
-        }}
-      >
-        <Box sx={{ p: 2 }}>
-          <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-            Points of Interest ({pois.length})
-          </Typography>
-          <List dense disablePadding>
+      {/* Sidebar — glass right panel, matches editor's builder */}
+      {sidebarOpen && (
+        <RightPanelContainer
+          previewMode={false}
+          className="glass-panel"
+          sx={{
+            position: "fixed",
+            right: 16,
+            top: 16,
+            height: "calc(100vh - 32px)",
+            maxHeight: "calc(100vh - 32px) !important",
+            width: 400,
+            marginLeft: 0,
+            padding: 0,
+            zIndex: 1400,
+          }}
+        >
+          {/* Action bar — mirrors editor's builder RightPanel header */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 0.5,
+              height: 64,
+              px: 1,
+              borderBottom: "1px solid rgba(100,116,139,0.2)",
+              flexShrink: 0,
+            }}
+          >
+            <ActionButton
+              icon={<PublicIcon />}
+              label="Location"
+              active={activeView === "location"}
+              onClick={() => {
+                setActiveView("location");
+                if (placingPoi) setPlacingPoi(false);
+              }}
+            />
+            <ActionButton
+              icon={<AddLocationAltIcon />}
+              label="POI"
+              active={activeView === "poi"}
+              onClick={() => setActiveView("poi")}
+            />
+            <ActionButton
+              icon={<ShareIcon />}
+              label="Share"
+              onClick={handleCopyShareUrl}
+            />
+            <ActionButton
+              icon={saving ? <CircularProgress size={18} /> : <SaveIcon />}
+              label="Save"
+              onClick={handleSave}
+              disabled={saving}
+            />
+            <IconButton size="small" onClick={() => setSidebarOpen(false)} sx={{ ml: 0.5 }}>
+              <ChevronRightIcon fontSize="small" />
+            </IconButton>
+          </Box>
+
+          {activeView === "location" && (
+            <Box sx={{ flex: 1, overflow: "auto", p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography
+                  variant="overline"
+                  sx={{
+                    fontSize: "0.7rem",
+                    fontWeight: 600,
+                    color: "text.secondary",
+                    letterSpacing: "0.08em",
+                    flex: 1,
+                  }}
+                >
+                  Saved Location
+                </Typography>
+                <Button
+                  size="small"
+                  startIcon={<FlightTakeoffIcon sx={{ fontSize: 14 }} />}
+                  onClick={handleFlyToSavedLocation}
+                  sx={{ textTransform: "none", fontSize: "0.7rem", py: 0.25 }}
+                >
+                  Fly to
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<MyLocationIcon sx={{ fontSize: 14 }} />}
+                  onClick={handleSetCameraAsLocation}
+                  sx={{ textTransform: "none", fontSize: "0.7rem", py: 0.25 }}
+                >
+                  Set camera
+                </Button>
+              </Box>
+
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderRadius: 1,
+                  bgcolor: (t) => alpha(t.palette.primary.main, 0.06),
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                <Stack direction="row" spacing={2}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      Longitude
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontFamily: "monospace", fontSize: "0.8125rem", fontWeight: 600 }}>
+                      {mapboxScene.center[0].toFixed(6)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      Latitude
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontFamily: "monospace", fontSize: "0.8125rem", fontWeight: 600 }}>
+                      {mapboxScene.center[1].toFixed(6)}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      Zoom
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontFamily: "monospace", fontSize: "0.8125rem", fontWeight: 600 }}>
+                      {mapboxScene.zoom.toFixed(1)}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Box>
+
+              <Divider />
+
+              <Typography
+                variant="overline"
+                sx={{
+                  fontSize: "0.7rem",
+                  fontWeight: 600,
+                  color: "text.secondary",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                Change Location
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.8125rem" }}>
+                Search for a city, campus, or address to re-center this map. Save to persist.
+              </Typography>
+              <LocationSearch onPlaceSelect={handlePickLocation} boxPadding={0} />
+            </Box>
+          )}
+
+          {activeView === "poi" && (
+            <>
+              {/* POI section label + inline Add */}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  px: 2,
+                  pt: 2,
+                  pb: 1,
+                  flexShrink: 0,
+                }}
+              >
+                <Typography
+                  variant="overline"
+                  sx={{
+                    fontSize: "0.7rem",
+                    fontWeight: 600,
+                    color: "text.secondary",
+                    letterSpacing: "0.08em",
+                    flex: 1,
+                  }}
+                >
+                  Points of Interest
+                </Typography>
+                <Chip
+                  label={pois.length}
+                  size="small"
+                  sx={{
+                    height: 20,
+                    fontSize: "0.7rem",
+                    bgcolor: (t) => alpha(t.palette.primary.main, 0.16),
+                    color: "primary.main",
+                    fontWeight: 600,
+                  }}
+                />
+                <Button
+                  size="small"
+                  startIcon={placingPoi ? <CloseIcon sx={{ fontSize: 14 }} /> : <AddLocationAltIcon sx={{ fontSize: 14 }} />}
+                  onClick={() => (placingPoi ? setPlacingPoi(false) : handleStartPlacingPoi())}
+                  color={placingPoi ? "warning" : "primary"}
+                  sx={{ textTransform: "none", fontSize: "0.7rem", py: 0.25 }}
+                >
+                  {placingPoi ? "Cancel" : "Add"}
+                </Button>
+              </Box>
+
+              <Box sx={{ flex: 1, overflow: "auto", px: 2, pb: 2 }}>
+            <List dense disablePadding>
+            {pois.length === 0 && (
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ textAlign: "center", py: 4, px: 2, fontSize: "0.8125rem" }}
+              >
+                No points of interest yet. Click &ldquo;Add POI&rdquo; then pick a spot on the map.
+              </Typography>
+            )}
             {pois.map((poi) => (
               <ListItemButton
                 key={poi.id}
                 selected={poi.id === selectedPoiId}
                 onClick={() => handleSelectPoi(poi.id)}
-                sx={{
+                sx={(t) => ({
                   borderRadius: 1,
                   mb: 0.25,
                   pr: 0.5,
-                  "&.Mui-selected": { bgcolor: "rgba(59,130,246,0.1)" },
-                }}
+                  "&:hover": { bgcolor: alpha(t.palette.primary.main, 0.08) },
+                  "&.Mui-selected": {
+                    bgcolor: alpha(t.palette.primary.main, 0.12),
+                    "&:hover": { bgcolor: alpha(t.palette.primary.main, 0.16) },
+                  },
+                })}
               >
                 <Box
                   sx={{
@@ -415,31 +594,40 @@ export default function BuilderClient({ mapId }: Props) {
               </ListItemButton>
             ))}
           </List>
-        </Box>
 
-        {selectedPoi && (
-          <>
-            <Divider sx={{ borderColor: "rgba(255,255,255,0.06)" }} />
-            <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
-              <Typography variant="subtitle2" fontWeight={700}>
-                Edit POI
-              </Typography>
-              <TextField
-                label="Name"
-                size="small"
-                fullWidth
-                value={selectedPoi.name}
-                onChange={(e) => handleUpdatePoi("name", e.target.value)}
-              />
-              <TextField
-                label="Description"
-                size="small"
-                fullWidth
-                multiline
-                rows={2}
-                value={selectedPoi.description ?? ""}
-                onChange={(e) => handleUpdatePoi("description", e.target.value)}
-              />
+          {selectedPoi && (
+            <>
+              <Divider sx={{ my: 2 }} />
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                <Typography
+                  variant="overline"
+                  sx={{
+                    fontSize: "0.7rem",
+                    fontWeight: 600,
+                    color: "text.secondary",
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  Edit POI
+                </Typography>
+              <FormField label="Name">
+                <TextField
+                  size="small"
+                  fullWidth
+                  value={selectedPoi.name}
+                  onChange={(e) => handleUpdatePoi("name", e.target.value)}
+                />
+              </FormField>
+              <FormField label="Description">
+                <TextField
+                  size="small"
+                  fullWidth
+                  multiline
+                  rows={2}
+                  value={selectedPoi.description ?? ""}
+                  onChange={(e) => handleUpdatePoi("description", e.target.value)}
+                />
+              </FormField>
               <Box>
                 <Typography variant="caption" color="text.secondary" sx={{ mb: 0.75, display: "block" }}>
                   Category
@@ -457,7 +645,7 @@ export default function BuilderClient({ mapId }: Props) {
                         height: 20,
                         bgcolor: selectedPoi.category === cat
                           ? POI_CATEGORY_COLORS[cat]
-                          : "rgba(255,255,255,0.06)",
+                          : "action.hover",
                         color: selectedPoi.category === cat ? "#fff" : "text.secondary",
                       }}
                     />
@@ -465,7 +653,7 @@ export default function BuilderClient({ mapId }: Props) {
                 </Box>
               </Box>
 
-              <Divider sx={{ borderColor: "rgba(255,255,255,0.06)" }} />
+              <Divider />
 
               <Box>
                 <Box sx={{ display: "flex", alignItems: "center", mb: 0.75, gap: 0.5 }}>
@@ -490,54 +678,59 @@ export default function BuilderClient({ mapId }: Props) {
                   </Button>
                 </Box>
                 <Stack direction="row" spacing={1}>
+                  <FormField label="Lng" sx={{ flex: 1 }}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      type="number"
+                      slotProps={{ htmlInput: { step: 0.000001 } }}
+                      value={selectedPoi.position[0]}
+                      onChange={(e) =>
+                        handleUpdatePoi("position", [
+                          parseFloat(e.target.value) || 0,
+                          selectedPoi.position[1],
+                          selectedPoi.position[2],
+                        ])
+                      }
+                    />
+                  </FormField>
+                  <FormField label="Lat" sx={{ flex: 1 }}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      type="number"
+                      slotProps={{ htmlInput: { step: 0.000001 } }}
+                      value={selectedPoi.position[1]}
+                      onChange={(e) =>
+                        handleUpdatePoi("position", [
+                          selectedPoi.position[0],
+                          parseFloat(e.target.value) || 0,
+                          selectedPoi.position[2],
+                        ])
+                      }
+                    />
+                  </FormField>
+                </Stack>
+                <FormField label="Altitude (m)">
                   <TextField
-                    label="Lng"
                     size="small"
+                    fullWidth
                     type="number"
-                    slotProps={{ htmlInput: { step: 0.000001 } }}
-                    value={selectedPoi.position[0]}
-                    onChange={(e) =>
-                      handleUpdatePoi("position", [
-                        parseFloat(e.target.value) || 0,
-                        selectedPoi.position[1],
-                        selectedPoi.position[2],
-                      ])
-                    }
-                  />
-                  <TextField
-                    label="Lat"
-                    size="small"
-                    type="number"
-                    slotProps={{ htmlInput: { step: 0.000001 } }}
-                    value={selectedPoi.position[1]}
+                    slotProps={{ htmlInput: { step: 1 } }}
+                    value={selectedPoi.position[2]}
                     onChange={(e) =>
                       handleUpdatePoi("position", [
                         selectedPoi.position[0],
+                        selectedPoi.position[1],
                         parseFloat(e.target.value) || 0,
-                        selectedPoi.position[2],
                       ])
                     }
+                    sx={{ mt: 1 }}
                   />
-                </Stack>
-                <TextField
-                  label="Altitude (m)"
-                  size="small"
-                  fullWidth
-                  type="number"
-                  slotProps={{ htmlInput: { step: 1 } }}
-                  value={selectedPoi.position[2]}
-                  onChange={(e) =>
-                    handleUpdatePoi("position", [
-                      selectedPoi.position[0],
-                      selectedPoi.position[1],
-                      parseFloat(e.target.value) || 0,
-                    ])
-                  }
-                  sx={{ mt: 1 }}
-                />
+                </FormField>
               </Box>
 
-              <Divider sx={{ borderColor: "rgba(255,255,255,0.06)" }} />
+              <Divider />
 
               <Box>
                 <Box sx={{ display: "flex", alignItems: "center", mb: 0.75, gap: 0.5 }}>
@@ -564,45 +757,51 @@ export default function BuilderClient({ mapId }: Props) {
                 </Box>
                 {selectedPoi.view ? (
                   <Stack direction="row" spacing={1}>
-                    <TextField
-                      label="Zoom"
-                      size="small"
-                      type="number"
-                      slotProps={{ htmlInput: { step: 0.1, min: 0, max: 22 } }}
-                      value={selectedPoi.view.zoom ?? ""}
-                      onChange={(e) =>
-                        handleUpdatePoi("view", {
-                          ...selectedPoi.view,
-                          zoom: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                    />
-                    <TextField
-                      label="Pitch"
-                      size="small"
-                      type="number"
-                      slotProps={{ htmlInput: { step: 1, min: 0, max: 85 } }}
-                      value={selectedPoi.view.pitch ?? ""}
-                      onChange={(e) =>
-                        handleUpdatePoi("view", {
-                          ...selectedPoi.view,
-                          pitch: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                    />
-                    <TextField
-                      label="Bearing"
-                      size="small"
-                      type="number"
-                      slotProps={{ htmlInput: { step: 1 } }}
-                      value={selectedPoi.view.bearing ?? ""}
-                      onChange={(e) =>
-                        handleUpdatePoi("view", {
-                          ...selectedPoi.view,
-                          bearing: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                    />
+                    <FormField label="Zoom" sx={{ flex: 1 }}>
+                      <TextField
+                        size="small"
+                        fullWidth
+                        type="number"
+                        slotProps={{ htmlInput: { step: 0.1, min: 0, max: 22 } }}
+                        value={selectedPoi.view.zoom ?? ""}
+                        onChange={(e) =>
+                          handleUpdatePoi("view", {
+                            ...selectedPoi.view,
+                            zoom: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                      />
+                    </FormField>
+                    <FormField label="Pitch" sx={{ flex: 1 }}>
+                      <TextField
+                        size="small"
+                        fullWidth
+                        type="number"
+                        slotProps={{ htmlInput: { step: 1, min: 0, max: 85 } }}
+                        value={selectedPoi.view.pitch ?? ""}
+                        onChange={(e) =>
+                          handleUpdatePoi("view", {
+                            ...selectedPoi.view,
+                            pitch: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                      />
+                    </FormField>
+                    <FormField label="Bearing" sx={{ flex: 1 }}>
+                      <TextField
+                        size="small"
+                        fullWidth
+                        type="number"
+                        slotProps={{ htmlInput: { step: 1 } }}
+                        value={selectedPoi.view.bearing ?? ""}
+                        onChange={(e) =>
+                          handleUpdatePoi("view", {
+                            ...selectedPoi.view,
+                            bearing: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                      />
+                    </FormField>
                   </Stack>
                 ) : (
                   <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
@@ -613,24 +812,12 @@ export default function BuilderClient({ mapId }: Props) {
             </Box>
           </>
         )}
-      </Drawer>
+              </Box>
+            </>
+          )}
+        </RightPanelContainer>
+      )}
 
-      <Dialog
-        open={locationDialogOpen}
-        onClose={() => setLocationDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle sx={{ pb: 1 }}>
-          Search for a location
-          <Typography variant="caption" display="block" color="text.secondary">
-            Center this map on a new city, campus, or address.
-          </Typography>
-        </DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <LocationSearch onPlaceSelect={handlePickLocation} boxPadding={0} />
-        </DialogContent>
-      </Dialog>
     </Box>
   );
 }

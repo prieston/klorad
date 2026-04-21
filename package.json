@@ -6,6 +6,7 @@
     "apps/website",
     "apps/editor",
     "apps/admin",
+    "apps/campus",
     "packages/*"
   ],
   "scripts": {
@@ -53,6 +54,7 @@
     "check:tarball": "pnpm -r --filter ./packages... exec bash -lc 'pnpm pack --pack-destination /tmp && tar -tf /tmp/*.tgz | (grep -E \"(^package/dist/|^package/package.json$)\" && ! grep -E \"package/src/\")'",
     "vercel:build:website": "pnpm build:website",
     "vercel:build:admin": "pnpm prisma:generate && pnpm --filter @klorad/prisma prisma migrate deploy && pnpm clean && pnpm build:packages && cd apps/admin && pnpm build",
+    "vercel:build:campus": "pnpm prisma:generate && pnpm --filter @klorad/prisma prisma migrate deploy && pnpm clean && pnpm build:packages && cd apps/campus && pnpm build",
     "postinstall": "pnpm prisma:generate",
     "prepare": "husky || true"
   },

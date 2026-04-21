@@ -1,8 +1,15 @@
 import { defineConfig } from 'tsup';
+import { copyFile, mkdir } from 'node:fs/promises';
+import { dirname } from 'node:path';
 
 export default defineConfig({
   entry: ['src/index.ts'],
   outDir: 'dist',
+  async onSuccess() {
+    const dest = 'dist/styles/tokens.css';
+    await mkdir(dirname(dest), { recursive: true });
+    await copyFile('src/styles/tokens.css', dest);
+  },
   format: ['esm'],
   dts: { entry: 'src/index.ts', resolve: true },
   sourcemap: true,

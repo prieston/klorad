@@ -3,25 +3,25 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Box,
-  Button,
-  Card,
-  CardActionArea,
-  CardContent,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Grid,
-  IconButton,
-  TextField,
-  Tooltip,
-  Typography,
-  CircularProgress,
+  Button,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
-import MapIcon from "@mui/icons-material/Map";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import {
+  Page,
+  PageHeader,
+  PageContent,
+  DashboardProjectCard,
+  DashboardCreateProjectCard,
+  DashboardOptionsMenu,
+  DashboardDeleteConfirmationDialog,
+  LoadingScreen,
+  TextField,
+  FormField,
+} from "@klorad/ui";
 import { useMaps } from "@/app/hooks/useMaps";
 
 interface Props {
@@ -35,6 +35,9 @@ export default function MapsPageClient({ orgId }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const [menuMapId, setMenuMapId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -46,111 +49,90 @@ export default function MapsPageClient({ orgId }: Props) {
     if (map) router.push(`/org/${orgId}/maps/${map.id}/builder`);
   };
 
-  return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 2 }}>
-        <Typography variant="h5" fontWeight={700} sx={{ flex: 1 }}>
-          Campus Maps
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setCreateOpen(true)}
-          size="small"
-        >
-          New Map
-        </Button>
-      </Box>
+  const handleMenuOpen = (e: React.MouseEvent, id: string) => {
+    setMenuAnchor(e.currentTarget as HTMLElement);
+    setMenuMapId(id);
+  };
 
-      {isLoading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", pt: 8 }}>
-          <CircularProgress size={32} />
-        </Box>
-      ) : maps.length === 0 ? (
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            pt: 10,
-            gap: 2,
-            color: "text.secondary",
-          }}
-        >
-          <MapIcon sx={{ fontSize: 56, opacity: 0.3 }} />
-          <Typography variant="body1">No maps yet</Typography>
-          <Button variant="outlined" size="small" onClick={() => setCreateOpen(true)}>
-            Create your first map
-          </Button>
-        </Box>
-      ) : (
-        <Grid container spacing={2}>
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+    setMenuMapId(null);
+  };
+
+  const handleRequestDelete = () => {
+    if (menuMapId) setConfirmDeleteId(menuMapId);
+    handleMenuClose();
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDeleteId) return;
+    await deleteMap(confirmDeleteId);
+    setConfirmDeleteId(null);
+  };
+
+  if (isLoading) return <LoadingScreen />;
+
+  return (
+    <Page>
+      <PageHeader title="Campus Maps" />
+      <PageContent>
+        <Grid container spacing={2} sx={{ mt: 2 }}>
+          <Grid item xs={12} sm={6} md={4} lg={3}>
+            <DashboardCreateProjectCard
+              onClick={() => setCreateOpen(true)}
+              label="New Map"
+              description="Create a new campus map"
+            />
+          </Grid>
           {maps.map((map) => (
             <Grid item xs={12} sm={6} md={4} lg={3} key={map.id}>
-              <Card
-                sx={{
-                  bgcolor: "#14171a",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  "&:hover": { borderColor: "rgba(59,130,246,0.35)" },
-                  transition: "border-color 0.2s",
-                  position: "relative",
+              <DashboardProjectCard
+                project={{
+                  id: map.id,
+                  title: map.name,
+                  updatedAt: map.updatedAt,
+                  createdAt: map.createdAt,
                 }}
-              >
-                <CardActionArea
-                  onClick={() => router.push(`/org/${orgId}/maps/${map.id}/builder`)}
-                >
-                  <Box
-                    sx={{
-                      height: 120,
-                      bgcolor: "#1a1f26",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <MapIcon sx={{ fontSize: 40, color: "rgba(59,130,246,0.5)" }} />
-                  </Box>
-                  <CardContent sx={{ pb: "12px !important" }}>
-                    <Typography variant="subtitle2" fontWeight={600} noWrap>
-                      {map.name}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {new Date(map.updatedAt).toLocaleDateString()}
-                    </Typography>
-                  </CardContent>
-                </CardActionArea>
-                <Tooltip title="Delete map">
-                  <IconButton
-                    size="small"
-                    sx={{ position: "absolute", top: 8, right: 8, bgcolor: "rgba(0,0,0,0.4)" }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteMap(map.id);
-                    }}
-                  >
-                    <DeleteOutlineIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </Card>
+                onGoToBuilder={(id) => router.push(`/org/${orgId}/maps/${id}/builder`)}
+                onMenuOpen={handleMenuOpen}
+              />
             </Grid>
           ))}
         </Grid>
-      )}
+      </PageContent>
+
+      <DashboardOptionsMenu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={handleMenuClose}
+        onEdit={() => {
+          if (menuMapId) router.push(`/org/${orgId}/maps/${menuMapId}/builder`);
+          handleMenuClose();
+        }}
+        onDelete={handleRequestDelete}
+      />
+
+      <DashboardDeleteConfirmationDialog
+        open={Boolean(confirmDeleteId)}
+        onCancel={() => setConfirmDeleteId(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete map?"
+        message="This map and all its POIs will be permanently removed. This cannot be undone."
+      />
 
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>New Campus Map</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            label="Map name"
-            placeholder="e.g. Main Campus"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-            sx={{ mt: 1 }}
-          />
+          <FormField label="Map name" gutterBottom>
+            <TextField
+              autoFocus
+              fullWidth
+              placeholder="e.g. Main Campus"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+            />
+          </FormField>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setCreateOpen(false)} disabled={creating}>
@@ -165,6 +147,6 @@ export default function MapsPageClient({ orgId }: Props) {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </Page>
   );
 }

@@ -13,7 +13,7 @@ export const metadata = {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const session = await auth();
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

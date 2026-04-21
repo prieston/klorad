@@ -4,16 +4,7 @@ import type { ReactNode } from "react";
 import { SessionProvider } from "next-auth/react";
 import type { Session } from "next-auth";
 import { ToastContainer } from "react-toastify";
-import { ThemeProvider, createTheme, CssBaseline } from "@mui/material";
-
-const theme = createTheme({
-  palette: {
-    mode: "dark",
-    primary: { main: "#3b82f6" },
-    background: { default: "#0a0d10", paper: "#14171a" },
-  },
-  typography: { fontFamily: "Inter, system-ui, sans-serif" },
-});
+import { ThemeModeProvider } from "@klorad/ui";
 
 export default function Providers({
   children,
@@ -24,11 +15,10 @@ export default function Providers({
 }) {
   return (
     <SessionProvider session={session}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
+      <ThemeModeProvider>
         {children}
         <ToastContainer position="bottom-right" theme="dark" />
-      </ThemeProvider>
+      </ThemeModeProvider>
     </SessionProvider>
   );
 }

@@ -12,16 +12,18 @@ import {
   List,
   ListItemButton,
   ListItemText,
-  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
-import CloseIcon from "@mui/icons-material/Close";
-import LayersIcon from "@mui/icons-material/Layers";
-import TourIcon from "@mui/icons-material/Tour";
 import { createSceneAPI } from "@klorad/api";
 import type { CampusAPI, POI, TourStop } from "@klorad/api";
+import {
+  TextField,
+  SearchIcon,
+  CloseIcon,
+  LayersIcon,
+  TourIcon,
+} from "@klorad/ui";
 
 const MapboxViewer = dynamic(
   () => import("@klorad/engine-mapbox").then((m) => ({ default: m.MapboxViewer })),
@@ -30,7 +32,7 @@ const MapboxViewer = dynamic(
 
 function MapLoadingFallback() {
   return (
-    <Box sx={{ width: "100vw", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "#0a0d10" }}>
+    <Box sx={{ width: "100vw", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "background.default" }}>
       <CircularProgress size={32} />
     </Box>
   );
@@ -113,9 +115,9 @@ export default function PublicViewerClient({ mapId }: Props) {
           transform: "translateX(-50%)",
           display: "flex",
           gap: 1,
-          bgcolor: "rgba(13,17,23,0.85)",
+          bgcolor: "var(--glass-bg)",
           backdropFilter: "blur(8px)",
-          border: "1px solid rgba(255,255,255,0.08)",
+          border: "1px solid var(--glass-border)",
           borderRadius: 8,
           px: 1.5,
           py: 0.75,
@@ -152,10 +154,10 @@ export default function PublicViewerClient({ mapId }: Props) {
             width: 300,
             top: 0,
             height: "100%",
-            bgcolor: "rgba(13,17,23,0.95)",
+            bgcolor: "var(--glass-bg)",
             backdropFilter: "blur(12px)",
             border: "none",
-            borderRight: "1px solid rgba(255,255,255,0.06)",
+            borderRight: "1px solid var(--glass-border)",
           },
         }}
       >
@@ -216,9 +218,9 @@ export default function PublicViewerClient({ mapId }: Props) {
             bottom: 24,
             left: "50%",
             transform: "translateX(-50%)",
-            bgcolor: "rgba(13,17,23,0.9)",
+            bgcolor: "var(--glass-bg)",
             backdropFilter: "blur(8px)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            border: "1px solid var(--glass-border)",
             borderRadius: 2,
             p: 2,
             width: 380,
