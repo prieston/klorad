@@ -13,6 +13,8 @@
     "dev:editor": "cd apps/editor && pnpm dev",
     "dev:website": "cd apps/website && pnpm dev",
     "dev:admin": "cd apps/admin && pnpm dev",
+    "dev:campus": "cd apps/campus && pnpm dev",
+    "build:campus": "pnpm build:packages && cd apps/campus && pnpm build",
     "clean": "node scripts/clean.mjs",
     "build": "pnpm -r build --if-present",
     "build:packages": "pnpm -r --filter './packages/*' --workspace-concurrency=1 run build",
