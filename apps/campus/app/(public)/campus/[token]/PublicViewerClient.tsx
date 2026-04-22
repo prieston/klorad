@@ -86,7 +86,9 @@ export default function PublicViewerClient({ mapId }: Props) {
   const { route, loading: routeLoading, error: routeError, request: requestRoute, clear: clearRoute } =
     useMapboxRoute(mapboxToken);
 
-  // Fetch route whenever from/to/mode change
+  // Fetch route whenever from/to/mode change. If a POI is linked to a
+  // Mapbox building, route to/from that building's footprint — matches
+  // where the POI pin is visually rendered.
   useEffect(() => {
     const from = pois.find((p) => p.id === fromId);
     const to = pois.find((p) => p.id === toId);
@@ -94,11 +96,15 @@ export default function PublicViewerClient({ mapId }: Props) {
       clearRoute();
       return;
     }
-    requestRoute(
-      [from.position[0], from.position[1]],
-      [to.position[0], to.position[1]],
-      routeMode
-    );
+    const fromCoord: [number, number] = [
+      from.linkedBuilding?.lng ?? from.position[0],
+      from.linkedBuilding?.lat ?? from.position[1],
+    ];
+    const toCoord: [number, number] = [
+      to.linkedBuilding?.lng ?? to.position[0],
+      to.linkedBuilding?.lat ?? to.position[1],
+    ];
+    requestRoute(fromCoord, toCoord, routeMode);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromId, toId, routeMode, pois]);
   const floorPlansForSelection = useMemo(() => {
@@ -295,6 +301,11 @@ export default function PublicViewerClient({ mapId }: Props) {
           onChangeFrom={setFromId}
           onChangeTo={setToId}
           onChangeMode={setRouteMode}
+          onClear={() => {
+            setFromId(null);
+            setToId(null);
+            clearRoute();
+          }}
           onClose={() => setActivePanel(null)}
         />
       )}

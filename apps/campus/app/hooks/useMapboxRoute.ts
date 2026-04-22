@@ -151,6 +151,27 @@ export function useMapboxRoute(
       }
     };
 
+    // Fit the camera to the route once (on new route), but not on every idle.
+    const fitToRoute = () => {
+      if (!route || !map.isStyleLoaded()) return;
+      try {
+        const coords = route.geojson.coordinates as [number, number][];
+        if (coords.length < 2) return;
+        const lngs = coords.map((c) => c[0]);
+        const lats = coords.map((c) => c[1]);
+        map.fitBounds(
+          [
+            [Math.min(...lngs), Math.min(...lats)],
+            [Math.max(...lngs), Math.max(...lats)],
+          ],
+          { padding: { top: 80, bottom: 180, left: 380, right: 80 }, duration: 1200, pitch: 45 }
+        );
+      } catch {
+        /* ignore */
+      }
+    };
+    if (route) fitToRoute();
+
     install();
     const onStyleLoad = () => install();
     const onIdle = () => install();

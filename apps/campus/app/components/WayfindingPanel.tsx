@@ -33,6 +33,7 @@ interface Props {
   onChangeFrom: (id: string | null) => void;
   onChangeTo: (id: string | null) => void;
   onChangeMode: (mode: RouteMode) => void;
+  onClear: () => void;
   onClose: () => void;
 }
 
@@ -47,8 +48,10 @@ export default function WayfindingPanel({
   onChangeFrom,
   onChangeTo,
   onChangeMode,
+  onClear,
   onClose,
 }: Props) {
+  const hasRoute = Boolean(fromId || toId || route);
   return (
     <Box
       sx={{
@@ -67,10 +70,29 @@ export default function WayfindingPanel({
         boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", mb: 1.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", mb: 1.5, gap: 0.5 }}>
         <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>
           Directions
         </Typography>
+        {hasRoute && (
+          <Typography
+            component="button"
+            variant="caption"
+            onClick={onClear}
+            sx={{
+              background: "none",
+              border: "none",
+              color: "text.secondary",
+              cursor: "pointer",
+              fontSize: "0.7rem",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              "&:hover": { color: "primary.main" },
+            }}
+          >
+            Clear
+          </Typography>
+        )}
         <IconButton size="small" onClick={onClose}>
           <CloseIcon fontSize="small" />
         </IconButton>
