@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Box } from "@mui/material";
 import {
   AppSidebar,
+  OrganizationSwitcher,
   UserAccountMenu,
   DashboardIcon,
   MapIcon,
@@ -14,6 +15,7 @@ import {
 } from "@klorad/ui";
 import type { AppSidebarNavItem } from "@klorad/ui";
 import { signOut, useSession } from "next-auth/react";
+import { useOrganization, useOrganizations } from "@/app/hooks/useOrganizations";
 
 export default function DashboardShell({ children }: { children: ReactNode }) {
   const { data: session } = useSession();
@@ -22,6 +24,8 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const orgId = params?.orgId ?? "";
   const pathPrefix = orgId ? `/org/${orgId}` : "";
+  const { organizations, loadingOrganizations } = useOrganizations();
+  const { organization: currentOrganization, loadingOrganization } = useOrganization(orgId);
 
   // Builder routes have their own dedicated left panel.
   const isBuilder = pathname?.includes("/builder") ?? false;
@@ -56,6 +60,16 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         navItems={NAV_ITEMS}
         pathPrefix={pathPrefix}
         linkComponent={Link}
+        preNav={
+          <OrganizationSwitcher
+            organizations={organizations}
+            currentOrgId={orgId}
+            currentOrganization={currentOrganization}
+            loading={loadingOrganizations || loadingOrganization}
+            buildHref={(id) => `/org/${id}/dashboard`}
+            linkComponent={Link}
+          />
+        }
         header={
           <Link
             href={orgId ? `/org/${orgId}/dashboard` : "/"}
@@ -63,13 +77,12 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
             style={{ textDecoration: "none", display: "flex", alignItems: "center" }}
           >
             <Image
-              src="/images/logo/klorad-logo.svg"
-              alt="Klorad"
-              width={120}
+              src="/images/logo/klorad-campus-logo-white.svg"
+              alt="Klorad Campus"
+              width={140}
               height={32}
               priority
               style={{
-                filter: "brightness(0) invert(1)",
                 objectFit: "contain",
                 height: "auto",
               }}

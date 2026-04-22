@@ -4,6 +4,7 @@ import {
   Box,
   Chip,
   CircularProgress,
+  Divider,
   IconButton,
   MenuItem,
   Stack,
@@ -13,8 +14,11 @@ import { alpha } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import AccessibleIcon from "@mui/icons-material/Accessible";
+import MyLocationIcon from "@mui/icons-material/MyLocation";
 import { FormField, Select } from "@klorad/ui";
 import type { POI } from "@klorad/api";
+
+export const MY_LOCATION_ID = "__me__";
 import {
   formatDistance,
   formatDuration,
@@ -31,6 +35,8 @@ interface Props {
   route: Route | null;
   loading: boolean;
   error: string | null;
+  /** True while we are asking the browser for the user's position. */
+  locating?: boolean;
   onChangeFrom: (id: string | null) => void;
   onChangeTo: (id: string | null) => void;
   onChangeMode: (mode: RouteMode) => void;
@@ -46,6 +52,7 @@ export default function WayfindingPanel({
   route,
   loading,
   error,
+  locating = false,
   onChangeFrom,
   onChangeTo,
   onChangeMode,
@@ -117,8 +124,23 @@ export default function WayfindingPanel({
             <MenuItem value="" disabled>
               {t("wayfind.pickFrom")}
             </MenuItem>
+            <MenuItem value={MY_LOCATION_ID} disabled={MY_LOCATION_ID === toId}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ width: "100%" }}>
+                {locating && fromId === MY_LOCATION_ID ? (
+                  <CircularProgress size={14} />
+                ) : (
+                  <MyLocationIcon sx={{ fontSize: 16, color: "primary.main" }} />
+                )}
+                <Typography variant="body2" sx={{ flex: 1 }}>
+                  {locating && fromId === MY_LOCATION_ID
+                    ? t("wayfind.locating")
+                    : t("wayfind.myLocation")}
+                </Typography>
+              </Stack>
+            </MenuItem>
+            <Divider component="li" sx={{ my: 0.5 }} />
             {pois.map((p) => (
-              <MenuItem key={p.id} value={p.id}>
+              <MenuItem key={p.id} value={p.id} disabled={p.id === toId}>
                 {p.name}
               </MenuItem>
             ))}
@@ -136,6 +158,21 @@ export default function WayfindingPanel({
             <MenuItem value="" disabled>
               {t("wayfind.pickTo")}
             </MenuItem>
+            <MenuItem value={MY_LOCATION_ID} disabled={MY_LOCATION_ID === fromId}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ width: "100%" }}>
+                {locating && toId === MY_LOCATION_ID ? (
+                  <CircularProgress size={14} />
+                ) : (
+                  <MyLocationIcon sx={{ fontSize: 16, color: "primary.main" }} />
+                )}
+                <Typography variant="body2" sx={{ flex: 1 }}>
+                  {locating && toId === MY_LOCATION_ID
+                    ? t("wayfind.locating")
+                    : t("wayfind.myLocation")}
+                </Typography>
+              </Stack>
+            </MenuItem>
+            <Divider component="li" sx={{ my: 0.5 }} />
             {pois.map((p) => (
               <MenuItem key={p.id} value={p.id} disabled={p.id === fromId}>
                 {p.name}

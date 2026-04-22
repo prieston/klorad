@@ -25,6 +25,7 @@ import {
   MoreVert,
 } from "@klorad/ui";
 import useSWR from "swr";
+import { KLORAD_APPS } from "../appsConfig";
 
 interface OrganizationsData {
   organizations: {
@@ -39,6 +40,7 @@ interface OrganizationsData {
       isPersonal: boolean;
       planCode: string;
       subscriptionStatus: string | null;
+      apps: string[];
       memberCount: number;
       projectCount: number;
       assetCount: number;
@@ -58,6 +60,7 @@ interface OrganizationsTabProps {
   onUpgradeClick: (org: { id: string; name: string }) => void;
   onMembersClick: (org: { id: string; name: string; isPersonal: boolean }) => void;
   onLicenseClick: (org: any) => void;
+  onAppsClick: (org: { id: string; name: string; apps: string[] }) => void;
   onDeleteClick: (org: { id: string; name: string }) => void;
 }
 
@@ -66,6 +69,7 @@ export function OrganizationsTab({
   onUpgradeClick,
   onMembersClick,
   onLicenseClick,
+  onAppsClick,
   onDeleteClick,
 }: OrganizationsTabProps) {
   const { data, error, isLoading } = useSWR<OrganizationsData>(
@@ -77,6 +81,7 @@ export function OrganizationsTab({
     element: HTMLElement;
     orgId: string;
     orgName: string;
+    orgApps: string[];
   } | null>(null);
 
   if (isLoading) {
@@ -205,6 +210,17 @@ export function OrganizationsTab({
                     }}
                   >
                     Status
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontSize: "0.75rem",
+                      color: "text.primary",
+                      fontWeight: 600,
+                      backgroundColor: "transparent",
+                    }}
+                  >
+                    Apps
                   </TableCell>
                   <TableCell
                     align="right"
@@ -384,6 +400,36 @@ export function OrganizationsTab({
                         />
                       )}
                     </TableCell>
+                    <TableCell align="center">
+                      {(org.apps ?? []).length === 0 ? (
+                        <Typography
+                          variant="caption"
+                          sx={{ fontSize: "0.7rem", color: "text.secondary", fontStyle: "italic" }}
+                        >
+                          none
+                        </Typography>
+                      ) : (
+                        <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", justifyContent: "center" }}>
+                          {(org.apps ?? []).map((appKey) => {
+                            const meta = KLORAD_APPS.find((a) => a.key === appKey);
+                            return (
+                              <Chip
+                                key={appKey}
+                                label={meta?.label ?? appKey}
+                                size="small"
+                                sx={{
+                                  height: 20,
+                                  fontSize: "0.7rem",
+                                  backgroundColor: alpha("#6B9CD8", 0.1),
+                                  color: "#6B9CD8",
+                                  border: `1px solid ${alpha("#6B9CD8", 0.3)}`,
+                                }}
+                              />
+                            );
+                          })}
+                        </Box>
+                      )}
+                    </TableCell>
                     <TableCell align="right">
                       <Typography
                         variant="body2"
@@ -553,6 +599,7 @@ export function OrganizationsTab({
                               element: e.currentTarget,
                               orgId: org.id,
                               orgName: org.name,
+                              orgApps: org.apps ?? [],
                             })
                           }
                           sx={(theme) => ({
@@ -599,6 +646,24 @@ export function OrganizationsTab({
           },
         }}
       >
+        <MenuItem
+          onClick={() => {
+            if (menuAnchor) {
+              onAppsClick({
+                id: menuAnchor.orgId,
+                name: menuAnchor.orgName,
+                apps: menuAnchor.orgApps,
+              });
+              setMenuAnchor(null);
+            }
+          }}
+          sx={{
+            fontSize: "0.75rem",
+            padding: "8px 16px",
+          }}
+        >
+          Edit apps
+        </MenuItem>
         <MenuItem
           onClick={() => {
             if (menuAnchor) {

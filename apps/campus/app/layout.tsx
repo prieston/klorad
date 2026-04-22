@@ -7,8 +7,8 @@ import Providers from "./providers";
 
 export const metadata: Metadata = {
   title: {
-    default: "Topos Campus",
-    template: "%s · Topos Campus",
+    default: "Klorad Campus",
+    template: "%s · Klorad Campus",
   },
   description:
     "Self-service 3D campus maps for Greek higher education — indoor wayfinding, accessibility layers, events integration, and a five-minute CMS.",
@@ -18,18 +18,18 @@ export const metadata: Metadata = {
     apple: "/klorad-favicon.png",
   },
   openGraph: {
-    title: "Topos Campus",
+    title: "Klorad Campus",
     description:
       "Self-service 3D campus maps for Greek higher education.",
     type: "website",
     locale: "en_US",
     alternateLocale: "el_GR",
-    siteName: "Topos Campus",
-    images: [{ url: "/images/logo/klorad-logo.svg", width: 650, height: 128, alt: "Topos Campus" }],
+    siteName: "Klorad Campus",
+    images: [{ url: "/images/logo/klorad-campus-logo-black.svg", width: 650, height: 128, alt: "Klorad Campus" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Topos Campus",
+    title: "Klorad Campus",
     description:
       "Self-service 3D campus maps for Greek higher education.",
   },

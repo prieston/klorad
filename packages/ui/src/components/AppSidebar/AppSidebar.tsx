@@ -51,6 +51,8 @@ export interface AppSidebarProps {
   navItems: AppSidebarNavItem[];
   /** Slot above the nav list (e.g. brand logo). ~64px tall recommended. */
   header?: React.ReactNode;
+  /** Slot rendered between the header and the nav list (e.g. an org switcher). */
+  preNav?: React.ReactNode;
   /** Slot below the nav list (e.g. user account menu). */
   footer?: React.ReactNode;
   /**
@@ -79,6 +81,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   pathname,
   navItems,
   header,
+  preNav,
   footer,
   pathPrefix = "",
   linkComponent: Link = DefaultLink,
@@ -157,6 +160,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               : "rgba(248, 250, 252, 0.6)",
         }}
       >
+        {preNav && <Box sx={{ flexShrink: 0 }}>{preNav}</Box>}
         <List
           sx={{
             width: "100%",

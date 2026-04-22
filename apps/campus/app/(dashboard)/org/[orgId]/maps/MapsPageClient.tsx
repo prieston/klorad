@@ -2,27 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Grid,
-  Button,
-} from "@mui/material";
+import { Grid, Button, Skeleton } from "@mui/material";
 import {
   Page,
-  PageHeader,
   PageContent,
   DashboardProjectCard,
   DashboardCreateProjectCard,
   DashboardOptionsMenu,
   DashboardDeleteConfirmationDialog,
-  LoadingScreen,
+  RightDrawer,
   TextField,
   FormField,
 } from "@klorad/ui";
 import { useMaps } from "@/app/hooks/useMaps";
+import LocationsHeader from "./LocationsHeader";
 
 interface Props {
   orgId: string;
@@ -38,6 +31,12 @@ export default function MapsPageClient({ orgId }: Props) {
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [menuMapId, setMenuMapId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const closeCreate = () => {
+    if (creating) return;
+    setCreateOpen(false);
+    setNewName("");
+  };
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -70,13 +69,13 @@ export default function MapsPageClient({ orgId }: Props) {
     setConfirmDeleteId(null);
   };
 
-  if (isLoading) return <LoadingScreen />;
+  const showSkeleton = isLoading && maps.length === 0;
 
   return (
     <Page>
-      <PageHeader title="Campus Maps" />
-      <PageContent>
-        <Grid container spacing={2} sx={{ mt: 2 }}>
+      <PageContent sx={{ mt: 0 }}>
+        <LocationsHeader maps={maps} />
+        <Grid container spacing={2}>
           <Grid item xs={12} sm={6} md={4} lg={3}>
             <DashboardCreateProjectCard
               onClick={() => setCreateOpen(true)}
@@ -84,20 +83,27 @@ export default function MapsPageClient({ orgId }: Props) {
               description="Create a new campus map"
             />
           </Grid>
-          {maps.map((map) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={map.id}>
-              <DashboardProjectCard
-                project={{
-                  id: map.id,
-                  title: map.name,
-                  updatedAt: map.updatedAt,
-                  createdAt: map.createdAt,
-                }}
-                onGoToBuilder={(id) => router.push(`/org/${orgId}/maps/${id}`)}
-                onMenuOpen={handleMenuOpen}
-              />
-            </Grid>
-          ))}
+          {showSkeleton
+            ? Array.from({ length: 3 }).map((_, i) => (
+                <Grid item xs={12} sm={6} md={4} lg={3} key={`skeleton-${i}`}>
+                  <Skeleton variant="rounded" height={260} />
+                </Grid>
+              ))
+            : maps.map((map) => (
+                <Grid item xs={12} sm={6} md={4} lg={3} key={map.id}>
+                  <DashboardProjectCard
+                    project={{
+                      id: map.id,
+                      title: map.name,
+                      updatedAt: map.updatedAt,
+                      createdAt: map.createdAt,
+                      thumbnail: map.thumbnail ?? undefined,
+                    }}
+                    onGoToBuilder={(id) => router.push(`/org/${orgId}/maps/${id}`)}
+                    onMenuOpen={handleMenuOpen}
+                  />
+                </Grid>
+              ))}
         </Grid>
       </PageContent>
 
@@ -120,33 +126,45 @@ export default function MapsPageClient({ orgId }: Props) {
         message="This map and all its POIs will be permanently removed. This cannot be undone."
       />
 
-      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>New Campus Map</DialogTitle>
-        <DialogContent>
-          <FormField label="Map name" gutterBottom>
-            <TextField
-              autoFocus
+      <RightDrawer
+        open={createOpen}
+        onClose={closeCreate}
+        title="New Campus Map"
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              onClick={closeCreate}
+              disabled={creating}
               fullWidth
-              placeholder="e.g. Main Campus"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-            />
-          </FormField>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setCreateOpen(false)} disabled={creating}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleCreate}
-            disabled={!newName.trim() || creating}
-          >
-            {creating ? "Creating..." : "Create"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+              sx={{ textTransform: "none" }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleCreate}
+              disabled={!newName.trim() || creating}
+              fullWidth
+              sx={{ textTransform: "none" }}
+            >
+              {creating ? "Creating…" : "Create map"}
+            </Button>
+          </>
+        }
+      >
+        <FormField label="Map name" gutterBottom>
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            placeholder="e.g. Main Campus"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+          />
+        </FormField>
+      </RightDrawer>
     </Page>
   );
 }

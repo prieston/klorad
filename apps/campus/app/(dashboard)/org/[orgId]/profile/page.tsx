@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { Page, PageCard, PageContent, PageHeader, PageSection } from "@klorad/ui";
+import { Page, PageCard, PageContent, PageSection } from "@klorad/ui";
 import { Avatar, Box, Stack, Typography } from "@mui/material";
 
 export default async function ProfilePage() {
@@ -12,8 +12,7 @@ export default async function ProfilePage() {
 
   return (
     <Page>
-      <PageHeader title="Profile" />
-      <PageContent>
+      <PageContent sx={{ mt: 0 }}>
         <PageSection title="Account" spacing="tight">
           <PageCard>
             <Stack direction="row" spacing={2} alignItems="center">

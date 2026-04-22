@@ -6,13 +6,16 @@ export default async function RootPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/auth/signin");
 
-  const membership = await prisma.organizationMember.findFirst({
+  const memberships = await prisma.organizationMember.findMany({
     where: { userId: session.user.id as string },
-    select: { organizationId: true },
+    include: { organization: true },
     orderBy: { createdAt: "asc" },
   });
 
-  if (membership) redirect(`/org/${membership.organizationId}/dashboard`);
+  const campusOrg = memberships.find(
+    (m) => !m.organization.isPersonal && (m.organization.apps ?? []).includes("campus")
+  );
+  if (campusOrg) redirect(`/org/${campusOrg.organization.id}/dashboard`);
 
   redirect("/onboarding");
 }

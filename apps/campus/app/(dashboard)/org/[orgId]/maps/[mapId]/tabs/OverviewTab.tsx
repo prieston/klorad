@@ -22,6 +22,8 @@ interface Props {
     id: string;
     name: string;
     sceneData?: unknown;
+    thumbnail?: string | null;
+    updatedAt?: string;
   };
 }
 
@@ -39,7 +41,9 @@ interface Poi {
 export default function OverviewTab({ orgId, mapId, map }: Props) {
   // Derive simple stats from the scene data — no analytics backend yet.
   const stats = useMemo(() => {
-    const scene = map.sceneData as { objects?: Poi[] } | undefined;
+    const scene = map.sceneData as
+      | { objects?: Poi[]; mapboxScene?: { center?: [number, number] }; center?: [number, number] }
+      | undefined;
     const objects = scene?.objects ?? [];
     const pois = objects.filter((o) => o?.meta?.poi);
     const accessible = pois.filter(
@@ -48,48 +52,157 @@ export default function OverviewTab({ orgId, mapId, map }: Props) {
     const linked = pois.filter((p) => p?.meta?.poi?.linkedBuilding);
     const complianceScore =
       pois.length > 0 ? Math.round((accessible.length / pois.length) * 100) : 0;
+    const rawCenter = scene?.mapboxScene?.center ?? scene?.center ?? null;
+    const center =
+      Array.isArray(rawCenter) &&
+      rawCenter.length >= 2 &&
+      typeof rawCenter[0] === "number" &&
+      typeof rawCenter[1] === "number" &&
+      !(rawCenter[0] === 0 && rawCenter[1] === 0)
+        ? ([rawCenter[0], rawCenter[1]] as [number, number])
+        : null;
     return {
       poiCount: pois.length,
       linkedCount: linked.length,
       accessibleCount: accessible.length,
       complianceScore,
+      center,
     };
   }, [map.sceneData]);
 
   return (
     <Stack spacing={4} sx={{ mt: 3 }}>
-      {/* KPI row — CSS grid (no negative-margin overflow) */}
+      {/* Top row: thumbnail (left) + 2×2 KPI grid (right). Collapses to a
+          single column below md. */}
       <Box
         sx={{
           display: "grid",
           gap: 2,
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(4, 1fr)",
-          },
+          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+          alignItems: "stretch",
         }}
       >
-        <MetricCard
-          icon={<PlaceIcon fontSize="small" />}
-          value={stats.poiCount}
-          label="Points of interest"
-        />
-        <MetricCard
-          icon={<VisibilityIcon fontSize="small" />}
-          value="—"
-          label="Views this month"
-        />
-        <MetricCard
-          icon={<SearchIcon fontSize="small" />}
-          value="—"
-          label="Top searches"
-        />
-        <MetricCard
-          icon={<AccessibleIcon fontSize="small" />}
-          value={`${stats.complianceScore}%`}
-          label="Accessibility coverage"
-        />
+        <Box
+          sx={(t) => ({
+            position: "relative",
+            borderRadius: 1,
+            overflow: "hidden",
+            border: `1px solid ${t.palette.divider}`,
+            bgcolor: alpha(t.palette.primary.main, 0.04),
+            aspectRatio: "16 / 10",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          })}
+        >
+          {map.thumbnail ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={map.thumbnail}
+              alt={map.name}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+              }}
+            />
+          ) : (
+            <Stack alignItems="center" spacing={1} sx={{ textAlign: "center", p: 3 }}>
+              <PlaceIcon sx={{ fontSize: 48, color: "primary.main", opacity: 0.5 }} />
+              <Typography variant="body2" color="text.secondary">
+                No thumbnail yet — capture one from the Studio Location tab.
+              </Typography>
+            </Stack>
+          )}
+          <Box
+            sx={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              px: 2,
+              py: 1.5,
+              background:
+                "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%)",
+              color: "#fff",
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "space-between",
+              gap: 2,
+            }}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  fontWeight: 700,
+                  lineHeight: 1.2,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {map.name}
+              </Typography>
+              {stats.center && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "rgba(255,255,255,0.75)",
+                    fontSize: "0.7rem",
+                    fontFamily: "monospace",
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  {stats.center[0].toFixed(3)}°, {stats.center[1].toFixed(3)}°
+                </Typography>
+              )}
+            </Box>
+            <Typography
+              variant="caption"
+              sx={{
+                color: "rgba(255,255,255,0.85)",
+                fontSize: "0.7rem",
+                fontWeight: 600,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                flexShrink: 0,
+              }}
+            >
+              {stats.poiCount} {stats.poiCount === 1 ? "POI" : "POIs"}
+            </Typography>
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            display: "grid",
+            gap: 2,
+            gridTemplateColumns: "repeat(2, 1fr)",
+            gridAutoRows: "1fr",
+          }}
+        >
+          <MetricCard
+            icon={<PlaceIcon fontSize="small" />}
+            value={stats.poiCount}
+            label="Points of interest"
+          />
+          <MetricCard
+            icon={<VisibilityIcon fontSize="small" />}
+            value="—"
+            label="Views this month"
+          />
+          <MetricCard
+            icon={<SearchIcon fontSize="small" />}
+            value="—"
+            label="Top searches"
+          />
+          <MetricCard
+            icon={<AccessibleIcon fontSize="small" />}
+            value={`${stats.complianceScore}%`}
+            label="Accessibility coverage"
+          />
+        </Box>
       </Box>
 
       {/* Enter Studio CTA */}

@@ -11,43 +11,40 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import AccessibleIcon from "@mui/icons-material/Accessible";
 import AddIcon from "@mui/icons-material/Add";
 import {
-  LoadingScreen,
   MetricCard,
   Page,
   PageCard,
   PageContent,
-  PageHeader,
   PageSection,
   DashboardProjectCard,
 } from "@klorad/ui";
+import { Skeleton } from "@mui/material";
 import { useMaps } from "@/app/hooks/useMaps";
+import LocationsHeader from "../maps/LocationsHeader";
 
 interface Props {
   orgId: string;
-  userName: string | null;
 }
 
-export default function DashboardClient({ orgId, userName }: Props) {
+export default function DashboardClient({ orgId }: Props) {
   const router = useRouter();
   const { maps, isLoading } = useMaps(orgId);
 
   const recentMaps = useMemo(() => maps.slice(0, 3), [maps]);
-
-  if (isLoading) return <LoadingScreen />;
-
-  const greeting = userName ? `Welcome back, ${userName.split(" ")[0]}.` : "Welcome back.";
+  const showSkeleton = isLoading && maps.length === 0;
 
   return (
     <Page>
-      <PageHeader title={greeting} />
+      <PageContent sx={{ mt: 0 }}>
+        <Box>
+          <LocationsHeader maps={maps} />
+        </Box>
 
-      <PageContent>
         {/* KPI row */}
         <Box
           sx={{
             display: "grid",
             gap: 2,
-            mt: 3,
             gridTemplateColumns: {
               xs: "1fr",
               sm: "repeat(2, 1fr)",
@@ -62,7 +59,23 @@ export default function DashboardClient({ orgId, userName }: Props) {
         </Box>
 
         <PageSection title="Recent campuses" spacing="tight">
-          {recentMaps.length === 0 ? (
+          {showSkeleton ? (
+            <Box
+              sx={{
+                display: "grid",
+                gap: 2,
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(2, 1fr)",
+                  md: "repeat(3, 1fr)",
+                },
+              }}
+            >
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} variant="rounded" height={260} />
+              ))}
+            </Box>
+          ) : recentMaps.length === 0 ? (
             <PageCard>
               <Box
                 sx={{
@@ -113,6 +126,7 @@ export default function DashboardClient({ orgId, userName }: Props) {
                       title: m.name,
                       updatedAt: m.updatedAt,
                       createdAt: m.createdAt,
+                      thumbnail: m.thumbnail ?? undefined,
                     }}
                     onGoToBuilder={(id) => router.push(`/org/${orgId}/maps/${id}`)}
                     onMenuOpen={() => {}}

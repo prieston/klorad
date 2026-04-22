@@ -24,7 +24,7 @@ import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxFloorPlanLayer } from "@/app/hooks/useMapboxFloorPlanLayer";
 import { useMapboxRoute, type RouteMode } from "@/app/hooks/useMapboxRoute";
 import LevelSwitcher from "@/app/components/LevelSwitcher";
-import WayfindingPanel from "@/app/components/WayfindingPanel";
+import WayfindingPanel, { MY_LOCATION_ID } from "@/app/components/WayfindingPanel";
 import WhereAmIButton from "@/app/components/WhereAmIButton";
 import BrandedHeader from "@/app/components/BrandedHeader";
 import LocaleToggle from "@/app/components/LocaleToggle";
@@ -98,6 +98,44 @@ function PublicViewerInner({ mapId }: Props) {
   const [routeMode, setRouteMode] = useState<RouteMode>(
     searchParams.get("mode") === "a11y" ? "a11y" : "walk"
   );
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  const requestUserLocation = () => {
+    if (userLocation) return Promise.resolve(userLocation);
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setLocationError("unsupported");
+      return Promise.resolve(null);
+    }
+    setLocating(true);
+    setLocationError(null);
+    return new Promise<[number, number] | null>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coord: [number, number] = [pos.coords.longitude, pos.coords.latitude];
+          setUserLocation(coord);
+          setLocating(false);
+          resolve(coord);
+        },
+        (err) => {
+          setLocationError(err.code === err.PERMISSION_DENIED ? "denied" : "unavailable");
+          setLocating(false);
+          resolve(null);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
+  };
+
+  const handleFromChange = (id: string | null) => {
+    setFromId(id);
+    if (id === MY_LOCATION_ID && !userLocation) void requestUserLocation();
+  };
+  const handleToChange = (id: string | null) => {
+    setToId(id);
+    if (id === MY_LOCATION_ID && !userLocation) void requestUserLocation();
+  };
   const mapboxToken =
     typeof process !== "undefined"
       ? process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
@@ -109,23 +147,25 @@ function PublicViewerInner({ mapId }: Props) {
   // Mapbox building, route to/from that building's footprint — matches
   // where the POI pin is visually rendered.
   useEffect(() => {
-    const from = pois.find((p) => p.id === fromId);
-    const to = pois.find((p) => p.id === toId);
-    if (!from || !to) {
+    const resolveCoord = (id: string | null): [number, number] | null => {
+      if (!id) return null;
+      if (id === MY_LOCATION_ID) return userLocation;
+      const p = pois.find((x) => x.id === id);
+      if (!p) return null;
+      return [
+        p.linkedBuilding?.lng ?? p.position[0],
+        p.linkedBuilding?.lat ?? p.position[1],
+      ];
+    };
+    const fromCoord = resolveCoord(fromId);
+    const toCoord = resolveCoord(toId);
+    if (!fromCoord || !toCoord) {
       clearRoute();
       return;
     }
-    const fromCoord: [number, number] = [
-      from.linkedBuilding?.lng ?? from.position[0],
-      from.linkedBuilding?.lat ?? from.position[1],
-    ];
-    const toCoord: [number, number] = [
-      to.linkedBuilding?.lng ?? to.position[0],
-      to.linkedBuilding?.lat ?? to.position[1],
-    ];
     requestRoute(fromCoord, toCoord, routeMode);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromId, toId, routeMode, pois]);
+  }, [fromId, toId, routeMode, pois, userLocation]);
   const floorPlansForSelection = useMemo(() => {
     if (!apiRef.current || !selectedPoiId) return [];
     return apiRef.current.floorPlans.forBuilding(selectedPoiId);
@@ -440,9 +480,17 @@ function PublicViewerInner({ mapId }: Props) {
           mode={routeMode}
           route={route}
           loading={routeLoading}
-          error={routeError}
-          onChangeFrom={setFromId}
-          onChangeTo={setToId}
+          error={
+            routeError ||
+            (locationError === "denied"
+              ? t("wayfind.locationDenied")
+              : locationError === "unsupported"
+                ? t("wayfind.locationUnsupported")
+                : null)
+          }
+          locating={locating}
+          onChangeFrom={handleFromChange}
+          onChangeTo={handleToChange}
           onChangeMode={setRouteMode}
           onClear={() => {
             setFromId(null);

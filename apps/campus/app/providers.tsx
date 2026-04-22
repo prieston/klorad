@@ -5,6 +5,13 @@ import { SessionProvider } from "next-auth/react";
 import type { Session } from "next-auth";
 import { ToastContainer } from "react-toastify";
 import { ThemeModeProvider } from "@klorad/ui";
+import { SWRConfig } from "swr";
+
+const fetcher = (url: string) =>
+  fetch(url).then((r) => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  });
 
 export default function Providers({
   children,
@@ -16,7 +23,19 @@ export default function Providers({
   return (
     <SessionProvider session={session}>
       <ThemeModeProvider>
-        {children}
+        <SWRConfig
+          value={{
+            fetcher,
+            keepPreviousData: true,
+            revalidateOnFocus: false,
+            revalidateIfStale: true,
+            revalidateOnReconnect: true,
+            dedupingInterval: 10_000,
+            errorRetryCount: 2,
+          }}
+        >
+          {children}
+        </SWRConfig>
         <ToastContainer position="bottom-right" theme="dark" />
       </ThemeModeProvider>
     </SessionProvider>

@@ -12,7 +12,8 @@ import {
   Typography,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
-import { Page, PageHeader, PageContent, LoadingScreen } from "@klorad/ui";
+import { Page, PageContent } from "@klorad/ui";
+import { Skeleton } from "@mui/material";
 import OverviewTab from "./tabs/OverviewTab";
 import SettingsTab from "./tabs/SettingsTab";
 import AssetsTab from "./tabs/AssetsTab";
@@ -29,6 +30,7 @@ interface CampusMap {
   updatedAt: string;
   createdAt: string;
   sceneData?: unknown;
+  thumbnail?: string | null;
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -58,11 +60,20 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
 
-  if (isLoading) return <LoadingScreen />;
+  if (!map && isLoading) {
+    return (
+      <Page>
+        <PageContent sx={{ mt: 0 }}>
+          <Skeleton variant="rounded" height={48} sx={{ mb: 2 }} />
+          <Skeleton variant="rounded" height={320} />
+        </PageContent>
+      </Page>
+    );
+  }
   if (!map) {
     return (
       <Page>
-        <PageContent>
+        <PageContent sx={{ mt: 0 }}>
           <Typography color="error">Map not found.</Typography>
         </PageContent>
       </Page>
@@ -71,14 +82,6 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
 
   return (
     <Page>
-      <PageHeader
-        title={map.name}
-        breadcrumbs={[
-          { label: "Maps", href: `/org/${orgId}/maps` },
-          { label: map.name },
-        ]}
-      />
-
       <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 2, mb: 3 }}>
         <Chip
           label="Live"

@@ -36,6 +36,7 @@ export async function GET(request: Request) {
             planCode: true,
             subscriptionStatus: true,
             createdAt: true,
+            apps: true,
             _count: {
               select: {
                 members: true,
@@ -72,6 +73,7 @@ export async function GET(request: Request) {
             isPersonal: org.isPersonal,
             planCode: org.planCode,
             subscriptionStatus: org.subscriptionStatus,
+            apps: org.apps ?? [],
             memberCount: org._count.members,
             projectCount: org._count.projects,
             assetCount: org._count.assets,

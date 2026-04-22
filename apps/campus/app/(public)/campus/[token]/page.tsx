@@ -23,14 +23,14 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     title: name,
     description,
     openGraph: {
-      title: `${name} · Topos Campus`,
+      title: `${name} · Klorad Campus`,
       description,
       type: "website",
-      siteName: "Topos Campus",
+      siteName: "Klorad Campus",
     },
     twitter: {
       card: "summary_large_image",
-      title: `${name} · Topos Campus`,
+      title: `${name} · Klorad Campus`,
       description,
     },
   };

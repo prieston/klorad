@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { Box } from "@mui/material";
-import { MetricCard, Page, PageCard, PageContent, PageHeader, PageSection } from "@klorad/ui";
+import { MetricCard, Page, PageCard, PageContent, PageSection } from "@klorad/ui";
 import MapIcon from "@mui/icons-material/Map";
 import PlaceIcon from "@mui/icons-material/Place";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -14,13 +14,11 @@ export default async function SettingsUsagePage() {
 
   return (
     <Page>
-      <PageHeader title="Usage" />
-      <PageContent>
+      <PageContent sx={{ mt: 0 }}>
         <Box
           sx={{
             display: "grid",
             gap: 2,
-            mt: 3,
             gridTemplateColumns: {
               xs: "1fr",
               sm: "repeat(2, 1fr)",

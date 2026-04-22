@@ -8,9 +8,9 @@
     "pnpm": ">=9"
   },
   "scripts": {
-    "dev": "NODE_ENV=development NEXT_TELEMETRY_DISABLED=1 next dev -p 3002",
+    "dev": "NODE_ENV=development NEXT_TELEMETRY_DISABLED=1 next dev -p 3003",
     "build": "next build",
-    "start": "next start -p 3002",
+    "start": "next start -p 3003",
     "lint": "next lint --fix --dir app"
   },
   "dependencies": {
@@ -22,6 +22,7 @@
     "@klorad/engine-mapbox": "workspace:^",
     "@klorad/engine-three": "workspace:^",
     "@klorad/prisma": "workspace:*",
+    "@klorad/storage": "workspace:^",
     "@klorad/ui": "workspace:^",
     "@mui/icons-material": "^6.4.2",
     "@mui/material": "^6.4.1",

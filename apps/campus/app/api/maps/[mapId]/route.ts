@@ -10,7 +10,14 @@ export async function GET(
 
   const map = await prisma.project.findUnique({
     where: { id: mapId },
-    select: { id: true, title: true, sceneData: true, updatedAt: true, createdAt: true },
+    select: {
+      id: true,
+      title: true,
+      sceneData: true,
+      updatedAt: true,
+      createdAt: true,
+      thumbnail: true,
+    },
   });
 
   if (!map) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -25,15 +32,20 @@ export async function PATCH(
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { mapId } = await params;
-  const body = await req.json() as { name?: string; sceneData?: unknown };
+  const body = await req.json() as {
+    name?: string;
+    sceneData?: unknown;
+    thumbnail?: string | null;
+  };
 
   const map = await prisma.project.update({
     where: { id: mapId },
     data: {
       ...(body.name !== undefined && { title: body.name }),
       ...(body.sceneData !== undefined && { sceneData: body.sceneData as object }),
+      ...(body.thumbnail !== undefined && { thumbnail: body.thumbnail }),
     },
-    select: { id: true, title: true, updatedAt: true },
+    select: { id: true, title: true, updatedAt: true, thumbnail: true },
   });
 
   return NextResponse.json({ ...map, name: map.title });

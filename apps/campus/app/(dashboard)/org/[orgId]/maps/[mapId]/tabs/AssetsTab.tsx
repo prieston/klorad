@@ -1,16 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import useSWR, { mutate } from "swr";
 import {
   Box,
   Button,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
+  CircularProgress,
   IconButton,
+  LinearProgress,
   MenuItem,
   Stack,
   Tooltip,
@@ -21,10 +19,12 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import ImageIcon from "@mui/icons-material/Image";
 import { toast } from "react-toastify";
-import { PageCard, PageSection, TextField, FormField, Select } from "@klorad/ui";
+import { PageCard, PageSection, RightDrawer, TextField, FormField, Select } from "@klorad/ui";
 import { createSceneAPI } from "@klorad/api";
 import type { CampusAPI, FloorPlan, POI } from "@klorad/api";
+import { uploadFile } from "@klorad/storage/client";
 
 interface Props {
   orgId: string;
@@ -63,6 +63,45 @@ export default function AssetsTab({ orgId: _orgId, mapId }: Props) {
     widthMeters: 60,
     heightMeters: 40,
   });
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const resetForm = () => {
+    setForm({
+      name: "",
+      url: "",
+      buildingPoiId: "",
+      floor: 0,
+      widthMeters: 60,
+      heightMeters: 40,
+    });
+    setUploading(false);
+    setUploadProgress(0);
+  };
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    setUploadProgress(0);
+    try {
+      const { publicUrl } = await uploadFile(
+        file,
+        { prefix: "floor-plans" },
+        { onProgress: (p) => setUploadProgress(p) }
+      );
+      setForm((f) => ({
+        ...f,
+        url: publicUrl,
+        name: f.name || file.name.replace(/\.[^.]+$/, ""),
+      }));
+      toast.success("Image uploaded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const linkedPois = pois.filter((p) => p.linkedBuilding);
 
@@ -81,21 +120,32 @@ export default function AssetsTab({ orgId: _orgId, mapId }: Props) {
     const lng = building?.linkedBuilding?.lng ?? building?.position[0];
     const lat = building?.linkedBuilding?.lat ?? building?.position[1];
     if (typeof lng !== "number" || typeof lat !== "number" || !form.url) {
-      toast.error("Pick a linked building and provide an image URL.");
+      toast.error("Pick a linked building and upload an image.");
       return;
     }
-    const coords = buildCornerBounds(lng, lat, form.widthMeters, form.heightMeters);
-    apiRef.floorPlans.add({
-      name: form.name || `Floor ${form.floor}`,
-      url: form.url,
-      buildingId: form.buildingPoiId,
-      floor: form.floor,
-      coordinates: coords,
-    });
-    await persist();
+    setSaving(true);
+    try {
+      const coords = buildCornerBounds(lng, lat, form.widthMeters, form.heightMeters);
+      apiRef.floorPlans.add({
+        name: form.name || `Floor ${form.floor}`,
+        url: form.url,
+        buildingId: form.buildingPoiId,
+        floor: form.floor,
+        coordinates: coords,
+      });
+      await persist();
+      setDialogOpen(false);
+      resetForm();
+      toast.success("Floor plan added");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const closeDialog = () => {
+    if (uploading || saving) return;
     setDialogOpen(false);
-    setForm({ name: "", url: "", buildingPoiId: "", floor: 0, widthMeters: 60, heightMeters: 40 });
-    toast.success("Floor plan added");
+    resetForm();
   };
 
   const handleRemove = async (id: string) => {
@@ -257,113 +307,200 @@ export default function AssetsTab({ orgId: _orgId, mapId }: Props) {
         </PageCard>
       </PageSection>
 
-      {/* Add dialog */}
-      <Dialog
+      {/* Hidden file input — triggered by the upload button inside the drawer. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          // Reset the input so the same file can be re-picked after an error.
+          e.target.value = "";
+          if (file) void handleUpload(file);
+        }}
+      />
+
+      <RightDrawer
         open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Add Floor Plan</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <FormField label="Building">
-              <Select
-                size="small"
-                fullWidth
-                value={form.buildingPoiId}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, buildingPoiId: e.target.value as string }))
-                }
-                displayEmpty
-              >
-                <MenuItem value="" disabled>
-                  Pick a linked-building POI…
-                </MenuItem>
-                {linkedPois.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>
-                    {p.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormField>
-            <Stack direction="row" spacing={2}>
-              <FormField label="Floor" sx={{ flex: 1 }}>
-                <TextField
-                  type="number"
-                  size="small"
-                  fullWidth
-                  value={form.floor}
-                  onChange={(e) => setForm((f) => ({ ...f, floor: parseInt(e.target.value) || 0 }))}
-                  slotProps={{ htmlInput: { step: 1 } }}
-                />
-              </FormField>
-              <FormField label="Display name" sx={{ flex: 2 }}>
-                <TextField
-                  size="small"
-                  fullWidth
-                  placeholder="e.g. Ground floor"
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                />
-              </FormField>
-            </Stack>
-            <FormField
-              label="Image URL"
-              helperText="Public URL to a PNG or JPG. Tip: upload to your CDN / Cloudinary and paste the URL."
+        onClose={closeDialog}
+        title="Add Floor Plan"
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              onClick={closeDialog}
+              disabled={uploading || saving}
+              fullWidth
+              sx={{ textTransform: "none" }}
             >
-              <TextField
-                size="small"
-                fullWidth
-                placeholder="https://…/floor-2.png"
-                value={form.url}
-                onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
-              />
-            </FormField>
-            <Stack direction="row" spacing={2}>
-              <FormField label="Width (m)" sx={{ flex: 1 }}>
-                <TextField
-                  type="number"
-                  size="small"
-                  fullWidth
-                  value={form.widthMeters}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, widthMeters: parseInt(e.target.value) || 60 }))
-                  }
-                  slotProps={{ htmlInput: { step: 5, min: 10 } }}
-                />
-              </FormField>
-              <FormField label="Height (m)" sx={{ flex: 1 }}>
-                <TextField
-                  type="number"
-                  size="small"
-                  fullWidth
-                  value={form.heightMeters}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, heightMeters: parseInt(e.target.value) || 40 }))
-                  }
-                  slotProps={{ htmlInput: { step: 5, min: 10 } }}
-                />
-              </FormField>
-            </Stack>
-            <Typography variant="caption" color="text.secondary">
-              The plan is placed centered on the linked building with the
-              dimensions above. Fine-tune georeferencing later via drag-corners
-              (coming in Phase 2).
-            </Typography>
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handleAdd}
-            disabled={!form.url || !form.buildingPoiId}
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleAdd}
+              disabled={!form.url || !form.buildingPoiId || uploading || saving}
+              fullWidth
+              sx={{ textTransform: "none" }}
+            >
+              {saving ? <CircularProgress size={16} /> : "Add floor plan"}
+            </Button>
+          </>
+        }
+      >
+        <FormField label="Building">
+          <Select
+            size="small"
+            fullWidth
+            value={form.buildingPoiId}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, buildingPoiId: e.target.value as string }))
+            }
+            displayEmpty
           >
-            Add
-          </Button>
-        </DialogActions>
-      </Dialog>
+            <MenuItem value="" disabled>
+              Pick a linked-building POI…
+            </MenuItem>
+            {linkedPois.map((p) => (
+              <MenuItem key={p.id} value={p.id}>
+                {p.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormField>
+
+        <Stack direction="row" spacing={2}>
+          <FormField label="Floor" sx={{ flex: 1 }}>
+            <TextField
+              type="number"
+              size="small"
+              fullWidth
+              value={form.floor}
+              onChange={(e) => setForm((f) => ({ ...f, floor: parseInt(e.target.value) || 0 }))}
+              slotProps={{ htmlInput: { step: 1 } }}
+            />
+          </FormField>
+          <FormField label="Display name" sx={{ flex: 2 }}>
+            <TextField
+              size="small"
+              fullWidth
+              placeholder="e.g. Ground floor"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            />
+          </FormField>
+        </Stack>
+
+        <FormField
+          label="Floor plan image"
+          helperText="PNG, JPG, or WebP. Uploads straight to the Klorad storage bucket."
+        >
+          {form.url ? (
+            <Box
+              sx={(t) => ({
+                position: "relative",
+                borderRadius: 1,
+                overflow: "hidden",
+                border: `1px solid ${t.palette.divider}`,
+                aspectRatio: "16 / 10",
+              })}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={form.url}
+                alt="Floor plan preview"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+              <Button
+                size="small"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                sx={{
+                  position: "absolute",
+                  right: 8,
+                  top: 8,
+                  textTransform: "none",
+                  bgcolor: "rgba(15,23,42,0.75)",
+                  color: "#fff",
+                  "&:hover": { bgcolor: "rgba(15,23,42,0.9)" },
+                }}
+              >
+                Replace
+              </Button>
+            </Box>
+          ) : uploading ? (
+            <Stack spacing={1}>
+              <Box
+                sx={(t) => ({
+                  borderRadius: 1,
+                  border: `1px dashed ${t.palette.divider}`,
+                  aspectRatio: "16 / 10",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexDirection: "column",
+                  gap: 1,
+                  bgcolor: "action.hover",
+                })}
+              >
+                <ImageIcon sx={{ color: "text.secondary" }} />
+                <Typography variant="caption" color="text.secondary">
+                  Uploading… {Math.round(uploadProgress)}%
+                </Typography>
+              </Box>
+              <LinearProgress variant="determinate" value={uploadProgress} />
+            </Stack>
+          ) : (
+            <Button
+              variant="outlined"
+              startIcon={<CloudUploadIcon />}
+              onClick={() => fileInputRef.current?.click()}
+              sx={{
+                textTransform: "none",
+                justifyContent: "flex-start",
+                py: 2,
+                borderStyle: "dashed",
+              }}
+              fullWidth
+            >
+              Choose an image to upload
+            </Button>
+          )}
+        </FormField>
+
+        <Stack direction="row" spacing={2}>
+          <FormField label="Width (m)" sx={{ flex: 1 }}>
+            <TextField
+              type="number"
+              size="small"
+              fullWidth
+              value={form.widthMeters}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, widthMeters: parseInt(e.target.value) || 60 }))
+              }
+              slotProps={{ htmlInput: { step: 5, min: 10 } }}
+            />
+          </FormField>
+          <FormField label="Height (m)" sx={{ flex: 1 }}>
+            <TextField
+              type="number"
+              size="small"
+              fullWidth
+              value={form.heightMeters}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, heightMeters: parseInt(e.target.value) || 40 }))
+              }
+              slotProps={{ htmlInput: { step: 5, min: 10 } }}
+            />
+          </FormField>
+        </Stack>
+
+        <Typography variant="caption" color="text.secondary">
+          The plan is placed centered on the linked building with the
+          dimensions above. Fine-tune georeferencing later via drag-corners
+          (coming in Phase 2).
+        </Typography>
+      </RightDrawer>
     </Stack>
   );
 }

@@ -54,3 +54,7 @@ export * from "./inputs";
 export * from "./SceneToolbar";
 // UserAccountMenu
 export * from "./UserAccountMenu";
+// OrganizationSwitcher
+export * from "./OrganizationSwitcher";
+// RightDrawer
+export * from "./RightDrawer";

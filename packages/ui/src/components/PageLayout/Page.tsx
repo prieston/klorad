@@ -26,7 +26,8 @@ export const Page: React.FC<PageProps> = ({
       className={className}
       sx={{
         marginLeft: typeof sidebarOffset === "number" ? `${sidebarOffset}px` : sidebarOffset,
-        padding: "24px",
+        // Match AppSidebar's top: 16px so content aligns with the sidebar top.
+        paddingY: "16px",
         paddingX: 0,
         minHeight: "100vh",
         position: "relative",

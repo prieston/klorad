@@ -27,6 +27,7 @@ import { v4 as uuidv4 } from "uuid";
 import { alpha } from "@mui/material/styles";
 import {
   LocationSearch,
+  RightDrawer,
   RightPanelContainer,
   TextField,
   FormField,
@@ -49,6 +50,8 @@ import {
   UndoIcon,
   RedoIcon,
 } from "@klorad/ui";
+import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
+import { captureMapboxScreenshot } from "@/app/utils/captureMapboxScreenshot";
 import type { SceneTool } from "@klorad/ui";
 import { toast } from "react-toastify";
 import { createSceneAPI } from "@klorad/api";
@@ -578,6 +581,22 @@ export default function BuilderClient({ mapId }: Props) {
         setActiveTool((prev) => (prev === "linkBuilding" ? "select" : "linkBuilding"));
       },
     },
+    {
+      id: "undo",
+      icon: <UndoIcon fontSize="small" />,
+      label: "Undo",
+      active: false,
+      disabled: !canUndo,
+      onClick: undo,
+    },
+    {
+      id: "redo",
+      icon: <RedoIcon fontSize="small" />,
+      label: "Redo",
+      active: false,
+      disabled: !canRedo,
+      onClick: redo,
+    },
   ];
 
   const shareUrl = typeof window !== "undefined"
@@ -593,6 +612,53 @@ export default function BuilderClient({ mapId }: Props) {
     pushSnapshot();
     apiRef.current?.setLocation(lng, lat, { zoom: 17 });
     toast.success("Map location updated — save to persist");
+  };
+
+  // --- Thumbnail capture ---
+  const [thumbDrawerOpen, setThumbDrawerOpen] = useState(false);
+  const [thumbDataUrl, setThumbDataUrl] = useState<string | null>(null);
+  const [thumbCapturing, setThumbCapturing] = useState(false);
+  const [thumbSaving, setThumbSaving] = useState(false);
+
+  const handleCaptureThumbnail = async () => {
+    const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
+    if (!map) {
+      toast.error("Map not ready");
+      return;
+    }
+    setThumbCapturing(true);
+    setThumbDataUrl(null);
+    setThumbDrawerOpen(true);
+    try {
+      const dataUrl = await captureMapboxScreenshot(map);
+      if (!dataUrl) throw new Error("No image captured");
+      setThumbDataUrl(dataUrl);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to capture screenshot");
+      setThumbDrawerOpen(false);
+    } finally {
+      setThumbCapturing(false);
+    }
+  };
+
+  const handleSaveThumbnail = async () => {
+    if (!thumbDataUrl) return;
+    setThumbSaving(true);
+    try {
+      const res = await fetch(`/api/maps/${mapId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ thumbnail: thumbDataUrl }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      toast.success("Thumbnail saved");
+      setThumbDrawerOpen(false);
+      setThumbDataUrl(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save thumbnail");
+    } finally {
+      setThumbSaving(false);
+    }
   };
 
   return (
@@ -762,18 +828,6 @@ export default function BuilderClient({ mapId }: Props) {
               onClick={() => setActiveView("poi")}
             />
             <ActionButton
-              icon={<UndoIcon />}
-              label="Undo"
-              onClick={undo}
-              disabled={!canUndo}
-            />
-            <ActionButton
-              icon={<RedoIcon />}
-              label="Redo"
-              onClick={redo}
-              disabled={!canRedo}
-            />
-            <ActionButton
               icon={<ShareIcon />}
               label="Share"
               onClick={handleCopyShareUrl}
@@ -877,6 +931,36 @@ export default function BuilderClient({ mapId }: Props) {
                 Search for a city, campus, or address to re-center this map. Save to persist.
               </Typography>
               <LocationSearch onPlaceSelect={handlePickLocation} boxPadding={0} />
+
+              <Divider />
+
+              <Typography
+                variant="overline"
+                sx={{
+                  fontSize: "0.7rem",
+                  fontWeight: 600,
+                  color: "text.secondary",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                Card Thumbnail
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ fontSize: "0.8125rem" }}
+              >
+                Capture the current map view as the preview image shown on the
+                campus card in the dashboard and Campuses list.
+              </Typography>
+              <Button
+                variant="outlined"
+                startIcon={<PhotoCameraIcon sx={{ fontSize: 16 }} />}
+                onClick={handleCaptureThumbnail}
+                sx={{ textTransform: "none", alignSelf: "flex-start" }}
+              >
+                Generate from current view
+              </Button>
             </Box>
           )}
 
@@ -1540,6 +1624,70 @@ export default function BuilderClient({ mapId }: Props) {
         </DialogActions>
       </Dialog>
 
+      {/* Thumbnail preview drawer */}
+      <RightDrawer
+        open={thumbDrawerOpen}
+        onClose={() => {
+          if (thumbSaving) return;
+          setThumbDrawerOpen(false);
+          setThumbDataUrl(null);
+        }}
+        title="Card thumbnail preview"
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              onClick={handleCaptureThumbnail}
+              disabled={thumbCapturing || thumbSaving}
+              fullWidth
+              sx={{ textTransform: "none" }}
+            >
+              Retake
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleSaveThumbnail}
+              disabled={!thumbDataUrl || thumbSaving}
+              fullWidth
+              sx={{ textTransform: "none" }}
+            >
+              {thumbSaving ? <CircularProgress size={16} /> : "Use as thumbnail"}
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="body2" color="text.secondary">
+          This is how the campus card will look on the dashboard and Campuses
+          list. Pan and zoom the map behind, then hit Retake to refresh.
+        </Typography>
+        <Box
+          sx={(theme) => ({
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: 1,
+            overflow: "hidden",
+            bgcolor: "action.hover",
+            aspectRatio: "16 / 10",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          })}
+        >
+          {thumbCapturing ? (
+            <CircularProgress size={24} />
+          ) : thumbDataUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={thumbDataUrl}
+              alt="Thumbnail preview"
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          ) : (
+            <Typography variant="caption" color="text.secondary">
+              No preview
+            </Typography>
+          )}
+        </Box>
+      </RightDrawer>
     </Box>
   );
 }

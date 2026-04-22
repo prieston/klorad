@@ -5,6 +5,8 @@ export interface CampusMap {
   name: string;
   updatedAt: string;
   createdAt: string;
+  center?: [number, number] | null;
+  thumbnail?: string | null;
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());

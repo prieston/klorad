@@ -9,6 +9,23 @@ const BUILDING_DIM_SOURCE = "campus-building-dim";
 const BUILDING_DIM_LAYER = "campus-building-dim-layer";
 
 /**
+ * Wrap a floor plan URL with our same-origin proxy when it's cross-origin,
+ * so Mapbox can fetch it with CORS and the canvas stays screenshot-safe.
+ */
+function withProxy(url: string): string {
+  if (!url) return url;
+  if (url.startsWith("data:") || url.startsWith("blob:")) return url;
+  if (typeof window === "undefined") return url;
+  try {
+    const asUrl = new URL(url, window.location.origin);
+    if (asUrl.origin === window.location.origin) return url;
+    return `/api/image-proxy?url=${encodeURIComponent(asUrl.toString())}`;
+  } catch {
+    return url;
+  }
+}
+
+/**
  * Keeps exactly one floor plan image source + a raster layer on the map
  * that corresponds to `activePlan`. When activePlan is null, both are
  * removed. Also applies the "Roof Lift" — dims the Mapbox Standard v3
@@ -96,7 +113,7 @@ export function useMapboxFloorPlanLayer(activePlan: FloorPlan | null) {
       if (!map.getSource(sourceId)) {
         map.addSource(sourceId, {
           type: "image",
-          url: activePlan.url,
+          url: withProxy(activePlan.url),
           coordinates: activePlan.coordinates,
         });
       }
