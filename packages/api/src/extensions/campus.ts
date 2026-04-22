@@ -43,6 +43,7 @@ export function createPOIManagerAPI(): POIManagerAPI {
         accessibility: input.accessibility,
         view: input.view,
         linkedBuilding: input.linkedBuilding,
+        events: input.events,
       };
       get().updateObjectProperty(added.id, "meta", { poi: poiMeta });
 
@@ -92,14 +93,28 @@ export function createPOIManagerAPI(): POIManagerAPI {
     },
 
     search(query: string): POI[] {
-      const q = query.toLowerCase();
-      return this.getAll().filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.description?.toLowerCase().includes(q) ||
-          p.tags?.some((t) => t.toLowerCase().includes(q)) ||
-          p.category?.toLowerCase().includes(q)
-      );
+      const q = query.toLowerCase().trim();
+      if (!q) return this.getAll();
+      return this.getAll().filter((p) => {
+        if (p.name.toLowerCase().includes(q)) return true;
+        if (p.description?.toLowerCase().includes(q)) return true;
+        if (p.tags?.some((t) => t.toLowerCase().includes(q))) return true;
+        if (p.category?.toLowerCase().includes(q)) return true;
+        // Building properties — e.g. Mapbox assigns name / class
+        const lbProps = p.linkedBuilding?.properties as Record<string, unknown> | undefined;
+        if (lbProps) {
+          for (const v of Object.values(lbProps)) {
+            if (typeof v === "string" && v.toLowerCase().includes(q)) return true;
+          }
+        }
+        // Events — title, course code, lecturer
+        if (p.events?.some((e) =>
+          e.title.toLowerCase().includes(q) ||
+          e.courseCode?.toLowerCase().includes(q) ||
+          e.lecturer?.toLowerCase().includes(q)
+        )) return true;
+        return false;
+      });
     },
 
     async flyTo(id: string) {

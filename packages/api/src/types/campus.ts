@@ -25,6 +25,22 @@ export interface POIView {
   bearing?: number;
 }
 
+export interface POIEvent {
+  id: string;
+  /** Primary label — course title, session name, or event name. */
+  title: string;
+  /** ISO timestamp. */
+  startsAt: string;
+  /** ISO timestamp. */
+  endsAt: string;
+  /** Course code such as "BIO 101" — indexed by search. */
+  courseCode?: string;
+  /** Lecturer / speaker / host. */
+  lecturer?: string;
+  /** Optional extra detail shown on the event card. */
+  description?: string;
+}
+
 export interface POILinkedBuilding {
   /** Feature id from the Mapbox layer, if available (used for feature-state highlight). */
   featureId?: string | number;
@@ -54,6 +70,8 @@ export interface POI {
   view?: POIView;
   /** Optional link to a Mapbox building feature (or user-drawn building). */
   linkedBuilding?: POILinkedBuilding;
+  /** Scheduled events happening at this POI (lectures, workshops, tours). */
+  events?: POIEvent[];
 }
 
 export type POIInput = Omit<POI, "id" | "objectId"> & { id?: string };

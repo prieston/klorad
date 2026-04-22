@@ -146,17 +146,54 @@ export default function PublicViewerClient({ mapId }: Props) {
     };
   }, [mapId]);
 
-  const filteredPois = query.trim()
-    ? pois.filter(
-        (p) =>
-          p.name.toLowerCase().includes(query.toLowerCase()) ||
-          p.description?.toLowerCase().includes(query.toLowerCase())
-      )
-    : pois;
+  // Query text ranked by the CampusAPI (also covers event titles + course codes)
+  const filteredPois = useMemo(() => {
+    if (!query.trim() || !apiRef.current) return pois;
+    return apiRef.current.poi.search(query);
+  }, [query, pois]);
 
-  const flyToPoi = (poi: POI) => {
+  // For each matching POI, also surface its events that match the query
+  // so "Bio 101" can select the room AND surface the live lecture card.
+  const matchedEvents = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return new Map<string, string | null>();
+    const out = new Map<string, string | null>();
+    for (const poi of filteredPois) {
+      const ev = (poi.events ?? []).find(
+        (e) =>
+          e.title.toLowerCase().includes(q) ||
+          e.courseCode?.toLowerCase().includes(q) ||
+          e.lecturer?.toLowerCase().includes(q)
+      );
+      out.set(poi.id, ev?.id ?? null);
+    }
+    return out;
+  }, [filteredPois, query]);
+
+  // Chained search-to-event reveal — the flagship demo moment.
+  // 1) Select & fly to the POI (fires the POI highlight + existing fly
+  //    animation).
+  // 2) If the POI sits on a specific floor AND that floor has a plan,
+  //    after the fly-to settles activate the floor (Roof Lift).
+  // 3) If the POI has an event that matched the query, highlight it in
+  //    the search result card (already shown inline — see event card
+  //    rendering below).
+  const revealPoiAndEvent = (poi: POI) => {
+    setSelectedPoiId(poi.id);
     apiRef.current?.poi.flyTo(poi.id);
-    setActivePanel(null);
+    // Time the floor activation to land just after the fly settles
+    // (our flyTo is ~1800ms; kick the floor slightly later).
+    if (typeof poi.floor === "number" && apiRef.current) {
+      const buildingId = poi.linkedBuilding?.featureId
+        ? String(poi.linkedBuilding.featureId)
+        : poi.id;
+      const plan = apiRef.current.floorPlans
+        .forBuilding(buildingId)
+        .find((p) => p.floor === poi.floor);
+      if (plan) {
+        setTimeout(() => setActiveFloor(plan.floor ?? 0), 1400);
+      }
+    }
   };
 
   const togglePanel = (panel: Panel) =>
@@ -265,20 +302,63 @@ export default function PublicViewerClient({ mapId }: Props) {
             }}
           />
           <List dense sx={{ mt: 1 }}>
-            {filteredPois.map((poi) => (
-              <ListItemButton
+            {filteredPois.map((poi) => {
+              const matchedEventId = matchedEvents.get(poi.id);
+              const event = matchedEventId
+                ? poi.events?.find((e) => e.id === matchedEventId)
+                : null;
+              return (
+              <Box
                 key={poi.id}
-                onClick={() => flyToPoi(poi)}
-                sx={{ borderRadius: 1 }}
+                sx={{
+                  borderRadius: 1,
+                  mb: 0.5,
+                  overflow: "hidden",
+                  border: event ? "1px solid" : "none",
+                  borderColor: "primary.main",
+                }}
               >
-                <ListItemText
-                  primary={poi.name}
-                  secondary={poi.category}
-                  primaryTypographyProps={{ fontSize: "0.875rem" }}
-                  secondaryTypographyProps={{ fontSize: "0.75rem" }}
-                />
-              </ListItemButton>
-            ))}
+                <ListItemButton
+                  onClick={() => revealPoiAndEvent(poi)}
+                  sx={{ borderRadius: 0, py: 0.75 }}
+                >
+                  <ListItemText
+                    primary={poi.name}
+                    secondary={
+                      typeof poi.floor === "number"
+                        ? `${poi.category ?? "POI"} · Floor ${poi.floor === 0 ? "Γ" : poi.floor}`
+                        : poi.category
+                    }
+                    primaryTypographyProps={{ fontSize: "0.875rem" }}
+                    secondaryTypographyProps={{ fontSize: "0.75rem" }}
+                  />
+                </ListItemButton>
+                {event && (
+                  <Box
+                    sx={{
+                      px: 2,
+                      py: 1,
+                      bgcolor: "rgba(107,156,216,0.08)",
+                      borderTop: "1px solid",
+                      borderColor: "divider",
+                    }}
+                  >
+                    <Typography variant="caption" color="primary.main" sx={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      Happening {isHappeningNow(event) ? "Now" : formatWhen(event)}
+                    </Typography>
+                    <Typography variant="body2" fontWeight={600} sx={{ fontSize: "0.8125rem" }}>
+                      {event.title}
+                    </Typography>
+                    {(event.courseCode || event.lecturer) && (
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem", display: "block" }}>
+                        {[event.courseCode, event.lecturer].filter(Boolean).join(" · ")}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+              </Box>
+              );
+            })}
             {filteredPois.length === 0 && query && (
               <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: "center" }}>
                 No results for &ldquo;{query}&rdquo;
@@ -357,4 +437,21 @@ export default function PublicViewerClient({ mapId }: Props) {
       )}
     </Box>
   );
+}
+
+function isHappeningNow(event: { startsAt: string; endsAt: string }): boolean {
+  const now = Date.now();
+  const s = Date.parse(event.startsAt);
+  const e = Date.parse(event.endsAt);
+  return now >= s && now <= e;
+}
+
+function formatWhen(event: { startsAt: string }): string {
+  const d = new Date(event.startsAt);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const time = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  if (sameDay) return `today at ${time}`;
+  const dateLabel = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return `${dateLabel} at ${time}`;
 }
