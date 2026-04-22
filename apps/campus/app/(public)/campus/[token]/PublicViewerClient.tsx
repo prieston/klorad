@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import dynamic from "next/dynamic";
 import {
   Box,
@@ -18,6 +18,8 @@ import {
 import { createSceneAPI } from "@klorad/api";
 import type { CampusAPI, POI, TourStop } from "@klorad/api";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
+import { useMapboxFloorPlanLayer } from "@/app/hooks/useMapboxFloorPlanLayer";
+import LevelSwitcher from "@/app/components/LevelSwitcher";
 import {
   TextField,
   SearchIcon,
@@ -63,6 +65,18 @@ export default function PublicViewerClient({ mapId }: Props) {
       apiRef.current?.poi.flyTo(id);
     },
   });
+
+  const [activeFloor, setActiveFloor] = useState<number | null>(null);
+  const floorPlansForSelection = useMemo(() => {
+    if (!apiRef.current || !selectedPoiId) return [];
+    return apiRef.current.floorPlans.forBuilding(selectedPoiId);
+  }, [selectedPoiId, pois]);
+  const activePlan = useMemo(() => {
+    if (activeFloor === null) return null;
+    return floorPlansForSelection.find((p) => p.floor === activeFloor) ?? null;
+  }, [activeFloor, floorPlansForSelection]);
+  useMapboxFloorPlanLayer(activePlan);
+  useEffect(() => setActiveFloor(null), [selectedPoiId]);
 
   useEffect(() => {
     const api = createSceneAPI("mapbox", "campus") as CampusAPI;
@@ -116,6 +130,14 @@ export default function PublicViewerClient({ mapId }: Props) {
   return (
     <Box sx={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden" }}>
       {sceneReady ? <MapboxViewer /> : <MapLoadingFallback />}
+
+      {floorPlansForSelection.length > 0 && (
+        <LevelSwitcher
+          plans={floorPlansForSelection}
+          activeFloor={activeFloor}
+          onSelectFloor={setActiveFloor}
+        />
+      )}
 
       {/* Floating controls */}
       <Box

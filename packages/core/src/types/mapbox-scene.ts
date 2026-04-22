@@ -26,7 +26,15 @@ export interface MapboxFloorPlanRaster {
   id: string;
   name?: string;
   url: string;
+  /** Image corners as [top-left, top-right, bottom-right, bottom-left] per Mapbox image sources. */
   coordinates: [MapboxLngLat, MapboxLngLat, MapboxLngLat, MapboxLngLat];
+  /** Links the plan to a specific building. Matches a POI's `linkedBuilding.featureId`
+   *  or a stable custom string chosen by the admin. */
+  buildingId?: string;
+  /** Floor index or label. Use 0 for ground (label as "Γ"), positive ints for upper levels. */
+  floor?: number;
+  /** Toggle visibility without removing the plan. Defaults to true. */
+  visible?: boolean;
 }
 
 /**

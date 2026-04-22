@@ -128,7 +128,7 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
       <PageContent>
         {activeTab === "overview" && <OverviewTab orgId={orgId} mapId={mapId} map={map} />}
         {activeTab === "settings" && <SettingsTab orgId={orgId} mapId={mapId} map={map} />}
-        {activeTab === "assets" && <AssetsTab />}
+        {activeTab === "assets" && <AssetsTab orgId={orgId} mapId={mapId} />}
         {activeTab === "integrations" && <IntegrationsTab />}
       </PageContent>
     </Page>

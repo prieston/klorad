@@ -190,9 +190,33 @@ export interface LayersAPI {
   getAll(): DataLayer[];
 }
 
+export interface FloorPlan {
+  id: string;
+  name?: string;
+  url: string;
+  /** [top-left, top-right, bottom-right, bottom-left] as [lng, lat]. */
+  coordinates: [[number, number], [number, number], [number, number], [number, number]];
+  buildingId?: string;
+  floor?: number;
+  visible?: boolean;
+}
+
+export type FloorPlanInput = Omit<FloorPlan, "id"> & { id?: string };
+
+export interface FloorPlansAPI {
+  add(input: FloorPlanInput): FloorPlan;
+  update(id: string, patch: Partial<FloorPlan>): void;
+  remove(id: string): void;
+  setVisible(id: string, visible: boolean): void;
+  getAll(): FloorPlan[];
+  /** Return plans for a given building, sorted by floor asc. */
+  forBuilding(buildingId: string): FloorPlan[];
+}
+
 export interface CampusAPI extends SceneAPI {
   readonly poi: POIManagerAPI;
   readonly layers: LayersAPI;
+  readonly floorPlans: FloorPlansAPI;
   /** Re-center the campus map on a new location (persisted on save). */
   setLocation(lng: number, lat: number, options?: { zoom?: number; pitch?: number; bearing?: number; fly?: boolean }): void;
 }

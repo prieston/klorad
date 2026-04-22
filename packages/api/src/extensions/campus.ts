@@ -1,5 +1,13 @@
 import { useSceneStore } from "@klorad/core";
-import type { CampusAPI, POIManagerAPI, LayersAPI } from "../types/interfaces";
+import { v4 as uuidv4 } from "uuid";
+import type {
+  CampusAPI,
+  POIManagerAPI,
+  LayersAPI,
+  FloorPlansAPI,
+  FloorPlan,
+  FloorPlanInput,
+} from "../types/interfaces";
 import type { POI, POIInput, DataLayer } from "../types/campus";
 
 type PoiMeta = Omit<POI, "id" | "name" | "objectId" | "position">;
@@ -121,6 +129,72 @@ export function createPOIManagerAPI(): POIManagerAPI {
   };
 }
 
+export function createFloorPlansAPI(): FloorPlansAPI {
+  const get = () => useSceneStore.getState();
+
+  const readPlans = (): FloorPlan[] => {
+    const raw = get().mapboxSceneData.floorPlanRasters ?? [];
+    return raw.map((r) => ({
+      id: r.id,
+      name: r.name,
+      url: r.url,
+      coordinates: r.coordinates as FloorPlan["coordinates"],
+      buildingId: r.buildingId,
+      floor: r.floor,
+      visible: r.visible !== false,
+    }));
+  };
+
+  const writePlans = (plans: FloorPlan[]) => {
+    get().setMapboxSceneData({
+      floorPlanRasters: plans.map((p) => ({
+        id: p.id,
+        name: p.name,
+        url: p.url,
+        coordinates: p.coordinates,
+        buildingId: p.buildingId,
+        floor: p.floor,
+        visible: p.visible,
+      })),
+    });
+  };
+
+  return {
+    add(input: FloorPlanInput): FloorPlan {
+      const plan: FloorPlan = {
+        id: input.id ?? uuidv4(),
+        name: input.name,
+        url: input.url,
+        coordinates: input.coordinates,
+        buildingId: input.buildingId,
+        floor: input.floor,
+        visible: input.visible !== false,
+      };
+      writePlans([...readPlans(), plan]);
+      return plan;
+    },
+    update(id, patch) {
+      writePlans(
+        readPlans().map((p) => (p.id === id ? { ...p, ...patch } : p))
+      );
+    },
+    remove(id) {
+      writePlans(readPlans().filter((p) => p.id !== id));
+    },
+    setVisible(id, visible) {
+      this.update(id, { visible });
+    },
+    getAll(): FloorPlan[] {
+      return readPlans();
+    },
+    forBuilding(buildingId: string): FloorPlan[] {
+      return readPlans()
+        .filter((p) => p.buildingId === buildingId)
+        .sort((a, b) => (a.floor ?? 0) - (b.floor ?? 0));
+    },
+  };
+}
+
 export function createLayersAPI(): LayersAPI {
   const layers = new Map<string, DataLayer>();
 
@@ -145,10 +219,11 @@ export function createLayersAPI(): LayersAPI {
   };
 }
 
-export function createCampusExtension(): Pick<CampusAPI, "poi" | "layers" | "setLocation"> {
+export function createCampusExtension(): Pick<CampusAPI, "poi" | "layers" | "floorPlans" | "setLocation"> {
   return {
     poi: createPOIManagerAPI(),
     layers: createLayersAPI(),
+    floorPlans: createFloorPlansAPI(),
     setLocation(lng, lat, options = {}) {
       const { zoom, pitch, bearing, fly = true } = options;
       const s = useSceneStore.getState();

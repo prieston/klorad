@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import dynamic from "next/dynamic";
 import {
   Box,
@@ -44,7 +44,9 @@ import type { CampusAPI, POI, POICategory } from "@klorad/api";
 import { useSceneStore } from "@klorad/core";
 import type { Map as MapboxMap, MapMouseEvent } from "mapbox-gl";
 import BuilderLeftPanel from "./BuilderLeftPanel";
+import LevelSwitcher from "@/app/components/LevelSwitcher";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
+import { useMapboxFloorPlanLayer } from "@/app/hooks/useMapboxFloorPlanLayer";
 
 const MapboxViewer = dynamic(
   () => import("@klorad/engine-mapbox").then((m) => ({ default: m.MapboxViewer })),
@@ -110,6 +112,26 @@ export default function BuilderClient({ mapId }: Props) {
     selectedPoiId,
     onPoiClick: (id) => setSelectedPoiId(id),
   });
+
+  const [activeFloor, setActiveFloor] = useState<number | null>(null);
+
+  // Floor plans available for the currently-selected POI's building
+  const floorPlansForSelection = useMemo(() => {
+    if (!apiRef.current || !selectedPoiId) return [];
+    return apiRef.current.floorPlans.forBuilding(selectedPoiId);
+  }, [selectedPoiId, pois]);
+
+  const activePlan = useMemo(() => {
+    if (activeFloor === null) return null;
+    return floorPlansForSelection.find((p) => p.floor === activeFloor) ?? null;
+  }, [activeFloor, floorPlansForSelection]);
+
+  useMapboxFloorPlanLayer(activePlan);
+
+  // Reset active floor when selection changes
+  useEffect(() => {
+    setActiveFloor(null);
+  }, [selectedPoiId]);
 
   useEffect(() => {
     const api = createSceneAPI("mapbox", "campus") as CampusAPI;
@@ -450,6 +472,14 @@ export default function BuilderClient({ mapId }: Props) {
         >
           <SceneToolbar tools={sceneTools} orientation="horizontal" />
         </Box>
+
+        {floorPlansForSelection.length > 0 && (
+          <LevelSwitcher
+            plans={floorPlansForSelection}
+            activeFloor={activeFloor}
+            onSelectFloor={setActiveFloor}
+          />
+        )}
 
         {placingPoi && (
           <Box
