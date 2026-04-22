@@ -22,6 +22,7 @@ import {
   TextField,
   FormField,
   ActionButton,
+  SceneToolbar,
   AddLocationAltIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -32,12 +33,18 @@ import {
   ShareIcon,
   CloseIcon,
   PublicIcon,
+  NearMeIcon,
+  ApartmentIcon,
+  LinkOffIcon,
 } from "@klorad/ui";
+import type { SceneTool } from "@klorad/ui";
 import { toast } from "react-toastify";
 import { createSceneAPI } from "@klorad/api";
 import type { CampusAPI, POI, POICategory } from "@klorad/api";
 import { useSceneStore } from "@klorad/core";
 import type { Map as MapboxMap, MapMouseEvent } from "mapbox-gl";
+import BuilderLeftPanel from "./BuilderLeftPanel";
+import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 
 const MapboxViewer = dynamic(
   () => import("@klorad/engine-mapbox").then((m) => ({ default: m.MapboxViewer })),
@@ -90,10 +97,19 @@ export default function BuilderClient({ mapId }: Props) {
   const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [placingPoi, setPlacingPoi] = useState(false);
+  const [activeTool, setActiveTool] = useState<"select" | "linkBuilding">("select");
   const [activeView, setActiveView] = useState<"poi" | "location">("poi");
   const [sceneReady, setSceneReady] = useState(false);
   const apiRef = useRef<CampusAPI | null>(null);
   const mapboxScene = useSceneStore((s) => s.mapboxSceneData);
+  const selectedMapboxBuilding = useSceneStore((s) => s.selectedMapboxBuilding);
+  const setSelectedMapboxBuilding = useSceneStore((s) => s.setSelectedMapboxBuilding);
+
+  useMapboxPoiLayer({
+    pois,
+    selectedPoiId,
+    onPoiClick: (id) => setSelectedPoiId(id),
+  });
 
   useEffect(() => {
     const api = createSceneAPI("mapbox", "campus") as CampusAPI;
@@ -126,6 +142,111 @@ export default function BuilderClient({ mapId }: Props) {
       unsub();
     };
   }, [mapId]);
+
+  // Link-to-building: while the tool is active, clicks on Mapbox buildings
+  // surface via selectedMapboxBuilding. Attach the building to the selected POI.
+  useEffect(() => {
+    if (activeTool !== "linkBuilding") return;
+    const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
+    if (map) map.getCanvas().style.cursor = "crosshair";
+    return () => {
+      if (map) map.getCanvas().style.cursor = "";
+    };
+  }, [activeTool]);
+
+  useEffect(() => {
+    if (activeTool !== "linkBuilding") return;
+    if (!selectedMapboxBuilding || !selectedPoiId || !apiRef.current) return;
+    const { properties, lng, lat } = selectedMapboxBuilding;
+    if (typeof lng !== "number" || typeof lat !== "number") return;
+
+    const label = (properties?.name as string) || (properties?.class as string) || "Building";
+
+    apiRef.current.poi.update(selectedPoiId, {
+      linkedBuilding: {
+        lng,
+        lat,
+        properties,
+        label,
+      },
+    });
+    setPois(apiRef.current.poi.getAll());
+    setSelectedMapboxBuilding(null);
+    setActiveTool("select");
+    toast.success(`Linked POI to ${label}`);
+  }, [selectedMapboxBuilding, activeTool, selectedPoiId, setSelectedMapboxBuilding]);
+
+  // Highlight the linked building on the map when a POI is selected.
+  // Uses a temporary marker layer; removed on deselect.
+  useEffect(() => {
+    const poi = pois.find((p) => p.id === selectedPoiId);
+    const linked = poi?.linkedBuilding;
+    const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
+    if (!map) return;
+
+    const sourceId = "campus-linked-building-highlight";
+    const layerId = "campus-linked-building-highlight-layer";
+    const pulseLayerId = "campus-linked-building-highlight-pulse";
+
+    const removeHighlight = () => {
+      try {
+        if (map.getLayer(pulseLayerId)) map.removeLayer(pulseLayerId);
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
+      } catch {
+        /* map may be tearing down */
+      }
+    };
+
+    if (!linked) {
+      removeHighlight();
+      return;
+    }
+
+    const addHighlight = () => {
+      try {
+        if (map.getSource(sourceId)) removeHighlight();
+        map.addSource(sourceId, {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [linked.lng, linked.lat] },
+            properties: {},
+          },
+        });
+        map.addLayer({
+          id: pulseLayerId,
+          type: "circle",
+          source: sourceId,
+          paint: {
+            "circle-radius": 22,
+            "circle-color": "#6b9cd8",
+            "circle-opacity": 0.18,
+            "circle-blur": 0.4,
+          },
+        });
+        map.addLayer({
+          id: layerId,
+          type: "circle",
+          source: sourceId,
+          paint: {
+            "circle-radius": 10,
+            "circle-color": "#6b9cd8",
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 2,
+            "circle-opacity": 0.95,
+          },
+        });
+      } catch {
+        /* ignore */
+      }
+    };
+
+    if (map.isStyleLoaded()) addHighlight();
+    else map.once("load", addHighlight);
+
+    return () => removeHighlight();
+  }, [selectedPoiId, pois]);
 
   // Click-to-place: while placingPoi is true, the next map click creates a POI there
   useEffect(() => {
@@ -267,6 +388,31 @@ export default function BuilderClient({ mapId }: Props) {
     }
   };
 
+  const sceneTools: SceneTool[] = [
+    {
+      id: "select",
+      icon: <NearMeIcon fontSize="small" />,
+      label: "Select",
+      active: activeTool === "select",
+      onClick: () => setActiveTool("select"),
+    },
+    {
+      id: "linkBuilding",
+      icon: <ApartmentIcon fontSize="small" />,
+      label: selectedPoiId
+        ? "Link building to selected POI"
+        : "Link building (select a POI first)",
+      active: activeTool === "linkBuilding",
+      onClick: () => {
+        if (!selectedPoiId) {
+          toast.info("Select a POI first, then click a building.");
+          return;
+        }
+        setActiveTool((prev) => (prev === "linkBuilding" ? "select" : "linkBuilding"));
+      },
+    },
+  ];
+
   const shareUrl = typeof window !== "undefined"
     ? `${window.location.origin}/campus/${mapId}`
     : "";
@@ -283,15 +429,33 @@ export default function BuilderClient({ mapId }: Props) {
 
   return (
     <Box sx={{ display: "flex", height: "calc(100vh - 64px)", overflow: "hidden" }}>
+      <BuilderLeftPanel pois={pois} />
+
       {/* Map */}
       <Box sx={{ flex: 1, position: "relative" }}>
         {sceneReady ? <MapboxViewer /> : <MapLoadingFallback />}
+
+        {/* Scene tools — centered floating bar above the map,
+            positioned between the left sidebar (376px) and the right
+            panel (416px when open, 0 when closed). */}
+        <Box
+          sx={{
+            position: "fixed",
+            top: 16,
+            left: sidebarOpen ? "calc(50% - 20px)" : "calc(50% + 188px)",
+            transform: "translateX(-50%)",
+            zIndex: 1401,
+            transition: "left 0.2s",
+          }}
+        >
+          <SceneToolbar tools={sceneTools} orientation="horizontal" />
+        </Box>
 
         {placingPoi && (
           <Box
             sx={{
               position: "absolute",
-              top: 12,
+              top: 76,
               left: "50%",
               transform: "translateX(-50%)",
               bgcolor: "rgba(234,179,8,0.95)",
@@ -306,6 +470,30 @@ export default function BuilderClient({ mapId }: Props) {
             }}
           >
             Click on the map to place the POI
+          </Box>
+        )}
+
+        {activeTool === "linkBuilding" && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 76,
+              left: "50%",
+              transform: "translateX(-50%)",
+              bgcolor: (t) => alpha(t.palette.primary.main, 0.95),
+              color: "#fff",
+              px: 2,
+              py: 0.75,
+              borderRadius: 1,
+              fontSize: "0.8125rem",
+              fontWeight: 600,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+              zIndex: 20,
+            }}
+          >
+            {selectedPoiId
+              ? "Click a building to link it to the selected POI"
+              : "Select a POI first, then click a building"}
           </Box>
         )}
 
@@ -651,6 +839,72 @@ export default function BuilderClient({ mapId }: Props) {
                     />
                   ))}
                 </Box>
+              </Box>
+
+              <Divider />
+
+              {/* Linked Building */}
+              <Box>
+                <Box sx={{ display: "flex", alignItems: "center", mb: 0.75, gap: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
+                    Linked Building
+                  </Typography>
+                  {selectedPoi.linkedBuilding && (
+                    <Button
+                      size="small"
+                      color="inherit"
+                      startIcon={<LinkOffIcon sx={{ fontSize: 14 }} />}
+                      onClick={() => {
+                        apiRef.current?.poi.update(selectedPoi.id, {
+                          linkedBuilding: undefined,
+                        });
+                        setPois(apiRef.current?.poi.getAll() ?? []);
+                      }}
+                      sx={{ fontSize: "0.7rem", textTransform: "none", py: 0, opacity: 0.6 }}
+                    >
+                      Unlink
+                    </Button>
+                  )}
+                </Box>
+                {selectedPoi.linkedBuilding ? (
+                  <Box
+                    sx={{
+                      p: 1.25,
+                      borderRadius: 1,
+                      bgcolor: (t) => alpha(t.palette.primary.main, 0.06),
+                      border: "1px solid",
+                      borderColor: "divider",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                    }}
+                  >
+                    <ApartmentIcon sx={{ fontSize: 20, color: "primary.main" }} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ fontSize: "0.8125rem", fontWeight: 600 }}
+                        noWrap
+                      >
+                        {selectedPoi.linkedBuilding.label ?? "Building"}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ fontFamily: "monospace", fontSize: "0.7rem", display: "block" }}
+                      >
+                        {selectedPoi.linkedBuilding.lng.toFixed(5)},{" "}
+                        {selectedPoi.linkedBuilding.lat.toFixed(5)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ) : (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    No building linked. Use the{" "}
+                    <ApartmentIcon sx={{ fontSize: 12, verticalAlign: "middle", mx: 0.25 }} />
+                    tool on the map to link one.
+                  </Typography>
+                )}
               </Box>
 
               <Divider />

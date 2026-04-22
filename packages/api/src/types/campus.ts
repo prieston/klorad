@@ -25,6 +25,19 @@ export interface POIView {
   bearing?: number;
 }
 
+export interface POILinkedBuilding {
+  /** Feature id from the Mapbox layer, if available (used for feature-state highlight). */
+  featureId?: string | number;
+  /** Longitude of the clicked building centroid/click point. */
+  lng: number;
+  /** Latitude of the clicked building centroid/click point. */
+  lat: number;
+  /** Raw Mapbox feature properties (name, height, etc.). */
+  properties?: Record<string, unknown>;
+  /** Optional user-provided label shown in the panel. */
+  label?: string;
+}
+
 export interface POI {
   id: string;
   name: string;
@@ -39,6 +52,8 @@ export interface POI {
   accessibility?: AccessibilityInfo;
   /** Camera framing when flying to this POI. */
   view?: POIView;
+  /** Optional link to a Mapbox building feature (or user-drawn building). */
+  linkedBuilding?: POILinkedBuilding;
 }
 
 export type POIInput = Omit<POI, "id" | "objectId"> & { id?: string };

@@ -27,6 +27,18 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   const orgId = params?.orgId ?? "";
   const pathPrefix = orgId ? `/org/${orgId}` : "";
 
+  // Builder routes have their own dedicated left panel (BuilderLeftPanel),
+  // so skip the global sidebar there — mirrors editor behavior.
+  const isBuilder = pathname?.includes("/builder") ?? false;
+
+  if (isBuilder) {
+    return (
+      <Box component="main" sx={{ minHeight: "100vh" }}>
+        {children}
+      </Box>
+    );
+  }
+
   return (
     <>
       <AppSidebar

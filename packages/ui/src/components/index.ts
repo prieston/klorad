@@ -50,3 +50,5 @@ export * from "./AppSidebar";
 export * from "./SignIn";
 // Inputs
 export * from "./inputs";
+// SceneToolbar
+export * from "./SceneToolbar";

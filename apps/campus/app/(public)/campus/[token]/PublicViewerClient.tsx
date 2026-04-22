@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import { createSceneAPI } from "@klorad/api";
 import type { CampusAPI, POI, TourStop } from "@klorad/api";
+import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import {
   TextField,
   SearchIcon,
@@ -51,7 +52,17 @@ export default function PublicViewerClient({ mapId }: Props) {
   const [tourStops, setTourStops] = useState<TourStop[]>([]);
   const [currentStop, setCurrentStop] = useState<number>(-1);
   const [sceneReady, setSceneReady] = useState(false);
+  const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
   const apiRef = useRef<CampusAPI | null>(null);
+
+  useMapboxPoiLayer({
+    pois,
+    selectedPoiId,
+    onPoiClick: (id) => {
+      setSelectedPoiId(id);
+      apiRef.current?.poi.flyTo(id);
+    },
+  });
 
   useEffect(() => {
     const api = createSceneAPI("mapbox", "campus") as CampusAPI;

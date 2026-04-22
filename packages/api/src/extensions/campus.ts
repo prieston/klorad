@@ -34,6 +34,7 @@ export function createPOIManagerAPI(): POIManagerAPI {
         floor: input.floor,
         accessibility: input.accessibility,
         view: input.view,
+        linkedBuilding: input.linkedBuilding,
       };
       get().updateObjectProperty(added.id, "meta", { poi: poiMeta });
 
