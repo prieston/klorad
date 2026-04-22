@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import {
   Box,
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
@@ -442,7 +443,56 @@ export default function BuilderClient({ mapId }: Props) {
     apiRef.current.poi.remove(id);
     setPois(apiRef.current.poi.getAll());
     if (selectedPoiId === id) setSelectedPoiId(null);
+    setSelectedIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   };
+
+  // Multi-select
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleMultiSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearMultiSelect = () => setSelectedIds(new Set());
+
+  const selectAllVisiblePois = () => {
+    setSelectedIds(new Set(pois.map((p) => p.id)));
+  };
+
+  const handleBulkDelete = () => {
+    if (!apiRef.current || selectedIds.size === 0) return;
+    for (const id of selectedIds) apiRef.current.poi.remove(id);
+    const n = selectedIds.size;
+    setSelectedIds(new Set());
+    if (selectedPoiId && selectedIds.has(selectedPoiId)) setSelectedPoiId(null);
+    setPois(apiRef.current.poi.getAll());
+    toast.success(`${n} POI${n === 1 ? "" : "s"} deleted`);
+  };
+
+  // Delete key removes the multi-selection (ignore when typing in a field)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      if (selectedIds.size === 0) return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+      e.preventDefault();
+      handleBulkDelete();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIds]);
 
   const handleUpdatePoi = (field: keyof POI, value: unknown) => {
     if (!apiRef.current || !selectedPoiId) return;
@@ -836,6 +886,76 @@ export default function BuilderClient({ mapId }: Props) {
               </Box>
 
               <Box sx={{ flex: 1, overflow: "auto", px: 2, pb: 2 }}>
+            {/* Bulk-action bar — visible only with active selection */}
+            {selectedIds.size > 0 && (
+              <Box
+                sx={(t) => ({
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  mb: 1,
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: 1,
+                  bgcolor: alpha(t.palette.primary.main, 0.14),
+                  border: "1px solid",
+                  borderColor: alpha(t.palette.primary.main, 0.3),
+                })}
+              >
+                <Typography
+                  variant="caption"
+                  color="primary.main"
+                  sx={{ flex: 1, fontWeight: 700, fontSize: "0.75rem" }}
+                >
+                  {selectedIds.size} selected
+                </Typography>
+                <Button
+                  size="small"
+                  color="inherit"
+                  onClick={clearMultiSelect}
+                  sx={{ fontSize: "0.7rem", textTransform: "none", py: 0, opacity: 0.7 }}
+                >
+                  Clear
+                </Button>
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="error"
+                  onClick={handleBulkDelete}
+                  startIcon={<DeleteOutlineIcon sx={{ fontSize: 14 }} />}
+                  sx={{ fontSize: "0.7rem", textTransform: "none", py: 0.25 }}
+                >
+                  Delete
+                </Button>
+              </Box>
+            )}
+
+            {/* Select-all row — only when there's at least one POI */}
+            {pois.length > 0 && (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  pl: 0.75,
+                  pr: 1,
+                  py: 0.25,
+                  mb: 0.5,
+                  opacity: 0.75,
+                }}
+              >
+                <Checkbox
+                  size="small"
+                  indeterminate={selectedIds.size > 0 && selectedIds.size < pois.length}
+                  checked={selectedIds.size === pois.length}
+                  onChange={(e) => (e.target.checked ? selectAllVisiblePois() : clearMultiSelect())}
+                  sx={{ p: 0.5 }}
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem", ml: 0.5 }}>
+                  Select all
+                </Typography>
+              </Box>
+            )}
+
             <List dense disablePadding>
             {pois.length === 0 && (
               <Typography
@@ -846,22 +966,42 @@ export default function BuilderClient({ mapId }: Props) {
                 No points of interest yet. Click &ldquo;Add POI&rdquo; then pick a spot on the map.
               </Typography>
             )}
-            {pois.map((poi) => (
+            {pois.map((poi) => {
+              const isMultiSelected = selectedIds.has(poi.id);
+              return (
               <ListItemButton
                 key={poi.id}
                 selected={poi.id === selectedPoiId}
-                onClick={() => handleSelectPoi(poi.id)}
+                onClick={(e) => {
+                  if (e.shiftKey || e.metaKey || e.ctrlKey) {
+                    toggleMultiSelect(poi.id);
+                  } else {
+                    handleSelectPoi(poi.id);
+                  }
+                }}
                 sx={(t) => ({
                   borderRadius: 1,
                   mb: 0.25,
+                  pl: 0.5,
                   pr: 0.5,
                   "&:hover": { bgcolor: alpha(t.palette.primary.main, 0.08) },
                   "&.Mui-selected": {
                     bgcolor: alpha(t.palette.primary.main, 0.12),
                     "&:hover": { bgcolor: alpha(t.palette.primary.main, 0.16) },
                   },
+                  ...(isMultiSelected && {
+                    outline: "1px solid",
+                    outlineColor: "primary.main",
+                  }),
                 })}
               >
+                <Checkbox
+                  size="small"
+                  checked={isMultiSelected}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={() => toggleMultiSelect(poi.id)}
+                  sx={{ p: 0.25, mr: 0.5 }}
+                />
                 <Box
                   sx={{
                     width: 8,
@@ -897,7 +1037,8 @@ export default function BuilderClient({ mapId }: Props) {
                   <DeleteOutlineIcon sx={{ fontSize: 14 }} />
                 </IconButton>
               </ListItemButton>
-            ))}
+              );
+            })}
           </List>
 
           {selectedPoi && (
