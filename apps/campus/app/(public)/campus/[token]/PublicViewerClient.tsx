@@ -18,13 +18,15 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { createSceneAPI } from "@klorad/api";
-import type { CampusAPI, POI, TourStop } from "@klorad/api";
+import type { Branding, CampusAPI, POI, SceneData, TourStop } from "@klorad/api";
+import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxFloorPlanLayer } from "@/app/hooks/useMapboxFloorPlanLayer";
 import { useMapboxRoute, type RouteMode } from "@/app/hooks/useMapboxRoute";
 import LevelSwitcher from "@/app/components/LevelSwitcher";
 import WayfindingPanel from "@/app/components/WayfindingPanel";
 import WhereAmIButton from "@/app/components/WhereAmIButton";
+import BrandedHeader from "@/app/components/BrandedHeader";
 import {
   TextField,
   SearchIcon,
@@ -65,6 +67,7 @@ export default function PublicViewerClient({ mapId }: Props) {
   const [currentStop, setCurrentStop] = useState<number>(-1);
   const [sceneReady, setSceneReady] = useState(false);
   const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
+  const [branding, setBranding] = useState<Branding>({});
   const apiRef = useRef<CampusAPI | null>(null);
 
   useMapboxPoiLayer({
@@ -134,6 +137,8 @@ export default function PublicViewerClient({ mapId }: Props) {
         if (cancelled) return;
         if (data?.sceneData && typeof data.sceneData === "object" && Object.keys(data.sceneData).length > 0) {
           api.load(data.sceneData);
+          const scene = data.sceneData as Partial<SceneData>;
+          if (scene.branding) setBranding(scene.branding);
         }
         setPois(api.poi.getAll());
         setTourStops(api.tour.getAll());
@@ -208,8 +213,11 @@ export default function PublicViewerClient({ mapId }: Props) {
   };
 
   return (
+    <BrandingScope primaryColor={branding.primaryColor}>
     <Box sx={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden" }}>
       {sceneReady ? <MapboxViewer /> : <MapLoadingFallback />}
+
+      <BrandedHeader logo={branding.logo} alt={branding.name ?? "Logo"} />
 
       {floorPlansForSelection.length > 0 && (
         <LevelSwitcher
@@ -467,7 +475,36 @@ export default function PublicViewerClient({ mapId }: Props) {
         </Box>
       )}
     </Box>
+    </BrandingScope>
   );
+}
+
+/**
+ * Wraps children in a themed MUI ThemeProvider that overrides the
+ * primary color when the campus has provided a brand color. No-op
+ * (returns children as-is) when no override is set.
+ */
+function BrandingScope({
+  primaryColor,
+  children,
+}: {
+  primaryColor?: string;
+  children: React.ReactNode;
+}) {
+  const parent = useTheme();
+  if (!primaryColor || !isValidHex(primaryColor)) return <>{children}</>;
+  const branded = createTheme({
+    ...parent,
+    palette: {
+      ...parent.palette,
+      primary: { ...parent.palette.primary, main: primaryColor },
+    },
+  });
+  return <ThemeProvider theme={branded}>{children}</ThemeProvider>;
+}
+
+function isValidHex(v: string): boolean {
+  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v.trim());
 }
 
 function isHappeningNow(event: { startsAt: string; endsAt: string }): boolean {

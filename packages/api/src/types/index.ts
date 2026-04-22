@@ -83,6 +83,15 @@ export interface SceneEnvironment {
   simulationTime?: string;
 }
 
+export interface Branding {
+  /** Optional display name that overrides the map's title when shown publicly. */
+  name?: string;
+  /** Public URL (SVG/PNG) for the university or campus logo. */
+  logo?: string;
+  /** Hex color (e.g. "#6B9CD8") applied as the theme primary on the public viewer. */
+  primaryColor?: string;
+}
+
 export interface SceneData {
   objects: SceneObject[];
   tourStops: TourStop[];
@@ -90,6 +99,8 @@ export interface SceneData {
   environment: SceneEnvironment;
   /** Mapbox-specific scene config (center, zoom, style, terrain, etc.). */
   mapboxScene?: unknown;
+  /** Per-map branding shown on the public viewer. */
+  branding?: Branding;
 }
 
 // ---------------------------------------------------------------------------

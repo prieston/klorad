@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import useSWR, { mutate } from "swr";
 import {
   Button,
   IconButton,
@@ -14,6 +15,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { toast } from "react-toastify";
 import { PageCard, PageSection, TextField, FormField } from "@klorad/ui";
+import type { Branding, SceneData } from "@klorad/api";
 
 interface Props {
   orgId: string;
@@ -22,6 +24,14 @@ interface Props {
     id: string;
     name: string;
   };
+}
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+interface ServerMap {
+  id: string;
+  name: string;
+  sceneData?: Partial<SceneData>;
 }
 
 export default function SettingsTab({ orgId: _orgId, mapId, map }: Props) {
@@ -35,6 +45,37 @@ export default function SettingsTab({ orgId: _orgId, mapId, map }: Props) {
     setCopied(kind);
     toast.success("Copied to clipboard");
     setTimeout(() => setCopied(null), 2000);
+  };
+
+  // Load current branding from the saved sceneData
+  const { data: serverMap } = useSWR<ServerMap>(`/api/maps/${mapId}`, fetcher);
+  const [branding, setBranding] = useState<Branding>({});
+  const [savingBrand, setSavingBrand] = useState(false);
+
+  useEffect(() => {
+    if (serverMap?.sceneData?.branding) setBranding(serverMap.sceneData.branding);
+  }, [serverMap]);
+
+  const handleSaveBranding = async () => {
+    setSavingBrand(true);
+    try {
+      const nextSceneData: Partial<SceneData> = {
+        ...(serverMap?.sceneData ?? {}),
+        branding,
+      };
+      const res = await fetch(`/api/maps/${mapId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sceneData: nextSceneData }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      await mutate(`/api/maps/${mapId}`);
+      toast.success("Branding saved");
+    } catch {
+      toast.error("Could not save branding");
+    } finally {
+      setSavingBrand(false);
+    }
   };
 
   return (
@@ -56,19 +97,94 @@ export default function SettingsTab({ orgId: _orgId, mapId, map }: Props) {
         <PageCard>
           <Stack spacing={2}>
             <FormField
-              label="Logo"
-              helperText="SVG or PNG, recommended 240×60. Shown in the public viewer header."
+              label="Public display name"
+              helperText="Overrides the campus name in the public viewer header. Leave blank to use the campus name above."
             >
-              <Button variant="outlined" size="small" sx={{ textTransform: "none", width: "fit-content" }}>
-                Upload logo
-              </Button>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder={map.name}
+                value={branding.name ?? ""}
+                onChange={(e) => setBranding((b) => ({ ...b, name: e.target.value }))}
+              />
+            </FormField>
+            <FormField
+              label="Logo URL"
+              helperText="Paste a public URL to your university's logo (SVG or PNG, roughly 240×60). Shown top-left on the public viewer."
+            >
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="https://…/logo.svg"
+                value={branding.logo ?? ""}
+                onChange={(e) => setBranding((b) => ({ ...b, logo: e.target.value }))}
+              />
             </FormField>
             <FormField
               label="Primary color"
-              helperText="Used for pins, highlights, and buttons on the public viewer."
+              helperText="Hex code (e.g. #6B9CD8). Recolors pins, routes, buttons, and highlights on the public viewer."
             >
-              <TextField size="small" defaultValue="#6B9CD8" sx={{ maxWidth: 160 }} />
+              <Stack direction="row" spacing={1} alignItems="center">
+                <TextField
+                  size="small"
+                  placeholder="#6B9CD8"
+                  sx={{ maxWidth: 180 }}
+                  value={branding.primaryColor ?? ""}
+                  onChange={(e) =>
+                    setBranding((b) => ({ ...b, primaryColor: e.target.value }))
+                  }
+                />
+                {branding.primaryColor && (
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 4,
+                      backgroundColor: branding.primaryColor,
+                      border: "1px solid rgba(255,255,255,0.12)",
+                    }}
+                  />
+                )}
+              </Stack>
             </FormField>
+
+            {branding.logo && (
+              <div>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.75 }}>
+                  Logo preview
+                </Typography>
+                <div
+                  style={{
+                    padding: "16px 20px",
+                    borderRadius: 4,
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: "rgba(0,0,0,0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    width: "fit-content",
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={branding.logo}
+                    alt="Logo preview"
+                    style={{ maxHeight: 40, maxWidth: 280, display: "block" }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleSaveBranding}
+                disabled={savingBrand}
+                sx={{ textTransform: "none" }}
+              >
+                {savingBrand ? "Saving…" : "Save branding"}
+              </Button>
+            </div>
           </Stack>
         </PageCard>
       </PageSection>
@@ -141,15 +257,6 @@ export default function SettingsTab({ orgId: _orgId, mapId, map }: Props) {
           >
             {copied === "embed" ? "Copied!" : "Copy embed code"}
           </Button>
-        </PageCard>
-      </PageSection>
-
-      <PageSection title="Languages" spacing="tight">
-        <PageCard>
-          <Typography variant="body2" color="text.secondary">
-            Language options will appear here — Greek and English as defaults.
-            Coming with the multilingual pass.
-          </Typography>
         </PageCard>
       </PageSection>
 
