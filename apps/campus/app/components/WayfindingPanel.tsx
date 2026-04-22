@@ -56,11 +56,7 @@ export default function WayfindingPanel({
     <Box
       sx={{
         position: "absolute",
-        left: 16,
-        bottom: 16,
-        width: 340,
-        maxWidth: "calc(100vw - 32px)",
-        zIndex: 1401,
+        zIndex: 1400,
         bgcolor: "var(--glass-bg)",
         border: "1px solid var(--glass-border)",
         backdropFilter: "blur(24px) saturate(140%)",
@@ -68,6 +64,15 @@ export default function WayfindingPanel({
         borderRadius: 2,
         p: 2,
         boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
+        // Desktop: floating bottom-left card.
+        // Mobile: full-width sheet above the bottom pill of controls.
+        left: { xs: 16, md: 16 },
+        right: { xs: 16, md: "auto" },
+        bottom: { xs: 88, md: 16 },
+        width: { xs: "auto", md: 340 },
+        maxWidth: { md: "calc(100vw - 32px)" },
+        maxHeight: { xs: "70vh", md: "calc(100vh - 32px)" },
+        overflowY: "auto",
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", mb: 1.5, gap: 0.5 }}>

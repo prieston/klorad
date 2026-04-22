@@ -15,6 +15,7 @@ import {
   ListItemText,
   Tooltip,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
 import { createSceneAPI } from "@klorad/api";
 import type { CampusAPI, POI, TourStop } from "@klorad/api";
@@ -23,6 +24,7 @@ import { useMapboxFloorPlanLayer } from "@/app/hooks/useMapboxFloorPlanLayer";
 import { useMapboxRoute, type RouteMode } from "@/app/hooks/useMapboxRoute";
 import LevelSwitcher from "@/app/components/LevelSwitcher";
 import WayfindingPanel from "@/app/components/WayfindingPanel";
+import WhereAmIButton from "@/app/components/WhereAmIButton";
 import {
   TextField,
   SearchIcon,
@@ -53,6 +55,7 @@ type Panel = "search" | "tour" | "layers" | "wayfind" | null;
 
 export default function PublicViewerClient({ mapId }: Props) {
   const searchParams = useSearchParams();
+  const isMobile = useMediaQuery("(max-width:768px)");
   const [activePanel, setActivePanel] = useState<Panel>(
     searchParams.get("from") && searchParams.get("to") ? "wayfind" : null
   );
@@ -216,13 +219,20 @@ export default function PublicViewerClient({ mapId }: Props) {
         />
       )}
 
-      {/* Floating controls */}
+      {/* Where-am-I FAB. On mobile, sits above the bottom pill of controls. */}
+      <WhereAmIButton
+        right={16}
+        bottom={isMobile ? 88 : 16}
+        size={isMobile ? 56 : 52}
+      />
+
+      {/* Floating controls — top-center on desktop, bottom thumb-zone on mobile */}
       <Box
         sx={{
           position: "absolute",
-          top: 16,
-          left: "50%",
-          transform: "translateX(-50%)",
+          ...(isMobile
+            ? { bottom: 16, left: "50%", transform: "translateX(-50%)" }
+            : { top: 16, left: "50%", transform: "translateX(-50%)" }),
           display: "flex",
           gap: 1,
           bgcolor: "var(--glass-bg)",
@@ -231,6 +241,7 @@ export default function PublicViewerClient({ mapId }: Props) {
           borderRadius: 8,
           px: 1.5,
           py: 0.75,
+          zIndex: 1401,
         }}
       >
         <Tooltip title="Search">
@@ -257,24 +268,41 @@ export default function PublicViewerClient({ mapId }: Props) {
         </Tooltip>
       </Box>
 
-      {/* Search panel */}
+      {/* Search panel — left drawer on desktop, bottom sheet on mobile */}
       <Drawer
-        anchor="left"
+        anchor={isMobile ? "bottom" : "left"}
         open={activePanel === "search"}
         onClose={() => setActivePanel(null)}
-        variant="persistent"
-        sx={{
-          width: 300,
-          "& .MuiDrawer-paper": {
-            width: 300,
-            top: 0,
-            height: "100%",
-            bgcolor: "var(--glass-bg)",
-            backdropFilter: "blur(12px)",
-            border: "none",
-            borderRight: "1px solid var(--glass-border)",
-          },
-        }}
+        variant={isMobile ? "temporary" : "persistent"}
+        ModalProps={{ keepMounted: true }}
+        sx={
+          isMobile
+            ? {
+                "& .MuiDrawer-paper": {
+                  height: "72vh",
+                  bottom: 0,
+                  top: "auto",
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                  bgcolor: "var(--glass-bg)",
+                  backdropFilter: "blur(12px)",
+                  border: "none",
+                  borderTop: "1px solid var(--glass-border)",
+                },
+              }
+            : {
+                width: 300,
+                "& .MuiDrawer-paper": {
+                  width: 300,
+                  top: 0,
+                  height: "100%",
+                  bgcolor: "var(--glass-bg)",
+                  backdropFilter: "blur(12px)",
+                  border: "none",
+                  borderRight: "1px solid var(--glass-border)",
+                },
+              }
+        }
       >
         <Box sx={{ p: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
@@ -395,16 +423,19 @@ export default function PublicViewerClient({ mapId }: Props) {
         <Box
           sx={{
             position: "absolute",
-            bottom: 24,
-            left: "50%",
-            transform: "translateX(-50%)",
             bgcolor: "var(--glass-bg)",
             backdropFilter: "blur(8px)",
             border: "1px solid var(--glass-border)",
             borderRadius: 2,
             p: 2,
-            width: 380,
-            maxWidth: "90vw",
+            zIndex: 1400,
+            // Desktop: floating bottom-center. Mobile: stretch above the pill.
+            bottom: { xs: 88, md: 24 },
+            left: { xs: 16, md: "50%" },
+            right: { xs: 16, md: "auto" },
+            transform: { xs: "none", md: "translateX(-50%)" },
+            width: { xs: "auto", md: 380 },
+            maxWidth: { md: "90vw" },
           }}
         >
           <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
