@@ -27,6 +27,8 @@ import LevelSwitcher from "@/app/components/LevelSwitcher";
 import WayfindingPanel from "@/app/components/WayfindingPanel";
 import WhereAmIButton from "@/app/components/WhereAmIButton";
 import BrandedHeader from "@/app/components/BrandedHeader";
+import LocaleToggle from "@/app/components/LocaleToggle";
+import { LocaleProvider, detectLocale, useT, type Locale } from "@/app/lib/i18n";
 import {
   TextField,
   SearchIcon,
@@ -57,7 +59,18 @@ type Panel = "search" | "tour" | "layers" | "wayfind" | null;
 
 export default function PublicViewerClient({ mapId }: Props) {
   const searchParams = useSearchParams();
+  const initialLocale: Locale = detectLocale(searchParams.get("lang"));
+  return (
+    <LocaleProvider initial={initialLocale}>
+      <PublicViewerInner mapId={mapId} />
+    </LocaleProvider>
+  );
+}
+
+function PublicViewerInner({ mapId }: Props) {
+  const searchParams = useSearchParams();
   const isMobile = useMediaQuery("(max-width:768px)");
+  const t = useT();
   const [activePanel, setActivePanel] = useState<Panel>(
     searchParams.get("from") && searchParams.get("to") ? "wayfind" : null
   );
@@ -252,28 +265,40 @@ export default function PublicViewerClient({ mapId }: Props) {
           zIndex: 1401,
         }}
       >
-        <Tooltip title="Search">
+        <Tooltip title={t("toolbar.search")}>
           <IconButton size="small" onClick={() => togglePanel("search")} color={activePanel === "search" ? "primary" : "default"}>
             <SearchIcon fontSize="small" />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Directions">
+        <Tooltip title={t("toolbar.directions")}>
           <IconButton size="small" onClick={() => togglePanel("wayfind")} color={activePanel === "wayfind" ? "primary" : "default"}>
             <DirectionsIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         {tourStops.length > 0 && (
-          <Tooltip title="Tour">
+          <Tooltip title={t("toolbar.tour")}>
             <IconButton size="small" onClick={() => togglePanel("tour")} color={activePanel === "tour" ? "primary" : "default"}>
               <TourIcon fontSize="small" />
             </IconButton>
           </Tooltip>
         )}
-        <Tooltip title="Layers">
+        <Tooltip title={t("toolbar.layers")}>
           <IconButton size="small" onClick={() => togglePanel("layers")} color={activePanel === "layers" ? "primary" : "default"}>
             <LayersIcon fontSize="small" />
           </IconButton>
         </Tooltip>
+      </Box>
+
+      {/* Language toggle — top-right on desktop, top-right on mobile too */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+          zIndex: 1401,
+        }}
+      >
+        <LocaleToggle />
       </Box>
 
       {/* Search panel — left drawer on desktop, bottom sheet on mobile */}
@@ -315,7 +340,7 @@ export default function PublicViewerClient({ mapId }: Props) {
         <Box sx={{ p: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
             <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>
-              Search Campus
+              {t("search.title")}
             </Typography>
             <IconButton size="small" onClick={() => setActivePanel(null)}>
               <CloseIcon fontSize="small" />
@@ -324,7 +349,7 @@ export default function PublicViewerClient({ mapId }: Props) {
           <TextField
             fullWidth
             size="small"
-            placeholder="Buildings, departments..."
+            placeholder={t("search.placeholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             slotProps={{
@@ -362,7 +387,7 @@ export default function PublicViewerClient({ mapId }: Props) {
                     primary={poi.name}
                     secondary={
                       typeof poi.floor === "number"
-                        ? `${poi.category ?? "POI"} · Floor ${poi.floor === 0 ? "Γ" : poi.floor}`
+                        ? `${poi.category ?? "POI"} · ${t("search.floor")} ${poi.floor === 0 ? "Γ" : poi.floor}`
                         : poi.category
                     }
                     primaryTypographyProps={{ fontSize: "0.875rem" }}
@@ -380,7 +405,9 @@ export default function PublicViewerClient({ mapId }: Props) {
                     }}
                   >
                     <Typography variant="caption" color="primary.main" sx={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                      Happening {isHappeningNow(event) ? "Now" : formatWhen(event)}
+                      {isHappeningNow(event)
+                        ? t("search.happeningNow")
+                        : `${t("search.happeningSoon")} · ${formatWhen(event, t)}`}
                     </Typography>
                     <Typography variant="body2" fontWeight={600} sx={{ fontSize: "0.8125rem" }}>
                       {event.title}
@@ -397,7 +424,7 @@ export default function PublicViewerClient({ mapId }: Props) {
             })}
             {filteredPois.length === 0 && query && (
               <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: "center" }}>
-                No results for &ldquo;{query}&rdquo;
+                {t("search.noResults", { query })}
               </Typography>
             )}
           </List>
@@ -448,7 +475,7 @@ export default function PublicViewerClient({ mapId }: Props) {
         >
           <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
             <Typography variant="subtitle2" fontWeight={700}>
-              Campus Tour
+              {t("tour.title")}
             </Typography>
             <IconButton size="small" onClick={() => setActivePanel(null)}>
               <CloseIcon fontSize="small" />
@@ -514,12 +541,15 @@ function isHappeningNow(event: { startsAt: string; endsAt: string }): boolean {
   return now >= s && now <= e;
 }
 
-function formatWhen(event: { startsAt: string }): string {
+function formatWhen(
+  event: { startsAt: string },
+  t: (key: "search.today" | "search.onDay", vars?: Record<string, string | number>) => string
+): string {
   const d = new Date(event.startsAt);
   const now = new Date();
   const sameDay = d.toDateString() === now.toDateString();
   const time = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  if (sameDay) return `today at ${time}`;
+  if (sameDay) return t("search.today", { time });
   const dateLabel = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  return `${dateLabel} at ${time}`;
+  return t("search.onDay", { date: dateLabel, time });
 }

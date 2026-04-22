@@ -21,6 +21,7 @@ import {
   type Route,
   type RouteMode,
 } from "../hooks/useMapboxRoute";
+import { useT } from "../lib/i18n";
 
 interface Props {
   pois: POI[];
@@ -52,6 +53,7 @@ export default function WayfindingPanel({
   onClose,
 }: Props) {
   const hasRoute = Boolean(fromId || toId || route);
+  const t = useT();
   return (
     <Box
       sx={{
@@ -77,7 +79,7 @@ export default function WayfindingPanel({
     >
       <Box sx={{ display: "flex", alignItems: "center", mb: 1.5, gap: 0.5 }}>
         <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>
-          Directions
+          {t("wayfind.title")}
         </Typography>
         {hasRoute && (
           <Typography
@@ -95,7 +97,7 @@ export default function WayfindingPanel({
               "&:hover": { color: "primary.main" },
             }}
           >
-            Clear
+            {t("common.clear")}
           </Typography>
         )}
         <IconButton size="small" onClick={onClose}>
@@ -104,7 +106,7 @@ export default function WayfindingPanel({
       </Box>
 
       <Stack spacing={1.5}>
-        <FormField label="From">
+        <FormField label={t("wayfind.from")}>
           <Select
             size="small"
             fullWidth
@@ -113,7 +115,7 @@ export default function WayfindingPanel({
             displayEmpty
           >
             <MenuItem value="" disabled>
-              Pick a starting point…
+              {t("wayfind.pickFrom")}
             </MenuItem>
             {pois.map((p) => (
               <MenuItem key={p.id} value={p.id}>
@@ -123,7 +125,7 @@ export default function WayfindingPanel({
           </Select>
         </FormField>
 
-        <FormField label="To">
+        <FormField label={t("wayfind.to")}>
           <Select
             size="small"
             fullWidth
@@ -132,7 +134,7 @@ export default function WayfindingPanel({
             displayEmpty
           >
             <MenuItem value="" disabled>
-              Pick a destination…
+              {t("wayfind.pickTo")}
             </MenuItem>
             {pois.map((p) => (
               <MenuItem key={p.id} value={p.id} disabled={p.id === fromId}>
@@ -148,7 +150,7 @@ export default function WayfindingPanel({
             size="small"
             clickable
             icon={<DirectionsWalkIcon sx={{ fontSize: 16 }} />}
-            label="Standard"
+            label={t("wayfind.mode.standard")}
             onClick={() => onChangeMode("walk")}
             sx={(t) => ({
               flex: 1,
@@ -162,7 +164,7 @@ export default function WayfindingPanel({
             size="small"
             clickable
             icon={<AccessibleIcon sx={{ fontSize: 16 }} />}
-            label="Step-free"
+            label={t("wayfind.mode.stepFree")}
             onClick={() => onChangeMode("a11y")}
             sx={{
               flex: 1,
@@ -179,7 +181,7 @@ export default function WayfindingPanel({
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <CircularProgress size={14} />
             <Typography variant="caption" color="text.secondary">
-              Finding route…
+              {t("wayfind.loading")}
             </Typography>
           </Box>
         )}
@@ -208,7 +210,7 @@ export default function WayfindingPanel({
           >
             <Box sx={{ flex: 1 }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                Duration
+                {t("wayfind.duration")}
               </Typography>
               <Typography variant="body2" fontWeight={700}>
                 {formatDuration(route.duration)}
@@ -216,7 +218,7 @@ export default function WayfindingPanel({
             </Box>
             <Box sx={{ flex: 1 }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                Distance
+                {t("wayfind.distance")}
               </Typography>
               <Typography variant="body2" fontWeight={700}>
                 {formatDistance(route.distance)}
@@ -227,8 +229,7 @@ export default function WayfindingPanel({
 
         {mode === "a11y" && (
           <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
-            Step-free routing uses the walking network. Campus-specific stair
-            and elevator data can be added in the Studio to refine this route.
+            {t("wayfind.stepFreeCaveat")}
           </Typography>
         )}
       </Stack>
