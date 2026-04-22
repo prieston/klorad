@@ -1,13 +1,38 @@
 import "@/app/global.css";
 import "react-toastify/dist/ReactToastify.css";
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
 import { auth } from "@/auth";
 import Providers from "./providers";
 
-export const metadata = {
-  title: "Campus Maps",
-  description: "Interactive 3D campus maps and guided tours.",
-  icons: { icon: "/favicon.ico" },
+export const metadata: Metadata = {
+  title: {
+    default: "Topos Campus",
+    template: "%s · Topos Campus",
+  },
+  description:
+    "Self-service 3D campus maps for Greek higher education — indoor wayfinding, accessibility layers, events integration, and a five-minute CMS.",
+  icons: {
+    icon: "/klorad-favicon.png",
+    shortcut: "/klorad-favicon.png",
+    apple: "/klorad-favicon.png",
+  },
+  openGraph: {
+    title: "Topos Campus",
+    description:
+      "Self-service 3D campus maps for Greek higher education.",
+    type: "website",
+    locale: "en_US",
+    alternateLocale: "el_GR",
+    siteName: "Topos Campus",
+    images: [{ url: "/images/logo/klorad-logo.svg", width: 650, height: 128, alt: "Topos Campus" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Topos Campus",
+    description:
+      "Self-service 3D campus maps for Greek higher education.",
+  },
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

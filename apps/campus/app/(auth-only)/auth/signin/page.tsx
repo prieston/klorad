@@ -12,7 +12,7 @@ const PROVIDERS = [
 export default function SignInPage() {
   return (
     <OAuthSignInCard
-      appName="Campus Maps"
+      appName="Topos Campus"
       tagline="Sign in to manage your campus maps"
       providers={PROVIDERS}
       onProviderClick={(id) => signIn(id, { callbackUrl: "/" })}
