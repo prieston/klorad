@@ -17,6 +17,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import ImageIcon from "@mui/icons-material/Image";
@@ -55,6 +56,7 @@ export default function AssetsTab({ orgId: _orgId, mapId }: Props) {
   }, [map]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     url: "",
@@ -79,6 +81,26 @@ export default function AssetsTab({ orgId: _orgId, mapId }: Props) {
     });
     setUploading(false);
     setUploadProgress(0);
+    setEditingPlanId(null);
+  };
+
+  const openCreate = () => {
+    resetForm();
+    setDialogOpen(true);
+  };
+
+  const openEdit = (plan: FloorPlan) => {
+    const { widthMeters, heightMeters } = sizeFromCorners(plan.coordinates);
+    setEditingPlanId(plan.id);
+    setForm({
+      name: plan.name ?? "",
+      url: plan.url,
+      buildingPoiId: plan.buildingId ?? "",
+      floor: plan.floor ?? 0,
+      widthMeters,
+      heightMeters,
+    });
+    setDialogOpen(true);
   };
 
   const handleUpload = async (file: File) => {
@@ -115,7 +137,7 @@ export default function AssetsTab({ orgId: _orgId, mapId }: Props) {
     await mutate(`/api/maps/${mapId}`);
   };
 
-  const handleAdd = async () => {
+  const handleSave = async () => {
     const building = pois.find((p) => p.id === form.buildingPoiId);
     const lng = building?.linkedBuilding?.lng ?? building?.position[0];
     const lat = building?.linkedBuilding?.lat ?? building?.position[1];
@@ -126,17 +148,28 @@ export default function AssetsTab({ orgId: _orgId, mapId }: Props) {
     setSaving(true);
     try {
       const coords = buildCornerBounds(lng, lat, form.widthMeters, form.heightMeters);
-      apiRef.floorPlans.add({
-        name: form.name || `Floor ${form.floor}`,
-        url: form.url,
-        buildingId: form.buildingPoiId,
-        floor: form.floor,
-        coordinates: coords,
-      });
+      if (editingPlanId) {
+        apiRef.floorPlans.update(editingPlanId, {
+          name: form.name || `Floor ${form.floor}`,
+          url: form.url,
+          buildingId: form.buildingPoiId,
+          floor: form.floor,
+          coordinates: coords,
+        });
+        toast.success("Floor plan updated");
+      } else {
+        apiRef.floorPlans.add({
+          name: form.name || `Floor ${form.floor}`,
+          url: form.url,
+          buildingId: form.buildingPoiId,
+          floor: form.floor,
+          coordinates: coords,
+        });
+        toast.success("Floor plan added");
+      }
       await persist();
       setDialogOpen(false);
       resetForm();
-      toast.success("Floor plan added");
     } finally {
       setSaving(false);
     }
@@ -192,7 +225,7 @@ export default function AssetsTab({ orgId: _orgId, mapId }: Props) {
                 variant="contained"
                 size="small"
                 startIcon={<AddIcon />}
-                onClick={() => setDialogOpen(true)}
+                onClick={openCreate}
                 disabled={linkedPois.length === 0}
                 sx={{ textTransform: "none" }}
               >
@@ -274,6 +307,11 @@ export default function AssetsTab({ orgId: _orgId, mapId }: Props) {
                             )}
                           </IconButton>
                         </Tooltip>
+                        <Tooltip title="Edit">
+                          <IconButton size="small" onClick={() => openEdit(p)}>
+                            <EditOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip title="Delete">
                           <IconButton size="small" onClick={() => handleRemove(p.id)}>
                             <DeleteOutlineIcon fontSize="small" />
@@ -324,7 +362,7 @@ export default function AssetsTab({ orgId: _orgId, mapId }: Props) {
       <RightDrawer
         open={dialogOpen}
         onClose={closeDialog}
-        title="Add Floor Plan"
+        title={editingPlanId ? "Edit Floor Plan" : "Add Floor Plan"}
         actions={
           <>
             <Button
@@ -338,12 +376,18 @@ export default function AssetsTab({ orgId: _orgId, mapId }: Props) {
             </Button>
             <Button
               variant="contained"
-              onClick={handleAdd}
+              onClick={handleSave}
               disabled={!form.url || !form.buildingPoiId || uploading || saving}
               fullWidth
               sx={{ textTransform: "none" }}
             >
-              {saving ? <CircularProgress size={16} /> : "Add floor plan"}
+              {saving ? (
+                <CircularProgress size={16} />
+              ) : editingPlanId ? (
+                "Save changes"
+              ) : (
+                "Add floor plan"
+              )}
             </Button>
           </>
         }
@@ -526,6 +570,23 @@ function EmptyBlock({ title, description }: { title: string; description: string
       </Typography>
     </Box>
   );
+}
+
+/**
+ * Reverse of `buildCornerBounds` — recover width/height in meters from
+ * the four saved corners. Used when editing an existing plan so the
+ * drawer starts with sensible dimension inputs.
+ */
+function sizeFromCorners(
+  coords: [[number, number], [number, number], [number, number], [number, number]]
+): { widthMeters: number; heightMeters: number } {
+  const [tl, tr, , bl] = coords;
+  const METERS_PER_DEG_LAT = 111_320;
+  const centerLat = (tl[1] + bl[1]) / 2;
+  const metersPerDegLng = 111_320 * Math.cos((centerLat * Math.PI) / 180);
+  const widthMeters = Math.round(Math.abs(tr[0] - tl[0]) * metersPerDegLng);
+  const heightMeters = Math.round(Math.abs(tl[1] - bl[1]) * METERS_PER_DEG_LAT);
+  return { widthMeters, heightMeters };
 }
 
 /**

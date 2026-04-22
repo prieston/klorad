@@ -155,7 +155,7 @@ export default function BuilderClient({ mapId }: Props) {
     },
   });
 
-  const [activeFloor, setActiveFloor] = useState<number | null>(null);
+  const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [eventForm, setEventForm] = useState({
     title: "",
@@ -206,15 +206,15 @@ export default function BuilderClient({ mapId }: Props) {
   }, [selectedPoiId, pois]);
 
   const activePlan = useMemo(() => {
-    if (activeFloor === null) return null;
-    return floorPlansForSelection.find((p) => p.floor === activeFloor) ?? null;
-  }, [activeFloor, floorPlansForSelection]);
+    if (!activePlanId) return null;
+    return floorPlansForSelection.find((p) => p.id === activePlanId) ?? null;
+  }, [activePlanId, floorPlansForSelection]);
 
   useMapboxFloorPlanLayer(activePlan);
 
-  // Reset active floor when selection changes
+  // Reset active plan when POI selection changes
   useEffect(() => {
-    setActiveFloor(null);
+    setActivePlanId(null);
   }, [selectedPoiId]);
 
   useEffect(() => {
@@ -688,8 +688,8 @@ export default function BuilderClient({ mapId }: Props) {
         {floorPlansForSelection.length > 0 && (
           <LevelSwitcher
             plans={floorPlansForSelection}
-            activeFloor={activeFloor}
-            onSelectFloor={setActiveFloor}
+            activePlanId={activePlanId}
+            onSelectPlan={setActivePlanId}
           />
         )}
 

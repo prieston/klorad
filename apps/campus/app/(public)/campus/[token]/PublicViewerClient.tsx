@@ -92,7 +92,7 @@ function PublicViewerInner({ mapId }: Props) {
     },
   });
 
-  const [activeFloor, setActiveFloor] = useState<number | null>(null);
+  const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [fromId, setFromId] = useState<string | null>(searchParams.get("from"));
   const [toId, setToId] = useState<string | null>(searchParams.get("to"));
   const [routeMode, setRouteMode] = useState<RouteMode>(
@@ -171,11 +171,11 @@ function PublicViewerInner({ mapId }: Props) {
     return apiRef.current.floorPlans.forBuilding(selectedPoiId);
   }, [selectedPoiId, pois]);
   const activePlan = useMemo(() => {
-    if (activeFloor === null) return null;
-    return floorPlansForSelection.find((p) => p.floor === activeFloor) ?? null;
-  }, [activeFloor, floorPlansForSelection]);
+    if (!activePlanId) return null;
+    return floorPlansForSelection.find((p) => p.id === activePlanId) ?? null;
+  }, [activePlanId, floorPlansForSelection]);
   useMapboxFloorPlanLayer(activePlan);
-  useEffect(() => setActiveFloor(null), [selectedPoiId]);
+  useEffect(() => setActivePlanId(null), [selectedPoiId]);
 
   useEffect(() => {
     const api = createSceneAPI("mapbox", "campus") as CampusAPI;
@@ -252,7 +252,7 @@ function PublicViewerInner({ mapId }: Props) {
         .forBuilding(buildingId)
         .find((p) => p.floor === poi.floor);
       if (plan) {
-        setTimeout(() => setActiveFloor(plan.floor ?? 0), 1400);
+        setTimeout(() => setActivePlanId(plan.id), 1400);
       }
     }
   };
@@ -275,8 +275,8 @@ function PublicViewerInner({ mapId }: Props) {
       {floorPlansForSelection.length > 0 && (
         <LevelSwitcher
           plans={floorPlansForSelection}
-          activeFloor={activeFloor}
-          onSelectFloor={setActiveFloor}
+          activePlanId={activePlanId}
+          onSelectPlan={setActivePlanId}
         />
       )}
 
