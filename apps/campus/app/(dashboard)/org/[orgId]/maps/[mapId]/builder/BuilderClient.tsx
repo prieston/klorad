@@ -44,6 +44,8 @@ import {
   OpenWithIcon,
   ApartmentIcon,
   LinkOffIcon,
+  UndoIcon,
+  RedoIcon,
 } from "@klorad/ui";
 import type { SceneTool } from "@klorad/ui";
 import { toast } from "react-toastify";
@@ -56,6 +58,7 @@ import LevelSwitcher from "@/app/components/LevelSwitcher";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxPoiDrag } from "@/app/hooks/useMapboxPoiDrag";
 import { useMapboxFloorPlanLayer } from "@/app/hooks/useMapboxFloorPlanLayer";
+import { useUndoRedo } from "@/app/hooks/useUndoRedo";
 
 const MapboxViewer = dynamic(
   () => import("@klorad/engine-mapbox").then((m) => ({ default: m.MapboxViewer })),
@@ -106,6 +109,7 @@ export default function BuilderClient({ mapId }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [pois, setPois] = useState<POI[]>([]);
   const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [placingPoi, setPlacingPoi] = useState(false);
   const [activeTool, setActiveTool] = useState<"select" | "linkBuilding" | "edit">("select");
@@ -122,10 +126,18 @@ export default function BuilderClient({ mapId }: Props) {
     onPoiClick: (id) => setSelectedPoiId(id),
   });
 
+  const { pushSnapshot, undo, redo, canUndo, canRedo } = useUndoRedo(apiRef, () => {
+    if (!apiRef.current) return;
+    setPois(apiRef.current.poi.getAll());
+    setSelectedPoiId(null);
+    setSelectedIds(new Set());
+  });
+
   useMapboxPoiDrag({
     enabled: activeTool === "edit",
     onPoiMoved: (id, lng, lat) => {
       if (!apiRef.current) return;
+      pushSnapshot();
       apiRef.current.poi.update(id, { position: [lng, lat, 0] });
       setPois(apiRef.current.poi.getAll());
     },
@@ -155,6 +167,7 @@ export default function BuilderClient({ mapId }: Props) {
       courseCode: eventForm.courseCode || undefined,
       lecturer: eventForm.lecturer || undefined,
     };
+    pushSnapshot();
     apiRef.current.poi.update(selectedPoiId, {
       events: [...(poi.events ?? []), newEvent],
     });
@@ -167,6 +180,7 @@ export default function BuilderClient({ mapId }: Props) {
     if (!apiRef.current) return;
     const poi = apiRef.current.poi.getAll().find((p) => p.id === poiId);
     if (!poi) return;
+    pushSnapshot();
     apiRef.current.poi.update(poiId, {
       events: (poi.events ?? []).filter((e) => e.id !== eventId),
     });
@@ -242,6 +256,7 @@ export default function BuilderClient({ mapId }: Props) {
 
     const label = (properties?.name as string) || (properties?.class as string) || "Building";
 
+    pushSnapshot();
     apiRef.current.poi.update(selectedPoiId, {
       linkedBuilding: {
         lng,
@@ -337,6 +352,7 @@ export default function BuilderClient({ mapId }: Props) {
     map.getCanvas().style.cursor = "crosshair";
     const onClick = (e: MapMouseEvent) => {
       if (!apiRef.current) return;
+      pushSnapshot();
       const newPoi = apiRef.current.poi.add({
         name: "New Location",
         position: [e.lngLat.lng, e.lngLat.lat, 0],
@@ -386,6 +402,7 @@ export default function BuilderClient({ mapId }: Props) {
     const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
     if (!map) return;
     const c = map.getCenter();
+    pushSnapshot();
     apiRef.current.poi.update(selectedPoiId, { position: [c.lng, c.lat, 0] });
     setPois(apiRef.current.poi.getAll());
   };
@@ -408,6 +425,7 @@ export default function BuilderClient({ mapId }: Props) {
     const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
     if (!map || !apiRef.current) return;
     const c = map.getCenter();
+    pushSnapshot();
     apiRef.current.setLocation(c.lng, c.lat, {
       zoom: map.getZoom(),
       pitch: map.getPitch(),
@@ -421,6 +439,7 @@ export default function BuilderClient({ mapId }: Props) {
     if (!apiRef.current || !selectedPoiId) return;
     const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
     if (!map) return;
+    pushSnapshot();
     apiRef.current.poi.update(selectedPoiId, {
       view: {
         zoom: map.getZoom(),
@@ -434,12 +453,14 @@ export default function BuilderClient({ mapId }: Props) {
 
   const handleClearView = () => {
     if (!apiRef.current || !selectedPoiId) return;
+    pushSnapshot();
     apiRef.current.poi.update(selectedPoiId, { view: undefined });
     setPois(apiRef.current.poi.getAll());
   };
 
   const handleDeletePoi = (id: string) => {
     if (!apiRef.current) return;
+    pushSnapshot();
     apiRef.current.poi.remove(id);
     setPois(apiRef.current.poi.getAll());
     if (selectedPoiId === id) setSelectedPoiId(null);
@@ -452,8 +473,6 @@ export default function BuilderClient({ mapId }: Props) {
   };
 
   // Multi-select
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
   const toggleMultiSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -471,6 +490,7 @@ export default function BuilderClient({ mapId }: Props) {
 
   const handleBulkDelete = () => {
     if (!apiRef.current || selectedIds.size === 0) return;
+    pushSnapshot();
     for (const id of selectedIds) apiRef.current.poi.remove(id);
     const n = selectedIds.size;
     setSelectedIds(new Set());
@@ -496,6 +516,7 @@ export default function BuilderClient({ mapId }: Props) {
 
   const handleUpdatePoi = (field: keyof POI, value: unknown) => {
     if (!apiRef.current || !selectedPoiId) return;
+    pushSnapshot();
     apiRef.current.poi.update(selectedPoiId, { [field]: value });
     setPois(apiRef.current.poi.getAll());
   };
@@ -560,6 +581,7 @@ export default function BuilderClient({ mapId }: Props) {
   };
 
   const handlePickLocation = (lat: number, lng: number) => {
+    pushSnapshot();
     apiRef.current?.setLocation(lng, lat, { zoom: 17 });
     toast.success("Map location updated — save to persist");
   };
@@ -729,6 +751,18 @@ export default function BuilderClient({ mapId }: Props) {
               label="POI"
               active={activeView === "poi"}
               onClick={() => setActiveView("poi")}
+            />
+            <ActionButton
+              icon={<UndoIcon />}
+              label="Undo"
+              onClick={undo}
+              disabled={!canUndo}
+            />
+            <ActionButton
+              icon={<RedoIcon />}
+              label="Redo"
+              onClick={redo}
+              disabled={!canRedo}
             />
             <ActionButton
               icon={<ShareIcon />}
