@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import SettingsClient from "./SettingsClient";
+import CampusProfileClient from "./CampusProfileClient";
 
-export default async function MapSettingsPage({
+export default async function CampusProfilePage({
   params,
 }: {
   params: Promise<{ orgId: string; mapId: string }>;
@@ -11,5 +11,5 @@ export default async function MapSettingsPage({
   if (!session) redirect("/auth/signin");
 
   const { orgId, mapId } = await params;
-  return <SettingsClient orgId={orgId} mapId={mapId} />;
+  return <CampusProfileClient orgId={orgId} mapId={mapId} />;
 }

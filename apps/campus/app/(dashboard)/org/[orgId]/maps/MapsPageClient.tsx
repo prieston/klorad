@@ -46,7 +46,7 @@ export default function MapsPageClient({ orgId }: Props) {
     setCreating(false);
     setCreateOpen(false);
     setNewName("");
-    if (map) router.push(`/org/${orgId}/maps/${map.id}/builder`);
+    if (map) router.push(`/org/${orgId}/maps/${map.id}`);
   };
 
   const handleMenuOpen = (e: React.MouseEvent, id: string) => {
@@ -93,7 +93,7 @@ export default function MapsPageClient({ orgId }: Props) {
                   updatedAt: map.updatedAt,
                   createdAt: map.createdAt,
                 }}
-                onGoToBuilder={(id) => router.push(`/org/${orgId}/maps/${id}/builder`)}
+                onGoToBuilder={(id) => router.push(`/org/${orgId}/maps/${id}`)}
                 onMenuOpen={handleMenuOpen}
               />
             </Grid>
@@ -106,7 +106,7 @@ export default function MapsPageClient({ orgId }: Props) {
         open={Boolean(menuAnchor)}
         onClose={handleMenuClose}
         onEdit={() => {
-          if (menuMapId) router.push(`/org/${orgId}/maps/${menuMapId}/builder`);
+          if (menuMapId) router.push(`/org/${orgId}/maps/${menuMapId}`);
           handleMenuClose();
         }}
         onDelete={handleRequestDelete}

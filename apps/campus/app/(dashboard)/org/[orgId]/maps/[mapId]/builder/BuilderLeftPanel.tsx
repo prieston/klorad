@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import {
   Box,
   Chip,
@@ -36,6 +37,11 @@ const LIGHT_PRESETS = ["dawn", "day", "dusk", "night"] as const;
 
 export default function BuilderLeftPanel({ mapName, pois }: Props) {
   const [tab, setTab] = useState<"campus" | "environment">("campus");
+  const params = useParams<{ orgId?: string; mapId?: string }>();
+  const profileHref =
+    params?.orgId && params?.mapId
+      ? `/org/${params.orgId}/maps/${params.mapId}`
+      : "/";
   const scene = useSceneStore((s) => s.mapboxSceneData);
   const setMapboxSceneData = useSceneStore((s) => s.setMapboxSceneData);
 
@@ -74,7 +80,7 @@ export default function BuilderLeftPanel({ mapName, pois }: Props) {
           flexShrink: 0,
         }}
       >
-        <Link href="/" aria-label="Go to home" style={{ textDecoration: "none", display: "flex" }}>
+        <Link href={profileHref} aria-label="Back to Campus Profile" style={{ textDecoration: "none", display: "flex" }}>
           <Image
             src="/images/logo/logo-dark.svg"
             alt="Klorad"
