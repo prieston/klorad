@@ -18,8 +18,10 @@ import {
   ListItemButton,
   ListItemText,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
+import CheckBoxIcon from "@mui/icons-material/CheckBoxOutlined";
 import AddIcon from "@mui/icons-material/Add";
 import { v4 as uuidv4 } from "uuid";
 import { alpha } from "@mui/material/styles";
@@ -110,6 +112,7 @@ export default function BuilderClient({ mapId }: Props) {
   const [pois, setPois] = useState<POI[]>([]);
   const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [placingPoi, setPlacingPoi] = useState(false);
   const [activeTool, setActiveTool] = useState<"select" | "linkBuilding" | "edit">("select");
@@ -123,7 +126,13 @@ export default function BuilderClient({ mapId }: Props) {
   useMapboxPoiLayer({
     pois,
     selectedPoiId,
-    onPoiClick: (id) => setSelectedPoiId(id),
+    onPoiClick: (id) => {
+      if (multiSelectMode) {
+        toggleMultiSelect(id);
+        return;
+      }
+      setSelectedPoiId((prev) => (prev === id ? null : id));
+    },
   });
 
   const { pushSnapshot, undo, redo, canUndo, canRedo } = useUndoRedo(apiRef, () => {
@@ -908,6 +917,29 @@ export default function BuilderClient({ mapId }: Props) {
                     fontWeight: 600,
                   }}
                 />
+                {pois.length > 0 && (
+                  <Tooltip title={multiSelectMode ? "Exit select mode" : "Select POIs"}>
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        if (multiSelectMode) {
+                          setMultiSelectMode(false);
+                          clearMultiSelect();
+                        } else {
+                          setMultiSelectMode(true);
+                          setSelectedPoiId(null);
+                        }
+                      }}
+                      sx={(th) => ({
+                        p: 0.5,
+                        color: multiSelectMode ? "primary.main" : "text.secondary",
+                        bgcolor: multiSelectMode ? alpha(th.palette.primary.main, 0.12) : "transparent",
+                      })}
+                    >
+                      <CheckBoxIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
                 <Button
                   size="small"
                   startIcon={placingPoi ? <CloseIcon sx={{ fontSize: 14 }} /> : <AddLocationAltIcon sx={{ fontSize: 14 }} />}
@@ -920,8 +952,8 @@ export default function BuilderClient({ mapId }: Props) {
               </Box>
 
               <Box sx={{ flex: 1, overflow: "auto", px: 2, pb: 2 }}>
-            {/* Bulk-action bar — visible only with active selection */}
-            {selectedIds.size > 0 && (
+            {/* Bulk-action bar — visible only in multi-select mode with active selection */}
+            {multiSelectMode && selectedIds.size > 0 && (
               <Box
                 sx={(t) => ({
                   display: "flex",
@@ -964,8 +996,8 @@ export default function BuilderClient({ mapId }: Props) {
               </Box>
             )}
 
-            {/* Select-all row — only when there's at least one POI */}
-            {pois.length > 0 && (
+            {/* Select-all row — only in multi-select mode with POIs */}
+            {multiSelectMode && pois.length > 0 && (
               <Box
                 sx={{
                   display: "flex",
@@ -1002,13 +1034,18 @@ export default function BuilderClient({ mapId }: Props) {
             )}
             {pois.map((poi) => {
               const isMultiSelected = selectedIds.has(poi.id);
+              const isSingleSelected = poi.id === selectedPoiId;
               return (
               <ListItemButton
                 key={poi.id}
-                selected={poi.id === selectedPoiId}
-                onClick={(e) => {
-                  if (e.shiftKey || e.metaKey || e.ctrlKey) {
+                selected={!multiSelectMode && isSingleSelected}
+                onClick={() => {
+                  if (multiSelectMode) {
                     toggleMultiSelect(poi.id);
+                  } else if (isSingleSelected) {
+                    // Second click on the already-selected POI closes its
+                    // detail view.
+                    setSelectedPoiId(null);
                   } else {
                     handleSelectPoi(poi.id);
                   }
@@ -1023,19 +1060,21 @@ export default function BuilderClient({ mapId }: Props) {
                     bgcolor: alpha(t.palette.primary.main, 0.12),
                     "&:hover": { bgcolor: alpha(t.palette.primary.main, 0.16) },
                   },
-                  ...(isMultiSelected && {
+                  ...(multiSelectMode && isMultiSelected && {
                     outline: "1px solid",
                     outlineColor: "primary.main",
                   }),
                 })}
               >
-                <Checkbox
-                  size="small"
-                  checked={isMultiSelected}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={() => toggleMultiSelect(poi.id)}
-                  sx={{ p: 0.25, mr: 0.5 }}
-                />
+                {multiSelectMode && (
+                  <Checkbox
+                    size="small"
+                    checked={isMultiSelected}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => toggleMultiSelect(poi.id)}
+                    sx={{ p: 0.25, mr: 0.5 }}
+                  />
+                )}
                 <Box
                   sx={{
                     width: 8,
