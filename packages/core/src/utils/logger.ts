@@ -9,12 +9,9 @@
  * In production builds, debug/info logs are completely eliminated by the minifier.
  */
 
-// These will be replaced at compile time via DefinePlugin/webpack
-// @ts-expect-error - Compile-time constants defined via webpack DefinePlugin
+// These will be replaced at compile time via DefinePlugin/webpack.
 declare const __DEV__: boolean;
-// @ts-expect-error - Compile-time constant
 declare const __LOG_LEVEL__: "debug" | "info" | "warn" | "error" | "silent";
-// @ts-expect-error - Compile-time constant
 declare const DEBUG_SENSORS: boolean;
 
 // Fallback for environments where constants aren't defined
