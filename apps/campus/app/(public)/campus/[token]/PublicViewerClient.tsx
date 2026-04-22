@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import {
   Box,
   Chip,
@@ -19,13 +20,16 @@ import { createSceneAPI } from "@klorad/api";
 import type { CampusAPI, POI, TourStop } from "@klorad/api";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxFloorPlanLayer } from "@/app/hooks/useMapboxFloorPlanLayer";
+import { useMapboxRoute, type RouteMode } from "@/app/hooks/useMapboxRoute";
 import LevelSwitcher from "@/app/components/LevelSwitcher";
+import WayfindingPanel from "@/app/components/WayfindingPanel";
 import {
   TextField,
   SearchIcon,
   CloseIcon,
   LayersIcon,
   TourIcon,
+  DirectionsIcon,
 } from "@klorad/ui";
 
 const MapboxViewer = dynamic(
@@ -45,10 +49,13 @@ interface Props {
   mapId: string;
 }
 
-type Panel = "search" | "tour" | "layers" | null;
+type Panel = "search" | "tour" | "layers" | "wayfind" | null;
 
 export default function PublicViewerClient({ mapId }: Props) {
-  const [activePanel, setActivePanel] = useState<Panel>(null);
+  const searchParams = useSearchParams();
+  const [activePanel, setActivePanel] = useState<Panel>(
+    searchParams.get("from") && searchParams.get("to") ? "wayfind" : null
+  );
   const [query, setQuery] = useState("");
   const [pois, setPois] = useState<POI[]>([]);
   const [tourStops, setTourStops] = useState<TourStop[]>([]);
@@ -67,6 +74,33 @@ export default function PublicViewerClient({ mapId }: Props) {
   });
 
   const [activeFloor, setActiveFloor] = useState<number | null>(null);
+  const [fromId, setFromId] = useState<string | null>(searchParams.get("from"));
+  const [toId, setToId] = useState<string | null>(searchParams.get("to"));
+  const [routeMode, setRouteMode] = useState<RouteMode>(
+    searchParams.get("mode") === "a11y" ? "a11y" : "walk"
+  );
+  const mapboxToken =
+    typeof process !== "undefined"
+      ? process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
+      : undefined;
+  const { route, loading: routeLoading, error: routeError, request: requestRoute, clear: clearRoute } =
+    useMapboxRoute(mapboxToken);
+
+  // Fetch route whenever from/to/mode change
+  useEffect(() => {
+    const from = pois.find((p) => p.id === fromId);
+    const to = pois.find((p) => p.id === toId);
+    if (!from || !to) {
+      clearRoute();
+      return;
+    }
+    requestRoute(
+      [from.position[0], from.position[1]],
+      [to.position[0], to.position[1]],
+      routeMode
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromId, toId, routeMode, pois]);
   const floorPlansForSelection = useMemo(() => {
     if (!apiRef.current || !selectedPoiId) return [];
     return apiRef.current.floorPlans.forBuilding(selectedPoiId);
@@ -161,6 +195,11 @@ export default function PublicViewerClient({ mapId }: Props) {
             <SearchIcon fontSize="small" />
           </IconButton>
         </Tooltip>
+        <Tooltip title="Directions">
+          <IconButton size="small" onClick={() => togglePanel("wayfind")} color={activePanel === "wayfind" ? "primary" : "default"}>
+            <DirectionsIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
         {tourStops.length > 0 && (
           <Tooltip title="Tour">
             <IconButton size="small" onClick={() => togglePanel("tour")} color={activePanel === "tour" ? "primary" : "default"}>
@@ -242,6 +281,23 @@ export default function PublicViewerClient({ mapId }: Props) {
           </List>
         </Box>
       </Drawer>
+
+      {/* Wayfinding panel */}
+      {activePanel === "wayfind" && (
+        <WayfindingPanel
+          pois={pois}
+          fromId={fromId}
+          toId={toId}
+          mode={routeMode}
+          route={route}
+          loading={routeLoading}
+          error={routeError}
+          onChangeFrom={setFromId}
+          onChangeTo={setToId}
+          onChangeMode={setRouteMode}
+          onClose={() => setActivePanel(null)}
+        />
+      )}
 
       {/* Tour panel */}
       {activePanel === "tour" && tourStops.length > 0 && (
