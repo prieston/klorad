@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   Box,
   Button,
-  Grid,
   Stack,
   Typography,
 } from "@mui/material";
@@ -59,37 +58,39 @@ export default function OverviewTab({ orgId, mapId, map }: Props) {
 
   return (
     <Stack spacing={4} sx={{ mt: 3 }}>
-      {/* KPI row */}
-      <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} md={3}>
-          <MetricCard
-            icon={<PlaceIcon fontSize="small" />}
-            value={stats.poiCount}
-            label="Points of interest"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <MetricCard
-            icon={<VisibilityIcon fontSize="small" />}
-            value="—"
-            label="Views this month"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <MetricCard
-            icon={<SearchIcon fontSize="small" />}
-            value="—"
-            label="Top searches"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <MetricCard
-            icon={<AccessibleIcon fontSize="small" />}
-            value={`${stats.complianceScore}%`}
-            label="Accessibility coverage"
-          />
-        </Grid>
-      </Grid>
+      {/* KPI row — CSS grid (no negative-margin overflow) */}
+      <Box
+        sx={{
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, 1fr)",
+            md: "repeat(4, 1fr)",
+          },
+        }}
+      >
+        <MetricCard
+          icon={<PlaceIcon fontSize="small" />}
+          value={stats.poiCount}
+          label="Points of interest"
+        />
+        <MetricCard
+          icon={<VisibilityIcon fontSize="small" />}
+          value="—"
+          label="Views this month"
+        />
+        <MetricCard
+          icon={<SearchIcon fontSize="small" />}
+          value="—"
+          label="Top searches"
+        />
+        <MetricCard
+          icon={<AccessibleIcon fontSize="small" />}
+          value={`${stats.complianceScore}%`}
+          label="Accessibility coverage"
+        />
+      </Box>
 
       {/* Enter Studio CTA */}
       <PageCard>
@@ -131,50 +132,50 @@ export default function OverviewTab({ orgId, mapId, map }: Props) {
       </PageCard>
 
       <PageSection title="Coverage breakdown" spacing="tight">
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={4}>
-            <PageCard>
-              <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.7rem", letterSpacing: "0.08em" }}>
-                POIs with linked buildings
-              </Typography>
-              <Typography variant="h4" fontWeight={700} sx={{ mt: 1 }}>
-                {stats.linkedCount} / {stats.poiCount}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Pins anchored to an actual building footprint feel more
-                authoritative on the public viewer.
-              </Typography>
-            </PageCard>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <PageCard>
-              <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.7rem", letterSpacing: "0.08em" }}>
-                Accessibility-tagged
-              </Typography>
-              <Typography variant="h4" fontWeight={700} sx={{ mt: 1 }}>
-                {stats.accessibleCount} / {stats.poiCount}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                The European Accessibility Act (2019/882) requires public-sector
-                sites to publish this. Fill it in.
-              </Typography>
-            </PageCard>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <PageCard>
-              <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.7rem", letterSpacing: "0.08em" }}>
-                Analytics
-              </Typography>
-              <Typography variant="h4" fontWeight={700} sx={{ mt: 1 }}>
-                Coming soon
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Views, top searches, and wayfinding pain points will appear
-                here once the map is live.
-              </Typography>
-            </PageCard>
-          </Grid>
-        </Grid>
+        <Box
+          sx={{
+            display: "grid",
+            gap: 2,
+            gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+          }}
+        >
+          <PageCard>
+            <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.7rem", letterSpacing: "0.08em" }}>
+              POIs with linked buildings
+            </Typography>
+            <Typography variant="h4" fontWeight={700} sx={{ mt: 1 }}>
+              {stats.linkedCount} / {stats.poiCount}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Pins anchored to an actual building footprint feel more
+              authoritative on the public viewer.
+            </Typography>
+          </PageCard>
+          <PageCard>
+            <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.7rem", letterSpacing: "0.08em" }}>
+              Accessibility-tagged
+            </Typography>
+            <Typography variant="h4" fontWeight={700} sx={{ mt: 1 }}>
+              {stats.accessibleCount} / {stats.poiCount}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              The European Accessibility Act (2019/882) requires public-sector
+              sites to publish this. Fill it in.
+            </Typography>
+          </PageCard>
+          <PageCard>
+            <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.7rem", letterSpacing: "0.08em" }}>
+              Analytics
+            </Typography>
+            <Typography variant="h4" fontWeight={700} sx={{ mt: 1 }}>
+              Coming soon
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Views, top searches, and wayfinding pain points will appear
+              here once the map is live.
+            </Typography>
+          </PageCard>
+        </Box>
       </PageSection>
     </Stack>
   );

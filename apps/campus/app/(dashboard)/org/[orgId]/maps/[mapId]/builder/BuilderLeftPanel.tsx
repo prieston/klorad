@@ -82,12 +82,16 @@ export default function BuilderLeftPanel({ mapName, pois }: Props) {
       >
         <Link href={profileHref} aria-label="Back to Campus Profile" style={{ textDecoration: "none", display: "flex" }}>
           <Image
-            src="/images/logo/logo-dark.svg"
+            src="/images/logo/klorad-logo.svg"
             alt="Klorad"
             width={120}
-            height={28}
+            height={32}
             priority
-            style={{ filter: "brightness(0) invert(1)", objectFit: "contain" }}
+            style={{
+              filter: "brightness(0) invert(1)",
+              objectFit: "contain",
+              height: "auto",
+            }}
           />
         </Link>
       </Box>

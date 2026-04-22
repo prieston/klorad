@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useParams, usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Avatar,
   Box,
@@ -47,9 +48,24 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         pathPrefix={pathPrefix}
         linkComponent={Link}
         header={
-          <Typography variant="subtitle1" fontWeight={700} color="primary">
-            Campus Maps
-          </Typography>
+          <Link
+            href={orgId ? `/org/${orgId}/maps` : "/"}
+            aria-label="Klorad"
+            style={{ textDecoration: "none", display: "flex", alignItems: "center" }}
+          >
+            <Image
+              src="/images/logo/klorad-logo.svg"
+              alt="Klorad"
+              width={120}
+              height={32}
+              priority
+              style={{
+                filter: "brightness(0) invert(1)",
+                objectFit: "contain",
+                height: "auto",
+              }}
+            />
+          </Link>
         }
         footer={
           <Box

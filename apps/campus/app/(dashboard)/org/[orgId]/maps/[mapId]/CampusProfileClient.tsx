@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
 import {
@@ -43,6 +43,7 @@ const TABS: { key: TabKey; label: string }[] = [
 
 export default function CampusProfileClient({ orgId, mapId }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab") as TabKey | null;
   const activeTab: TabKey = TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : "overview";
@@ -54,7 +55,7 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
     if (key === "overview") params.delete("tab");
     else params.set("tab", key);
     const qs = params.toString();
-    router.replace(qs ? `?${qs}` : "", { scroll: false });
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
 
   if (isLoading) return <LoadingScreen />;
