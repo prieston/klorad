@@ -5,9 +5,13 @@ import type { Map as MapboxMap, GeoJSONSource, MapMouseEvent } from "mapbox-gl";
 import { useSceneStore } from "@klorad/core";
 import type { POI } from "@klorad/api";
 
-const SOURCE_ID = "campus-pois";
-const PIN_LAYER_ID = "campus-pois-pin";
-const LABEL_LAYER_ID = "campus-pois-label";
+export const POI_SOURCE_ID = "campus-pois";
+export const POI_PIN_LAYER_ID = "campus-pois-pin";
+export const POI_LABEL_LAYER_ID = "campus-pois-label";
+
+const SOURCE_ID = POI_SOURCE_ID;
+const PIN_LAYER_ID = POI_PIN_LAYER_ID;
+const LABEL_LAYER_ID = POI_LABEL_LAYER_ID;
 
 const CATEGORY_COLOR_EXPR = [
   "match",

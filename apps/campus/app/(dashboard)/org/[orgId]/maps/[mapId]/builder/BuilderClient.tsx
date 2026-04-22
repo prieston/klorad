@@ -40,6 +40,7 @@ import {
   CloseIcon,
   PublicIcon,
   NearMeIcon,
+  OpenWithIcon,
   ApartmentIcon,
   LinkOffIcon,
 } from "@klorad/ui";
@@ -52,6 +53,7 @@ import type { Map as MapboxMap, MapMouseEvent } from "mapbox-gl";
 import BuilderLeftPanel from "./BuilderLeftPanel";
 import LevelSwitcher from "@/app/components/LevelSwitcher";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
+import { useMapboxPoiDrag } from "@/app/hooks/useMapboxPoiDrag";
 import { useMapboxFloorPlanLayer } from "@/app/hooks/useMapboxFloorPlanLayer";
 
 const MapboxViewer = dynamic(
@@ -105,7 +107,7 @@ export default function BuilderClient({ mapId }: Props) {
   const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [placingPoi, setPlacingPoi] = useState(false);
-  const [activeTool, setActiveTool] = useState<"select" | "linkBuilding">("select");
+  const [activeTool, setActiveTool] = useState<"select" | "linkBuilding" | "edit">("select");
   const [activeView, setActiveView] = useState<"poi" | "location">("poi");
   const [sceneReady, setSceneReady] = useState(false);
   const apiRef = useRef<CampusAPI | null>(null);
@@ -117,6 +119,15 @@ export default function BuilderClient({ mapId }: Props) {
     pois,
     selectedPoiId,
     onPoiClick: (id) => setSelectedPoiId(id),
+  });
+
+  useMapboxPoiDrag({
+    enabled: activeTool === "edit",
+    onPoiMoved: (id, lng, lat) => {
+      if (!apiRef.current) return;
+      apiRef.current.poi.update(id, { position: [lng, lat, 0] });
+      setPois(apiRef.current.poi.getAll());
+    },
   });
 
   const [activeFloor, setActiveFloor] = useState<number | null>(null);
@@ -465,6 +476,14 @@ export default function BuilderClient({ mapId }: Props) {
       onClick: () => setActiveTool("select"),
     },
     {
+      id: "edit",
+      icon: <OpenWithIcon fontSize="small" />,
+      label: "Move POIs — drag any pin to reposition",
+      active: activeTool === "edit",
+      onClick: () =>
+        setActiveTool((prev) => (prev === "edit" ? "select" : "edit")),
+    },
+    {
       id: "linkBuilding",
       icon: <ApartmentIcon fontSize="small" />,
       label: selectedPoiId
@@ -570,6 +589,28 @@ export default function BuilderClient({ mapId }: Props) {
             {selectedPoiId
               ? "Click a building to link it to the selected POI"
               : "Select a POI first, then click a building"}
+          </Box>
+        )}
+
+        {activeTool === "edit" && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 76,
+              left: "50%",
+              transform: "translateX(-50%)",
+              bgcolor: (t) => alpha(t.palette.primary.main, 0.95),
+              color: "#fff",
+              px: 2,
+              py: 0.75,
+              borderRadius: 1,
+              fontSize: "0.8125rem",
+              fontWeight: 600,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+              zIndex: 20,
+            }}
+          >
+            Drag any POI pin to reposition it
           </Box>
         )}
 
