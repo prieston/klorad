@@ -12,7 +12,7 @@ export default async function RootPage() {
     orderBy: { createdAt: "asc" },
   });
 
-  if (membership) redirect(`/org/${membership.organizationId}/maps`);
+  if (membership) redirect(`/org/${membership.organizationId}/dashboard`);
 
   redirect("/onboarding");
 }

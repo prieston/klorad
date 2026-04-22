@@ -1,37 +1,30 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useParams, usePathname } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { Box } from "@mui/material";
 import {
-  Avatar,
-  Box,
-  IconButton,
-  Tooltip,
-  Typography,
-} from "@mui/material";
-import LogoutIcon from "@mui/icons-material/Logout";
-import MapIcon from "@mui/icons-material/Map";
-import { signOut, useSession } from "next-auth/react";
-import { AppSidebar } from "@klorad/ui";
+  AppSidebar,
+  UserAccountMenu,
+  DashboardIcon,
+  MapIcon,
+  SettingsIcon,
+} from "@klorad/ui";
 import type { AppSidebarNavItem } from "@klorad/ui";
-
-const NAV_ITEMS: AppSidebarNavItem[] = [
-  { label: "Maps", icon: <MapIcon fontSize="small" />, path: "/maps" },
-];
+import { signOut, useSession } from "next-auth/react";
 
 export default function DashboardShell({ children }: { children: ReactNode }) {
   const { data: session } = useSession();
   const params = useParams<{ orgId: string }>();
   const pathname = usePathname();
+  const router = useRouter();
   const orgId = params?.orgId ?? "";
   const pathPrefix = orgId ? `/org/${orgId}` : "";
 
-  // Builder routes have their own dedicated left panel (BuilderLeftPanel),
-  // so skip the global sidebar there — mirrors editor behavior.
+  // Builder routes have their own dedicated left panel.
   const isBuilder = pathname?.includes("/builder") ?? false;
-
   if (isBuilder) {
     return (
       <Box component="main" sx={{ minHeight: "100vh" }}>
@@ -39,6 +32,22 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
       </Box>
     );
   }
+
+  const NAV_ITEMS: AppSidebarNavItem[] = [
+    { label: "Dashboard", icon: <DashboardIcon fontSize="small" />, path: "/dashboard" },
+    { label: "Campuses", icon: <MapIcon fontSize="small" />, path: "/maps" },
+    {
+      label: "Settings",
+      icon: <SettingsIcon fontSize="small" />,
+      path: "/settings",
+      subItems: [
+        { label: "General", path: "/settings/general" },
+        { label: "Members", path: "/settings/members" },
+        { label: "Usage", path: "/settings/usage" },
+        { label: "Billing", path: "/settings/billing", comingSoon: true },
+      ],
+    },
+  ];
 
   return (
     <>
@@ -49,7 +58,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         linkComponent={Link}
         header={
           <Link
-            href={orgId ? `/org/${orgId}/maps` : "/"}
+            href={orgId ? `/org/${orgId}/dashboard` : "/"}
             aria-label="Klorad"
             style={{ textDecoration: "none", display: "flex", alignItems: "center" }}
           >
@@ -68,35 +77,17 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
           </Link>
         }
         footer={
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              px: 2,
-              py: 1.5,
+          <UserAccountMenu
+            name={session?.user?.name ?? undefined}
+            email={session?.user?.email ?? undefined}
+            image={session?.user?.image ?? undefined}
+            profileHref={orgId ? `/org/${orgId}/profile` : "/profile"}
+            onLogout={async () => {
+              await signOut({ callbackUrl: "/auth/signin" });
+              router.refresh();
             }}
-          >
-            <Tooltip title={session?.user?.email ?? ""}>
-              <Avatar
-                src={session?.user?.image ?? undefined}
-                sx={{ width: 28, height: 28 }}
-              />
-            </Tooltip>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="body2" noWrap>
-                {session?.user?.name ?? session?.user?.email}
-              </Typography>
-            </Box>
-            <Tooltip title="Sign out">
-              <IconButton
-                size="small"
-                onClick={() => signOut({ callbackUrl: "/auth/signin" })}
-              >
-                <LogoutIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Box>
+            profileActive={pathname?.includes("/profile") ?? false}
+          />
         }
       />
 

@@ -52,3 +52,5 @@ export * from "./SignIn";
 export * from "./inputs";
 // SceneToolbar
 export * from "./SceneToolbar";
+// UserAccountMenu
+export * from "./UserAccountMenu";

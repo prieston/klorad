@@ -36,7 +36,8 @@ export default function CreateProjectCard({
         const activeShadow = alpha(base, 0.2);
 
         return {
-        width: 300,
+        width: "100%",
+        height: 260,
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
