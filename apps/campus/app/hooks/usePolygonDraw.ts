@@ -23,7 +23,7 @@ interface Options {
  * The callbacks live in refs so a parent re-render with new inline
  * handlers doesn't tear down the draw control mid-polygon.
  */
-export function useRoomDraw({ active, onFinish, onCancel }: Options) {
+export function usePolygonDraw({ active, onFinish, onCancel }: Options) {
   const map = useSceneStore((s) => s.mapboxMap as MapboxMap | null);
   const drawRef = useRef<MapboxDraw | null>(null);
   const finishedRef = useRef(false);
@@ -110,12 +110,12 @@ export function useRoomDraw({ active, onFinish, onCancel }: Options) {
     // handlers that reset the cursor on idle / mouseenter events.
     const canvas = map.getCanvas();
     const container = canvas.parentElement as HTMLElement | null;
-    container?.classList.add("klorad-drawing-room");
+    container?.classList.add("klorad-drawing-polygon");
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       map.off("draw.create", handleCreate);
-      container?.classList.remove("klorad-drawing-room");
+      container?.classList.remove("klorad-drawing-polygon");
       try {
         if (drawRef.current) {
           map.removeControl(

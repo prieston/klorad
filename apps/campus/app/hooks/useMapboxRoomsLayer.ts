@@ -9,6 +9,7 @@ import type {
 import { useSceneStore } from "@klorad/core";
 import type { Room } from "@klorad/api";
 import { roomColor, roomHeightM } from "@/app/lib/roomTemplates";
+import { FLOOR_HEIGHT_M } from "./useMapboxFloorSlabsLayer";
 
 const SOURCE_ID = "campus-rooms";
 const LAYER_ID = "campus-rooms-extrusion";
@@ -27,7 +28,9 @@ function buildFeatureCollection(rooms: Room[]): GeoJSON.FeatureCollection {
         const last = ring[ring.length - 1];
         if (first[0] !== last[0] || first[1] !== last[1]) ring.push(first);
         const h = roomHeightM(r);
-        const base = r.floor * h;
+        // Stack rooms on consistent floor slabs so a tall amphitheatre
+        // on floor 1 still sits at FLOOR_HEIGHT_M m, not at 1×6 m.
+        const base = r.floor * FLOOR_HEIGHT_M + 0.2; // sit just above the slab
         const height = base + h;
         return {
           type: "Feature",
@@ -156,7 +159,7 @@ export function useMapboxRoomsLayer(
       if (!feature) return;
       const id = (feature.properties?.id ?? feature.id) as string | undefined;
       if (id && onSelect) {
-        e.preventDefault();
+
         onSelect(id);
       }
     };

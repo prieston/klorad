@@ -30,8 +30,8 @@ body {
  * room layers reset the canvas cursor on mouseenter) — `!important`
  * is the simplest way to clamp it.
  */
-.klorad-drawing-room,
-.klorad-drawing-room canvas,
-.klorad-drawing-room * {
+.klorad-drawing-polygon,
+.klorad-drawing-polygon canvas,
+.klorad-drawing-polygon * {
   cursor: crosshair !important;
 }

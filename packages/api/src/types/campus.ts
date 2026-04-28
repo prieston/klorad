@@ -52,6 +52,15 @@ export interface POILinkedBuilding {
   properties?: Record<string, unknown>;
   /** Optional user-provided label shown in the panel. */
   label?: string;
+  /**
+   * Closed polygon ring in [lng, lat] when this building was traced by
+   * the user (no underlying Mapbox feature). When set, the campus
+   * renderer draws a fill-extrusion using `heightM` instead of relying
+   * on the basemap's `building` layer.
+   */
+  polygon?: [number, number][];
+  /** Extrusion height in metres for user-drawn buildings. */
+  heightM?: number;
 }
 
 export interface POI {

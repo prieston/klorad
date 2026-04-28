@@ -51,6 +51,7 @@ import {
   RedoIcon,
 } from "@klorad/ui";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
+import DomainAddIcon from "@mui/icons-material/DomainAdd";
 import { captureMapboxScreenshot } from "@/app/utils/captureMapboxScreenshot";
 import type { SceneTool } from "@klorad/ui";
 import { toast } from "react-toastify";
@@ -66,7 +67,9 @@ import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxPoiDrag } from "@/app/hooks/useMapboxPoiDrag";
 import { useMapboxFloorPlanLayer } from "@/app/hooks/useMapboxFloorPlanLayer";
 import { useMapboxRoomsLayer } from "@/app/hooks/useMapboxRoomsLayer";
-import { useRoomDraw } from "@/app/hooks/useRoomDraw";
+import { useMapboxDrawnBuildingsLayer } from "@/app/hooks/useMapboxDrawnBuildingsLayer";
+import { useMapboxFloorSlabsLayer } from "@/app/hooks/useMapboxFloorSlabsLayer";
+import { usePolygonDraw } from "@/app/hooks/usePolygonDraw";
 import {
   useCampusLabelDefaults,
   withCampusLabelDefaults,
@@ -129,10 +132,16 @@ export default function BuilderClient({ mapId }: Props) {
   const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [placingPoi, setPlacingPoi] = useState(false);
-  const [activeTool, setActiveTool] = useState<"select" | "linkBuilding" | "edit" | "drawRoom">("select");
+  const [activeTool, setActiveTool] = useState<
+    "select" | "linkBuilding" | "edit" | "drawRoom" | "drawBuilding"
+  >("select");
   const [rooms, setRooms] = useState<Room[]>([]);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [pendingPolygon, setPendingPolygon] = useState<[number, number][] | null>(null);
+  // When the user starts a room draw from the Buildings tree we know
+  // the exact floor — otherwise (toolbar click) we fall back to
+  // `activePlan?.floor ?? 0`. Cleared after each commit.
+  const [pendingRoomFloor, setPendingRoomFloor] = useState<number | null>(null);
   const [roomForm, setRoomForm] = useState<{
     name: string;
     roomNumber: string;
@@ -255,18 +264,69 @@ export default function BuilderClient({ mapId }: Props) {
     highlightRoomId: activeRoomId,
   });
 
-  useRoomDraw({
-    active: activeTool === "drawRoom",
+  // Render every drawn building as stacked 3D shells. Per-spec:
+  //   - idle (no active floor): full block per building, neutral grey.
+  //   - floor selected: clip to floors <= activeFloor in the selected
+  //     building; the active floor's walls fade to x-ray; below floors
+  //     stay visible as the structure.
+  // The hook also takes plans + rooms so it can derive the floor count
+  // for the building's height.
+  const allPlans = apiRef.current?.floorPlans.getAll() ?? [];
+  // The "active floor" for clipping comes from whichever drove the most
+  // recent intent — explicit pendingRoomFloor (Buildings tree → Draw)
+  // wins over the active plan's floor, which wins over null (idle).
+  const activeFloorForClip =
+    pendingRoomFloor ?? activePlan?.floor ?? null;
+  useMapboxDrawnBuildingsLayer(pois, allPlans, rooms, {
+    selectedPoiId,
+    activeFloor: activeFloorForClip,
+    onSelect: (id) => {
+      setSelectedPoiId(id);
+      apiRef.current?.poi.flyTo(id);
+    },
+  });
+
+  // Floor slabs — thin discs at each floor's elevation. Only render
+  // when a floor is active so the idle "block" view stays clean.
+  useMapboxFloorSlabsLayer(pois, allPlans, rooms, {
+    activePlanId,
+    selectedBuildingPoiId: selectedPoiId,
+    onSelect: (buildingPoiId, floor, planId) => {
+      setSelectedPoiId(buildingPoiId);
+      setActivePlanId(planId);
+      setPendingRoomFloor(floor);
+    },
+  });
+
+  // Building polygon awaiting commit, plus its draft form.
+  const [pendingBuildingPolygon, setPendingBuildingPolygon] = useState<
+    [number, number][] | null
+  >(null);
+  const [buildingForm, setBuildingForm] = useState<{
+    name: string;
+    description: string;
+    heightM: number;
+  }>({ name: "", description: "", heightM: 12 });
+
+  // Single polygon-draw session — `activeTool` discriminates between
+  // drawRoom and drawBuilding, and we route the finished ring to the
+  // right pending-state.
+  usePolygonDraw({
+    active: activeTool === "drawRoom" || activeTool === "drawBuilding",
     onFinish: (poly) => {
-      setPendingPolygon(poly);
+      if (activeTool === "drawRoom") {
+        setPendingPolygon(poly);
+        setRoomForm((f) => ({
+          ...f,
+          name: "",
+          roomNumber: "",
+          type: f.type || "office",
+        }));
+      } else if (activeTool === "drawBuilding") {
+        setPendingBuildingPolygon(poly);
+        setBuildingForm({ name: "", description: "", heightM: 12 });
+      }
       setActiveTool("select");
-      // Seed form with sensible defaults
-      setRoomForm((f) => ({
-        ...f,
-        name: "",
-        roomNumber: "",
-        type: f.type || "office",
-      }));
     },
     onCancel: () => setActiveTool("select"),
   });
@@ -279,7 +339,7 @@ export default function BuilderClient({ mapId }: Props) {
       roomNumber: roomForm.roomNumber.trim() || undefined,
       type: (roomForm.type as Room["type"]) || "office",
       buildingId: selectedPoiId,
-      floor: activePlan?.floor ?? 0,
+      floor: pendingRoomFloor ?? activePlan?.floor ?? 0,
       polygon: pendingPolygon,
       occupants: roomForm.occupantName.trim()
         ? [{ name: roomForm.occupantName.trim(), role: roomForm.occupantRole.trim() || undefined }]
@@ -288,12 +348,15 @@ export default function BuilderClient({ mapId }: Props) {
     setRooms(apiRef.current.rooms.getAll());
     setActiveRoomId(added.id);
     setPendingPolygon(null);
+    setPendingRoomFloor(null);
     setRoomForm({ name: "", roomNumber: "", type: "office", occupantName: "", occupantRole: "" });
-    toast.success("Room added — save to persist");
+    toast.success("Room added");
+    void persistMap();
   };
 
   const cancelNewRoom = () => {
     setPendingPolygon(null);
+    setPendingRoomFloor(null);
     setRoomForm({ name: "", roomNumber: "", type: "office", occupantName: "", occupantRole: "" });
   };
 
@@ -324,6 +387,7 @@ export default function BuilderClient({ mapId }: Props) {
     setRooms(apiRef.current.rooms.getAll());
     setEditingRoomId(null);
     toast.success("Room updated");
+    void persistMap();
   };
 
   // --- Floor plan management (in the Buildings tab) ---
@@ -345,10 +409,54 @@ export default function BuilderClient({ mapId }: Props) {
     }
   };
 
-  const openAddFloor = (buildingPoiId: string) => {
-    setFloorDrawerBuildingId(buildingPoiId);
-    setEditingFloorPlan(null);
-    setFloorDrawerOpen(true);
+  /**
+   * One-click "+ Add floor" — figures out the next floor number from
+   * existing plans + rooms, creates an empty FloorPlan placeholder
+   * (no image), sets it as the active plan, and flies the camera up
+   * to that floor's elevation so the user can immediately draw rooms.
+   */
+  const quickAddFloor = (buildingPoiId: string) => {
+    if (!apiRef.current) return;
+    const buildingPlans = apiRef.current.floorPlans.forBuilding(buildingPoiId);
+    const buildingRooms = apiRef.current.rooms.forBuilding(buildingPoiId);
+    const usedFloors = new Set<number>();
+    buildingPlans.forEach((p) => usedFloors.add(p.floor ?? 0));
+    buildingRooms.forEach((r) => usedFloors.add(r.floor));
+    const nextFloor =
+      usedFloors.size === 0 ? 0 : Math.max(...Array.from(usedFloors)) + 1;
+    pushSnapshot();
+    const created = apiRef.current.floorPlans.add({
+      name: `Floor ${nextFloor}`,
+      buildingId: buildingPoiId,
+      floor: nextFloor,
+      // No url / coordinates — empty floor placeholder.
+    });
+    setSelectedPoiId(buildingPoiId);
+    setActivePlanId(created.id);
+    setPendingRoomFloor(nextFloor);
+
+    // Fly the camera to the new floor's elevation so the user can see
+    // the slab they just added. Mapbox doesn't take an explicit camera
+    // altitude, so we lean into pitch + zoom to make the new height
+    // visible from a 3/4 view.
+    const poi = pois.find((p) => p.id === buildingPoiId);
+    const lng = poi?.linkedBuilding?.lng ?? poi?.position[0];
+    const lat = poi?.linkedBuilding?.lat ?? poi?.position[1];
+    if (typeof lng === "number" && typeof lat === "number") {
+      const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
+      map?.flyTo({
+        center: [lng, lat],
+        zoom: Math.max(18, map?.getZoom?.() ?? 18),
+        pitch: 65,
+        // Slight bearing tweak per floor so the user feels orbital motion
+        // when adding multiple floors — purely aesthetic.
+        bearing: ((nextFloor * 12) % 360) - 60,
+        duration: 900,
+        essential: true,
+      });
+    }
+    toast.success(`Floor ${nextFloor} added · draw rooms or add a plan image`);
+    void persistMap();
   };
 
   const openEditFloor = (planId: string) => {
@@ -378,25 +486,30 @@ export default function BuilderClient({ mapId }: Props) {
       return;
     }
     pushSnapshot();
-    const coords = buildCornerBounds(lng, lat, form.widthMeters, form.heightMeters);
+    // Only attach coordinates when there's actually an image to overlay.
+    // A floor without a plan image is still a valid floor — rooms can
+    // be drawn on it directly.
+    const coords = form.url
+      ? buildCornerBounds(lng, lat, form.widthMeters, form.heightMeters)
+      : undefined;
     if (form.id) {
       apiRef.current.floorPlans.update(form.id, {
         name: form.name || `Floor ${form.floor}`,
-        url: form.url,
+        url: form.url || undefined,
         buildingId: form.buildingPoiId,
         floor: form.floor,
         coordinates: coords,
       });
-      toast.success("Floor plan updated");
+      toast.success(form.url ? "Floor plan updated" : "Floor updated");
     } else {
       apiRef.current.floorPlans.add({
         name: form.name || `Floor ${form.floor}`,
-        url: form.url,
+        url: form.url || undefined,
         buildingId: form.buildingPoiId,
         floor: form.floor,
         coordinates: coords,
       });
-      toast.success("Floor plan added");
+      toast.success(form.url ? "Floor plan added" : "Floor added");
     }
     await persistMap();
   };
@@ -418,6 +531,56 @@ export default function BuilderClient({ mapId }: Props) {
     setActiveRoomId(null);
     setEditingRoomId(null);
     toast.success("Room removed");
+    void persistMap();
+  };
+
+  /**
+   * Compute the centroid of a polygon ring. Used to anchor the
+   * created POI marker (and its `linkedBuilding.lng/lat`).
+   */
+  const polygonCentroid = (
+    ring: [number, number][]
+  ): [number, number] => {
+    if (ring.length === 0) return [0, 0];
+    let sumLng = 0;
+    let sumLat = 0;
+    for (const [lng, lat] of ring) {
+      sumLng += lng;
+      sumLat += lat;
+    }
+    return [sumLng / ring.length, sumLat / ring.length];
+  };
+
+  const commitNewBuilding = () => {
+    if (!pendingBuildingPolygon || !apiRef.current) return;
+    const name = buildingForm.name.trim() || "Untitled building";
+    const heightM = Math.max(2, Math.round(buildingForm.heightM || 12));
+    const [lng, lat] = polygonCentroid(pendingBuildingPolygon);
+    pushSnapshot();
+    const newPoi = apiRef.current.poi.add({
+      name,
+      description: buildingForm.description.trim() || undefined,
+      position: [lng, lat, 0],
+      category: "building",
+      linkedBuilding: {
+        lng,
+        lat,
+        polygon: pendingBuildingPolygon,
+        heightM,
+        label: name,
+      },
+    });
+    setPois(apiRef.current.poi.getAll());
+    setSelectedPoiId(newPoi.id);
+    setPendingBuildingPolygon(null);
+    setBuildingForm({ name: "", description: "", heightM: 12 });
+    toast.success("Building created");
+    void persistMap();
+  };
+
+  const cancelNewBuilding = () => {
+    setPendingBuildingPolygon(null);
+    setBuildingForm({ name: "", description: "", heightM: 12 });
   };
 
   useEffect(() => {
@@ -784,6 +947,17 @@ export default function BuilderClient({ mapId }: Props) {
           return;
         }
         setActiveTool((prev) => (prev === "linkBuilding" ? "select" : "linkBuilding"));
+      },
+    },
+    {
+      id: "drawBuilding",
+      icon: <DomainAddIcon fontSize="small" />,
+      label: "Draw building (3D)",
+      active: activeTool === "drawBuilding",
+      onClick: () => {
+        setActiveTool((prev) =>
+          prev === "drawBuilding" ? "select" : "drawBuilding"
+        );
       },
     },
     {
@@ -1164,9 +1338,15 @@ export default function BuilderClient({ mapId }: Props) {
                     setActiveRoomId(roomId);
                   }}
                   onEditRoom={(roomId) => openEditRoom(roomId)}
-                  onAddFloor={openAddFloor}
+                  onAddFloor={quickAddFloor}
                   onEditFloor={openEditFloor}
                   onRemoveFloor={(planId) => void handleRemoveFloorPlan(planId)}
+                  onDrawRoom={(buildingPoiId, floor, planId) => {
+                    setSelectedPoiId(buildingPoiId);
+                    setActivePlanId(planId);
+                    setPendingRoomFloor(floor);
+                    setActiveTool("drawRoom");
+                  }}
                 />
               )}
             </Box>
@@ -2031,6 +2211,85 @@ export default function BuilderClient({ mapId }: Props) {
             </Typography>
           )}
         </Box>
+      </RightDrawer>
+
+      {/* Create-building drawer — opens after the user finishes the
+          polygon trace. Captures name + extrusion height + description
+          and creates a POI with `linkedBuilding.polygon`. */}
+      <RightDrawer
+        open={Boolean(pendingBuildingPolygon)}
+        onClose={cancelNewBuilding}
+        title="Create building"
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              onClick={cancelNewBuilding}
+              fullWidth
+              sx={{ textTransform: "none" }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={commitNewBuilding}
+              disabled={!buildingForm.name.trim()}
+              fullWidth
+              sx={{ textTransform: "none" }}
+            >
+              Create building
+            </Button>
+          </>
+        }
+      >
+        <FormField label="Building name" gutterBottom>
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            placeholder="e.g. Library — Block C"
+            value={buildingForm.name}
+            onChange={(e) =>
+              setBuildingForm((f) => ({ ...f, name: e.target.value }))
+            }
+          />
+        </FormField>
+        <FormField label="Description (optional)" gutterBottom>
+          <TextField
+            fullWidth
+            size="small"
+            multiline
+            minRows={2}
+            placeholder="Short description shown on the public viewer card"
+            value={buildingForm.description}
+            onChange={(e) =>
+              setBuildingForm((f) => ({ ...f, description: e.target.value }))
+            }
+          />
+        </FormField>
+        <FormField
+          label="Height (m)"
+          helperText="How tall the 3D extrusion should be. ~3 m per floor is a good default."
+        >
+          <TextField
+            type="number"
+            fullWidth
+            size="small"
+            value={buildingForm.heightM}
+            onChange={(e) =>
+              setBuildingForm((f) => ({
+                ...f,
+                heightM: parseInt(e.target.value, 10) || 12,
+              }))
+            }
+            slotProps={{ htmlInput: { min: 2, step: 1 } }}
+          />
+        </FormField>
+        <Typography variant="caption" color="text.secondary">
+          A POI marker is created at the centre of the building so you can
+          attach floor plans, rooms, and metadata to it from the Buildings
+          tab. Save the map to persist.
+        </Typography>
       </RightDrawer>
 
       {/* New / edit room drawer — shares the same form shape. */}

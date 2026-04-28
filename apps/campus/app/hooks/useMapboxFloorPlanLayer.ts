@@ -70,6 +70,12 @@ export function useMapboxFloorPlanLayer(activePlan: FloorPlan | null) {
         removeStalePlans();
         return;
       }
+      // A floor without an uploaded image is still a valid floor — we
+      // just don't render any raster overlay for it.
+      if (!activePlan.url || !activePlan.coordinates) {
+        removeStalePlans();
+        return;
+      }
 
       removeStalePlans();
 

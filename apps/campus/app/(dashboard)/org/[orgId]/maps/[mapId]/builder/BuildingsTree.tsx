@@ -28,6 +28,8 @@ interface Props {
   onAddFloor: (buildingPoiId: string) => void;
   onEditFloor: (planId: string) => void;
   onRemoveFloor: (planId: string) => void;
+  /** Pre-scope building+floor and start the Draw Room tool. */
+  onDrawRoom: (buildingPoiId: string, floor: number, planId: string | null) => void;
 }
 
 interface Floor {
@@ -64,6 +66,7 @@ export default function BuildingsTree({
   onAddFloor,
   onEditFloor,
   onRemoveFloor,
+  onDrawRoom,
 }: Props) {
   const buildings = useMemo<BuildingNode[]>(() => {
     const linked = pois.filter((p) => p.linkedBuilding);
@@ -143,6 +146,7 @@ export default function BuildingsTree({
             onAddFloor={() => onAddFloor(b.poi.id)}
             onEditFloor={onEditFloor}
             onRemoveFloor={onRemoveFloor}
+            onDrawRoom={(floor, planId) => onDrawRoom(b.poi.id, floor, planId)}
           />
         ))}
       </Stack>
@@ -164,6 +168,7 @@ function BuildingRow({
   onAddFloor,
   onEditFloor,
   onRemoveFloor,
+  onDrawRoom,
 }: {
   building: BuildingNode;
   isSelected: boolean;
@@ -178,6 +183,7 @@ function BuildingRow({
   onAddFloor: () => void;
   onEditFloor: (planId: string) => void;
   onRemoveFloor: (planId: string) => void;
+  onDrawRoom: (floor: number, planId: string | null) => void;
 }) {
   const totalRooms = building.floors.reduce((n, f) => n + f.rooms.length, 0);
 
@@ -281,6 +287,7 @@ function BuildingRow({
             onEditRoom={onEditRoom}
             onEditFloor={() => f.plan && onEditFloor(f.plan.id)}
             onRemoveFloor={() => f.plan && onRemoveFloor(f.plan.id)}
+            onDrawRoom={() => onDrawRoom(f.floor, f.plan?.id ?? null)}
           />
         ))}
       {isOpen && building.floors.length > 0 && (
@@ -313,6 +320,7 @@ function FloorRow({
   onEditRoom,
   onEditFloor,
   onRemoveFloor,
+  onDrawRoom,
 }: {
   floor: Floor;
   buildingPoiId: string;
@@ -323,6 +331,7 @@ function FloorRow({
   onEditRoom: (roomId: string) => void;
   onEditFloor: () => void;
   onRemoveFloor: () => void;
+  onDrawRoom: () => void;
 }) {
   const [open, setOpen] = useState(true);
   return (
@@ -389,6 +398,18 @@ function FloorRow({
             })}
           />
         )}
+        <Tooltip title="Draw room on this floor">
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDrawRoom();
+            }}
+            sx={{ p: 0.25 }}
+          >
+            <AddIcon sx={{ fontSize: 12 }} />
+          </IconButton>
+        </Tooltip>
         {floor.plan && (
           <>
             <Tooltip title="Edit floor plan">

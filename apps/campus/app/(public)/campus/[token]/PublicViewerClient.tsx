@@ -23,6 +23,8 @@ import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxFloorPlanLayer } from "@/app/hooks/useMapboxFloorPlanLayer";
 import { useMapboxRoomsLayer } from "@/app/hooks/useMapboxRoomsLayer";
+import { useMapboxDrawnBuildingsLayer } from "@/app/hooks/useMapboxDrawnBuildingsLayer";
+import { useMapboxFloorSlabsLayer } from "@/app/hooks/useMapboxFloorSlabsLayer";
 import {
   useCampusLabelDefaults,
   withCampusLabelDefaults,
@@ -195,6 +197,21 @@ function PublicViewerInner({ mapId }: Props) {
     if (!activeRoomId) return null;
     return roomsForSelection.find((r) => r.id === activeRoomId) ?? null;
   }, [activeRoomId, roomsForSelection]);
+  // Render every drawn building. Clipping mirrors the Studio:
+  // selected building shows up to active floor; others render whole.
+  const allPlansViewer = apiRef.current?.floorPlans.getAll() ?? [];
+  const allRoomsViewer = apiRef.current?.rooms.getAll() ?? [];
+  useMapboxDrawnBuildingsLayer(pois, allPlansViewer, allRoomsViewer, {
+    selectedPoiId,
+    activeFloor: activePlan?.floor ?? null,
+    onSelect: (id) => setSelectedPoiId(id),
+  });
+  useMapboxFloorSlabsLayer(pois, allPlansViewer, allRoomsViewer, {
+    activePlanId,
+    selectedBuildingPoiId: selectedPoiId,
+    onSelect: (buildingId) => setSelectedPoiId(buildingId),
+  });
+
   useMapboxRoomsLayer(roomsForSelection, {
     activeFloor: activePlan?.floor ?? null,
     onSelect: (id) => setActiveRoomId(id),

@@ -193,12 +193,27 @@ export interface LayersAPI {
 export interface FloorPlan {
   id: string;
   name?: string;
-  url: string;
-  /** [top-left, top-right, bottom-right, bottom-left] as [lng, lat]. */
-  coordinates: [[number, number], [number, number], [number, number], [number, number]];
+  /**
+   * Image URL for the floor plan. Optional — a FloorPlan with no URL
+   * acts as a "floor placeholder" so rooms can be drawn on it without
+   * requiring an image upload.
+   */
+  url?: string;
+  /**
+   * [top-left, top-right, bottom-right, bottom-left] as [lng, lat].
+   * Optional when there's no image yet; the renderer skips the raster
+   * layer entirely in that case.
+   */
+  coordinates?: [[number, number], [number, number], [number, number], [number, number]];
   buildingId?: string;
   floor?: number;
   visible?: boolean;
+  /**
+   * Per-floor extrusion height in metres. Overrides the default
+   * (`FLOOR_HEIGHT_M = 3`). Lets a ground-floor amphitheatre at 6 m
+   * coexist with regular 3 m floors above it.
+   */
+  heightM?: number;
 }
 
 export type FloorPlanInput = Omit<FloorPlan, "id"> & { id?: string };

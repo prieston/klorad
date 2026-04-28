@@ -159,6 +159,7 @@ export function createFloorPlansAPI(): FloorPlansAPI {
       coordinates: r.coordinates as FloorPlan["coordinates"],
       buildingId: r.buildingId,
       floor: r.floor,
+      heightM: r.heightM,
       visible: r.visible !== false,
     }));
   };
@@ -172,6 +173,7 @@ export function createFloorPlansAPI(): FloorPlansAPI {
         coordinates: p.coordinates,
         buildingId: p.buildingId,
         floor: p.floor,
+        heightM: p.heightM,
         visible: p.visible,
       })),
     });
@@ -186,6 +188,7 @@ export function createFloorPlansAPI(): FloorPlansAPI {
         coordinates: input.coordinates,
         buildingId: input.buildingId,
         floor: input.floor,
+        heightM: input.heightM,
         visible: input.visible !== false,
       };
       writePlans([...readPlans(), plan]);

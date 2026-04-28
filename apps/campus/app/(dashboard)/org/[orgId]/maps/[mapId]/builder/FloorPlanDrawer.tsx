@@ -71,11 +71,15 @@ export default function FloorPlanDrawer({
   useEffect(() => {
     if (!open) return;
     if (editingPlan) {
-      const { widthMeters, heightMeters } = sizeFromCorners(editingPlan.coordinates);
+      // `coordinates` may be undefined for floors without an uploaded
+      // image — fall back to sensible defaults the user can still tweak.
+      const { widthMeters, heightMeters } = editingPlan.coordinates
+        ? sizeFromCorners(editingPlan.coordinates)
+        : { widthMeters: 60, heightMeters: 40 };
       setForm({
         id: editingPlan.id,
         name: editingPlan.name ?? "",
-        url: editingPlan.url,
+        url: editingPlan.url ?? "",
         buildingPoiId: editingPlan.buildingId ?? "",
         floor: editingPlan.floor ?? 0,
         widthMeters,
@@ -114,8 +118,8 @@ export default function FloorPlanDrawer({
   };
 
   const handleSave = async () => {
-    if (!form.url || !form.buildingPoiId) {
-      toast.error("Pick a linked building and upload an image.");
+    if (!form.buildingPoiId) {
+      toast.error("Pick a linked building.");
       return;
     }
     setSaving(true);
@@ -162,7 +166,7 @@ export default function FloorPlanDrawer({
           <Button
             variant="contained"
             onClick={handleSave}
-            disabled={!form.url || !form.buildingPoiId || uploading || saving || deleting}
+            disabled={!form.buildingPoiId || uploading || saving || deleting}
             fullWidth
             sx={{ textTransform: "none" }}
           >
