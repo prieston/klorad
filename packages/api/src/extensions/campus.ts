@@ -7,6 +7,9 @@ import type {
   FloorPlansAPI,
   FloorPlan,
   FloorPlanInput,
+  Room,
+  RoomInput,
+  RoomsAPI,
 } from "../types/interfaces";
 import type { POI, POIInput, DataLayer } from "../types/campus";
 
@@ -210,6 +213,96 @@ export function createFloorPlansAPI(): FloorPlansAPI {
   };
 }
 
+export function createRoomsAPI(): RoomsAPI {
+  const get = () => useSceneStore.getState();
+
+  const readRooms = (): Room[] => {
+    const raw = get().mapboxSceneData.rooms ?? [];
+    return raw.map((r) => ({
+      id: r.id,
+      name: r.name,
+      roomNumber: r.roomNumber,
+      type: (r.type as Room["type"]) ?? "other",
+      templateId: r.templateId,
+      buildingId: r.buildingId,
+      floor: r.floor,
+      polygon: r.polygon as Room["polygon"],
+      heightM: r.heightM,
+      icon: r.icon,
+      color: r.color,
+      occupants: r.occupants,
+      scheduleUrl: r.scheduleUrl,
+      visible: r.visible !== false,
+    }));
+  };
+
+  const writeRooms = (rooms: Room[]) => {
+    get().setMapboxSceneData({
+      rooms: rooms.map((r) => ({
+        id: r.id,
+        name: r.name,
+        roomNumber: r.roomNumber,
+        type: r.type,
+        templateId: r.templateId,
+        buildingId: r.buildingId,
+        floor: r.floor,
+        polygon: r.polygon,
+        heightM: r.heightM,
+        icon: r.icon,
+        color: r.color,
+        occupants: r.occupants,
+        scheduleUrl: r.scheduleUrl,
+        visible: r.visible,
+      })),
+    });
+  };
+
+  return {
+    add(input: RoomInput): Room {
+      const room: Room = {
+        id: input.id ?? uuidv4(),
+        name: input.name,
+        roomNumber: input.roomNumber,
+        type: input.type,
+        templateId: input.templateId,
+        buildingId: input.buildingId,
+        floor: input.floor,
+        polygon: input.polygon,
+        heightM: input.heightM,
+        icon: input.icon,
+        color: input.color,
+        occupants: input.occupants,
+        scheduleUrl: input.scheduleUrl,
+        visible: input.visible !== false,
+      };
+      writeRooms([...readRooms(), room]);
+      return room;
+    },
+    update(id, patch) {
+      writeRooms(readRooms().map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    },
+    remove(id) {
+      writeRooms(readRooms().filter((r) => r.id !== id));
+    },
+    setVisible(id, visible) {
+      this.update(id, { visible });
+    },
+    getAll(): Room[] {
+      return readRooms();
+    },
+    forBuilding(buildingId: string): Room[] {
+      return readRooms()
+        .filter((r) => r.buildingId === buildingId)
+        .sort((a, b) => a.floor - b.floor);
+    },
+    forFloor(buildingId: string, floor: number): Room[] {
+      return readRooms().filter(
+        (r) => r.buildingId === buildingId && r.floor === floor
+      );
+    },
+  };
+}
+
 export function createLayersAPI(): LayersAPI {
   const layers = new Map<string, DataLayer>();
 
@@ -234,11 +327,12 @@ export function createLayersAPI(): LayersAPI {
   };
 }
 
-export function createCampusExtension(): Pick<CampusAPI, "poi" | "layers" | "floorPlans" | "setLocation"> {
+export function createCampusExtension(): Pick<CampusAPI, "poi" | "layers" | "floorPlans" | "rooms" | "setLocation"> {
   return {
     poi: createPOIManagerAPI(),
     layers: createLayersAPI(),
     floorPlans: createFloorPlansAPI(),
+    rooms: createRoomsAPI(),
     setLocation(lng, lat, options = {}) {
       const { zoom, pitch, bearing, fly = true } = options;
       const s = useSceneStore.getState();

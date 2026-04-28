@@ -21,6 +21,31 @@ export interface MapboxSceneLayer {
   filter?: unknown[];
 }
 
+/**
+ * A room polygon belonging to a specific building and floor. Rendered as
+ * a fill-extrusion so it floats at the correct elevation for that floor.
+ */
+export interface MapboxRoom {
+  id: string;
+  name: string;
+  roomNumber?: string;
+  type: string;
+  templateId?: string;
+  /** POI id of the building this room belongs to. */
+  buildingId: string;
+  /** Floor index — 0 = ground, 1 = first, -1 = basement. */
+  floor: number;
+  /** Closed polygon ring in [lng, lat], first and last points equal. */
+  polygon: MapboxLngLat[];
+  /** Extrusion height in meters (defaults to ~3m per floor). */
+  heightM?: number;
+  icon?: string;
+  color?: string;
+  occupants?: Array<{ name: string; role?: string; email?: string }>;
+  scheduleUrl?: string;
+  visible?: boolean;
+}
+
 /** Georeferenced floor plan / overlay (Mapbox image source). */
 export interface MapboxFloorPlanRaster {
   id: string;
@@ -85,6 +110,7 @@ export interface MapboxSceneData {
   maxBounds?: [MapboxLngLat, MapboxLngLat];
   layers: MapboxSceneLayer[];
   floorPlanRasters?: MapboxFloorPlanRaster[];
+  rooms?: MapboxRoom[];
 
   projection?: MapboxProjection;
   terrain?: MapboxTerrainSettings;
@@ -101,6 +127,7 @@ export const DEFAULT_MAPBOX_SCENE_DATA: MapboxSceneData = {
   bearing: 0,
   layers: [],
   floorPlanRasters: [],
+  rooms: [],
   projection: "mercator",
   terrain: {
     enabled: false,

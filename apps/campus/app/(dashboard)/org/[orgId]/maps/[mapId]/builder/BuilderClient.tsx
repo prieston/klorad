@@ -63,7 +63,16 @@ import LevelSwitcher from "@/app/components/LevelSwitcher";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxPoiDrag } from "@/app/hooks/useMapboxPoiDrag";
 import { useMapboxFloorPlanLayer } from "@/app/hooks/useMapboxFloorPlanLayer";
+import { useMapboxRoomsLayer } from "@/app/hooks/useMapboxRoomsLayer";
+import { useRoomDraw } from "@/app/hooks/useRoomDraw";
+import {
+  useCampusLabelDefaults,
+  withCampusLabelDefaults,
+} from "@/app/hooks/useCampusLabelDefaults";
 import { useUndoRedo } from "@/app/hooks/useUndoRedo";
+import { ROOM_TEMPLATES, getRoomTemplate } from "@/app/lib/roomTemplates";
+import type { Room } from "@klorad/api";
+import MeetingRoomIcon from "@mui/icons-material/MeetingRoom";
 
 const MapboxViewer = dynamic(
   () => import("@klorad/engine-mapbox").then((m) => ({ default: m.MapboxViewer })),
@@ -118,7 +127,18 @@ export default function BuilderClient({ mapId }: Props) {
   const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [placingPoi, setPlacingPoi] = useState(false);
-  const [activeTool, setActiveTool] = useState<"select" | "linkBuilding" | "edit">("select");
+  const [activeTool, setActiveTool] = useState<"select" | "linkBuilding" | "edit" | "drawRoom">("select");
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+  const [pendingPolygon, setPendingPolygon] = useState<[number, number][] | null>(null);
+  const [roomForm, setRoomForm] = useState<{
+    name: string;
+    roomNumber: string;
+    type: string;
+    occupantName: string;
+    occupantRole: string;
+  }>({ name: "", roomNumber: "", type: "office", occupantName: "", occupantRole: "" });
+  const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<"poi" | "location">("poi");
   const [sceneReady, setSceneReady] = useState(false);
   const apiRef = useRef<CampusAPI | null>(null);
@@ -211,11 +231,108 @@ export default function BuilderClient({ mapId }: Props) {
   }, [activePlanId, floorPlansForSelection]);
 
   useMapboxFloorPlanLayer(activePlan);
+  useCampusLabelDefaults(sceneReady);
 
   // Reset active plan when POI selection changes
   useEffect(() => {
     setActivePlanId(null);
   }, [selectedPoiId]);
+
+  // Rooms for the selected building — keep in sync with the scene store
+  const roomsForSelection = useMemo(() => {
+    if (!selectedPoiId) return [] as Room[];
+    return rooms.filter((r) => r.buildingId === selectedPoiId);
+  }, [rooms, selectedPoiId]);
+
+  useMapboxRoomsLayer(roomsForSelection, {
+    activeFloor: activePlan?.floor ?? null,
+    onSelect: (id) => {
+      setActiveRoomId(id);
+      openEditRoom(id);
+    },
+    highlightRoomId: activeRoomId,
+  });
+
+  useRoomDraw({
+    active: activeTool === "drawRoom",
+    onFinish: (poly) => {
+      setPendingPolygon(poly);
+      setActiveTool("select");
+      // Seed form with sensible defaults
+      setRoomForm((f) => ({
+        ...f,
+        name: "",
+        roomNumber: "",
+        type: f.type || "office",
+      }));
+    },
+    onCancel: () => setActiveTool("select"),
+  });
+
+  const commitNewRoom = () => {
+    if (!pendingPolygon || !apiRef.current || !selectedPoiId) return;
+    pushSnapshot();
+    const added = apiRef.current.rooms.add({
+      name: roomForm.name.trim() || "Unnamed room",
+      roomNumber: roomForm.roomNumber.trim() || undefined,
+      type: (roomForm.type as Room["type"]) || "office",
+      buildingId: selectedPoiId,
+      floor: activePlan?.floor ?? 0,
+      polygon: pendingPolygon,
+      occupants: roomForm.occupantName.trim()
+        ? [{ name: roomForm.occupantName.trim(), role: roomForm.occupantRole.trim() || undefined }]
+        : undefined,
+    });
+    setRooms(apiRef.current.rooms.getAll());
+    setActiveRoomId(added.id);
+    setPendingPolygon(null);
+    setRoomForm({ name: "", roomNumber: "", type: "office", occupantName: "", occupantRole: "" });
+    toast.success("Room added — save to persist");
+  };
+
+  const cancelNewRoom = () => {
+    setPendingPolygon(null);
+    setRoomForm({ name: "", roomNumber: "", type: "office", occupantName: "", occupantRole: "" });
+  };
+
+  const openEditRoom = (roomId: string) => {
+    const r = rooms.find((x) => x.id === roomId);
+    if (!r) return;
+    setEditingRoomId(roomId);
+    setRoomForm({
+      name: r.name,
+      roomNumber: r.roomNumber ?? "",
+      type: r.type,
+      occupantName: r.occupants?.[0]?.name ?? "",
+      occupantRole: r.occupants?.[0]?.role ?? "",
+    });
+  };
+
+  const commitEditRoom = () => {
+    if (!editingRoomId || !apiRef.current) return;
+    pushSnapshot();
+    apiRef.current.rooms.update(editingRoomId, {
+      name: roomForm.name.trim() || "Unnamed room",
+      roomNumber: roomForm.roomNumber.trim() || undefined,
+      type: (roomForm.type as Room["type"]) || "office",
+      occupants: roomForm.occupantName.trim()
+        ? [{ name: roomForm.occupantName.trim(), role: roomForm.occupantRole.trim() || undefined }]
+        : undefined,
+    });
+    setRooms(apiRef.current.rooms.getAll());
+    setEditingRoomId(null);
+    toast.success("Room updated");
+  };
+
+  const deleteActiveRoom = () => {
+    if (!activeRoomId || !apiRef.current) return;
+    pushSnapshot();
+    apiRef.current.rooms.remove(activeRoomId);
+    setRooms(apiRef.current.rooms.getAll());
+    setActiveRoomId(null);
+    setEditingRoomId(null);
+    toast.success("Room removed");
+  };
 
   useEffect(() => {
     const api = createSceneAPI("mapbox", "campus") as CampusAPI;
@@ -232,10 +349,12 @@ export default function BuilderClient({ mapId }: Props) {
         if (!res.ok) throw new Error("Failed to load map");
         const data = await res.json();
         if (cancelled) return;
-        if (data?.sceneData && typeof data.sceneData === "object" && Object.keys(data.sceneData).length > 0) {
-          api.load(data.sceneData);
-        }
+        // Always run the scene through `withCampusLabelDefaults` so a
+        // brand-new map (no saved sceneData) still gets labels off.
+        const sceneToLoad = withCampusLabelDefaults(data?.sceneData ?? {});
+        api.load(sceneToLoad);
         setPois(api.poi.getAll());
+        setRooms(api.rooms.getAll());
       } catch {
         // new or unreachable map — fall back to empty defaults
       } finally {
@@ -579,6 +698,21 @@ export default function BuilderClient({ mapId }: Props) {
           return;
         }
         setActiveTool((prev) => (prev === "linkBuilding" ? "select" : "linkBuilding"));
+      },
+    },
+    {
+      id: "drawRoom",
+      icon: <MeetingRoomIcon fontSize="small" />,
+      label: selectedPoiId
+        ? `Draw room on floor ${activePlan?.floor ?? 0}`
+        : "Draw room (select a building POI first)",
+      active: activeTool === "drawRoom",
+      onClick: () => {
+        if (!selectedPoiId) {
+          toast.info("Select a building POI first, then draw the room.");
+          return;
+        }
+        setActiveTool((prev) => (prev === "drawRoom" ? "select" : "drawRoom"));
       },
     },
     {
@@ -1687,6 +1821,133 @@ export default function BuilderClient({ mapId }: Props) {
             </Typography>
           )}
         </Box>
+      </RightDrawer>
+
+      {/* New / edit room drawer — shares the same form shape. */}
+      <RightDrawer
+        open={Boolean(pendingPolygon) || Boolean(editingRoomId)}
+        onClose={() => {
+          if (pendingPolygon) cancelNewRoom();
+          else setEditingRoomId(null);
+        }}
+        title={editingRoomId ? "Edit room" : "Create room"}
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                if (pendingPolygon) cancelNewRoom();
+                else setEditingRoomId(null);
+              }}
+              fullWidth
+              sx={{ textTransform: "none" }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={editingRoomId ? commitEditRoom : commitNewRoom}
+              disabled={!roomForm.name.trim()}
+              fullWidth
+              sx={{ textTransform: "none" }}
+            >
+              {editingRoomId ? "Save changes" : "Create room"}
+            </Button>
+          </>
+        }
+      >
+        <FormField label="Room name" gutterBottom>
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            placeholder="e.g. Office 204"
+            value={roomForm.name}
+            onChange={(e) => setRoomForm((f) => ({ ...f, name: e.target.value }))}
+          />
+        </FormField>
+        <FormField label="Room number (optional)" gutterBottom>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="e.g. B3-204"
+            value={roomForm.roomNumber}
+            onChange={(e) => setRoomForm((f) => ({ ...f, roomNumber: e.target.value }))}
+          />
+        </FormField>
+        <FormField label="Room type" gutterBottom>
+          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 1 }}>
+            {ROOM_TEMPLATES.map((tpl) => {
+              const active = roomForm.type === tpl.id;
+              return (
+                <Box
+                  key={tpl.id}
+                  role="button"
+                  onClick={() => setRoomForm((f) => ({ ...f, type: tpl.id }))}
+                  sx={(t) => ({
+                    cursor: "pointer",
+                    p: 1,
+                    borderRadius: 1,
+                    border: `1px solid ${active ? tpl.color : t.palette.divider}`,
+                    bgcolor: active ? `${tpl.color}22` : "transparent",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    transition: "all 0.15s ease",
+                  })}
+                >
+                  <Box
+                    sx={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      bgcolor: tpl.color,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Typography variant="caption" sx={{ fontSize: "0.75rem", fontWeight: active ? 600 : 400 }}>
+                    {tpl.label}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+        </FormField>
+        <Typography variant="caption" color="text.secondary">
+          Default height: {getRoomTemplate(roomForm.type).heightM}m
+        </Typography>
+        <Divider sx={{ my: 1 }} />
+        <FormField label="Occupant (optional)" gutterBottom>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Prof. Papadopoulos"
+            value={roomForm.occupantName}
+            onChange={(e) => setRoomForm((f) => ({ ...f, occupantName: e.target.value }))}
+          />
+        </FormField>
+        <FormField label="Role (optional)" gutterBottom>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Associate Professor"
+            value={roomForm.occupantRole}
+            onChange={(e) => setRoomForm((f) => ({ ...f, occupantRole: e.target.value }))}
+          />
+        </FormField>
+        {editingRoomId && (
+          <>
+            <Divider sx={{ my: 1 }} />
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={deleteActiveRoom}
+              sx={{ textTransform: "none", alignSelf: "flex-start" }}
+            >
+              Delete room
+            </Button>
+          </>
+        )}
       </RightDrawer>
     </Box>
   );

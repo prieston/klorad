@@ -129,8 +129,24 @@ export function useMapboxPoiLayer({
             // Intentionally no text-font: let the current style's default
             // glyph set render. Specifying a font not in the style's glyph
             // pack causes silent rendering failure on Standard v3.
-            "text-allow-overlap": true,
-            "text-ignore-placement": true,
+            // Participate in normal collision detection so we don't paint
+            // over the Standard style's place / road / POI labels — that
+            // was causing the underlying labels to flicker through ours
+            // at zoom-stop transitions.
+            "text-allow-overlap": false,
+            "text-ignore-placement": false,
+            // Selected POI gets sort-key 0 so it wins any collision; the
+            // rest tie at 1. Lower values render first / win placement
+            // when symbols overlap.
+            "symbol-sort-key": [
+              "case",
+              ["get", "selected"],
+              0,
+              1,
+            ] as unknown as mapboxgl.ExpressionSpecification,
+            // Small placement buffer so labels don't crowd against each
+            // other or the Standard style's labels.
+            "text-padding": 4,
           },
           paint: {
             "text-color": "#ffffff",

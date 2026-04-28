@@ -23,3 +23,15 @@ body {
 .mapboxgl-ctrl-logo {
   display: block;
 }
+
+/*
+ * Force a crosshair cursor everywhere inside the map while the room
+ * draw tool is active. Has to win over Mapbox's hover handlers (POI /
+ * room layers reset the canvas cursor on mouseenter) — `!important`
+ * is the simplest way to clamp it.
+ */
+.klorad-drawing-room,
+.klorad-drawing-room canvas,
+.klorad-drawing-room * {
+  cursor: crosshair !important;
+}

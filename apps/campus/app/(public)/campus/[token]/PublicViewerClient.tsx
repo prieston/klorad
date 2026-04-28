@@ -22,6 +22,13 @@ import type { Branding, CampusAPI, POI, SceneData, TourStop } from "@klorad/api"
 import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxFloorPlanLayer } from "@/app/hooks/useMapboxFloorPlanLayer";
+import { useMapboxRoomsLayer } from "@/app/hooks/useMapboxRoomsLayer";
+import {
+  useCampusLabelDefaults,
+  withCampusLabelDefaults,
+} from "@/app/hooks/useCampusLabelDefaults";
+import { getRoomTemplate } from "@/app/lib/roomTemplates";
+import type { Room } from "@klorad/api";
 import { useMapboxRoute, type RouteMode } from "@/app/hooks/useMapboxRoute";
 import LevelSwitcher from "@/app/components/LevelSwitcher";
 import WayfindingPanel, { MY_LOCATION_ID } from "@/app/components/WayfindingPanel";
@@ -175,7 +182,25 @@ function PublicViewerInner({ mapId }: Props) {
     return floorPlansForSelection.find((p) => p.id === activePlanId) ?? null;
   }, [activePlanId, floorPlansForSelection]);
   useMapboxFloorPlanLayer(activePlan);
+  useCampusLabelDefaults(sceneReady);
   useEffect(() => setActivePlanId(null), [selectedPoiId]);
+
+  // Rooms for the selected building
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+  const roomsForSelection = useMemo<Room[]>(() => {
+    if (!apiRef.current || !selectedPoiId) return [];
+    return apiRef.current.rooms.forBuilding(selectedPoiId);
+  }, [selectedPoiId, pois]);
+  const activeRoom = useMemo<Room | null>(() => {
+    if (!activeRoomId) return null;
+    return roomsForSelection.find((r) => r.id === activeRoomId) ?? null;
+  }, [activeRoomId, roomsForSelection]);
+  useMapboxRoomsLayer(roomsForSelection, {
+    activeFloor: activePlan?.floor ?? null,
+    onSelect: (id) => setActiveRoomId(id),
+    highlightRoomId: activeRoomId,
+  });
+  useEffect(() => setActiveRoomId(null), [selectedPoiId, activePlanId]);
 
   useEffect(() => {
     const api = createSceneAPI("mapbox", "campus") as CampusAPI;
@@ -188,11 +213,10 @@ function PublicViewerInner({ mapId }: Props) {
         if (!res.ok) throw new Error("Failed to load map");
         const data = await res.json();
         if (cancelled) return;
-        if (data?.sceneData && typeof data.sceneData === "object" && Object.keys(data.sceneData).length > 0) {
-          api.load(data.sceneData);
-          const scene = data.sceneData as Partial<SceneData>;
-          if (scene.branding) setBranding(scene.branding);
-        }
+        const sceneToLoad = withCampusLabelDefaults(data?.sceneData ?? {});
+        api.load(sceneToLoad);
+        const scene = (data?.sceneData ?? {}) as Partial<SceneData>;
+        if (scene.branding) setBranding(scene.branding);
         setPois(api.poi.getAll());
         setTourStops(api.tour.getAll());
       } catch {
@@ -278,6 +302,68 @@ function PublicViewerInner({ mapId }: Props) {
           activePlanId={activePlanId}
           onSelectPlan={setActivePlanId}
         />
+      )}
+
+      {activeRoom && (
+        <Box
+          sx={{
+            position: "absolute",
+            left: { xs: 16, md: 16 },
+            right: { xs: 16, md: "auto" },
+            bottom: { xs: 88, md: 16 },
+            width: { xs: "auto", md: 340 },
+            zIndex: 1400,
+            bgcolor: "var(--glass-bg)",
+            border: "1px solid var(--glass-border)",
+            backdropFilter: "blur(24px) saturate(140%)",
+            WebkitBackdropFilter: "blur(24px) saturate(140%)",
+            borderRadius: 2,
+            p: 2,
+            boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+            <Box
+              sx={{
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                bgcolor: getRoomTemplate(activeRoom.type).color,
+              }}
+            />
+            <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>
+              {activeRoom.name}
+            </Typography>
+            <IconButton size="small" onClick={() => setActiveRoomId(null)}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ fontSize: "0.7rem", letterSpacing: "0.06em", textTransform: "uppercase" }}
+          >
+            {getRoomTemplate(activeRoom.type).label}
+            {activeRoom.roomNumber ? ` · ${activeRoom.roomNumber}` : ""}
+            {` · Floor ${activeRoom.floor}`}
+          </Typography>
+          {activeRoom.occupants && activeRoom.occupants.length > 0 && (
+            <Box sx={{ mt: 1.5 }}>
+              {activeRoom.occupants.map((o, i) => (
+                <Box key={i} sx={{ mb: 0.5 }}>
+                  <Typography variant="body2" fontWeight={600}>
+                    {o.name}
+                  </Typography>
+                  {o.role && (
+                    <Typography variant="caption" color="text.secondary">
+                      {o.role}
+                    </Typography>
+                  )}
+                </Box>
+              ))}
+            </Box>
+          )}
+        </Box>
       )}
 
       {/* Where-am-I FAB. On mobile, sits above the bottom pill of controls. */}

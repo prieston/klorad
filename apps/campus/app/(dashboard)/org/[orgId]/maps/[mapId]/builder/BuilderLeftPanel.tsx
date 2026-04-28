@@ -49,10 +49,65 @@ export default function BuilderLeftPanel({ mapName, pois }: Props) {
   const sb = scene.standardBasemap ?? {};
 
   const setStyle = (url: string) => setMapboxSceneData({ styleUrl: url });
-  const toggleSb = (key: string, value: boolean) =>
-    setMapboxSceneData({ standardBasemap: { [key]: value } });
-  const setLightPreset = (p: (typeof LIGHT_PRESETS)[number]) =>
-    setMapboxSceneData({ standardBasemap: { lightPreset: p } });
+
+  /**
+   * Push the change to Mapbox directly *and* update the store so it
+   * round-trips through save/load. `useMapboxSceneSync` diffs scene
+   * JSON to decide whether to re-apply env config; for narrow updates
+   * like flipping a single toggle the diff sometimes coalesces and
+   * the map ends up stale. Calling `setConfigProperty` here guarantees
+   * the change lands immediately.
+   */
+  const applyStandardConfig = (key: string, value: unknown) => {
+    const map = useSceneStore.getState().mapboxMap as
+      | { setConfigProperty?: (importId: string, k: string, v: unknown) => void }
+      | null;
+    const importId = sb.importId ?? "basemap";
+    try {
+      map?.setConfigProperty?.(importId, key, value);
+    } catch {
+      /* classic styles have no basemap import */
+    }
+  };
+
+  const toggleSb = (key: string, value: boolean) => {
+    setMapboxSceneData({ standardBasemap: { ...sb, [key]: value } });
+    applyStandardConfig(key, value);
+  };
+  const setLightPreset = (p: (typeof LIGHT_PRESETS)[number]) => {
+    setMapboxSceneData({ standardBasemap: { ...sb, lightPreset: p } });
+    applyStandardConfig("lightPreset", p);
+  };
+
+  /** Apply a terrain change directly to the map for the same reason. */
+  const applyTerrain = (enabled: boolean, exaggeration: number) => {
+    const map = useSceneStore.getState().mapboxMap as
+      | {
+          setTerrain?: (t: { source: string; exaggeration: number } | null) => void;
+          getSource?: (id: string) => unknown;
+          addSource?: (id: string, src: object) => void;
+        }
+      | null;
+    if (!map?.setTerrain) return;
+    const SOURCE_ID = "klorad-terrain-dem";
+    try {
+      if (enabled) {
+        if (map.getSource && !map.getSource(SOURCE_ID) && map.addSource) {
+          map.addSource(SOURCE_ID, {
+            type: "raster-dem",
+            url: "mapbox://mapbox.mapbox-terrain-dem-v1",
+            tileSize: 512,
+            maxzoom: 14,
+          });
+        }
+        map.setTerrain({ source: SOURCE_ID, exaggeration });
+      } else {
+        map.setTerrain(null);
+      }
+    } catch {
+      /* terrain unsupported on this style */
+    }
+  };
 
   return (
     <LeftPanelContainer
@@ -317,11 +372,13 @@ export default function BuilderLeftPanel({ mapName, pois }: Props) {
               <ToggleRow
                 label="Terrain"
                 checked={scene.terrain?.enabled ?? false}
-                onChange={(v) =>
+                onChange={(v) => {
+                  const exaggeration = scene.terrain?.exaggeration ?? 1.2;
                   setMapboxSceneData({
-                    terrain: { enabled: v, exaggeration: scene.terrain?.exaggeration ?? 1.2 },
-                  })
-                }
+                    terrain: { enabled: v, exaggeration },
+                  });
+                  applyTerrain(v, exaggeration);
+                }}
               />
               {scene.terrain?.enabled && (
                 <Box sx={{ mt: 1, px: 1 }}>
@@ -334,14 +391,13 @@ export default function BuilderLeftPanel({ mapName, pois }: Props) {
                     max={3}
                     step={0.1}
                     value={scene.terrain?.exaggeration ?? 1.2}
-                    onChange={(_e, v) =>
+                    onChange={(_e, v) => {
+                      const exaggeration = Array.isArray(v) ? v[0] : v;
                       setMapboxSceneData({
-                        terrain: {
-                          enabled: true,
-                          exaggeration: Array.isArray(v) ? v[0] : v,
-                        },
-                      })
-                    }
+                        terrain: { enabled: true, exaggeration },
+                      });
+                      applyTerrain(true, exaggeration);
+                    }}
                   />
                 </Box>
               )}

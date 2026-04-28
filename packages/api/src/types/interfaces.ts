@@ -213,10 +213,84 @@ export interface FloorPlansAPI {
   forBuilding(buildingId: string): FloorPlan[];
 }
 
+/**
+ * Room types used for default rendering (color, icon) and filtering.
+ * Kept as a plain string union so consumers can extend without breaking
+ * the schema — anything unknown renders with a neutral style.
+ */
+export type RoomType =
+  | "office"
+  | "classroom"
+  | "lab"
+  | "amphitheatre"
+  | "library"
+  | "cafe"
+  | "wc"
+  | "utility"
+  | "corridor"
+  | "other";
+
+export interface RoomOccupant {
+  /** Person's name ("Prof. Papadopoulos"). */
+  name: string;
+  /** Role / title ("Associate Professor", "Head of Department"). */
+  role?: string;
+  /** Contact email — optional, used only by authenticated dashboards. */
+  email?: string;
+}
+
+export interface Room {
+  id: string;
+  /** Short display name shown on the click-to-focus card ("Office 204"). */
+  name: string;
+  /** Room-number label if the university uses one ("B3-204"). */
+  roomNumber?: string;
+  type: RoomType;
+  /** Optional reference to a Room Template (for styling defaults). */
+  templateId?: string;
+  /**
+   * Linked POI id — almost always the POI that represents the building.
+   * Used to keep the room's polygon associated with its building so the
+   * Level Switcher can filter by selected building.
+   */
+  buildingId: string;
+  /** Floor index — 0 = ground, 1 = first, -1 = basement, etc. */
+  floor: number;
+  /** Closed polygon ring in [lng, lat]. First and last points equal. */
+  polygon: [number, number][];
+  /** Extrusion height in meters. Defaults to 3m per floor. */
+  heightM?: number;
+  /** Optional icon override. */
+  icon?: string;
+  /** Optional hex color override (else derived from `type`). */
+  color?: string;
+  /** Occupants shown on the room card — professors, departments, etc. */
+  occupants?: RoomOccupant[];
+  /** ICS URL / integration endpoint for live schedule (Phase B). */
+  scheduleUrl?: string;
+  /** Admin-facing hidden flag. */
+  visible?: boolean;
+}
+
+export type RoomInput = Omit<Room, "id"> & { id?: string };
+
+export interface RoomsAPI {
+  add(input: RoomInput): Room;
+  update(id: string, patch: Partial<Room>): void;
+  remove(id: string): void;
+  setVisible(id: string, visible: boolean): void;
+  getAll(): Room[];
+  /** Rooms for a given building, sorted by floor asc. */
+  forBuilding(buildingId: string): Room[];
+  /** Rooms for a given building on a specific floor. */
+  forFloor(buildingId: string, floor: number): Room[];
+}
+
 export interface CampusAPI extends SceneAPI {
   readonly poi: POIManagerAPI;
   readonly layers: LayersAPI;
   readonly floorPlans: FloorPlansAPI;
+  readonly rooms: RoomsAPI;
   /** Re-center the campus map on a new location (persisted on save). */
   setLocation(lng: number, lat: number, options?: { zoom?: number; pitch?: number; bearing?: number; fly?: boolean }): void;
 }

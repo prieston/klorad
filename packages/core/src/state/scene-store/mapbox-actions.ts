@@ -35,6 +35,8 @@ export function createMapboxActions(set: any) {
               partial.floorPlanRasters !== undefined
                 ? partial.floorPlanRasters
                 : prev.floorPlanRasters,
+            rooms:
+              partial.rooms !== undefined ? partial.rooms : prev.rooms,
             terrain:
               partial.terrain !== undefined
                 ? { ...def.terrain!, ...prev.terrain, ...partial.terrain }
