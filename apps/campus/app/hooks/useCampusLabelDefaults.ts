@@ -3,8 +3,48 @@
 import { useEffect } from "react";
 import { useSceneStore } from "@klorad/core";
 
+interface MapboxLayer {
+  id: string;
+  type: string;
+}
+
 interface MapboxLike {
   setConfigProperty?: (importId: string, k: string, v: unknown) => void;
+  getStyle?: () => { layers?: MapboxLayer[] } | undefined;
+  setLayoutProperty?: (id: string, name: string, value: unknown) => void;
+  isStyleLoaded?: () => boolean;
+  on?: (event: string, handler: () => void) => void;
+  off?: (event: string, handler: () => void) => void;
+}
+
+/**
+ * Should this Mapbox style layer id be force-hidden on campus? Mapbox
+ * Standard's building / building-number / landmark / place / road /
+ * transit symbol layers don't all have a public toggle, but they share
+ * predictable id patterns. We hide every basemap symbol layer except
+ * our own `campus-` prefixed ones.
+ */
+function isBuiltinLabelLayer(layerId: string): boolean {
+  if (layerId.startsWith("campus-")) return false;
+  return (
+    /label/i.test(layerId) ||
+    /building-number/i.test(layerId) ||
+    /landmark/i.test(layerId)
+  );
+}
+
+function hideBuiltinLabels(map: MapboxLike) {
+  const style = map.getStyle?.();
+  const layers = style?.layers ?? [];
+  for (const layer of layers) {
+    if (layer.type !== "symbol") continue;
+    if (!isBuiltinLabelLayer(layer.id)) continue;
+    try {
+      map.setLayoutProperty?.(layer.id, "visibility", "none");
+    } catch {
+      /* layer may live in a basemap import — setLayoutProperty noops */
+    }
+  }
 }
 
 /**
@@ -91,5 +131,21 @@ export function useCampusLabelDefaults(sceneReady: boolean) {
         /* classic styles ignore basemap config */
       }
     }
+
+    // Belt-and-braces: hide any built-in symbol layer that survived the
+    // standardBasemap config (Mapbox doesn't expose a flag for the
+    // building-name / building-number / landmark labels but they share
+    // predictable ids). Re-run on every style.load because changing
+    // the base style resets layer visibility.
+    const apply = () => {
+      if (map.isStyleLoaded?.()) hideBuiltinLabels(map);
+    };
+    apply();
+    map.on?.("style.load", apply);
+    map.on?.("idle", apply);
+    return () => {
+      map.off?.("style.load", apply);
+      map.off?.("idle", apply);
+    };
   }, [sceneReady]);
 }

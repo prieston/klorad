@@ -16,7 +16,6 @@ import { Page, PageContent } from "@klorad/ui";
 import { Skeleton } from "@mui/material";
 import OverviewTab from "./tabs/OverviewTab";
 import SettingsTab from "./tabs/SettingsTab";
-import AssetsTab from "./tabs/AssetsTab";
 import IntegrationsTab from "./tabs/IntegrationsTab";
 
 interface Props {
@@ -35,11 +34,12 @@ interface CampusMap {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-type TabKey = "overview" | "settings" | "assets" | "integrations";
+// Floor-plan management lives in the Studio now (Buildings tab) so the
+// Assets tab is gone from the profile.
+type TabKey = "overview" | "settings" | "integrations";
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "settings", label: "Settings" },
-  { key: "assets", label: "Assets" },
   { key: "integrations", label: "Integrations" },
 ];
 
@@ -132,7 +132,6 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
       <PageContent>
         {activeTab === "overview" && <OverviewTab orgId={orgId} mapId={mapId} map={map} />}
         {activeTab === "settings" && <SettingsTab orgId={orgId} mapId={mapId} map={map} />}
-        {activeTab === "assets" && <AssetsTab orgId={orgId} mapId={mapId} />}
         {activeTab === "integrations" && <IntegrationsTab />}
       </PageContent>
     </Page>

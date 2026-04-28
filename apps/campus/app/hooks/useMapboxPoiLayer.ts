@@ -147,12 +147,19 @@ export function useMapboxPoiLayer({
             // Small placement buffer so labels don't crowd against each
             // other or the Standard style's labels.
             "text-padding": 4,
-          },
+            // Lift the label above any 3D extrusion (buildings / rooms)
+            // so the depth test never z-fights against an extrusion roof
+            // — this was the root cause of the 3D-buildings-on flicker.
+            "symbol-z-elevate": true,
+          } as mapboxgl.SymbolLayerSpecification["layout"],
           paint: {
             "text-color": "#ffffff",
             "text-halo-color": "rgba(0,0,0,0.85)",
             "text-halo-width": 1.8,
-          },
+            // When the label IS behind a 3D building (e.g. a tall
+            // landmark), fade it to 0 instead of flickering through.
+            "text-occlusion-opacity": 0,
+          } as mapboxgl.SymbolLayerSpecification["paint"],
         });
       }
       return true;

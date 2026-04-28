@@ -59,7 +59,9 @@ import type { CampusAPI, POI, POICategory } from "@klorad/api";
 import { useSceneStore } from "@klorad/core";
 import type { Map as MapboxMap, MapMouseEvent } from "mapbox-gl";
 import BuilderLeftPanel from "./BuilderLeftPanel";
-import LevelSwitcher from "@/app/components/LevelSwitcher";
+import BuildingsTree from "./BuildingsTree";
+import FloorPlanDrawer, { buildCornerBounds } from "./FloorPlanDrawer";
+import type { FloorPlan as KloradFloorPlan } from "@klorad/api";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxPoiDrag } from "@/app/hooks/useMapboxPoiDrag";
 import { useMapboxFloorPlanLayer } from "@/app/hooks/useMapboxFloorPlanLayer";
@@ -139,7 +141,7 @@ export default function BuilderClient({ mapId }: Props) {
     occupantRole: string;
   }>({ name: "", roomNumber: "", type: "office", occupantName: "", occupantRole: "" });
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<"poi" | "location">("poi");
+  const [activeView, setActiveView] = useState<"poi" | "location" | "buildings">("poi");
   const [sceneReady, setSceneReady] = useState(false);
   const apiRef = useRef<CampusAPI | null>(null);
   const mapboxScene = useSceneStore((s) => s.mapboxSceneData);
@@ -322,6 +324,90 @@ export default function BuilderClient({ mapId }: Props) {
     setRooms(apiRef.current.rooms.getAll());
     setEditingRoomId(null);
     toast.success("Room updated");
+  };
+
+  // --- Floor plan management (in the Buildings tab) ---
+  const [floorDrawerOpen, setFloorDrawerOpen] = useState(false);
+  const [floorDrawerBuildingId, setFloorDrawerBuildingId] = useState<string | null>(null);
+  const [editingFloorPlan, setEditingFloorPlan] = useState<KloradFloorPlan | null>(null);
+
+  const persistMap = async () => {
+    const sceneData = apiRef.current?.export();
+    if (!sceneData) return;
+    try {
+      await fetch(`/api/maps/${mapId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sceneData }),
+      });
+    } catch {
+      /* the user can hit Save explicitly */
+    }
+  };
+
+  const openAddFloor = (buildingPoiId: string) => {
+    setFloorDrawerBuildingId(buildingPoiId);
+    setEditingFloorPlan(null);
+    setFloorDrawerOpen(true);
+  };
+
+  const openEditFloor = (planId: string) => {
+    if (!apiRef.current) return;
+    const plan = apiRef.current.floorPlans.getAll().find((p) => p.id === planId);
+    if (!plan) return;
+    setEditingFloorPlan(plan);
+    setFloorDrawerBuildingId(plan.buildingId ?? null);
+    setFloorDrawerOpen(true);
+  };
+
+  const handleSaveFloorPlan = async (form: {
+    id: string;
+    name: string;
+    url: string;
+    buildingPoiId: string;
+    floor: number;
+    widthMeters: number;
+    heightMeters: number;
+  }) => {
+    if (!apiRef.current) return;
+    const building = pois.find((p) => p.id === form.buildingPoiId);
+    const lng = building?.linkedBuilding?.lng ?? building?.position[0];
+    const lat = building?.linkedBuilding?.lat ?? building?.position[1];
+    if (typeof lng !== "number" || typeof lat !== "number") {
+      toast.error("Pick a linked building.");
+      return;
+    }
+    pushSnapshot();
+    const coords = buildCornerBounds(lng, lat, form.widthMeters, form.heightMeters);
+    if (form.id) {
+      apiRef.current.floorPlans.update(form.id, {
+        name: form.name || `Floor ${form.floor}`,
+        url: form.url,
+        buildingId: form.buildingPoiId,
+        floor: form.floor,
+        coordinates: coords,
+      });
+      toast.success("Floor plan updated");
+    } else {
+      apiRef.current.floorPlans.add({
+        name: form.name || `Floor ${form.floor}`,
+        url: form.url,
+        buildingId: form.buildingPoiId,
+        floor: form.floor,
+        coordinates: coords,
+      });
+      toast.success("Floor plan added");
+    }
+    await persistMap();
+  };
+
+  const handleRemoveFloorPlan = async (planId: string) => {
+    if (!apiRef.current) return;
+    pushSnapshot();
+    apiRef.current.floorPlans.remove(planId);
+    if (activePlanId === planId) setActivePlanId(null);
+    toast.success("Floor plan removed");
+    await persistMap();
   };
 
   const deleteActiveRoom = () => {
@@ -819,13 +905,10 @@ export default function BuilderClient({ mapId }: Props) {
           <SceneToolbar tools={sceneTools} orientation="horizontal" />
         </Box>
 
-        {floorPlansForSelection.length > 0 && (
-          <LevelSwitcher
-            plans={floorPlansForSelection}
-            activePlanId={activePlanId}
-            onSelectPlan={setActivePlanId}
-          />
-        )}
+        {/* Floating LevelSwitcher is intentionally hidden in the Studio —
+            the Buildings tab tree is the canonical floor picker now. The
+            public viewer keeps the floating pill since end-users don't
+            have access to the studio panel. */}
 
         {placingPoi && (
           <Box
@@ -962,6 +1045,15 @@ export default function BuilderClient({ mapId }: Props) {
               onClick={() => setActiveView("poi")}
             />
             <ActionButton
+              icon={<ApartmentIcon />}
+              label="Buildings"
+              active={activeView === "buildings"}
+              onClick={() => {
+                setActiveView("buildings");
+                if (placingPoi) setPlacingPoi(false);
+              }}
+            />
+            <ActionButton
               icon={<ShareIcon />}
               label="Share"
               onClick={handleCopyShareUrl}
@@ -976,6 +1068,109 @@ export default function BuilderClient({ mapId }: Props) {
               <ChevronRightIcon fontSize="small" />
             </IconButton>
           </Box>
+
+          {activeView === "buildings" && (
+            <Box sx={{ flex: 1, overflow: "auto", p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography
+                  variant="overline"
+                  sx={{
+                    fontSize: "0.7rem",
+                    fontWeight: 600,
+                    color: "text.secondary",
+                    letterSpacing: "0.08em",
+                    flex: 1,
+                  }}
+                >
+                  Buildings
+                </Typography>
+                <Chip
+                  label={pois.filter((p) => p.linkedBuilding).length}
+                  size="small"
+                  sx={(t) => ({
+                    height: 20,
+                    fontSize: "0.7rem",
+                    bgcolor: alpha(t.palette.primary.main, 0.16),
+                    color: "primary.main",
+                    fontWeight: 600,
+                  })}
+                />
+              </Box>
+
+              {pois.filter((p) => p.linkedBuilding).length === 0 ? (
+                <Box
+                  sx={(t) => ({
+                    p: 2,
+                    borderRadius: 1,
+                    border: "1px dashed",
+                    borderColor: "divider",
+                    bgcolor: alpha(t.palette.primary.main, 0.04),
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 1.5,
+                  })}
+                >
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <ApartmentIcon sx={{ fontSize: 18, color: "primary.main" }} />
+                    <Typography variant="body2" fontWeight={600} sx={{ fontSize: "0.8125rem" }}>
+                      No buildings yet
+                    </Typography>
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.75rem" }}>
+                    Buildings are POIs anchored to a Mapbox 3D building footprint.
+                    Three steps from any POI:
+                  </Typography>
+                  <Stack spacing={0.5} sx={{ pl: 1 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.75rem" }}>
+                      1. Add or pick a POI on the map.
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.75rem" }}>
+                      2. Click the apartment icon in the top toolbar, then click a building on the map to link.
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.75rem" }}>
+                      3. Upload a floor plan in the Assets tab — it shows up here as a floor.
+                    </Typography>
+                  </Stack>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<AddLocationAltIcon sx={{ fontSize: 14 }} />}
+                    onClick={() => {
+                      setActiveView("poi");
+                      handleStartPlacingPoi();
+                    }}
+                    sx={{ alignSelf: "flex-start", textTransform: "none", mt: 0.5 }}
+                  >
+                    Place a POI to start
+                  </Button>
+                </Box>
+              ) : (
+                <BuildingsTree
+                  pois={pois}
+                  plans={apiRef.current?.floorPlans.getAll() ?? []}
+                  rooms={rooms}
+                  selectedPoiId={selectedPoiId}
+                  activePlanId={activePlanId}
+                  activeRoomId={activeRoomId}
+                  onSelectBuilding={(id) => {
+                    setSelectedPoiId(id);
+                    apiRef.current?.poi.flyTo(id);
+                  }}
+                  onSelectFloor={(poiId, planId) => {
+                    setSelectedPoiId(poiId);
+                    setActivePlanId(planId);
+                  }}
+                  onSelectRoom={(roomId) => {
+                    setActiveRoomId(roomId);
+                  }}
+                  onEditRoom={(roomId) => openEditRoom(roomId)}
+                  onAddFloor={openAddFloor}
+                  onEditFloor={openEditFloor}
+                  onRemoveFloor={(planId) => void handleRemoveFloorPlan(planId)}
+                />
+              )}
+            </Box>
+          )}
 
           {activeView === "location" && (
             <Box sx={{ flex: 1, overflow: "auto", p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
@@ -1757,6 +1952,21 @@ export default function BuilderClient({ mapId }: Props) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Floor plan add / edit drawer */}
+      <FloorPlanDrawer
+        open={floorDrawerOpen}
+        editingPlan={editingFloorPlan}
+        defaultBuildingPoiId={floorDrawerBuildingId}
+        linkedPois={pois.filter((p) => p.linkedBuilding)}
+        onClose={() => {
+          setFloorDrawerOpen(false);
+          setEditingFloorPlan(null);
+          setFloorDrawerBuildingId(null);
+        }}
+        onSave={handleSaveFloorPlan}
+        onDelete={handleRemoveFloorPlan}
+      />
 
       {/* Thumbnail preview drawer */}
       <RightDrawer
