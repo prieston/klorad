@@ -114,14 +114,15 @@ export type MessageKey = keyof typeof MESSAGES.en;
 
 const LocaleContext = createContext<Locale>(DEFAULT_LOCALE);
 
+/**
+ * URL-only locale detection. Browser-side preferences (localStorage,
+ * navigator.language) are intentionally NOT consulted here — they make
+ * the SSR pass disagree with the first client render and trigger React
+ * hydration warnings. The provider applies those preferences via
+ * useEffect after mount instead.
+ */
 export function detectLocale(urlParam?: string | null): Locale {
   if (urlParam === "el" || urlParam === "en") return urlParam;
-  if (typeof window !== "undefined") {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === "el" || stored === "en") return stored;
-    const nav = window.navigator.language?.toLowerCase() ?? "";
-    if (nav.startsWith("el")) return "el";
-  }
   return DEFAULT_LOCALE;
 }
 
@@ -133,6 +134,21 @@ export function LocaleProvider({
   children: React.ReactNode;
 }) {
   const [locale, setLocale] = useState<Locale>(initial);
+  // Server renders with `initial` (URL param or DEFAULT_LOCALE) so the
+  // markup matches the client's first paint. After mount, upgrade to
+  // any stored preference / browser language so returning visitors see
+  // their locale immediately.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === "el" || stored === "en") {
+      if (stored !== initial) setLocale(stored as Locale);
+      return;
+    }
+    const nav = window.navigator.language?.toLowerCase() ?? "";
+    if (nav.startsWith("el") && initial !== "el") setLocale("el");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_KEY, locale);

@@ -78,12 +78,20 @@ export function useMapboxRoomsLayer(
     const data = buildFeatureCollection(rooms);
 
     const install = () => {
-      if (!map.isStyleLoaded()) return;
-
-      if (!map.getSource(SOURCE_ID)) {
-        map.addSource(SOURCE_ID, { type: "geojson", data });
-      } else {
-        (map.getSource(SOURCE_ID) as GeoJSONSource).setData(data);
+      // Don't gate on isStyleLoaded() — Mapbox flips that flag false
+      // during config-property changes (e.g. campus label defaults), and
+      // we want to recover on the very tick those events fire. addSource
+      // / addLayer tolerate being called during a partial style load.
+      try {
+        if (!map.getSource(SOURCE_ID)) {
+          map.addSource(SOURCE_ID, { type: "geojson", data });
+        } else {
+          (map.getSource(SOURCE_ID) as GeoJSONSource).setData(data);
+        }
+      } catch {
+        // Style may be mid-swap; we'll get another shot on the next
+        // styledata / idle event.
+        return;
       }
 
       // Floor filter — rooms are floor-scoped: when a floor is active,
@@ -189,9 +197,15 @@ export function useMapboxRoomsLayer(
     };
 
     install();
+    // style.load fires once on initial load; styledata fires every time
+    // the style is updated (including after setConfigProperty wipes our
+    // custom layers); idle is the safety-net catch-all. install() is
+    // idempotent.
     const onStyleLoad = () => install();
+    const onStyleData = () => install();
     const onIdle = () => install();
     map.on("style.load", onStyleLoad);
+    map.on("styledata", onStyleData);
     map.on("idle", onIdle);
 
     // Click and cursor handlers — only attached once per layer install.
@@ -219,6 +233,7 @@ export function useMapboxRoomsLayer(
 
     return () => {
       map.off("style.load", onStyleLoad);
+      map.off("styledata", onStyleData);
       map.off("idle", onIdle);
       map.off("click", LAYER_ID, clickHandler);
       map.off("mouseenter", LAYER_ID, hoverEnter);
