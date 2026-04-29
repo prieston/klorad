@@ -21,8 +21,10 @@ interface Props {
   selectedPoiId: string | null;
   activePlanId: string | null;
   activeRoomId: string | null;
-  onSelectBuilding: (poiId: string) => void;
-  onSelectFloor: (poiId: string, planId: string | null) => void;
+  /** Pass `null` to deselect (toggle off). */
+  onSelectBuilding: (poiId: string | null) => void;
+  /** Pass `null, null` to deselect the active floor. */
+  onSelectFloor: (poiId: string | null, planId: string | null) => void;
   onSelectRoom: (roomId: string) => void;
   onEditRoom: (roomId: string) => void;
   onAddFloor: (buildingPoiId: string) => void;
@@ -139,8 +141,16 @@ export default function BuildingsTree({
             activePlanId={activePlanId}
             activeRoomId={activeRoomId}
             onToggle={() => toggle(b.poi.id)}
-            onSelectBuilding={() => onSelectBuilding(b.poi.id)}
-            onSelectFloor={(planId) => onSelectFloor(b.poi.id, planId)}
+            onSelectBuilding={() =>
+              onSelectBuilding(selectedPoiId === b.poi.id ? null : b.poi.id)
+            }
+            onSelectFloor={(planId) => {
+              // BuildingRow signals "select this floor" with a planId
+              // and "deselect" with null. We forward null/null to fully
+              // clear the floor selection at the tree level.
+              if (planId === null) onSelectFloor(null, null);
+              else onSelectFloor(b.poi.id, planId);
+            }}
             onSelectRoom={onSelectRoom}
             onEditRoom={onEditRoom}
             onAddFloor={() => onAddFloor(b.poi.id)}
@@ -282,7 +292,12 @@ function BuildingRow({
             buildingPoiId={building.poi.id}
             isActive={f.plan ? activePlanId === f.plan.id : false}
             activeRoomId={activeRoomId}
-            onSelectFloor={() => onSelectFloor(f.plan?.id ?? null)}
+            onSelectFloor={() => {
+              const myPlanId = f.plan?.id ?? null;
+              const myIsActive =
+                myPlanId !== null && activePlanId === myPlanId;
+              onSelectFloor(myIsActive ? null : myPlanId);
+            }}
             onSelectRoom={onSelectRoom}
             onEditRoom={onEditRoom}
             onEditFloor={() => f.plan && onEditFloor(f.plan.id)}

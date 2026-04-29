@@ -103,6 +103,8 @@ interface Options {
   selectedPoiId?: string | null;
   activeFloor?: number | null;
   onSelect?: (poiId: string) => void;
+  /** When false, click + hover are ignored (e.g. during polygon draw). */
+  clickEnabled?: boolean;
 }
 
 /**
@@ -127,11 +129,15 @@ export function useMapboxDrawnBuildingsLayer(
   opts: Options = {}
 ) {
   const map = useSceneStore((s) => s.mapboxMap as MapboxMap | null);
-  const { selectedPoiId, activeFloor, onSelect } = opts;
+  const { selectedPoiId, activeFloor, onSelect, clickEnabled = true } = opts;
   const onSelectRef = useRef(onSelect);
+  const clickEnabledRef = useRef(clickEnabled);
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+  useEffect(() => {
+    clickEnabledRef.current = clickEnabled;
+  }, [clickEnabled]);
 
   // Mount layers once per map.
   useEffect(() => {
@@ -185,6 +191,22 @@ export function useMapboxDrawnBuildingsLayer(
           },
         });
       }
+      // Keep room layers ON TOP of the building shells. Mapbox renders
+      // layers in style-add order, so the rooms (added by an earlier
+      // hook) end up beneath if we don't push them up. Without this
+      // the active floor's x-ray walls visually fight with the rooms
+      // sitting on the same slab.
+      for (const id of [
+        "campus-rooms-extrusion",
+        "campus-rooms-outline",
+        "campus-rooms-highlight",
+      ]) {
+        try {
+          if (map.getLayer(id)) map.moveLayer(id);
+        } catch {
+          /* layer may be momentarily detached during a style reload */
+        }
+      }
     };
 
     install();
@@ -202,17 +224,18 @@ export function useMapboxDrawnBuildingsLayer(
     map.on("styledata", onStyleData);
 
     const clickHandler = (e: MapMouseEvent) => {
+      if (!clickEnabledRef.current) return;
       const f = map.queryRenderedFeatures(e.point, {
         layers: [FILL_LAYER_ID, XRAY_LAYER_ID],
       })[0];
       if (!f) return;
       const id = f.properties?.buildingPoiId as string | undefined;
       if (id && onSelectRef.current) {
-
         onSelectRef.current(id);
       }
     };
     const hoverEnter = () => {
+      if (!clickEnabledRef.current) return;
       map.getCanvas().style.cursor = "pointer";
     };
     const hoverLeave = () => {
@@ -295,7 +318,10 @@ export function useMapboxDrawnBuildingsLayer(
     // Floor selected:
     //   solid layer: every feature OUTSIDE the selected building, plus
     //   floors strictly BELOW the active floor of the selected building.
-    //   (Active floor goes to the x-ray layer; floors above are clipped.)
+    //   The active floor's walls are NOT rendered at all — Mapbox's
+    //   depth-buffer would otherwise have a translucent shell occlude
+    //   the rooms inside it. Removing the active-floor shell exposes
+    //   the rooms directly.
     const solidFilter = [
       "any",
       ["!=", ["get", "buildingPoiId"], sel],
@@ -306,7 +332,8 @@ export function useMapboxDrawnBuildingsLayer(
       ],
     ] as unknown[];
     map.setFilter(FILL_LAYER_ID, solidFilter as never);
-    // Outline shows only floors <= active for the selected building.
+    // Outline shows only floors <= active for the selected building so
+    // the user still sees the active floor's footprint as a thin ring.
     map.setFilter(
       OUTLINE_LAYER_ID,
       [
@@ -319,14 +346,13 @@ export function useMapboxDrawnBuildingsLayer(
         ],
       ] as never
     );
-    // X-ray layer: only the active floor of the selected building.
+    // X-ray layer is permanently hidden in this strategy — Mapbox's
+    // depth buffer makes a translucent enclosing extrusion occlude
+    // the rooms inside, so we just don't render the active floor's
+    // walls at all. The slab + room layers handle the visualization.
     map.setFilter(
       XRAY_LAYER_ID,
-      [
-        "all",
-        ["==", ["get", "buildingPoiId"], sel],
-        ["==", ["get", "floor"], activeFloor],
-      ] as never
+      ["==", ["get", "buildingPoiId"], "__none__"] as never
     );
   }, [map, selectedPoiId, activeFloor]);
 }

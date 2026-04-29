@@ -30,7 +30,8 @@ function buildFeatureCollection(rooms: Room[]): GeoJSON.FeatureCollection {
         const h = roomHeightM(r);
         // Stack rooms on consistent floor slabs so a tall amphitheatre
         // on floor 1 still sits at FLOOR_HEIGHT_M m, not at 1×6 m.
-        const base = r.floor * FLOOR_HEIGHT_M + 0.2; // sit just above the slab
+        // 0.65 sits just above the slab's top face (0.6 thick).
+        const base = r.floor * FLOOR_HEIGHT_M + 0.65;
         const height = base + h;
         return {
           type: "Feature",
@@ -64,10 +65,12 @@ export function useMapboxRoomsLayer(
     activeFloor?: number | null;
     onSelect?: (roomId: string) => void;
     highlightRoomId?: string | null;
+    /** When false, click + hover ignored (e.g. during polygon draw). */
+    clickEnabled?: boolean;
   } = {}
 ) {
   const map = useSceneStore((s) => s.mapboxMap as MapboxMap | null);
-  const { activeFloor, onSelect, highlightRoomId } = opts;
+  const { activeFloor, onSelect, highlightRoomId, clickEnabled = true } = opts;
 
   useEffect(() => {
     if (!map) return;
@@ -153,17 +156,18 @@ export function useMapboxRoomsLayer(
 
     // Click and cursor handlers — only attached once per layer install.
     const clickHandler = (e: MapMouseEvent) => {
+      if (!clickEnabled) return;
       const feature = map.queryRenderedFeatures(e.point, {
         layers: [LAYER_ID],
       })[0];
       if (!feature) return;
       const id = (feature.properties?.id ?? feature.id) as string | undefined;
       if (id && onSelect) {
-
         onSelect(id);
       }
     };
     const hoverEnter = () => {
+      if (!clickEnabled) return;
       map.getCanvas().style.cursor = "pointer";
     };
     const hoverLeave = () => {
@@ -188,5 +192,5 @@ export function useMapboxRoomsLayer(
         /* ignore */
       }
     };
-  }, [map, rooms, activeFloor, onSelect, highlightRoomId]);
+  }, [map, rooms, activeFloor, onSelect, highlightRoomId, clickEnabled]);
 }

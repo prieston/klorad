@@ -255,6 +255,11 @@ export default function BuilderClient({ mapId }: Props) {
     return rooms.filter((r) => r.buildingId === selectedPoiId);
   }, [rooms, selectedPoiId]);
 
+  // Map-layer clicks should be muted while the user is actively
+  // tracing a polygon — otherwise the first vertex tap is intercepted
+  // by whatever's under the cursor and the polygon never starts.
+  const isDrawing = activeTool === "drawRoom" || activeTool === "drawBuilding";
+
   useMapboxRoomsLayer(roomsForSelection, {
     activeFloor: activePlan?.floor ?? null,
     onSelect: (id) => {
@@ -262,6 +267,7 @@ export default function BuilderClient({ mapId }: Props) {
       openEditRoom(id);
     },
     highlightRoomId: activeRoomId,
+    clickEnabled: !isDrawing,
   });
 
   // Render every drawn building as stacked 3D shells. Per-spec:
@@ -284,6 +290,7 @@ export default function BuilderClient({ mapId }: Props) {
       setSelectedPoiId(id);
       apiRef.current?.poi.flyTo(id);
     },
+    clickEnabled: !isDrawing,
   });
 
   // Floor slabs — thin discs at each floor's elevation. Only render
@@ -296,6 +303,7 @@ export default function BuilderClient({ mapId }: Props) {
       setActivePlanId(planId);
       setPendingRoomFloor(floor);
     },
+    clickEnabled: !isDrawing,
   });
 
   // Building polygon awaiting commit, plus its draft form.
@@ -1328,11 +1336,16 @@ export default function BuilderClient({ mapId }: Props) {
                   activeRoomId={activeRoomId}
                   onSelectBuilding={(id) => {
                     setSelectedPoiId(id);
-                    apiRef.current?.poi.flyTo(id);
+                    if (id) apiRef.current?.poi.flyTo(id);
+                    else {
+                      setActivePlanId(null);
+                      setPendingRoomFloor(null);
+                    }
                   }}
                   onSelectFloor={(poiId, planId) => {
                     setSelectedPoiId(poiId);
                     setActivePlanId(planId);
+                    if (planId === null) setPendingRoomFloor(null);
                   }}
                   onSelectRoom={(roomId) => {
                     setActiveRoomId(roomId);

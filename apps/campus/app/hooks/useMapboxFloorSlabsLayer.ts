@@ -78,7 +78,7 @@ function buildFeatureCollection(slabs: SlabFeature[]): GeoJSON.FeatureCollection
           buildingPoiId: s.buildingPoiId,
           floor: s.floor,
           base,
-          height: base + 0.2, // thin slab
+          height: base + 0.6, // slab thick enough to read from a pitched camera
           planId: s.planId ?? "",
         },
       } satisfies GeoJSON.Feature;
@@ -97,6 +97,8 @@ interface Options {
    * flying the camera.
    */
   onSelect?: (buildingPoiId: string, floor: number, planId: string | null) => void;
+  /** When false, click ignored (e.g. during polygon draw). */
+  clickEnabled?: boolean;
 }
 
 /**
@@ -113,11 +115,15 @@ export function useMapboxFloorSlabsLayer(
   opts: Options = {}
 ) {
   const map = useSceneStore((s) => s.mapboxMap as MapboxMap | null);
-  const { activePlanId, selectedBuildingPoiId, onSelect } = opts;
+  const { activePlanId, selectedBuildingPoiId, onSelect, clickEnabled = true } = opts;
   const onSelectRef = useRef(onSelect);
+  const clickEnabledRef = useRef(clickEnabled);
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+  useEffect(() => {
+    clickEnabledRef.current = clickEnabled;
+  }, [clickEnabled]);
 
   // Mount layer once per map.
   useEffect(() => {
@@ -151,10 +157,24 @@ export function useMapboxFloorSlabsLayer(
           source: SOURCE_ID,
           paint: {
             "line-color": "#6B9CD8",
-            "line-opacity": 0.5,
-            "line-width": 1,
+            "line-opacity": 0.95,
+            "line-width": 2,
           },
         });
+      }
+      // Re-promote the room layers above the slabs so rooms sitting on
+      // the active floor stay visible (avoids z-fight with the slab
+      // surface and shell walls).
+      for (const id of [
+        "campus-rooms-extrusion",
+        "campus-rooms-outline",
+        "campus-rooms-highlight",
+      ]) {
+        try {
+          if (map.getLayer(id)) map.moveLayer(id);
+        } catch {
+          /* ignore */
+        }
       }
     };
 
@@ -171,6 +191,7 @@ export function useMapboxFloorSlabsLayer(
     map.on("styledata", onStyleData);
 
     const clickHandler = (e: MapMouseEvent) => {
+      if (!clickEnabledRef.current) return;
       const f = map.queryRenderedFeatures(e.point, { layers: [FILL_LAYER_ID] })[0];
       if (!f) return;
       const buildingPoiId = f.properties?.buildingPoiId as string | undefined;
@@ -238,12 +259,14 @@ export function useMapboxFloorSlabsLayer(
     map.setFilter(FILL_LAYER_ID, filter as never);
     map.setFilter(OUTLINE_LAYER_ID, filter as never);
 
+    // Active slab gets the Klorad primary tint at full opacity so it
+    // reads as the floor surface; below floors stay neutral grey.
     map.setPaintProperty(FILL_LAYER_ID, "fill-extrusion-color", [
       "case",
       ["==", ["get", "planId"], activePlanId],
       "#6B9CD8",
       "#cbd5e1",
     ]);
-    map.setPaintProperty(FILL_LAYER_ID, "fill-extrusion-opacity", 0.6);
+    map.setPaintProperty(FILL_LAYER_ID, "fill-extrusion-opacity", 0.85);
   }, [map, activePlanId, selectedBuildingPoiId]);
 }
