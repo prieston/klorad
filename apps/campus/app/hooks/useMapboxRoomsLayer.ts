@@ -86,10 +86,18 @@ export function useMapboxRoomsLayer(
         (map.getSource(SOURCE_ID) as GeoJSONSource).setData(data);
       }
 
-      // Floor filter — when a floor is active, only that floor renders.
-      const floorFilter: unknown[] | null =
+      // Floor filter — rooms are floor-scoped: when a floor is active,
+      // only that floor renders; when no floor is active we filter to a
+      // sentinel value so nothing renders at all (matches the spec —
+      // rooms are an "inside the building, on this floor" detail).
+      const NO_FLOOR_FILTER: unknown[] = [
+        "==",
+        ["get", "floor"],
+        Number.NEGATIVE_INFINITY,
+      ];
+      const floorFilter: unknown[] =
         activeFloor === null || activeFloor === undefined
-          ? null
+          ? NO_FLOOR_FILTER
           : ["==", ["get", "floor"], activeFloor];
 
       if (!map.getLayer(LAYER_ID)) {
@@ -97,7 +105,7 @@ export function useMapboxRoomsLayer(
           id: LAYER_ID,
           type: "fill-extrusion",
           source: SOURCE_ID,
-          filter: (floorFilter ?? ["!=", ["get", "floor"], Number.NEGATIVE_INFINITY]) as never,
+          filter: floorFilter as never,
           paint: {
             "fill-extrusion-color": ["get", "color"],
             "fill-extrusion-base": ["get", "base"],
@@ -105,10 +113,8 @@ export function useMapboxRoomsLayer(
             "fill-extrusion-opacity": 0.85,
           },
         });
-      } else if (floorFilter) {
-        map.setFilter(LAYER_ID, floorFilter as never);
       } else {
-        map.setFilter(LAYER_ID, null);
+        map.setFilter(LAYER_ID, floorFilter as never);
       }
 
       if (!map.getLayer(LAYER_OUTLINE_ID)) {
@@ -116,17 +122,15 @@ export function useMapboxRoomsLayer(
           id: LAYER_OUTLINE_ID,
           type: "line",
           source: SOURCE_ID,
-          filter: (floorFilter ?? ["!=", ["get", "floor"], Number.NEGATIVE_INFINITY]) as never,
+          filter: floorFilter as never,
           paint: {
             "line-color": "#ffffff",
             "line-opacity": 0.5,
             "line-width": 1,
           },
         });
-      } else if (floorFilter) {
-        map.setFilter(LAYER_OUTLINE_ID, floorFilter as never);
       } else {
-        map.setFilter(LAYER_OUTLINE_ID, null);
+        map.setFilter(LAYER_OUTLINE_ID, floorFilter as never);
       }
 
       // Highlight ring around the currently-selected room.

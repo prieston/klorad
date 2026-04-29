@@ -32,7 +32,6 @@ import {
 import { getRoomTemplate } from "@/app/lib/roomTemplates";
 import type { Room } from "@klorad/api";
 import { useMapboxRoute, type RouteMode } from "@/app/hooks/useMapboxRoute";
-import LevelSwitcher from "@/app/components/LevelSwitcher";
 import WayfindingPanel, { MY_LOCATION_ID } from "@/app/components/WayfindingPanel";
 import WhereAmIButton from "@/app/components/WhereAmIButton";
 import BrandedHeader from "@/app/components/BrandedHeader";
@@ -45,6 +44,7 @@ import {
   LayersIcon,
   TourIcon,
   DirectionsIcon,
+  ArrowBackIcon,
 } from "@klorad/ui";
 
 const MapboxViewer = dynamic(
@@ -222,18 +222,19 @@ function PublicViewerInner({ mapId }: Props) {
   });
   useEffect(() => setActiveRoomId(null), [selectedPoiId, activePlanId]);
 
-  // Auto-activate the lowest-numbered floor when a building is selected
-  // and the user hasn't picked one yet. Without this the viewer needs
-  // two taps (building → LevelSwitcher) before rooms become visible.
+  // Auto-open the left navigation panel when something on the map is
+  // selected. Without this the user clicks a building (or room) and
+  // their detail view stays hidden behind a closed drawer.
   useEffect(() => {
-    if (!selectedPoiId || activePlanId) return;
-    const plans = floorPlansForSelection;
-    if (plans.length === 0) return;
-    const lowest = [...plans].sort(
-      (a, b) => (a.floor ?? 0) - (b.floor ?? 0)
-    )[0];
-    setActivePlanId(lowest.id);
-  }, [selectedPoiId, activePlanId, floorPlansForSelection]);
+    if (!selectedPoiId && !activeRoomId) return;
+    setActivePanel((prev) => (prev === "wayfind" || prev === "tour" ? prev : "search"));
+  }, [selectedPoiId, activeRoomId]);
+
+  // All rooms — used for global room search across buildings.
+  const allRoomsForSearch = useMemo<Room[]>(() => {
+    if (!apiRef.current) return [];
+    return apiRef.current.rooms.getAll();
+  }, [pois, sceneReady]);
 
   useEffect(() => {
     const api = createSceneAPI("mapbox", "campus") as CampusAPI;
@@ -269,6 +270,19 @@ function PublicViewerInner({ mapId }: Props) {
     if (!query.trim() || !apiRef.current) return pois;
     return apiRef.current.poi.search(query);
   }, [query, pois]);
+
+  // Same query against rooms — name, room number, and occupant names so
+  // "Bio 101" or "Dr. Papadopoulos" find their room.
+  const filteredRooms = useMemo<Room[]>(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return allRoomsForSearch.filter((r) => {
+      if (r.name?.toLowerCase().includes(q)) return true;
+      if (r.roomNumber?.toLowerCase().includes(q)) return true;
+      if (r.occupants?.some((o) => o.name?.toLowerCase().includes(q))) return true;
+      return false;
+    });
+  }, [query, allRoomsForSearch]);
 
   // For each matching POI, also surface its events that match the query
   // so "Bio 101" can select the room AND surface the live lecture card.
@@ -317,6 +331,50 @@ function PublicViewerInner({ mapId }: Props) {
   const togglePanel = (panel: Panel) =>
     setActivePanel((prev) => (prev === panel ? null : panel));
 
+  const selectedPoi = useMemo(
+    () => (selectedPoiId ? pois.find((p) => p.id === selectedPoiId) ?? null : null),
+    [selectedPoiId, pois]
+  );
+
+  const sortedFloorsForBuilding = useMemo(
+    () => [...floorPlansForSelection].sort((a, b) => (a.floor ?? 0) - (b.floor ?? 0)),
+    [floorPlansForSelection]
+  );
+
+  // Inner-view derivation. The drawer header + body switch on this:
+  //   list     — search and pick anything
+  //   building — building name + clickable floors
+  //   room     — room details + back to its building
+  const panelView: "list" | "building" | "room" =
+    activeRoom ? "room" : selectedPoi ? "building" : "list";
+
+  const goToBuilding = (poi: POI) => {
+    setActiveRoomId(null);
+    setActivePlanId(null);
+    setSelectedPoiId(poi.id);
+    apiRef.current?.poi.flyTo(poi.id);
+  };
+
+  const goToRoom = (room: Room) => {
+    setSelectedPoiId(room.buildingId);
+    const plan = apiRef.current?.floorPlans
+      .forBuilding(room.buildingId)
+      .find((p) => p.floor === room.floor);
+    setActivePlanId(plan?.id ?? null);
+    setActiveRoomId(room.id);
+    apiRef.current?.poi.flyTo(room.buildingId);
+  };
+
+  const backFromBuilding = () => {
+    setSelectedPoiId(null);
+    setActivePlanId(null);
+    setActiveRoomId(null);
+  };
+
+  const backFromRoom = () => {
+    setActiveRoomId(null);
+  };
+
   const goToStop = (idx: number) => {
     apiRef.current?.tour.goTo(idx);
     setCurrentStop(idx);
@@ -328,76 +386,6 @@ function PublicViewerInner({ mapId }: Props) {
       {sceneReady ? <MapboxViewer /> : <MapLoadingFallback />}
 
       <BrandedHeader logo={branding.logo} alt={branding.name ?? "Logo"} />
-
-      {floorPlansForSelection.length > 0 && (
-        <LevelSwitcher
-          plans={floorPlansForSelection}
-          activePlanId={activePlanId}
-          onSelectPlan={setActivePlanId}
-        />
-      )}
-
-      {activeRoom && (
-        <Box
-          sx={{
-            position: "absolute",
-            left: { xs: 16, md: 16 },
-            right: { xs: 16, md: "auto" },
-            bottom: { xs: 88, md: 16 },
-            width: { xs: "auto", md: 340 },
-            zIndex: 1400,
-            bgcolor: "var(--glass-bg)",
-            border: "1px solid var(--glass-border)",
-            backdropFilter: "blur(24px) saturate(140%)",
-            WebkitBackdropFilter: "blur(24px) saturate(140%)",
-            borderRadius: 2,
-            p: 2,
-            boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-            <Box
-              sx={{
-                width: 10,
-                height: 10,
-                borderRadius: "50%",
-                bgcolor: getRoomTemplate(activeRoom.type).color,
-              }}
-            />
-            <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>
-              {activeRoom.name}
-            </Typography>
-            <IconButton size="small" onClick={() => setActiveRoomId(null)}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </Box>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ fontSize: "0.7rem", letterSpacing: "0.06em", textTransform: "uppercase" }}
-          >
-            {getRoomTemplate(activeRoom.type).label}
-            {activeRoom.roomNumber ? ` · ${activeRoom.roomNumber}` : ""}
-            {` · Floor ${activeRoom.floor}`}
-          </Typography>
-          {activeRoom.occupants && activeRoom.occupants.length > 0 && (
-            <Box sx={{ mt: 1.5 }}>
-              {activeRoom.occupants.map((o, i) => (
-                <Box key={i} sx={{ mb: 0.5 }}>
-                  <Typography variant="body2" fontWeight={600}>
-                    {o.name}
-                  </Typography>
-                  {o.role && (
-                    <Typography variant="caption" color="text.secondary">
-                      {o.role}
-                    </Typography>
-                  )}
-                </Box>
-              ))}
-            </Box>
-          )}
-        </Box>
-      )}
 
       {/* Where-am-I FAB. On mobile, sits above the bottom pill of controls. */}
       <WhereAmIButton
@@ -497,96 +485,321 @@ function PublicViewerInner({ mapId }: Props) {
         }
       >
         <Box sx={{ p: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 0.5 }}>
+            {panelView !== "list" && (
+              <IconButton
+                size="small"
+                onClick={panelView === "room" ? backFromRoom : backFromBuilding}
+              >
+                <ArrowBackIcon fontSize="small" />
+              </IconButton>
+            )}
             <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>
-              {t("search.title")}
+              {panelView === "room"
+                ? activeRoom?.name
+                : panelView === "building"
+                  ? selectedPoi?.name
+                  : t("search.title")}
             </Typography>
             <IconButton size="small" onClick={() => setActivePanel(null)}>
               <CloseIcon fontSize="small" />
             </IconButton>
           </Box>
-          <TextField
-            fullWidth
-            size="small"
-            placeholder={t("search.placeholder")}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
-          <List dense sx={{ mt: 1 }}>
-            {filteredPois.map((poi) => {
-              const matchedEventId = matchedEvents.get(poi.id);
-              const event = matchedEventId
-                ? poi.events?.find((e) => e.id === matchedEventId)
-                : null;
-              return (
-              <Box
-                key={poi.id}
-                sx={{
-                  borderRadius: 1,
-                  mb: 0.5,
-                  overflow: "hidden",
-                  border: event ? "1px solid" : "none",
-                  borderColor: "primary.main",
+
+          {panelView === "list" && (
+            <>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder={t("search.placeholder")}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  },
                 }}
-              >
-                <ListItemButton
-                  onClick={() => revealPoiAndEvent(poi)}
-                  sx={{ borderRadius: 0, py: 0.75 }}
+              />
+              <List dense sx={{ mt: 1 }}>
+                {filteredPois.map((poi) => {
+                  const matchedEventId = matchedEvents.get(poi.id);
+                  const event = matchedEventId
+                    ? poi.events?.find((e) => e.id === matchedEventId)
+                    : null;
+                  return (
+                    <Box
+                      key={poi.id}
+                      sx={{
+                        borderRadius: 1,
+                        mb: 0.5,
+                        overflow: "hidden",
+                        border: event ? "1px solid" : "none",
+                        borderColor: "primary.main",
+                      }}
+                    >
+                      <ListItemButton
+                        onClick={() => {
+                          if (query.trim()) revealPoiAndEvent(poi);
+                          else goToBuilding(poi);
+                        }}
+                        sx={{ borderRadius: 0, py: 0.75 }}
+                      >
+                        <ListItemText
+                          primary={poi.name}
+                          secondary={
+                            typeof poi.floor === "number"
+                              ? `${poi.category ?? "POI"} · ${t("search.floor")} ${poi.floor === 0 ? "Γ" : poi.floor}`
+                              : poi.category
+                          }
+                          primaryTypographyProps={{ fontSize: "0.875rem" }}
+                          secondaryTypographyProps={{ fontSize: "0.75rem" }}
+                        />
+                      </ListItemButton>
+                      {event && (
+                        <Box
+                          sx={{
+                            px: 2,
+                            py: 1,
+                            bgcolor: "rgba(107,156,216,0.08)",
+                            borderTop: "1px solid",
+                            borderColor: "divider",
+                          }}
+                        >
+                          <Typography variant="caption" color="primary.main" sx={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                            {isHappeningNow(event)
+                              ? t("search.happeningNow")
+                              : `${t("search.happeningSoon")} · ${formatWhen(event, t)}`}
+                          </Typography>
+                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: "0.8125rem" }}>
+                            {event.title}
+                          </Typography>
+                          {(event.courseCode || event.lecturer) && (
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem", display: "block" }}>
+                              {[event.courseCode, event.lecturer].filter(Boolean).join(" · ")}
+                            </Typography>
+                          )}
+                        </Box>
+                      )}
+                    </Box>
+                  );
+                })}
+                {filteredRooms.map((r) => {
+                  const tpl = getRoomTemplate(r.type);
+                  const building = pois.find((p) => p.id === r.buildingId);
+                  return (
+                    <ListItemButton
+                      key={`room-${r.id}`}
+                      onClick={() => goToRoom(r)}
+                      sx={{ borderRadius: 1, py: 0.75, mb: 0.5 }}
+                    >
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          bgcolor: tpl.color,
+                          mr: 1.25,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <ListItemText
+                        primary={r.name}
+                        secondary={`${tpl.label}${r.roomNumber ? ` · ${r.roomNumber}` : ""}${building ? ` · ${building.name}` : ""} · ${t("search.floor")} ${r.floor === 0 ? "Γ" : r.floor}`}
+                        primaryTypographyProps={{ fontSize: "0.875rem" }}
+                        secondaryTypographyProps={{ fontSize: "0.75rem" }}
+                      />
+                    </ListItemButton>
+                  );
+                })}
+                {query &&
+                  filteredPois.length === 0 &&
+                  filteredRooms.length === 0 && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ py: 2, textAlign: "center" }}
+                    >
+                      {t("search.noResults", { query })}
+                    </Typography>
+                  )}
+              </List>
+            </>
+          )}
+
+          {panelView === "building" && selectedPoi && (
+            <Box>
+              {selectedPoi.category && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{
+                    fontSize: "0.7rem",
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    display: "block",
+                    mb: 1.5,
+                  }}
                 >
-                  <ListItemText
-                    primary={poi.name}
-                    secondary={
-                      typeof poi.floor === "number"
-                        ? `${poi.category ?? "POI"} · ${t("search.floor")} ${poi.floor === 0 ? "Γ" : poi.floor}`
-                        : poi.category
-                    }
-                    primaryTypographyProps={{ fontSize: "0.875rem" }}
-                    secondaryTypographyProps={{ fontSize: "0.75rem" }}
-                  />
-                </ListItemButton>
-                {event && (
-                  <Box
-                    sx={{
-                      px: 2,
-                      py: 1,
-                      bgcolor: "rgba(107,156,216,0.08)",
-                      borderTop: "1px solid",
-                      borderColor: "divider",
-                    }}
-                  >
-                    <Typography variant="caption" color="primary.main" sx={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                      {isHappeningNow(event)
-                        ? t("search.happeningNow")
-                        : `${t("search.happeningSoon")} · ${formatWhen(event, t)}`}
-                    </Typography>
-                    <Typography variant="body2" fontWeight={600} sx={{ fontSize: "0.8125rem" }}>
-                      {event.title}
-                    </Typography>
-                    {(event.courseCode || event.lecturer) && (
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem", display: "block" }}>
-                        {[event.courseCode, event.lecturer].filter(Boolean).join(" · ")}
-                      </Typography>
-                    )}
-                  </Box>
-                )}
-              </Box>
-              );
-            })}
-            {filteredPois.length === 0 && query && (
-              <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: "center" }}>
-                {t("search.noResults", { query })}
+                  {selectedPoi.category}
+                </Typography>
+              )}
+              <Typography
+                variant="overline"
+                sx={{ fontSize: "0.7rem", fontWeight: 600, color: "text.secondary" }}
+              >
+                Floors
               </Typography>
-            )}
-          </List>
+              {sortedFloorsForBuilding.length === 0 ? (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ py: 2, fontSize: "0.8125rem" }}
+                >
+                  No floors yet.
+                </Typography>
+              ) : (
+                <List dense sx={{ mt: 0.5 }}>
+                  {sortedFloorsForBuilding.map((plan) => {
+                    const isActive = plan.id === activePlanId;
+                    return (
+                      <ListItemButton
+                        key={plan.id}
+                        onClick={() =>
+                          setActivePlanId(isActive ? null : plan.id)
+                        }
+                        selected={isActive}
+                        sx={{ borderRadius: 1, py: 0.75, mb: 0.5 }}
+                      >
+                        <ListItemText
+                          primary={
+                            plan.name?.trim() ||
+                            (plan.floor === 0
+                              ? "Ground floor"
+                              : (plan.floor ?? 0) < 0
+                                ? `Basement ${Math.abs(plan.floor ?? 0)}`
+                                : `Floor ${plan.floor}`)
+                          }
+                          secondary={
+                            isActive
+                              ? `${roomsForSelection.filter((r) => r.floor === plan.floor).length} rooms · tap to hide`
+                              : `${roomsForSelection.filter((r) => r.floor === plan.floor).length} rooms`
+                          }
+                          primaryTypographyProps={{ fontSize: "0.875rem" }}
+                          secondaryTypographyProps={{ fontSize: "0.75rem" }}
+                        />
+                      </ListItemButton>
+                    );
+                  })}
+                </List>
+              )}
+              {activePlan && (
+                <>
+                  <Typography
+                    variant="overline"
+                    sx={{ fontSize: "0.7rem", fontWeight: 600, color: "text.secondary", mt: 1.5, display: "block" }}
+                  >
+                    Rooms on this floor
+                  </Typography>
+                  <List dense sx={{ mt: 0.5 }}>
+                    {roomsForSelection
+                      .filter((r) => r.floor === activePlan.floor)
+                      .map((r) => {
+                        const tpl = getRoomTemplate(r.type);
+                        return (
+                          <ListItemButton
+                            key={r.id}
+                            onClick={() => goToRoom(r)}
+                            sx={{ borderRadius: 1, py: 0.75, mb: 0.5 }}
+                          >
+                            <Box
+                              sx={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                bgcolor: tpl.color,
+                                mr: 1.25,
+                                flexShrink: 0,
+                              }}
+                            />
+                            <ListItemText
+                              primary={r.name}
+                              secondary={
+                                r.roomNumber
+                                  ? `${tpl.label} · ${r.roomNumber}`
+                                  : tpl.label
+                              }
+                              primaryTypographyProps={{ fontSize: "0.875rem" }}
+                              secondaryTypographyProps={{ fontSize: "0.75rem" }}
+                            />
+                          </ListItemButton>
+                        );
+                      })}
+                  </List>
+                </>
+              )}
+            </Box>
+          )}
+
+          {panelView === "room" && activeRoom && (
+            <Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                <Box
+                  sx={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "50%",
+                    bgcolor: getRoomTemplate(activeRoom.type).color,
+                  }}
+                />
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{
+                    fontSize: "0.7rem",
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {getRoomTemplate(activeRoom.type).label}
+                  {activeRoom.roomNumber ? ` · ${activeRoom.roomNumber}` : ""}
+                  {` · ${t("search.floor")} ${activeRoom.floor === 0 ? "Γ" : activeRoom.floor}`}
+                </Typography>
+              </Box>
+              {selectedPoi && (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                  {selectedPoi.name}
+                </Typography>
+              )}
+              {activeRoom.occupants && activeRoom.occupants.length > 0 && (
+                <>
+                  <Typography
+                    variant="overline"
+                    sx={{ fontSize: "0.7rem", fontWeight: 600, color: "text.secondary" }}
+                  >
+                    Occupants
+                  </Typography>
+                  <Box sx={{ mt: 0.5 }}>
+                    {activeRoom.occupants.map((o, i) => (
+                      <Box key={i} sx={{ mb: 1 }}>
+                        <Typography variant="body2" fontWeight={600}>
+                          {o.name}
+                        </Typography>
+                        {o.role && (
+                          <Typography variant="caption" color="text.secondary">
+                            {o.role}
+                          </Typography>
+                        )}
+                      </Box>
+                    ))}
+                  </Box>
+                </>
+              )}
+            </Box>
+          )}
         </Box>
       </Drawer>
 
