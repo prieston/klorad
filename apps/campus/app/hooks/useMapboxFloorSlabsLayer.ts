@@ -169,6 +169,7 @@ export function useMapboxFloorSlabsLayer(
         "campus-rooms-extrusion",
         "campus-rooms-outline",
         "campus-rooms-highlight",
+        "campus-rooms-label",
       ]) {
         try {
           if (map.getLayer(id)) map.moveLayer(id);

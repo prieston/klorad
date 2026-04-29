@@ -15,6 +15,7 @@ const SOURCE_ID = "campus-rooms";
 const LAYER_ID = "campus-rooms-extrusion";
 const LAYER_OUTLINE_ID = "campus-rooms-outline";
 const LAYER_HIGHLIGHT_ID = "campus-rooms-highlight";
+const LAYER_LABEL_ID = "campus-rooms-label";
 
 function buildFeatureCollection(rooms: Room[]): GeoJSON.FeatureCollection {
   return {
@@ -146,6 +147,41 @@ export function useMapboxRoomsLayer(
       } else {
         map.setFilter(LAYER_HIGHLIGHT_ID, highlightFilter as never);
       }
+
+      // Room name labels — only render when a floor is active so we
+      // don't paint dozens of names across stacked floors. Mapbox places
+      // a polygon's symbol at its centroid. `symbol-z-elevate` lifts the
+      // label above the extrusion roof so it never z-fights with the
+      // room geometry.
+      if (!map.getLayer(LAYER_LABEL_ID)) {
+        map.addLayer({
+          id: LAYER_LABEL_ID,
+          type: "symbol",
+          source: SOURCE_ID,
+          filter: (floorFilter ?? ["==", ["get", "floor"], Number.NEGATIVE_INFINITY]) as never,
+          layout: {
+            "text-field": ["get", "name"] as never,
+            "text-size": 12,
+            "text-anchor": "center",
+            "text-allow-overlap": false,
+            "text-ignore-placement": false,
+            "text-padding": 2,
+            "symbol-z-elevate": true,
+          },
+          paint: {
+            "text-color": "#ffffff",
+            "text-halo-color": "rgba(0,0,0,0.85)",
+            "text-halo-width": 1.6,
+          },
+        });
+      } else if (floorFilter) {
+        map.setFilter(LAYER_LABEL_ID, floorFilter as never);
+      } else {
+        map.setFilter(
+          LAYER_LABEL_ID,
+          ["==", ["get", "floor"], Number.NEGATIVE_INFINITY] as never
+        );
+      }
     };
 
     install();
@@ -184,6 +220,7 @@ export function useMapboxRoomsLayer(
       map.off("mouseenter", LAYER_ID, hoverEnter);
       map.off("mouseleave", LAYER_ID, hoverLeave);
       try {
+        if (map.getLayer(LAYER_LABEL_ID)) map.removeLayer(LAYER_LABEL_ID);
         if (map.getLayer(LAYER_HIGHLIGHT_ID)) map.removeLayer(LAYER_HIGHLIGHT_ID);
         if (map.getLayer(LAYER_OUTLINE_ID)) map.removeLayer(LAYER_OUTLINE_ID);
         if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID);
