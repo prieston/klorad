@@ -209,7 +209,10 @@ function PublicViewerInner({ mapId }: Props) {
   useMapboxFloorSlabsLayer(pois, allPlansViewer, allRoomsViewer, {
     activePlanId,
     selectedBuildingPoiId: selectedPoiId,
-    onSelect: (buildingId) => setSelectedPoiId(buildingId),
+    onSelect: (buildingId, _floor, planId) => {
+      setSelectedPoiId(buildingId);
+      if (planId) setActivePlanId(planId);
+    },
   });
 
   useMapboxRoomsLayer(roomsForSelection, {
@@ -218,6 +221,19 @@ function PublicViewerInner({ mapId }: Props) {
     highlightRoomId: activeRoomId,
   });
   useEffect(() => setActiveRoomId(null), [selectedPoiId, activePlanId]);
+
+  // Auto-activate the lowest-numbered floor when a building is selected
+  // and the user hasn't picked one yet. Without this the viewer needs
+  // two taps (building → LevelSwitcher) before rooms become visible.
+  useEffect(() => {
+    if (!selectedPoiId || activePlanId) return;
+    const plans = floorPlansForSelection;
+    if (plans.length === 0) return;
+    const lowest = [...plans].sort(
+      (a, b) => (a.floor ?? 0) - (b.floor ?? 0)
+    )[0];
+    setActivePlanId(lowest.id);
+  }, [selectedPoiId, activePlanId, floorPlansForSelection]);
 
   useEffect(() => {
     const api = createSceneAPI("mapbox", "campus") as CampusAPI;
