@@ -78,6 +78,18 @@ export function useMapboxPoiLayer({
   const onClickRef = useRef(onPoiClick);
   onClickRef.current = onPoiClick;
 
+  // Refs so the install closure (which only re-runs when `map` changes)
+  // always sees the latest features. Without this, a style reload after
+  // pois change would briefly re-paint with stale data.
+  const poisRef = useRef(pois);
+  const selectedPoiIdRef = useRef(selectedPoiId);
+  useEffect(() => {
+    poisRef.current = pois;
+  }, [pois]);
+  useEffect(() => {
+    selectedPoiIdRef.current = selectedPoiId;
+  }, [selectedPoiId]);
+
   // Reactive subscription — the map is created async by MapboxViewer, so we
   // need to re-run this effect once it becomes available.
   const map = useSceneStore((s) => s.mapboxMap as MapboxMap | null);
@@ -88,7 +100,7 @@ export function useMapboxPoiLayer({
     const install = () => {
       if (!map.isStyleLoaded()) return false;
 
-      const data = toFeatureCollection(pois, selectedPoiId);
+      const data = toFeatureCollection(poisRef.current, selectedPoiIdRef.current);
 
       if (!map.getSource(SOURCE_ID)) {
         map.addSource(SOURCE_ID, { type: "geojson", data });
@@ -154,10 +166,15 @@ export function useMapboxPoiLayer({
             // Small placement buffer so labels don't crowd against each
             // other or the Standard style's labels.
             "text-padding": 4,
-            // Lift the label above any 3D extrusion (buildings / rooms)
-            // so the depth test never z-fights against an extrusion roof
-            // — this was the root cause of the 3D-buildings-on flicker.
-            "symbol-z-elevate": true,
+            // Intentionally NOT setting `symbol-z-elevate`. Mapbox
+            // recomputes the symbol's z from the 3D scene every frame
+            // when this is on, and with our two extrusion layers
+            // (drawn buildings + floor slabs) the height never settles
+            // — labels jump between building-roof and ground level.
+            // Letting labels sit at ground + `text-occlusion-opacity: 0`
+            // gives the same effect as Mapbox Standard's own POI labels:
+            // they render normally, and fade out cleanly when a 3D
+            // building stands in front.
           } as mapboxgl.SymbolLayerSpecification["layout"],
           paint: {
             // Marketing-tuned label — slightly off-white text on a soft
@@ -184,14 +201,14 @@ export function useMapboxPoiLayer({
     const onEnter = () => (map.getCanvas().style.cursor = "pointer");
     const onLeave = () => (map.getCanvas().style.cursor = "");
 
+    let handlersAttached = false;
     const attachHandlersOnce = () => {
+      if (handlersAttached) return;
       if (!map.getLayer(PIN_LAYER_ID)) return;
-      map.off("click", PIN_LAYER_ID, onClick);
-      map.off("mouseenter", PIN_LAYER_ID, onEnter);
-      map.off("mouseleave", PIN_LAYER_ID, onLeave);
       map.on("click", PIN_LAYER_ID, onClick);
       map.on("mouseenter", PIN_LAYER_ID, onEnter);
       map.on("mouseleave", PIN_LAYER_ID, onLeave);
+      handlersAttached = true;
     };
 
     const tryInstall = () => {

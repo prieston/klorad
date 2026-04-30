@@ -178,13 +178,16 @@ export function useMapboxRoomsLayer(
             "text-allow-overlap": false,
             "text-ignore-placement": false,
             "text-padding": 2,
-            "symbol-z-elevate": true,
+            // No `symbol-z-elevate` — see useMapboxPoiLayer.ts for the
+            // same reasoning. Lifting per-frame against two extrusion
+            // layers makes labels flicker between roof and ground.
           },
           paint: {
             "text-color": "#f5f7fa",
             "text-halo-color": "rgba(15,23,42,0.78)",
             "text-halo-width": 1.3,
             "text-halo-blur": 0.6,
+            "text-occlusion-opacity": 0,
           },
         });
       } else if (floorFilter) {
