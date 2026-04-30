@@ -133,18 +133,26 @@ export function useCampusLabelDefaults(sceneReady: boolean) {
     }
 
     // Belt-and-braces: hide any built-in symbol layer that survived the
-    // standardBasemap config (Mapbox doesn't expose a flag for the
-    // building-name / building-number / landmark labels but they share
-    // predictable ids). Re-run on every style.load because changing
-    // the base style resets layer visibility.
+    // standardBasemap config. We only run this when the style is fresh
+    // — re-applying the visibility setting on every `idle` event made
+    // Mapbox's symbol manager re-evaluate label collisions multiple
+    // times per second, which read as visible flicker on busy maps.
+    let appliedThisStyle = false;
     const apply = () => {
-      if (map.isStyleLoaded?.()) hideBuiltinLabels(map);
+      if (appliedThisStyle) return;
+      if (!map.isStyleLoaded?.()) return;
+      hideBuiltinLabels(map);
+      appliedThisStyle = true;
     };
     apply();
-    map.on?.("style.load", apply);
+    const onStyleLoad = () => {
+      appliedThisStyle = false;
+      apply();
+    };
+    map.on?.("style.load", onStyleLoad);
     map.on?.("idle", apply);
     return () => {
-      map.off?.("style.load", apply);
+      map.off?.("style.load", onStyleLoad);
       map.off?.("idle", apply);
     };
   }, [sceneReady]);
