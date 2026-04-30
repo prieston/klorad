@@ -236,6 +236,7 @@ export function createRoomsAPI(): RoomsAPI {
       occupants: r.occupants,
       scheduleUrl: r.scheduleUrl,
       visible: r.visible !== false,
+      searchKeywords: (r as { searchKeywords?: string[] }).searchKeywords,
     }));
   };
 
@@ -256,6 +257,7 @@ export function createRoomsAPI(): RoomsAPI {
         occupants: r.occupants,
         scheduleUrl: r.scheduleUrl,
         visible: r.visible,
+        searchKeywords: r.searchKeywords,
       })),
     });
   };
@@ -277,6 +279,7 @@ export function createRoomsAPI(): RoomsAPI {
         occupants: input.occupants,
         scheduleUrl: input.scheduleUrl,
         visible: input.visible !== false,
+        searchKeywords: input.searchKeywords,
       };
       writeRooms([...readRooms(), room]);
       return room;

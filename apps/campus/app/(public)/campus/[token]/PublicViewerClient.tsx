@@ -280,6 +280,7 @@ function PublicViewerInner({ mapId }: Props) {
       if (r.name?.toLowerCase().includes(q)) return true;
       if (r.roomNumber?.toLowerCase().includes(q)) return true;
       if (r.occupants?.some((o) => o.name?.toLowerCase().includes(q))) return true;
+      if (r.searchKeywords?.some((k) => k.toLowerCase().includes(q))) return true;
       return false;
     });
   }, [query, allRoomsForSearch]);
@@ -823,6 +824,33 @@ function PublicViewerInner({ mapId }: Props) {
                   </Box>
                 </>
               )}
+              {activeRoom.searchKeywords &&
+                activeRoom.searchKeywords.length > 0 && (
+                  <>
+                    <Typography
+                      variant="overline"
+                      sx={{
+                        fontSize: "0.7rem",
+                        fontWeight: 600,
+                        color: "text.secondary",
+                        mt: 1.5,
+                        display: "block",
+                      }}
+                    >
+                      Also known as
+                    </Typography>
+                    <Box sx={{ mt: 0.5, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                      {activeRoom.searchKeywords.map((k) => (
+                        <Chip
+                          key={k}
+                          label={k}
+                          size="small"
+                          sx={{ fontSize: "0.7rem", height: 22 }}
+                        />
+                      ))}
+                    </Box>
+                  </>
+                )}
             </Box>
           )}
         </Box>

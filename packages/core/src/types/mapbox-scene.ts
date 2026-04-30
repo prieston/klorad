@@ -44,6 +44,8 @@ export interface MapboxRoom {
   occupants?: Array<{ name: string; role?: string; email?: string }>;
   scheduleUrl?: string;
   visible?: boolean;
+  /** Freeform discoverability terms surfaced by the public viewer search. */
+  searchKeywords?: string[];
 }
 
 /** Georeferenced floor plan / overlay (Mapbox image source). */

@@ -285,6 +285,13 @@ export interface Room {
   scheduleUrl?: string;
   /** Admin-facing hidden flag. */
   visible?: boolean;
+  /**
+   * Freeform discoverability terms — the public viewer's search matches
+   * these in addition to name / roomNumber / occupants. Useful when the
+   * official name ("Lab A") differs from how visitors look it up
+   * ("microbiology", "Bio 101").
+   */
+  searchKeywords?: string[];
 }
 
 export type RoomInput = Omit<Room, "id"> & { id?: string };

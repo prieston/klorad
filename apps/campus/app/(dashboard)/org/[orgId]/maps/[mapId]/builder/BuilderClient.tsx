@@ -60,7 +60,7 @@ import type { CampusAPI, POI, POICategory } from "@klorad/api";
 import { useSceneStore } from "@klorad/core";
 import type { Map as MapboxMap, MapMouseEvent } from "mapbox-gl";
 import BuilderLeftPanel from "./BuilderLeftPanel";
-import BuildingsTree from "./BuildingsTree";
+import BuildingsView from "./BuildingsView";
 import FloorPlanDrawer, { buildCornerBounds } from "./FloorPlanDrawer";
 import type { FloorPlan as KloradFloorPlan } from "@klorad/api";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
@@ -149,7 +149,6 @@ export default function BuilderClient({ mapId }: Props) {
     occupantName: string;
     occupantRole: string;
   }>({ name: "", roomNumber: "", type: "office", occupantName: "", occupantRole: "" });
-  const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<"poi" | "location" | "buildings">("poi");
   const [sceneReady, setSceneReady] = useState(false);
   const apiRef = useRef<CampusAPI | null>(null);
@@ -264,7 +263,7 @@ export default function BuilderClient({ mapId }: Props) {
     activeFloor: activePlan?.floor ?? null,
     onSelect: (id) => {
       setActiveRoomId(id);
-      openEditRoom(id);
+      setActiveView("buildings");
     },
     highlightRoomId: activeRoomId,
     clickEnabled: !isDrawing,
@@ -366,36 +365,6 @@ export default function BuilderClient({ mapId }: Props) {
     setPendingPolygon(null);
     setPendingRoomFloor(null);
     setRoomForm({ name: "", roomNumber: "", type: "office", occupantName: "", occupantRole: "" });
-  };
-
-  const openEditRoom = (roomId: string) => {
-    const r = rooms.find((x) => x.id === roomId);
-    if (!r) return;
-    setEditingRoomId(roomId);
-    setRoomForm({
-      name: r.name,
-      roomNumber: r.roomNumber ?? "",
-      type: r.type,
-      occupantName: r.occupants?.[0]?.name ?? "",
-      occupantRole: r.occupants?.[0]?.role ?? "",
-    });
-  };
-
-  const commitEditRoom = () => {
-    if (!editingRoomId || !apiRef.current) return;
-    pushSnapshot();
-    apiRef.current.rooms.update(editingRoomId, {
-      name: roomForm.name.trim() || "Unnamed room",
-      roomNumber: roomForm.roomNumber.trim() || undefined,
-      type: (roomForm.type as Room["type"]) || "office",
-      occupants: roomForm.occupantName.trim()
-        ? [{ name: roomForm.occupantName.trim(), role: roomForm.occupantRole.trim() || undefined }]
-        : undefined,
-    });
-    setRooms(apiRef.current.rooms.getAll());
-    setEditingRoomId(null);
-    toast.success("Room updated");
-    void persistMap();
   };
 
   // --- Floor plan management (in the Buildings tab) ---
@@ -529,17 +498,6 @@ export default function BuilderClient({ mapId }: Props) {
     if (activePlanId === planId) setActivePlanId(null);
     toast.success("Floor plan removed");
     await persistMap();
-  };
-
-  const deleteActiveRoom = () => {
-    if (!activeRoomId || !apiRef.current) return;
-    pushSnapshot();
-    apiRef.current.rooms.remove(activeRoomId);
-    setRooms(apiRef.current.rooms.getAll());
-    setActiveRoomId(null);
-    setEditingRoomId(null);
-    toast.success("Room removed");
-    void persistMap();
   };
 
   /**
@@ -1221,12 +1179,6 @@ export default function BuilderClient({ mapId }: Props) {
               }}
             />
             <ActionButton
-              icon={<AddLocationAltIcon />}
-              label="POI"
-              active={activeView === "poi"}
-              onClick={() => setActiveView("poi")}
-            />
-            <ActionButton
               icon={<ApartmentIcon />}
               label="Buildings"
               active={activeView === "buildings"}
@@ -1234,6 +1186,12 @@ export default function BuilderClient({ mapId }: Props) {
                 setActiveView("buildings");
                 if (placingPoi) setPlacingPoi(false);
               }}
+            />
+            <ActionButton
+              icon={<AddLocationAltIcon />}
+              label="POIs"
+              active={activeView === "poi"}
+              onClick={() => setActiveView("poi")}
             />
             <ActionButton
               icon={<ShareIcon />}
@@ -1252,116 +1210,54 @@ export default function BuilderClient({ mapId }: Props) {
           </Box>
 
           {activeView === "buildings" && (
-            <Box sx={{ flex: 1, overflow: "auto", p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography
-                  variant="overline"
-                  sx={{
-                    fontSize: "0.7rem",
-                    fontWeight: 600,
-                    color: "text.secondary",
-                    letterSpacing: "0.08em",
-                    flex: 1,
-                  }}
-                >
-                  Buildings
-                </Typography>
-                <Chip
-                  label={pois.filter((p) => p.linkedBuilding).length}
-                  size="small"
-                  sx={(t) => ({
-                    height: 20,
-                    fontSize: "0.7rem",
-                    bgcolor: alpha(t.palette.primary.main, 0.16),
-                    color: "primary.main",
-                    fontWeight: 600,
-                  })}
-                />
-              </Box>
-
-              {pois.filter((p) => p.linkedBuilding).length === 0 ? (
-                <Box
-                  sx={(t) => ({
-                    p: 2,
-                    borderRadius: 1,
-                    border: "1px dashed",
-                    borderColor: "divider",
-                    bgcolor: alpha(t.palette.primary.main, 0.04),
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 1.5,
-                  })}
-                >
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <ApartmentIcon sx={{ fontSize: 18, color: "primary.main" }} />
-                    <Typography variant="body2" fontWeight={600} sx={{ fontSize: "0.8125rem" }}>
-                      No buildings yet
-                    </Typography>
-                  </Stack>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.75rem" }}>
-                    Buildings are POIs anchored to a Mapbox 3D building footprint.
-                    Three steps from any POI:
-                  </Typography>
-                  <Stack spacing={0.5} sx={{ pl: 1 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.75rem" }}>
-                      1. Add or pick a POI on the map.
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.75rem" }}>
-                      2. Click the apartment icon in the top toolbar, then click a building on the map to link.
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.75rem" }}>
-                      3. Upload a floor plan in the Assets tab — it shows up here as a floor.
-                    </Typography>
-                  </Stack>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<AddLocationAltIcon sx={{ fontSize: 14 }} />}
-                    onClick={() => {
-                      setActiveView("poi");
-                      handleStartPlacingPoi();
-                    }}
-                    sx={{ alignSelf: "flex-start", textTransform: "none", mt: 0.5 }}
-                  >
-                    Place a POI to start
-                  </Button>
-                </Box>
-              ) : (
-                <BuildingsTree
-                  pois={pois}
-                  plans={apiRef.current?.floorPlans.getAll() ?? []}
-                  rooms={rooms}
-                  selectedPoiId={selectedPoiId}
-                  activePlanId={activePlanId}
-                  activeRoomId={activeRoomId}
-                  onSelectBuilding={(id) => {
-                    setSelectedPoiId(id);
-                    if (id) apiRef.current?.poi.flyTo(id);
-                    else {
-                      setActivePlanId(null);
-                      setPendingRoomFloor(null);
-                    }
-                  }}
-                  onSelectFloor={(poiId, planId) => {
-                    setSelectedPoiId(poiId);
-                    setActivePlanId(planId);
-                    if (planId === null) setPendingRoomFloor(null);
-                  }}
-                  onSelectRoom={(roomId) => {
-                    setActiveRoomId(roomId);
-                  }}
-                  onEditRoom={(roomId) => openEditRoom(roomId)}
-                  onAddFloor={quickAddFloor}
-                  onEditFloor={openEditFloor}
-                  onRemoveFloor={(planId) => void handleRemoveFloorPlan(planId)}
-                  onDrawRoom={(buildingPoiId, floor, planId) => {
-                    setSelectedPoiId(buildingPoiId);
-                    setActivePlanId(planId);
-                    setPendingRoomFloor(floor);
-                    setActiveTool("drawRoom");
-                  }}
-                />
-              )}
+            <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              <BuildingsView
+                pois={pois}
+                plans={apiRef.current?.floorPlans.getAll() ?? []}
+                rooms={rooms}
+                selectedPoiId={selectedPoiId}
+                activePlanId={activePlanId}
+                activeRoomId={activeRoomId}
+                onSelectBuilding={(id) => {
+                  setSelectedPoiId(id);
+                  if (id) apiRef.current?.poi.flyTo(id);
+                  else {
+                    setActivePlanId(null);
+                    setPendingRoomFloor(null);
+                  }
+                }}
+                onSelectFloor={(poiId, planId) => {
+                  setSelectedPoiId(poiId);
+                  setActivePlanId(planId);
+                  if (planId === null) setPendingRoomFloor(null);
+                }}
+                onSelectRoom={(roomId) => setActiveRoomId(roomId)}
+                onDrawBuilding={() => setActiveTool("drawBuilding")}
+                onAddFloor={quickAddFloor}
+                onDrawRoom={(buildingPoiId, floor, planId) => {
+                  setSelectedPoiId(buildingPoiId);
+                  setActivePlanId(planId);
+                  setPendingRoomFloor(floor);
+                  setActiveTool("drawRoom");
+                }}
+                onEditFloor={openEditFloor}
+                onRemoveFloor={(planId) => void handleRemoveFloorPlan(planId)}
+                onUpdateRoom={(roomId, patch) => {
+                  if (!apiRef.current) return;
+                  pushSnapshot();
+                  apiRef.current.rooms.update(roomId, patch);
+                  setRooms(apiRef.current.rooms.getAll());
+                  void persistMap();
+                }}
+                onRemoveRoom={(roomId) => {
+                  if (!apiRef.current) return;
+                  pushSnapshot();
+                  apiRef.current.rooms.remove(roomId);
+                  setRooms(apiRef.current.rooms.getAll());
+                  if (activeRoomId === roomId) setActiveRoomId(null);
+                  void persistMap();
+                }}
+              />
             </Box>
           )}
 
@@ -2305,22 +2201,18 @@ export default function BuilderClient({ mapId }: Props) {
         </Typography>
       </RightDrawer>
 
-      {/* New / edit room drawer — shares the same form shape. */}
+      {/* New-room drawer — opens after the user finishes the polygon
+          trace. Editing existing rooms is now inline in the Buildings
+          tab's RoomDetail view. */}
       <RightDrawer
-        open={Boolean(pendingPolygon) || Boolean(editingRoomId)}
-        onClose={() => {
-          if (pendingPolygon) cancelNewRoom();
-          else setEditingRoomId(null);
-        }}
-        title={editingRoomId ? "Edit room" : "Create room"}
+        open={Boolean(pendingPolygon)}
+        onClose={cancelNewRoom}
+        title="Create room"
         actions={
           <>
             <Button
               variant="outlined"
-              onClick={() => {
-                if (pendingPolygon) cancelNewRoom();
-                else setEditingRoomId(null);
-              }}
+              onClick={cancelNewRoom}
               fullWidth
               sx={{ textTransform: "none" }}
             >
@@ -2328,12 +2220,12 @@ export default function BuilderClient({ mapId }: Props) {
             </Button>
             <Button
               variant="contained"
-              onClick={editingRoomId ? commitEditRoom : commitNewRoom}
+              onClick={commitNewRoom}
               disabled={!roomForm.name.trim()}
               fullWidth
               sx={{ textTransform: "none" }}
             >
-              {editingRoomId ? "Save changes" : "Create room"}
+              Create room
             </Button>
           </>
         }
@@ -2417,19 +2309,6 @@ export default function BuilderClient({ mapId }: Props) {
             onChange={(e) => setRoomForm((f) => ({ ...f, occupantRole: e.target.value }))}
           />
         </FormField>
-        {editingRoomId && (
-          <>
-            <Divider sx={{ my: 1 }} />
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={deleteActiveRoom}
-              sx={{ textTransform: "none", alignSelf: "flex-start" }}
-            >
-              Delete room
-            </Button>
-          </>
-        )}
       </RightDrawer>
     </Box>
   );
