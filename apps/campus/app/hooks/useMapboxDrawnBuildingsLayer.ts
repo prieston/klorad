@@ -196,19 +196,28 @@ export function useMapboxDrawnBuildingsLayer(
       // hook) end up beneath if we don't push them up. Without this
       // the active floor's x-ray walls visually fight with the rooms
       // sitting on the same slab.
-      for (const id of [
-        "campus-rooms-extrusion",
-        "campus-rooms-outline",
-        "campus-rooms-highlight",
-      ]) {
-        try {
-          if (map.getLayer(id)) map.moveLayer(id);
-        } catch {
-          /* layer may be momentarily detached during a style reload */
+      // Re-order rooms on top of shells once per style reload —
+      // calling `moveLayer` every idle tick triggers Mapbox to redo
+      // collision placement, which makes labels visibly flicker.
+      if (!promoted) {
+        let movedAll = true;
+        for (const id of [
+          "campus-rooms-extrusion",
+          "campus-rooms-outline",
+          "campus-rooms-highlight",
+        ]) {
+          try {
+            if (map.getLayer(id)) map.moveLayer(id);
+            else movedAll = false;
+          } catch {
+            movedAll = false;
+          }
         }
+        if (movedAll) promoted = true;
       }
     };
 
+    let promoted = false;
     install();
     // `style.load` is one-shot. If the style already finished loading
     // before this hook mounted, the listener never fires. We *also*
@@ -216,9 +225,15 @@ export function useMapboxDrawnBuildingsLayer(
     // `styledata` (fires whenever Mapbox re-applies the style — e.g.
     // after a setConfigProperty / basemap-import reload that wipes
     // custom layers). install() is idempotent so retries are safe.
-    const onStyleLoad = () => install();
+    const onStyleLoad = () => {
+      promoted = false;
+      install();
+    };
+    const onStyleData = () => {
+      promoted = false;
+      install();
+    };
     const onIdle = () => install();
-    const onStyleData = () => install();
     map.on("style.load", onStyleLoad);
     map.on("idle", onIdle);
     map.on("styledata", onStyleData);

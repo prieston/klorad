@@ -164,29 +164,42 @@ export function useMapboxFloorSlabsLayer(
       }
       // Re-promote the room layers above the slabs so rooms sitting on
       // the active floor stay visible (avoids z-fight with the slab
-      // surface and shell walls).
-      for (const id of [
-        "campus-rooms-extrusion",
-        "campus-rooms-outline",
-        "campus-rooms-highlight",
-        "campus-rooms-label",
-      ]) {
-        try {
-          if (map.getLayer(id)) map.moveLayer(id);
-        } catch {
-          /* ignore */
+      // surface and shell walls). Only do this when we haven't yet
+      // promoted since the last style reload — `moveLayer` invalidates
+      // Mapbox's layer order and forces label collision to recompute,
+      // which on every `idle` event makes labels visibly flicker.
+      if (!promoted) {
+        let movedAll = true;
+        for (const id of [
+          "campus-rooms-extrusion",
+          "campus-rooms-outline",
+          "campus-rooms-highlight",
+          "campus-rooms-label",
+        ]) {
+          try {
+            if (map.getLayer(id)) map.moveLayer(id);
+            else movedAll = false;
+          } catch {
+            movedAll = false;
+          }
         }
+        if (movedAll) promoted = true;
       }
     };
 
+    let promoted = false;
     install();
-    // Same survival fix as the building shells layer — listen on
-    // style.load + idle + styledata so install reruns whenever Mapbox
-    // re-applies its style (e.g. after a setConfigProperty call wipes
-    // custom layers). install() is idempotent.
-    const onStyleLoad = () => install();
+    // Style reloads wipe our layers — reset the promotion flag so the
+    // next install() re-orders the room layers on top.
+    const onStyleLoad = () => {
+      promoted = false;
+      install();
+    };
+    const onStyleData = () => {
+      promoted = false;
+      install();
+    };
     const onIdle = () => install();
-    const onStyleData = () => install();
     map.on("style.load", onStyleLoad);
     map.on("idle", onIdle);
     map.on("styledata", onStyleData);
