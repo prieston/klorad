@@ -61,6 +61,8 @@ import { useSceneStore } from "@klorad/core";
 import type { Map as MapboxMap, MapMouseEvent } from "mapbox-gl";
 import BuilderLeftPanel from "./BuilderLeftPanel";
 import BuildingsView from "./BuildingsView";
+import ProjectHealthPanel from "./ProjectHealthPanel";
+import { useProjectHealth } from "@/app/hooks/useProjectHealth";
 import FloorPlanDrawer, { buildCornerBounds } from "./FloorPlanDrawer";
 import type { FloorPlan as KloradFloorPlan } from "@klorad/api";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
@@ -1021,6 +1023,14 @@ export default function BuilderClient({ mapId }: Props) {
     }
   };
 
+  // Derived "Project Health" content for the left rail.
+  const projectHealth = useProjectHealth({
+    pois,
+    rooms,
+    plans: apiRef.current?.floorPlans.getAll() ?? [],
+    activeView,
+  });
+
   return (
     <Box sx={{ display: "flex", height: "calc(100vh - 64px)", overflow: "hidden" }}>
       <BuilderLeftPanel pois={pois} />
@@ -1118,6 +1128,41 @@ export default function BuilderClient({ mapId }: Props) {
           </Box>
         )}
 
+      </Box>
+
+      {/* Left rail — Project Health. Hidden on tablets / phones; the
+          studio is desktop-first and the rail is purely informative. */}
+      <Box
+        sx={{
+          display: { xs: "none", lg: "block" },
+        }}
+      >
+        <ProjectHealthPanel
+          health={projectHealth}
+          onFix={(target) => {
+            if (target.type === "building") {
+              setActiveView("buildings");
+              setSelectedPoiId(target.id);
+              setActivePlanId(null);
+              setActiveRoomId(null);
+              apiRef.current?.poi.flyTo(target.id);
+            } else if (target.type === "floor") {
+              setActiveView("buildings");
+              setSelectedPoiId(target.buildingId);
+              setActivePlanId(target.id);
+              setActiveRoomId(null);
+            } else if (target.type === "room") {
+              setActiveView("buildings");
+              setSelectedPoiId(target.buildingId);
+              setActivePlanId(target.planId);
+              setActiveRoomId(target.id);
+            } else if (target.type === "poi") {
+              setActiveView("poi");
+              setSelectedPoiId(target.id);
+              apiRef.current?.poi.flyTo(target.id);
+            }
+          }}
+        />
       </Box>
 
       {/* Sidebar toggle (collapsed only) */}
