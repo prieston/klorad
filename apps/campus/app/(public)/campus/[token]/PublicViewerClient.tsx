@@ -7,7 +7,6 @@ import {
   Box,
   Chip,
   CircularProgress,
-  Drawer,
   IconButton,
   InputAdornment,
   List,
@@ -40,8 +39,6 @@ import { LocaleProvider, detectLocale, useT, type Locale } from "@/app/lib/i18n"
 import {
   TextField,
   SearchIcon,
-  CloseIcon,
-  LayersIcon,
   TourIcon,
   DirectionsIcon,
   ArrowBackIcon,
@@ -64,7 +61,7 @@ interface Props {
   mapId: string;
 }
 
-type Panel = "search" | "tour" | "layers" | "wayfind" | null;
+type Section = "home" | "directions" | "tour";
 
 export default function PublicViewerClient({ mapId }: Props) {
   const searchParams = useSearchParams();
@@ -80,9 +77,11 @@ function PublicViewerInner({ mapId }: Props) {
   const searchParams = useSearchParams();
   const isMobile = useMediaQuery("(max-width:768px)");
   const t = useT();
-  const [activePanel, setActivePanel] = useState<Panel>(
-    searchParams.get("from") && searchParams.get("to") ? "wayfind" : null
+  const [activeSection, setActiveSection] = useState<Section>(
+    searchParams.get("from") && searchParams.get("to") ? "directions" : "home"
   );
+  // Mobile-only: bottom-sheet snap state. true = full, false = peek.
+  const [panelExpanded, setPanelExpanded] = useState(false);
   const [query, setQuery] = useState("");
   const [pois, setPois] = useState<POI[]>([]);
   const [tourStops, setTourStops] = useState<TourStop[]>([]);
@@ -222,12 +221,13 @@ function PublicViewerInner({ mapId }: Props) {
   });
   useEffect(() => setActiveRoomId(null), [selectedPoiId, activePlanId]);
 
-  // Auto-open the left navigation panel when something on the map is
-  // selected. Without this the user clicks a building (or room) and
-  // their detail view stays hidden behind a closed drawer.
+  // Selecting a building / room on the map flips the panel to the
+  // Home section (where the drill-down lives) and snaps it to full on
+  // mobile so the visitor sees the detail view immediately.
   useEffect(() => {
     if (!selectedPoiId && !activeRoomId) return;
-    setActivePanel((prev) => (prev === "wayfind" || prev === "tour" ? prev : "search"));
+    setActiveSection("home");
+    setPanelExpanded(true);
   }, [selectedPoiId, activeRoomId]);
 
   // All rooms — used for global room search across buildings.
@@ -328,8 +328,10 @@ function PublicViewerInner({ mapId }: Props) {
     }
   };
 
-  const togglePanel = (panel: Panel) =>
-    setActivePanel((prev) => (prev === panel ? null : panel));
+  const switchSection = (section: Section) => {
+    setActiveSection(section);
+    setPanelExpanded(true);
+  };
 
   const selectedPoi = useMemo(
     () => (selectedPoiId ? pois.find((p) => p.id === selectedPoiId) ?? null : null),
@@ -387,104 +389,130 @@ function PublicViewerInner({ mapId }: Props) {
 
       <BrandedHeader logo={branding.logo} alt={branding.name ?? "Logo"} />
 
-      {/* Where-am-I FAB. On mobile, sits above the bottom pill of controls. */}
-      <WhereAmIButton
-        right={16}
-        bottom={isMobile ? 88 : 16}
-        size={isMobile ? 56 : 52}
-      />
+      {/* Where-am-I FAB. Hidden behind the panel when the bottom sheet
+          is fully expanded on mobile. */}
+      {!(isMobile && panelExpanded) && (
+        <WhereAmIButton
+          right={16}
+          bottom={isMobile ? 112 : 16}
+          size={isMobile ? 56 : 52}
+        />
+      )}
 
-      {/* Floating controls — top-center on desktop, bottom thumb-zone on mobile */}
+      {/* The single navigation panel — docked left on desktop / tablet,
+          a non-modal bottom sheet on mobile (peek vs full). Folds in
+          everything that used to float: section tabs, locale toggle,
+          search, building / floor / room drill-down, directions, tour. */}
       <Box
         sx={{
           position: "absolute",
-          ...(isMobile
-            ? { bottom: 16, left: "50%", transform: "translateX(-50%)" }
-            : { top: 16, left: "50%", transform: "translateX(-50%)" }),
-          display: "flex",
-          gap: 1,
+          zIndex: 1400,
           bgcolor: "var(--glass-bg)",
-          backdropFilter: "blur(8px)",
+          backdropFilter: "blur(24px) saturate(140%)",
+          WebkitBackdropFilter: "blur(24px) saturate(140%)",
           border: "1px solid var(--glass-border)",
-          borderRadius: 8,
-          px: 1.5,
-          py: 0.75,
-          zIndex: 1401,
-        }}
-      >
-        <Tooltip title={t("toolbar.search")}>
-          <IconButton size="small" onClick={() => togglePanel("search")} color={activePanel === "search" ? "primary" : "default"}>
-            <SearchIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title={t("toolbar.directions")}>
-          <IconButton size="small" onClick={() => togglePanel("wayfind")} color={activePanel === "wayfind" ? "primary" : "default"}>
-            <DirectionsIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        {tourStops.length > 0 && (
-          <Tooltip title={t("toolbar.tour")}>
-            <IconButton size="small" onClick={() => togglePanel("tour")} color={activePanel === "tour" ? "primary" : "default"}>
-              <TourIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
-        <Tooltip title={t("toolbar.layers")}>
-          <IconButton size="small" onClick={() => togglePanel("layers")} color={activePanel === "layers" ? "primary" : "default"}>
-            <LayersIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Box>
-
-      {/* Language toggle — top-right on desktop, top-right on mobile too */}
-      <Box
-        sx={{
-          position: "absolute",
-          top: 16,
-          right: 16,
-          zIndex: 1401,
-        }}
-      >
-        <LocaleToggle />
-      </Box>
-
-      {/* Search panel — left drawer on desktop, bottom sheet on mobile */}
-      <Drawer
-        anchor={isMobile ? "bottom" : "left"}
-        open={activePanel === "search"}
-        onClose={() => setActivePanel(null)}
-        variant={isMobile ? "temporary" : "persistent"}
-        ModalProps={{ keepMounted: true }}
-        sx={
-          isMobile
+          boxShadow: "0 4px 24px rgba(0,0,0,0.32)",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          transition: "height 220ms ease",
+          ...(isMobile
             ? {
-                "& .MuiDrawer-paper": {
-                  height: "72vh",
-                  bottom: 0,
-                  top: "auto",
-                  borderTopLeftRadius: 16,
-                  borderTopRightRadius: 16,
-                  bgcolor: "var(--glass-bg)",
-                  backdropFilter: "blur(12px)",
-                  border: "none",
-                  borderTop: "1px solid var(--glass-border)",
-                },
+                left: 8,
+                right: 8,
+                bottom: 8,
+                height: panelExpanded ? "82vh" : 116,
+                borderRadius: "16px",
               }
             : {
-                width: 300,
-                "& .MuiDrawer-paper": {
-                  width: 300,
-                  top: 0,
-                  height: "100%",
-                  bgcolor: "var(--glass-bg)",
-                  backdropFilter: "blur(12px)",
-                  border: "none",
-                  borderRight: "1px solid var(--glass-border)",
-                },
-              }
-        }
+                left: 16,
+                top: 16,
+                bottom: 16,
+                width: 360,
+                borderRadius: 2,
+              }),
+        }}
       >
-        <Box sx={{ p: 2 }}>
+        {/* Mobile drag-handle — tap to toggle peek/full. */}
+        {isMobile && (
+          <Box
+            role="button"
+            aria-label={panelExpanded ? "Collapse panel" : "Expand panel"}
+            onClick={() => setPanelExpanded((p) => !p)}
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              py: 0.75,
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            <Box
+              sx={{
+                width: 36,
+                height: 4,
+                borderRadius: 2,
+                bgcolor: "rgba(148,163,184,0.6)",
+              }}
+            />
+          </Box>
+        )}
+
+        {/* Header — section tabs + locale toggle */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            px: 1.25,
+            py: 0.75,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            flexShrink: 0,
+          }}
+        >
+          <Tooltip title={t("toolbar.search")}>
+            <IconButton
+              size="small"
+              onClick={() => switchSection("home")}
+              color={activeSection === "home" ? "primary" : "default"}
+            >
+              <SearchIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={t("toolbar.directions")}>
+            <IconButton
+              size="small"
+              onClick={() => switchSection("directions")}
+              color={activeSection === "directions" ? "primary" : "default"}
+            >
+              <DirectionsIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          {tourStops.length > 0 && (
+            <Tooltip title={t("toolbar.tour")}>
+              <IconButton
+                size="small"
+                onClick={() => switchSection("tour")}
+                color={activeSection === "tour" ? "primary" : "default"}
+              >
+                <TourIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Box sx={{ flex: 1 }} />
+          <LocaleToggle />
+        </Box>
+
+        {/* Body — Home (search / building / room) */}
+        <Box
+          sx={{
+            flex: 1,
+            overflowY: "auto",
+            display: activeSection === "home" ? "block" : "none",
+            p: 2,
+          }}
+        >
           <Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 0.5 }}>
             {panelView !== "list" && (
               <IconButton
@@ -501,9 +529,6 @@ function PublicViewerInner({ mapId }: Props) {
                   ? selectedPoi?.name
                   : t("search.title")}
             </Typography>
-            <IconButton size="small" onClick={() => setActivePanel(null)}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
           </Box>
 
           {panelView === "list" && (
@@ -801,86 +826,89 @@ function PublicViewerInner({ mapId }: Props) {
             </Box>
           )}
         </Box>
-      </Drawer>
 
-      {/* Wayfinding panel */}
-      {activePanel === "wayfind" && (
-        <WayfindingPanel
-          pois={pois}
-          fromId={fromId}
-          toId={toId}
-          mode={routeMode}
-          route={route}
-          loading={routeLoading}
-          error={
-            routeError ||
-            (locationError === "denied"
-              ? t("wayfind.locationDenied")
-              : locationError === "unsupported"
-                ? t("wayfind.locationUnsupported")
-                : null)
-          }
-          locating={locating}
-          onChangeFrom={handleFromChange}
-          onChangeTo={handleToChange}
-          onChangeMode={setRouteMode}
-          onClear={() => {
-            setFromId(null);
-            setToId(null);
-            clearRoute();
-          }}
-          onClose={() => setActivePanel(null)}
-        />
-      )}
-
-      {/* Tour panel */}
-      {activePanel === "tour" && tourStops.length > 0 && (
+        {/* Body — Directions */}
         <Box
           sx={{
-            position: "absolute",
-            bgcolor: "var(--glass-bg)",
-            backdropFilter: "blur(8px)",
-            border: "1px solid var(--glass-border)",
-            borderRadius: 2,
+            flex: 1,
+            overflowY: "auto",
+            display: activeSection === "directions" ? "block" : "none",
             p: 2,
-            zIndex: 1400,
-            // Desktop: floating bottom-center. Mobile: stretch above the pill.
-            bottom: { xs: 88, md: 24 },
-            left: { xs: 16, md: "50%" },
-            right: { xs: 16, md: "auto" },
-            transform: { xs: "none", md: "translateX(-50%)" },
-            width: { xs: "auto", md: 380 },
-            maxWidth: { md: "90vw" },
           }}
         >
-          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-            <Typography variant="subtitle2" fontWeight={700}>
+          <Typography
+            variant="subtitle2"
+            fontWeight={700}
+            sx={{ mb: 1.5 }}
+          >
+            {t("wayfind.title")}
+          </Typography>
+          <WayfindingPanel
+            variant="embedded"
+            pois={pois}
+            fromId={fromId}
+            toId={toId}
+            mode={routeMode}
+            route={route}
+            loading={routeLoading}
+            error={
+              routeError ||
+              (locationError === "denied"
+                ? t("wayfind.locationDenied")
+                : locationError === "unsupported"
+                  ? t("wayfind.locationUnsupported")
+                  : null)
+            }
+            locating={locating}
+            onChangeFrom={handleFromChange}
+            onChangeTo={handleToChange}
+            onChangeMode={setRouteMode}
+            onClear={() => {
+              setFromId(null);
+              setToId(null);
+              clearRoute();
+            }}
+          />
+        </Box>
+
+        {/* Body — Tour */}
+        {tourStops.length > 0 && (
+          <Box
+            sx={{
+              flex: 1,
+              overflowY: "auto",
+              display: activeSection === "tour" ? "block" : "none",
+              p: 2,
+            }}
+          >
+            <Typography
+              variant="subtitle2"
+              fontWeight={700}
+              sx={{ mb: 1.5 }}
+            >
               {t("tour.title")}
             </Typography>
-            <IconButton size="small" onClick={() => setActivePanel(null)}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
+            <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mb: 1.5 }}>
+              {tourStops.map((stop, idx) => (
+                <Chip
+                  key={stop.id}
+                  label={stop.title}
+                  size="small"
+                  clickable
+                  color={currentStop === idx ? "primary" : "default"}
+                  onClick={() => goToStop(idx)}
+                  sx={{ fontSize: "0.75rem" }}
+                />
+              ))}
+            </Box>
+            {currentStop >= 0 && tourStops[currentStop] && (
+              <Typography variant="caption" color="text.secondary">
+                {tourStops[currentStop].description}
+              </Typography>
+            )}
           </Box>
-          <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mb: 1 }}>
-            {tourStops.map((stop, idx) => (
-              <Chip
-                key={stop.id}
-                label={stop.title}
-                size="small"
-                clickable
-                color={currentStop === idx ? "primary" : "default"}
-                onClick={() => goToStop(idx)}
-                sx={{ fontSize: "0.75rem" }}
-              />
-            ))}
-          </Box>
-          {currentStop >= 0 && tourStops[currentStop] && (
-            <Typography variant="caption" color="text.secondary">
-              {tourStops[currentStop].description}
-            </Typography>
-          )}
-        </Box>
-      )}
+        )}
+      </Box>
     </Box>
     </BrandingScope>
   );

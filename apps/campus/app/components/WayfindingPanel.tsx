@@ -41,7 +41,13 @@ interface Props {
   onChangeTo: (id: string | null) => void;
   onChangeMode: (mode: RouteMode) => void;
   onClear: () => void;
-  onClose: () => void;
+  onClose?: () => void;
+  /**
+   * `floating` (default) renders the legacy positioned glass card.
+   * `embedded` strips the outer chrome + header so the form can sit
+   * inside another panel that owns its own header.
+   */
+  variant?: "floating" | "embedded";
 }
 
 export default function WayfindingPanel({
@@ -58,37 +64,69 @@ export default function WayfindingPanel({
   onChangeMode,
   onClear,
   onClose,
+  variant = "floating",
 }: Props) {
   const hasRoute = Boolean(fromId || toId || route);
   const t = useT();
+  const embedded = variant === "embedded";
   return (
     <Box
-      sx={{
-        position: "absolute",
-        zIndex: 1400,
-        bgcolor: "var(--glass-bg)",
-        border: "1px solid var(--glass-border)",
-        backdropFilter: "blur(24px) saturate(140%)",
-        WebkitBackdropFilter: "blur(24px) saturate(140%)",
-        borderRadius: 2,
-        p: 2,
-        boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
-        // Desktop: floating bottom-left card.
-        // Mobile: full-width sheet above the bottom pill of controls.
-        left: { xs: 16, md: 16 },
-        right: { xs: 16, md: "auto" },
-        bottom: { xs: 88, md: 16 },
-        width: { xs: "auto", md: 340 },
-        maxWidth: { md: "calc(100vw - 32px)" },
-        maxHeight: { xs: "70vh", md: "calc(100vh - 32px)" },
-        overflowY: "auto",
-      }}
+      sx={
+        embedded
+          ? { width: "100%" }
+          : {
+              position: "absolute",
+              zIndex: 1400,
+              bgcolor: "var(--glass-bg)",
+              border: "1px solid var(--glass-border)",
+              backdropFilter: "blur(24px) saturate(140%)",
+              WebkitBackdropFilter: "blur(24px) saturate(140%)",
+              borderRadius: 2,
+              p: 2,
+              boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
+              left: { xs: 16, md: 16 },
+              right: { xs: 16, md: "auto" },
+              bottom: { xs: 88, md: 16 },
+              width: { xs: "auto", md: 340 },
+              maxWidth: { md: "calc(100vw - 32px)" },
+              maxHeight: { xs: "70vh", md: "calc(100vh - 32px)" },
+              overflowY: "auto",
+            }
+      }
     >
-      <Box sx={{ display: "flex", alignItems: "center", mb: 1.5, gap: 0.5 }}>
-        <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>
-          {t("wayfind.title")}
-        </Typography>
-        {hasRoute && (
+      {!embedded && (
+        <Box sx={{ display: "flex", alignItems: "center", mb: 1.5, gap: 0.5 }}>
+          <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>
+            {t("wayfind.title")}
+          </Typography>
+          {hasRoute && (
+            <Typography
+              component="button"
+              variant="caption"
+              onClick={onClear}
+              sx={{
+                background: "none",
+                border: "none",
+                color: "text.secondary",
+                cursor: "pointer",
+                fontSize: "0.7rem",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                "&:hover": { color: "primary.main" },
+              }}
+            >
+              {t("common.clear")}
+            </Typography>
+          )}
+          {onClose && (
+            <IconButton size="small" onClick={onClose}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          )}
+        </Box>
+      )}
+      {embedded && hasRoute && (
+        <Box sx={{ mb: 1, display: "flex", justifyContent: "flex-end" }}>
           <Typography
             component="button"
             variant="caption"
@@ -106,11 +144,8 @@ export default function WayfindingPanel({
           >
             {t("common.clear")}
           </Typography>
-        )}
-        <IconButton size="small" onClick={onClose}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </Box>
+        </Box>
+      )}
 
       <Stack spacing={1.5}>
         <FormField label={t("wayfind.from")}>
