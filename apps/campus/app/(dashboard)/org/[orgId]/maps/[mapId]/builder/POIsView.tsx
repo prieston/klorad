@@ -22,7 +22,7 @@ import MyLocationIcon from "@mui/icons-material/MyLocation";
 import VideocamIcon from "@mui/icons-material/Videocam";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import { TextField } from "@klorad/ui";
+import { FormField, TextField } from "@klorad/ui";
 import type { POI, POICategory, POIEvent } from "@klorad/api";
 import Breadcrumbs from "./Breadcrumbs";
 
@@ -350,23 +350,27 @@ function PoiDetail({
 
       {/* ----------------------------- Basics ------------------------------ */}
       <Section label="Basics">
-        <TextField
-          label="Name"
-          size="small"
-          value={poi.name}
-          onChange={(e) => onUpdatePoi(poi.id, { name: e.target.value })}
-        />
-        <TextField
-          label="Description"
-          size="small"
-          multiline
-          rows={2}
-          placeholder="Short blurb shown on the public viewer card"
-          value={poi.description ?? ""}
-          onChange={(e) =>
-            onUpdatePoi(poi.id, { description: e.target.value })
-          }
-        />
+        <FormField label="Name">
+          <TextField
+            fullWidth
+            size="small"
+            value={poi.name}
+            onChange={(e) => onUpdatePoi(poi.id, { name: e.target.value })}
+          />
+        </FormField>
+        <FormField label="Description">
+          <TextField
+            fullWidth
+            size="small"
+            multiline
+            rows={2}
+            placeholder="Short blurb shown on the public viewer card"
+            value={poi.description ?? ""}
+            onChange={(e) =>
+              onUpdatePoi(poi.id, { description: e.target.value })
+            }
+          />
+        </FormField>
         <Box>
           <Typography
             variant="caption"
@@ -536,108 +540,114 @@ function PoiDetail({
         {advancedOpen && (
           <Stack spacing={1}>
             <Stack direction="row" spacing={1}>
-              <TextField
-                label="Lng"
-                size="small"
-                fullWidth
-                type="number"
-                slotProps={{ htmlInput: { step: 0.000001 } }}
-                value={poi.position[0]}
-                onChange={(e) =>
-                  onUpdatePoi(poi.id, {
-                    position: [
-                      parseFloat(e.target.value) || 0,
-                      poi.position[1],
-                      poi.position[2],
-                    ],
-                  })
-                }
-              />
-              <TextField
-                label="Lat"
-                size="small"
-                fullWidth
-                type="number"
-                slotProps={{ htmlInput: { step: 0.000001 } }}
-                value={poi.position[1]}
-                onChange={(e) =>
-                  onUpdatePoi(poi.id, {
-                    position: [
-                      poi.position[0],
-                      parseFloat(e.target.value) || 0,
-                      poi.position[2],
-                    ],
-                  })
-                }
-              />
-              <TextField
-                label="Alt (m)"
-                size="small"
-                fullWidth
-                type="number"
-                slotProps={{ htmlInput: { step: 1 } }}
-                value={poi.position[2] ?? 0}
-                onChange={(e) =>
-                  onUpdatePoi(poi.id, {
-                    position: [
-                      poi.position[0],
-                      poi.position[1],
-                      parseFloat(e.target.value) || 0,
-                    ],
-                  })
-                }
-              />
+              <FormField label="Lng" sx={{ flex: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="number"
+                  slotProps={{ htmlInput: { step: 0.000001 } }}
+                  value={poi.position[0]}
+                  onChange={(e) =>
+                    onUpdatePoi(poi.id, {
+                      position: [
+                        parseFloat(e.target.value) || 0,
+                        poi.position[1],
+                        poi.position[2],
+                      ],
+                    })
+                  }
+                />
+              </FormField>
+              <FormField label="Lat" sx={{ flex: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="number"
+                  slotProps={{ htmlInput: { step: 0.000001 } }}
+                  value={poi.position[1]}
+                  onChange={(e) =>
+                    onUpdatePoi(poi.id, {
+                      position: [
+                        poi.position[0],
+                        parseFloat(e.target.value) || 0,
+                        poi.position[2],
+                      ],
+                    })
+                  }
+                />
+              </FormField>
+              <FormField label="Alt (m)" sx={{ flex: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="number"
+                  slotProps={{ htmlInput: { step: 1 } }}
+                  value={poi.position[2] ?? 0}
+                  onChange={(e) =>
+                    onUpdatePoi(poi.id, {
+                      position: [
+                        poi.position[0],
+                        poi.position[1],
+                        parseFloat(e.target.value) || 0,
+                      ],
+                    })
+                  }
+                />
+              </FormField>
             </Stack>
             {poi.view && (
               <Stack direction="row" spacing={1}>
-                <TextField
-                  label="Zoom"
-                  size="small"
-                  fullWidth
-                  type="number"
-                  slotProps={{ htmlInput: { step: 0.1, min: 0, max: 22 } }}
-                  value={poi.view.zoom ?? ""}
-                  onChange={(e) =>
-                    onUpdatePoi(poi.id, {
-                      view: {
-                        ...poi.view,
-                        zoom: parseFloat(e.target.value) || 0,
-                      },
-                    })
-                  }
-                />
-                <TextField
-                  label="Pitch"
-                  size="small"
-                  fullWidth
-                  type="number"
-                  slotProps={{ htmlInput: { step: 1, min: 0, max: 85 } }}
-                  value={poi.view.pitch ?? ""}
-                  onChange={(e) =>
-                    onUpdatePoi(poi.id, {
-                      view: {
-                        ...poi.view,
-                        pitch: parseFloat(e.target.value) || 0,
-                      },
-                    })
-                  }
-                />
-                <TextField
-                  label="Bearing"
-                  size="small"
-                  fullWidth
-                  type="number"
-                  slotProps={{ htmlInput: { step: 1 } }}
-                  value={poi.view.bearing ?? ""}
-                  onChange={(e) =>
-                    onUpdatePoi(poi.id, {
-                      view: {
-                        ...poi.view,
-                        bearing: parseFloat(e.target.value) || 0,
-                      },
-                    })
-                  }
-                />
+                <FormField label="Zoom" sx={{ flex: 1 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="number"
+                    slotProps={{ htmlInput: { step: 0.1, min: 0, max: 22 } }}
+                    value={poi.view.zoom ?? ""}
+                    onChange={(e) =>
+                      onUpdatePoi(poi.id, {
+                        view: {
+                          ...poi.view,
+                          zoom: parseFloat(e.target.value) || 0,
+                        },
+                      })
+                    }
+                  />
+                </FormField>
+                <FormField label="Pitch" sx={{ flex: 1 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="number"
+                    slotProps={{ htmlInput: { step: 1, min: 0, max: 85 } }}
+                    value={poi.view.pitch ?? ""}
+                    onChange={(e) =>
+                      onUpdatePoi(poi.id, {
+                        view: {
+                          ...poi.view,
+                          pitch: parseFloat(e.target.value) || 0,
+                        },
+                      })
+                    }
+                  />
+                </FormField>
+                <FormField label="Bearing" sx={{ flex: 1 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="number"
+                    slotProps={{ htmlInput: { step: 1 } }}
+                    value={poi.view.bearing ?? ""}
+                    onChange={(e) =>
+                      onUpdatePoi(poi.id, {
+                        view: {
+                          ...poi.view,
+                          bearing: parseFloat(e.target.value) || 0,
+                        },
+                      })
+                    }
+                  />
+                </FormField>
               </Stack>
             )}
           </Stack>

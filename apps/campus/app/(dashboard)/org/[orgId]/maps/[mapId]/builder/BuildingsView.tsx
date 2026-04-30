@@ -18,7 +18,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import { Autocomplete, MenuItem, TextField } from "@klorad/ui";
+import { Autocomplete, FormField, MenuItem, TextField } from "@klorad/ui";
 import type { FloorPlan, POI, Room } from "@klorad/api";
 import {
   ROOM_TEMPLATES,
@@ -609,92 +609,105 @@ function RoomDetail({
       </Stack>
 
       <Stack spacing={1.5}>
-        <TextField
-          label="Name"
-          size="small"
-          value={room.name}
-          onChange={(e) => onUpdateRoom(room.id, { name: e.target.value })}
-        />
-        <TextField
-          label="Type"
-          size="small"
-          select
-          value={room.type}
-          onChange={(e) =>
-            onUpdateRoom(room.id, { type: e.target.value as Room["type"] })
-          }
+        <FormField label="Name">
+          <TextField
+            fullWidth
+            size="small"
+            value={room.name}
+            onChange={(e) => onUpdateRoom(room.id, { name: e.target.value })}
+          />
+        </FormField>
+        <FormField label="Type">
+          <TextField
+            fullWidth
+            size="small"
+            select
+            value={room.type}
+            onChange={(e) =>
+              onUpdateRoom(room.id, { type: e.target.value as Room["type"] })
+            }
+          >
+            {ROOM_TEMPLATES.map((tpl) => (
+              <MenuItem key={tpl.id} value={tpl.id}>
+                {tpl.label}
+              </MenuItem>
+            ))}
+          </TextField>
+        </FormField>
+        <FormField label="Room number">
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="e.g. B3-204"
+            value={room.roomNumber ?? ""}
+            onChange={(e) =>
+              onUpdateRoom(room.id, {
+                roomNumber: e.target.value || undefined,
+              })
+            }
+          />
+        </FormField>
+        <FormField label="Lead occupant">
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Person or department"
+            value={room.occupants?.[0]?.name ?? ""}
+            onChange={(e) => {
+              const name = e.target.value.trim();
+              const role = room.occupants?.[0]?.role;
+              onUpdateRoom(room.id, {
+                occupants: name ? [{ name, role }] : undefined,
+              });
+            }}
+          />
+        </FormField>
+        <FormField label="Occupant role">
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="e.g. Professor of Biology"
+            value={room.occupants?.[0]?.role ?? ""}
+            onChange={(e) => {
+              const role = e.target.value.trim();
+              const name = room.occupants?.[0]?.name;
+              if (!name) return;
+              onUpdateRoom(room.id, {
+                occupants: [{ name, role: role || undefined }],
+              });
+            }}
+          />
+        </FormField>
+        <FormField
+          label="Search keywords"
+          helperText="How visitors might look this room up — Bio 101, microbiology, lab-A."
         >
-          {ROOM_TEMPLATES.map((tpl) => (
-            <MenuItem key={tpl.id} value={tpl.id}>
-              {tpl.label}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          label="Room number"
-          size="small"
-          placeholder="e.g. B3-204"
-          value={room.roomNumber ?? ""}
-          onChange={(e) =>
-            onUpdateRoom(room.id, {
-              roomNumber: e.target.value || undefined,
-            })
-          }
-        />
-        <TextField
-          label="Lead occupant"
-          size="small"
-          placeholder="Person or department"
-          value={room.occupants?.[0]?.name ?? ""}
-          onChange={(e) => {
-            const name = e.target.value.trim();
-            const role = room.occupants?.[0]?.role;
-            onUpdateRoom(room.id, {
-              occupants: name ? [{ name, role }] : undefined,
-            });
-          }}
-        />
-        <TextField
-          label="Lead occupant role"
-          size="small"
-          placeholder="e.g. Professor of Biology"
-          value={room.occupants?.[0]?.role ?? ""}
-          onChange={(e) => {
-            const role = e.target.value.trim();
-            const name = room.occupants?.[0]?.name;
-            if (!name) return;
-            onUpdateRoom(room.id, {
-              occupants: [{ name, role: role || undefined }],
-            });
-          }}
-        />
-        <Autocomplete
-          multiple
-          freeSolo
-          size="small"
-          options={[]}
-          value={room.searchKeywords ?? []}
-          onChange={(_e, value) =>
-            onUpdateRoom(room.id, {
-              searchKeywords: value.length > 0 ? value : undefined,
-            })
-          }
-          renderTags={(value, getTagProps) =>
-            value.map((option, i) => {
-              const { key, ...tagProps } = getTagProps({ index: i });
-              return <Chip key={key} {...tagProps} label={option} size="small" />;
-            })
-          }
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Search keywords"
-              placeholder="Add a keyword + Enter"
-              size="small"
-              helperText="How visitors might look this room up — Bio 101, microbiology, lab-A."
-            />
-          )}
-        />
+          <Autocomplete
+            multiple
+            freeSolo
+            size="small"
+            options={[]}
+            value={room.searchKeywords ?? []}
+            onChange={(_e, value) =>
+              onUpdateRoom(room.id, {
+                searchKeywords: value.length > 0 ? value : undefined,
+              })
+            }
+            renderTags={(value, getTagProps) =>
+              value.map((option, i) => {
+                const { key, ...tagProps } = getTagProps({ index: i });
+                return <Chip key={key} {...tagProps} label={option} size="small" />;
+              })
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Add a keyword + Enter"
+                size="small"
+              />
+            )}
+          />
+        </FormField>
       </Stack>
     </Stack>
   );
