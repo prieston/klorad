@@ -993,8 +993,30 @@ export default function BuilderClient({ mapId }: Props) {
                 }}
                 onCapturePOV={handleCapturePOV}
                 onAddPoiToBuilding={(buildingPoiId) => {
-                  setPendingPoiParent(buildingPoiId);
-                  handleStartPlacingPoi();
+                  if (!apiRef.current) return;
+                  const building = pois.find((p) => p.id === buildingPoiId);
+                  if (!building) return;
+                  // The child POI inherits the building's centre + name
+                  // so it lands on the map immediately and is easy to
+                  // find in the POIs tab. The user can rename it /
+                  // move it from there.
+                  const lng =
+                    building.linkedBuilding?.lng ?? building.position[0];
+                  const lat =
+                    building.linkedBuilding?.lat ?? building.position[1];
+                  pushSnapshot();
+                  const newPoi = apiRef.current.poi.add({
+                    name: building.name,
+                    position: [lng, lat, 0],
+                    category: "custom",
+                    description: "",
+                    parentBuildingId: buildingPoiId,
+                  });
+                  setPois(apiRef.current.poi.getAll());
+                  setSelectedPoiId(newPoi.id);
+                  setActiveView("poi");
+                  void persistMap();
+                  toast.success("POI added to building");
                 }}
                 onOpenPoi={(poiId) => {
                   setSelectedPoiId(poiId);
