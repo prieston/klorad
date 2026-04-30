@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type {
   Map as MapboxMap,
   GeoJSONSource,
@@ -52,6 +52,25 @@ function buildFeatureCollection(rooms: Room[]): GeoJSON.FeatureCollection {
   };
 }
 
+const NO_FLOOR_FILTER: unknown[] = [
+  "==",
+  ["get", "floor"],
+  Number.NEGATIVE_INFINITY,
+];
+
+function floorFilterFor(activeFloor: number | null | undefined): unknown[] {
+  if (activeFloor === null || activeFloor === undefined) return NO_FLOOR_FILTER;
+  return ["==", ["get", "floor"], activeFloor];
+}
+
+function highlightFilterFor(highlightRoomId: string | null | undefined): unknown[] {
+  return [
+    "==",
+    ["get", "id"],
+    highlightRoomId ?? "",
+  ];
+}
+
 /**
  * Render the given rooms as extruded polygons. All rooms across all floors
  * are drawn, but the layer hides any that don't match `activeFloor` (when
@@ -59,6 +78,10 @@ function buildFeatureCollection(rooms: Room[]): GeoJSON.FeatureCollection {
  *
  * Clicking a room fires `onSelect(roomId)` so the parent can open the
  * room card in the right panel.
+ *
+ * The hook is split into three effects so callbacks (which change ref
+ * every parent render) don't cause a teardown — that was the cause of
+ * label flicker on every studio interaction.
  */
 export function useMapboxRoomsLayer(
   rooms: Room[],
@@ -73,47 +96,45 @@ export function useMapboxRoomsLayer(
   const map = useSceneStore((s) => s.mapboxMap as MapboxMap | null);
   const { activeFloor, onSelect, highlightRoomId, clickEnabled = true } = opts;
 
+  // Refs so the install effect can read the latest callback / flag
+  // without depending on them (which would tear the layer down on
+  // every parent render).
+  const onSelectRef = useRef(onSelect);
+  const clickEnabledRef = useRef(clickEnabled);
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+  }, [onSelect]);
+  useEffect(() => {
+    clickEnabledRef.current = clickEnabled;
+  }, [clickEnabled]);
+
+  // ─── 1. install ──────────────────────────────────────────────────────────
+  // Runs once per map. Idempotent: re-installs gracefully on style.load /
+  // styledata (basemap import reload wipes our custom layers).
   useEffect(() => {
     if (!map) return;
-    const data = buildFeatureCollection(rooms);
 
     const install = () => {
-      // Don't gate on isStyleLoaded() — Mapbox flips that flag false
-      // during config-property changes (e.g. campus label defaults), and
-      // we want to recover on the very tick those events fire. addSource
-      // / addLayer tolerate being called during a partial style load.
       try {
         if (!map.getSource(SOURCE_ID)) {
-          map.addSource(SOURCE_ID, { type: "geojson", data });
-        } else {
-          (map.getSource(SOURCE_ID) as GeoJSONSource).setData(data);
+          map.addSource(SOURCE_ID, {
+            type: "geojson",
+            data: { type: "FeatureCollection", features: [] },
+          });
         }
       } catch {
-        // Style may be mid-swap; we'll get another shot on the next
-        // styledata / idle event.
         return;
       }
 
-      // Floor filter — rooms are floor-scoped: when a floor is active,
-      // only that floor renders; when no floor is active we filter to a
-      // sentinel value so nothing renders at all (matches the spec —
-      // rooms are an "inside the building, on this floor" detail).
-      const NO_FLOOR_FILTER: unknown[] = [
-        "==",
-        ["get", "floor"],
-        Number.NEGATIVE_INFINITY,
-      ];
-      const floorFilter: unknown[] =
-        activeFloor === null || activeFloor === undefined
-          ? NO_FLOOR_FILTER
-          : ["==", ["get", "floor"], activeFloor];
+      const initialFloorFilter = NO_FLOOR_FILTER;
+      const initialHighlightFilter = highlightFilterFor(null);
 
       if (!map.getLayer(LAYER_ID)) {
         map.addLayer({
           id: LAYER_ID,
           type: "fill-extrusion",
           source: SOURCE_ID,
-          filter: floorFilter as never,
+          filter: initialFloorFilter as never,
           paint: {
             "fill-extrusion-color": ["get", "color"],
             "fill-extrusion-base": ["get", "base"],
@@ -121,56 +142,38 @@ export function useMapboxRoomsLayer(
             "fill-extrusion-opacity": 0.85,
           },
         });
-      } else {
-        map.setFilter(LAYER_ID, floorFilter as never);
       }
-
       if (!map.getLayer(LAYER_OUTLINE_ID)) {
         map.addLayer({
           id: LAYER_OUTLINE_ID,
           type: "line",
           source: SOURCE_ID,
-          filter: floorFilter as never,
+          filter: initialFloorFilter as never,
           paint: {
             "line-color": "#ffffff",
             "line-opacity": 0.5,
             "line-width": 1,
           },
         });
-      } else {
-        map.setFilter(LAYER_OUTLINE_ID, floorFilter as never);
       }
-
-      // Highlight ring around the currently-selected room.
-      const highlightFilter = highlightRoomId
-        ? (["==", ["get", "id"], highlightRoomId] as unknown[])
-        : (["==", ["get", "id"], ""] as unknown[]);
       if (!map.getLayer(LAYER_HIGHLIGHT_ID)) {
         map.addLayer({
           id: LAYER_HIGHLIGHT_ID,
           type: "line",
           source: SOURCE_ID,
-          filter: highlightFilter as never,
+          filter: initialHighlightFilter as never,
           paint: {
             "line-color": "#ffffff",
             "line-width": 3,
           },
         });
-      } else {
-        map.setFilter(LAYER_HIGHLIGHT_ID, highlightFilter as never);
       }
-
-      // Room name labels — only render when a floor is active so we
-      // don't paint dozens of names across stacked floors. Mapbox places
-      // a polygon's symbol at its centroid. `symbol-z-elevate` lifts the
-      // label above the extrusion roof so it never z-fights with the
-      // room geometry.
       if (!map.getLayer(LAYER_LABEL_ID)) {
         map.addLayer({
           id: LAYER_LABEL_ID,
           type: "symbol",
           source: SOURCE_ID,
-          filter: (floorFilter ?? ["==", ["get", "floor"], Number.NEGATIVE_INFINITY]) as never,
+          filter: initialFloorFilter as never,
           layout: {
             "text-field": ["get", "name"] as never,
             "text-size": 12,
@@ -178,9 +181,6 @@ export function useMapboxRoomsLayer(
             "text-allow-overlap": false,
             "text-ignore-placement": false,
             "text-padding": 2,
-            // No `symbol-z-elevate` — see useMapboxPoiLayer.ts for the
-            // same reasoning. Lifting per-frame against two extrusion
-            // layers makes labels flicker between roof and ground.
           },
           paint: {
             "text-color": "#f5f7fa",
@@ -190,21 +190,10 @@ export function useMapboxRoomsLayer(
             "text-occlusion-opacity": 0,
           },
         });
-      } else if (floorFilter) {
-        map.setFilter(LAYER_LABEL_ID, floorFilter as never);
-      } else {
-        map.setFilter(
-          LAYER_LABEL_ID,
-          ["==", ["get", "floor"], Number.NEGATIVE_INFINITY] as never
-        );
       }
     };
 
     install();
-    // style.load fires once on initial load; styledata fires every time
-    // the style is updated (including after setConfigProperty wipes our
-    // custom layers); idle is the safety-net catch-all. install() is
-    // idempotent.
     const onStyleLoad = () => install();
     const onStyleData = () => install();
     const onIdle = () => install();
@@ -212,20 +201,19 @@ export function useMapboxRoomsLayer(
     map.on("styledata", onStyleData);
     map.on("idle", onIdle);
 
-    // Click and cursor handlers — only attached once per layer install.
+    // Click + hover handlers. Use refs so changing onSelect / clickEnabled
+    // in the parent doesn't re-run this effect.
     const clickHandler = (e: MapMouseEvent) => {
-      if (!clickEnabled) return;
+      if (!clickEnabledRef.current) return;
       const feature = map.queryRenderedFeatures(e.point, {
         layers: [LAYER_ID],
       })[0];
       if (!feature) return;
       const id = (feature.properties?.id ?? feature.id) as string | undefined;
-      if (id && onSelect) {
-        onSelect(id);
-      }
+      if (id && onSelectRef.current) onSelectRef.current(id);
     };
     const hoverEnter = () => {
-      if (!clickEnabled) return;
+      if (!clickEnabledRef.current) return;
       map.getCanvas().style.cursor = "pointer";
     };
     const hoverLeave = () => {
@@ -252,5 +240,56 @@ export function useMapboxRoomsLayer(
         /* ignore */
       }
     };
-  }, [map, rooms, activeFloor, onSelect, highlightRoomId, clickEnabled]);
+  }, [map]);
+
+  // ─── 2. data + floor filter ──────────────────────────────────────────────
+  // Refresh the source features when rooms change; refresh the floor
+  // filter on the three filtered layers when activeFloor changes.
+  useEffect(() => {
+    if (!map) return;
+    const data = buildFeatureCollection(rooms);
+    const apply = () => {
+      const src = map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
+      if (src) src.setData(data);
+      const filter = floorFilterFor(activeFloor);
+      try {
+        if (map.getLayer(LAYER_ID)) map.setFilter(LAYER_ID, filter as never);
+        if (map.getLayer(LAYER_OUTLINE_ID)) map.setFilter(LAYER_OUTLINE_ID, filter as never);
+        if (map.getLayer(LAYER_LABEL_ID)) map.setFilter(LAYER_LABEL_ID, filter as never);
+      } catch {
+        /* layer may be detached during a style swap */
+      }
+    };
+    apply();
+    // The install effect may re-run on styledata before the data effect
+    // does — make sure the next idle tick reapplies our filters.
+    const onStyleData = () => apply();
+    map.on("styledata", onStyleData);
+    return () => {
+      map.off("styledata", onStyleData);
+    };
+  }, [map, rooms, activeFloor]);
+
+  // ─── 3. highlight filter ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!map) return;
+    const apply = () => {
+      try {
+        if (map.getLayer(LAYER_HIGHLIGHT_ID)) {
+          map.setFilter(
+            LAYER_HIGHLIGHT_ID,
+            highlightFilterFor(highlightRoomId) as never
+          );
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    apply();
+    const onStyleData = () => apply();
+    map.on("styledata", onStyleData);
+    return () => {
+      map.off("styledata", onStyleData);
+    };
+  }, [map, highlightRoomId]);
 }

@@ -103,6 +103,13 @@ export default function BuilderClient({ mapId }: Props) {
     "select" | "edit" | "drawRoom" | "drawBuilding"
   >("select");
   const [rooms, setRooms] = useState<Room[]>([]);
+  /**
+   * Floor plans state, kept in lockstep with rooms. Without this we
+   * read `apiRef.current?.floorPlans.getAll()` inline, which returns a
+   * fresh array on every render and made the building / slab layer
+   * data effects re-run on every studio interaction → label flicker.
+   */
+  const [plans, setPlans] = useState<KloradFloorPlan[]>([]);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [pendingPolygon, setPendingPolygon] = useState<[number, number][] | null>(null);
   // When the user starts a room draw from the Buildings tree we know
@@ -149,6 +156,8 @@ export default function BuilderClient({ mapId }: Props) {
   const { pushSnapshot, undo, redo, canUndo, canRedo } = useUndoRedo(apiRef, () => {
     if (!apiRef.current) return;
     setPois(apiRef.current.poi.getAll());
+    setRooms(apiRef.current.rooms.getAll());
+    setPlans(apiRef.current.floorPlans.getAll());
     setSelectedPoiId(null);
   });
 
@@ -211,13 +220,12 @@ export default function BuilderClient({ mapId }: Props) {
   //     stay visible as the structure.
   // The hook also takes plans + rooms so it can derive the floor count
   // for the building's height.
-  const allPlans = apiRef.current?.floorPlans.getAll() ?? [];
   // The "active floor" for clipping comes from whichever drove the most
   // recent intent — explicit pendingRoomFloor (Buildings tree → Draw)
   // wins over the active plan's floor, which wins over null (idle).
   const activeFloorForClip =
     pendingRoomFloor ?? activePlan?.floor ?? null;
-  useMapboxDrawnBuildingsLayer(pois, allPlans, rooms, {
+  useMapboxDrawnBuildingsLayer(pois, plans, rooms, {
     selectedPoiId,
     activeFloor: activeFloorForClip,
     onSelect: (id) => {
@@ -229,7 +237,7 @@ export default function BuilderClient({ mapId }: Props) {
 
   // Floor slabs — thin discs at each floor's elevation. Only render
   // when a floor is active so the idle "block" view stays clean.
-  useMapboxFloorSlabsLayer(pois, allPlans, rooms, {
+  useMapboxFloorSlabsLayer(pois, plans, rooms, {
     activePlanId,
     selectedBuildingPoiId: selectedPoiId,
     onSelect: (buildingPoiId, floor, planId) => {
@@ -343,6 +351,7 @@ export default function BuilderClient({ mapId }: Props) {
       floor: nextFloor,
       // No url / coordinates — empty floor placeholder.
     });
+    setPlans(apiRef.current.floorPlans.getAll());
     setSelectedPoiId(buildingPoiId);
     setActivePlanId(created.id);
     setPendingRoomFloor(nextFloor);
@@ -423,6 +432,7 @@ export default function BuilderClient({ mapId }: Props) {
       });
       toast.success(form.url ? "Floor plan added" : "Floor added");
     }
+    setPlans(apiRef.current.floorPlans.getAll());
     await persistMap();
   };
 
@@ -430,6 +440,7 @@ export default function BuilderClient({ mapId }: Props) {
     if (!apiRef.current) return;
     pushSnapshot();
     apiRef.current.floorPlans.remove(planId);
+    setPlans(apiRef.current.floorPlans.getAll());
     if (activePlanId === planId) setActivePlanId(null);
     toast.success("Floor plan removed");
     await persistMap();
@@ -505,6 +516,7 @@ export default function BuilderClient({ mapId }: Props) {
         api.load(sceneToLoad);
         setPois(api.poi.getAll());
         setRooms(api.rooms.getAll());
+        setPlans(api.floorPlans.getAll());
       } catch {
         // new or unreachable map — fall back to empty defaults
       } finally {
@@ -760,7 +772,7 @@ export default function BuilderClient({ mapId }: Props) {
   const projectHealth = useProjectHealth({
     pois,
     rooms,
-    plans: apiRef.current?.floorPlans.getAll() ?? [],
+    plans,
     activeView,
   });
 
@@ -967,7 +979,7 @@ export default function BuilderClient({ mapId }: Props) {
             <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
               <BuildingsView
                 pois={pois}
-                plans={apiRef.current?.floorPlans.getAll() ?? []}
+                plans={plans}
                 rooms={rooms}
                 selectedPoiId={selectedPoiId}
                 activePlanId={activePlanId}
@@ -1050,6 +1062,7 @@ export default function BuilderClient({ mapId }: Props) {
                   apiRef.current.poi.remove(buildingPoiId);
                   setPois(apiRef.current.poi.getAll());
                   setRooms(apiRef.current.rooms.getAll());
+                  setPlans(apiRef.current.floorPlans.getAll());
                   if (selectedPoiId === buildingPoiId) {
                     setSelectedPoiId(null);
                     setActivePlanId(null);
