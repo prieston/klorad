@@ -104,7 +104,7 @@ export default function BuilderClient({ mapId }: Props) {
   const [saving, setSaving] = useState(false);
   const [placingPoi, setPlacingPoi] = useState(false);
   const [activeTool, setActiveTool] = useState<
-    "select" | "linkBuilding" | "edit" | "drawRoom" | "drawBuilding"
+    "select" | "edit" | "drawRoom" | "drawBuilding"
   >("select");
   const [rooms, setRooms] = useState<Room[]>([]);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
@@ -124,8 +124,6 @@ export default function BuilderClient({ mapId }: Props) {
   const [sceneReady, setSceneReady] = useState(false);
   const apiRef = useRef<CampusAPI | null>(null);
   const mapboxScene = useSceneStore((s) => s.mapboxSceneData);
-  const selectedMapboxBuilding = useSceneStore((s) => s.selectedMapboxBuilding);
-  const setSelectedMapboxBuilding = useSceneStore((s) => s.setSelectedMapboxBuilding);
 
   useMapboxPoiLayer({
     pois,
@@ -549,112 +547,6 @@ export default function BuilderClient({ mapId }: Props) {
     };
   }, [mapId]);
 
-  // Link-to-building: while the tool is active, clicks on Mapbox buildings
-  // surface via selectedMapboxBuilding. Attach the building to the selected POI.
-  useEffect(() => {
-    if (activeTool !== "linkBuilding") return;
-    const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
-    if (map) map.getCanvas().style.cursor = "crosshair";
-    return () => {
-      if (map) map.getCanvas().style.cursor = "";
-    };
-  }, [activeTool]);
-
-  useEffect(() => {
-    if (activeTool !== "linkBuilding") return;
-    if (!selectedMapboxBuilding || !selectedPoiId || !apiRef.current) return;
-    const { properties, lng, lat } = selectedMapboxBuilding;
-    if (typeof lng !== "number" || typeof lat !== "number") return;
-
-    const label = (properties?.name as string) || (properties?.class as string) || "Building";
-
-    pushSnapshot();
-    apiRef.current.poi.update(selectedPoiId, {
-      linkedBuilding: {
-        lng,
-        lat,
-        properties,
-        label,
-      },
-    });
-    setPois(apiRef.current.poi.getAll());
-    setSelectedMapboxBuilding(null);
-    setActiveTool("select");
-    toast.success(`Linked POI to ${label}`);
-  }, [selectedMapboxBuilding, activeTool, selectedPoiId, setSelectedMapboxBuilding]);
-
-  // Highlight the linked building on the map when a POI is selected.
-  // Uses a temporary marker layer; removed on deselect.
-  useEffect(() => {
-    const poi = pois.find((p) => p.id === selectedPoiId);
-    const linked = poi?.linkedBuilding;
-    const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
-    if (!map) return;
-
-    const sourceId = "campus-linked-building-highlight";
-    const layerId = "campus-linked-building-highlight-layer";
-    const pulseLayerId = "campus-linked-building-highlight-pulse";
-
-    const removeHighlight = () => {
-      try {
-        if (map.getLayer(pulseLayerId)) map.removeLayer(pulseLayerId);
-        if (map.getLayer(layerId)) map.removeLayer(layerId);
-        if (map.getSource(sourceId)) map.removeSource(sourceId);
-      } catch {
-        /* map may be tearing down */
-      }
-    };
-
-    if (!linked) {
-      removeHighlight();
-      return;
-    }
-
-    const addHighlight = () => {
-      try {
-        if (map.getSource(sourceId)) removeHighlight();
-        map.addSource(sourceId, {
-          type: "geojson",
-          data: {
-            type: "Feature",
-            geometry: { type: "Point", coordinates: [linked.lng, linked.lat] },
-            properties: {},
-          },
-        });
-        map.addLayer({
-          id: pulseLayerId,
-          type: "circle",
-          source: sourceId,
-          paint: {
-            "circle-radius": 22,
-            "circle-color": "#6b9cd8",
-            "circle-opacity": 0.18,
-            "circle-blur": 0.4,
-          },
-        });
-        map.addLayer({
-          id: layerId,
-          type: "circle",
-          source: sourceId,
-          paint: {
-            "circle-radius": 10,
-            "circle-color": "#6b9cd8",
-            "circle-stroke-color": "#ffffff",
-            "circle-stroke-width": 2,
-            "circle-opacity": 0.95,
-          },
-        });
-      } catch {
-        /* ignore */
-      }
-    };
-
-    if (map.isStyleLoaded()) addHighlight();
-    else map.once("load", addHighlight);
-
-    return () => removeHighlight();
-  }, [selectedPoiId, pois]);
-
   // Click-to-place: while placingPoi is true, the next map click creates a POI there
   useEffect(() => {
     if (!placingPoi) return;
@@ -803,21 +695,6 @@ export default function BuilderClient({ mapId }: Props) {
       active: activeTool === "edit",
       onClick: () =>
         setActiveTool((prev) => (prev === "edit" ? "select" : "edit")),
-    },
-    {
-      id: "linkBuilding",
-      icon: <ApartmentIcon fontSize="small" />,
-      label: selectedPoiId
-        ? "Link building to selected POI"
-        : "Link building (select a POI first)",
-      active: activeTool === "linkBuilding",
-      onClick: () => {
-        if (!selectedPoiId) {
-          toast.info("Select a POI first, then click a building.");
-          return;
-        }
-        setActiveTool((prev) => (prev === "linkBuilding" ? "select" : "linkBuilding"));
-      },
     },
     {
       id: "drawBuilding",
@@ -981,30 +858,6 @@ export default function BuilderClient({ mapId }: Props) {
             }}
           >
             Click on the map to place the POI
-          </Box>
-        )}
-
-        {activeTool === "linkBuilding" && (
-          <Box
-            sx={{
-              position: "absolute",
-              top: 76,
-              left: "50%",
-              transform: "translateX(-50%)",
-              bgcolor: (t) => alpha(t.palette.primary.main, 0.95),
-              color: "#fff",
-              px: 2,
-              py: 0.75,
-              borderRadius: 1,
-              fontSize: "0.8125rem",
-              fontWeight: 600,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-              zIndex: 20,
-            }}
-          >
-            {selectedPoiId
-              ? "Click a building to link it to the selected POI"
-              : "Select a POI first, then click a building"}
           </Box>
         )}
 
@@ -1370,10 +1223,6 @@ export default function BuilderClient({ mapId }: Props) {
                   pushSnapshot();
                   apiRef.current.poi.update(id, patch);
                   setPois(apiRef.current.poi.getAll());
-                }}
-                onUnlinkBuilding={(id) => {
-                  apiRef.current?.poi.update(id, { linkedBuilding: undefined });
-                  setPois(apiRef.current?.poi.getAll() ?? []);
                 }}
                 onFlyToPoi={handleFlyToPoi}
                 onDeletePoi={handleDeletePoi}

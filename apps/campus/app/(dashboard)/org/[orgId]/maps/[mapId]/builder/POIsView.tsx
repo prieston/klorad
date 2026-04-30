@@ -16,8 +16,6 @@ import CloseIcon from "@mui/icons-material/Close";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import FlightTakeoffIcon from "@mui/icons-material/FlightTakeoff";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import LinkOffIcon from "@mui/icons-material/LinkOff";
-import ApartmentIcon from "@mui/icons-material/Apartment";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import VideocamIcon from "@mui/icons-material/Videocam";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -64,7 +62,6 @@ export interface POIsViewProps {
   onStopPlacing: () => void;
 
   onUpdatePoi: (id: string, patch: Partial<POI>) => void;
-  onUnlinkBuilding: (id: string) => void;
   onFlyToPoi: (id: string) => void;
   onDeletePoi: (id: string) => void;
 
@@ -264,7 +261,6 @@ function PoiList({
                   sx={{ fontSize: "0.7rem" }}
                 >
                   {p.category ?? "custom"}
-                  {p.linkedBuilding ? " · linked" : ""}
                 </Typography>
               </Box>
               <Tooltip title="Fly to">
@@ -309,7 +305,6 @@ function PoiList({
 function PoiDetail({
   poi,
   onUpdatePoi,
-  onUnlinkBuilding,
   onFlyToPoi,
   onDeletePoi,
   onUseMapCenter,
@@ -406,61 +401,6 @@ function PoiDetail({
 
       {/* --------------------------- Map link ------------------------------ */}
       <Section label="On the map">
-        {poi.linkedBuilding ? (
-          <Box
-            sx={(t) => ({
-              p: 1.25,
-              borderRadius: 1,
-              bgcolor: alpha(t.palette.primary.main, 0.06),
-              border: "1px solid",
-              borderColor: "divider",
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-            })}
-          >
-            <ApartmentIcon sx={{ fontSize: 20, color: "primary.main" }} />
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography
-                variant="body2"
-                sx={{ fontSize: "0.8125rem", fontWeight: 600 }}
-                noWrap
-              >
-                {poi.linkedBuilding.label ?? "Linked building"}
-              </Typography>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{
-                  fontFamily: "monospace",
-                  fontSize: "0.7rem",
-                  display: "block",
-                }}
-              >
-                {poi.linkedBuilding.lng.toFixed(5)},{" "}
-                {poi.linkedBuilding.lat.toFixed(5)}
-              </Typography>
-            </Box>
-            <Tooltip title="Unlink">
-              <IconButton
-                size="small"
-                onClick={() => onUnlinkBuilding(poi.id)}
-              >
-                <LinkOffIcon sx={{ fontSize: 14 }} />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        ) : (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ fontSize: "0.75rem" }}
-          >
-            Not linked to a building. Use the apartment tool on the map to
-            link this POI to a 3D footprint.
-          </Typography>
-        )}
-
         {/* Position summary + advanced toggle */}
         <Box>
           <Stack direction="row" alignItems="center" spacing={1}>
