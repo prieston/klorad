@@ -5,8 +5,6 @@ import dynamic from "next/dynamic";
 import {
   Box,
   Button,
-  Checkbox,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -14,15 +12,9 @@ import {
   DialogTitle,
   Divider,
   IconButton,
-  List,
-  ListItemButton,
-  ListItemText,
   Stack,
-  Tooltip,
   Typography,
 } from "@mui/material";
-import CheckBoxIcon from "@mui/icons-material/CheckBoxOutlined";
-import AddIcon from "@mui/icons-material/Add";
 import { v4 as uuidv4 } from "uuid";
 import { alpha } from "@mui/material/styles";
 import {
@@ -36,17 +28,14 @@ import {
   AddLocationAltIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  DeleteOutlineIcon,
-  MyLocationIcon,
   FlightTakeoffIcon,
+  MyLocationIcon,
   SaveIcon,
   ShareIcon,
-  CloseIcon,
   PublicIcon,
   NearMeIcon,
   OpenWithIcon,
   ApartmentIcon,
-  LinkOffIcon,
   UndoIcon,
   RedoIcon,
 } from "@klorad/ui";
@@ -56,11 +45,12 @@ import { captureMapboxScreenshot } from "@/app/utils/captureMapboxScreenshot";
 import type { SceneTool } from "@klorad/ui";
 import { toast } from "react-toastify";
 import { createSceneAPI } from "@klorad/api";
-import type { CampusAPI, POI, POICategory } from "@klorad/api";
+import type { CampusAPI, POI } from "@klorad/api";
 import { useSceneStore } from "@klorad/core";
 import type { Map as MapboxMap, MapMouseEvent } from "mapbox-gl";
 import BuilderLeftPanel from "./BuilderLeftPanel";
 import BuildingsView from "./BuildingsView";
+import POIsView from "./POIsView";
 import ProjectHealthPanel from "./ProjectHealthPanel";
 import { useProjectHealth } from "@/app/hooks/useProjectHealth";
 import FloorPlanDrawer, { buildCornerBounds } from "./FloorPlanDrawer";
@@ -103,25 +93,6 @@ function MapLoadingFallback() {
   );
 }
 
-const POI_CATEGORY_COLORS: Record<POICategory, string> = {
-  building: "#3b82f6",
-  department: "#8b5cf6",
-  library: "#f59e0b",
-  dining: "#10b981",
-  parking: "#6b7280",
-  sports: "#ef4444",
-  medical: "#ec4899",
-  admin: "#0ea5e9",
-  housing: "#f97316",
-  amenity: "#84cc16",
-  custom: "#94a3b8",
-};
-
-const CATEGORIES: POICategory[] = [
-  "building", "department", "library", "dining",
-  "parking", "sports", "medical", "admin", "housing", "amenity", "custom",
-];
-
 interface Props {
   mapId: string;
 }
@@ -130,8 +101,6 @@ export default function BuilderClient({ mapId }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [pois, setPois] = useState<POI[]>([]);
   const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [placingPoi, setPlacingPoi] = useState(false);
   const [activeTool, setActiveTool] = useState<
@@ -162,10 +131,6 @@ export default function BuilderClient({ mapId }: Props) {
     pois,
     selectedPoiId,
     onPoiClick: (id) => {
-      if (multiSelectMode) {
-        toggleMultiSelect(id);
-        return;
-      }
       setSelectedPoiId((prev) => (prev === id ? null : id));
     },
   });
@@ -174,7 +139,6 @@ export default function BuilderClient({ mapId }: Props) {
     if (!apiRef.current) return;
     setPois(apiRef.current.poi.getAll());
     setSelectedPoiId(null);
-    setSelectedIds(new Set());
   });
 
   useMapboxPoiDrag({
@@ -724,8 +688,6 @@ export default function BuilderClient({ mapId }: Props) {
     };
   }, [placingPoi]);
 
-  const selectedPoi = pois.find((p) => p.id === selectedPoiId) ?? null;
-
   const handleStartPlacingPoi = () => {
     const map = useSceneStore.getState().mapboxMap;
     if (!map) {
@@ -738,11 +700,6 @@ export default function BuilderClient({ mapId }: Props) {
 
   const handleFlyToPoi = (id: string) => {
     apiRef.current?.poi.flyTo(id);
-  };
-
-  const handleSelectPoi = (id: string) => {
-    setSelectedPoiId(id);
-    handleFlyToPoi(id);
   };
 
   const handleUseMapCenter = () => {
@@ -812,61 +769,6 @@ export default function BuilderClient({ mapId }: Props) {
     apiRef.current.poi.remove(id);
     setPois(apiRef.current.poi.getAll());
     if (selectedPoiId === id) setSelectedPoiId(null);
-    setSelectedIds((prev) => {
-      if (!prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-  };
-
-  // Multi-select
-  const toggleMultiSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const clearMultiSelect = () => setSelectedIds(new Set());
-
-  const selectAllVisiblePois = () => {
-    setSelectedIds(new Set(pois.map((p) => p.id)));
-  };
-
-  const handleBulkDelete = () => {
-    if (!apiRef.current || selectedIds.size === 0) return;
-    pushSnapshot();
-    for (const id of selectedIds) apiRef.current.poi.remove(id);
-    const n = selectedIds.size;
-    setSelectedIds(new Set());
-    if (selectedPoiId && selectedIds.has(selectedPoiId)) setSelectedPoiId(null);
-    setPois(apiRef.current.poi.getAll());
-    toast.success(`${n} POI${n === 1 ? "" : "s"} deleted`);
-  };
-
-  // Delete key removes the multi-selection (ignore when typing in a field)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Delete" && e.key !== "Backspace") return;
-      if (selectedIds.size === 0) return;
-      const el = document.activeElement as HTMLElement | null;
-      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
-      e.preventDefault();
-      handleBulkDelete();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedIds]);
-
-  const handleUpdatePoi = (field: keyof POI, value: unknown) => {
-    if (!apiRef.current || !selectedPoiId) return;
-    pushSnapshot();
-    apiRef.current.poi.update(selectedPoiId, { [field]: value });
-    setPois(apiRef.current.poi.getAll());
   };
 
   const handleSave = async () => {
@@ -1428,588 +1330,36 @@ export default function BuilderClient({ mapId }: Props) {
           )}
 
           {activeView === "poi" && (
-            <>
-              {/* POI section label + inline Add */}
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  px: 2,
-                  pt: 2,
-                  pb: 1,
-                  flexShrink: 0,
+            <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              <POIsView
+                pois={pois}
+                selectedPoiId={selectedPoiId}
+                placingPoi={placingPoi}
+                onSelectPoi={(id) => {
+                  setSelectedPoiId(id);
+                  if (id) apiRef.current?.poi.flyTo(id);
                 }}
-              >
-                <Typography
-                  variant="overline"
-                  sx={{
-                    fontSize: "0.7rem",
-                    fontWeight: 600,
-                    color: "text.secondary",
-                    letterSpacing: "0.08em",
-                    flex: 1,
-                  }}
-                >
-                  Points of Interest
-                </Typography>
-                <Chip
-                  label={pois.length}
-                  size="small"
-                  sx={{
-                    height: 20,
-                    fontSize: "0.7rem",
-                    bgcolor: (t) => alpha(t.palette.primary.main, 0.16),
-                    color: "primary.main",
-                    fontWeight: 600,
-                  }}
-                />
-                {pois.length > 0 && (
-                  <Tooltip title={multiSelectMode ? "Exit select mode" : "Select POIs"}>
-                    <IconButton
-                      size="small"
-                      onClick={() => {
-                        if (multiSelectMode) {
-                          setMultiSelectMode(false);
-                          clearMultiSelect();
-                        } else {
-                          setMultiSelectMode(true);
-                          setSelectedPoiId(null);
-                        }
-                      }}
-                      sx={(th) => ({
-                        p: 0.5,
-                        color: multiSelectMode ? "primary.main" : "text.secondary",
-                        bgcolor: multiSelectMode ? alpha(th.palette.primary.main, 0.12) : "transparent",
-                      })}
-                    >
-                      <CheckBoxIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                <Button
-                  size="small"
-                  startIcon={placingPoi ? <CloseIcon sx={{ fontSize: 14 }} /> : <AddLocationAltIcon sx={{ fontSize: 14 }} />}
-                  onClick={() => (placingPoi ? setPlacingPoi(false) : handleStartPlacingPoi())}
-                  color={placingPoi ? "warning" : "primary"}
-                  sx={{ textTransform: "none", fontSize: "0.7rem", py: 0.25 }}
-                >
-                  {placingPoi ? "Cancel" : "Add"}
-                </Button>
-              </Box>
-
-              <Box sx={{ flex: 1, overflow: "auto", px: 2, pb: 2 }}>
-            {/* Bulk-action bar — visible only in multi-select mode with active selection */}
-            {multiSelectMode && selectedIds.size > 0 && (
-              <Box
-                sx={(t) => ({
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.5,
-                  mb: 1,
-                  px: 1,
-                  py: 0.5,
-                  borderRadius: 1,
-                  bgcolor: alpha(t.palette.primary.main, 0.14),
-                  border: "1px solid",
-                  borderColor: alpha(t.palette.primary.main, 0.3),
-                })}
-              >
-                <Typography
-                  variant="caption"
-                  color="primary.main"
-                  sx={{ flex: 1, fontWeight: 700, fontSize: "0.75rem" }}
-                >
-                  {selectedIds.size} selected
-                </Typography>
-                <Button
-                  size="small"
-                  color="inherit"
-                  onClick={clearMultiSelect}
-                  sx={{ fontSize: "0.7rem", textTransform: "none", py: 0, opacity: 0.7 }}
-                >
-                  Clear
-                </Button>
-                <Button
-                  size="small"
-                  variant="contained"
-                  color="error"
-                  onClick={handleBulkDelete}
-                  startIcon={<DeleteOutlineIcon sx={{ fontSize: 14 }} />}
-                  sx={{ fontSize: "0.7rem", textTransform: "none", py: 0.25 }}
-                >
-                  Delete
-                </Button>
-              </Box>
-            )}
-
-            {/* Select-all row — only in multi-select mode with POIs */}
-            {multiSelectMode && pois.length > 0 && (
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  pl: 0.75,
-                  pr: 1,
-                  py: 0.25,
-                  mb: 0.5,
-                  opacity: 0.75,
+                onStartPlacing={handleStartPlacingPoi}
+                onStopPlacing={() => setPlacingPoi(false)}
+                onUpdatePoi={(id, patch) => {
+                  if (!apiRef.current) return;
+                  pushSnapshot();
+                  apiRef.current.poi.update(id, patch);
+                  setPois(apiRef.current.poi.getAll());
                 }}
-              >
-                <Checkbox
-                  size="small"
-                  indeterminate={selectedIds.size > 0 && selectedIds.size < pois.length}
-                  checked={selectedIds.size === pois.length}
-                  onChange={(e) => (e.target.checked ? selectAllVisiblePois() : clearMultiSelect())}
-                  sx={{ p: 0.5 }}
-                />
-                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem", ml: 0.5 }}>
-                  Select all
-                </Typography>
-              </Box>
-            )}
-
-            <List dense disablePadding>
-            {pois.length === 0 && (
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ textAlign: "center", py: 4, px: 2, fontSize: "0.8125rem" }}
-              >
-                No points of interest yet. Click &ldquo;Add POI&rdquo; then pick a spot on the map.
-              </Typography>
-            )}
-            {pois.map((poi) => {
-              const isMultiSelected = selectedIds.has(poi.id);
-              const isSingleSelected = poi.id === selectedPoiId;
-              return (
-              <ListItemButton
-                key={poi.id}
-                selected={!multiSelectMode && isSingleSelected}
-                onClick={() => {
-                  if (multiSelectMode) {
-                    toggleMultiSelect(poi.id);
-                  } else if (isSingleSelected) {
-                    // Second click on the already-selected POI closes its
-                    // detail view.
-                    setSelectedPoiId(null);
-                  } else {
-                    handleSelectPoi(poi.id);
-                  }
+                onUnlinkBuilding={(id) => {
+                  apiRef.current?.poi.update(id, { linkedBuilding: undefined });
+                  setPois(apiRef.current?.poi.getAll() ?? []);
                 }}
-                sx={(t) => ({
-                  borderRadius: 1,
-                  mb: 0.25,
-                  pl: 0.5,
-                  pr: 0.5,
-                  "&:hover": { bgcolor: alpha(t.palette.primary.main, 0.08) },
-                  "&.Mui-selected": {
-                    bgcolor: alpha(t.palette.primary.main, 0.12),
-                    "&:hover": { bgcolor: alpha(t.palette.primary.main, 0.16) },
-                  },
-                  ...(multiSelectMode && isMultiSelected && {
-                    outline: "1px solid",
-                    outlineColor: "primary.main",
-                  }),
-                })}
-              >
-                {multiSelectMode && (
-                  <Checkbox
-                    size="small"
-                    checked={isMultiSelected}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={() => toggleMultiSelect(poi.id)}
-                    sx={{ p: 0.25, mr: 0.5 }}
-                  />
-                )}
-                <Box
-                  sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    bgcolor: POI_CATEGORY_COLORS[poi.category ?? "custom"],
-                    mr: 1,
-                    flexShrink: 0,
-                  }}
-                />
-                <ListItemText
-                  primary={poi.name}
-                  secondary={poi.category}
-                  primaryTypographyProps={{ fontSize: "0.8125rem", noWrap: true }}
-                  secondaryTypographyProps={{ fontSize: "0.7rem" }}
-                />
-                <IconButton
-                  size="small"
-                  edge="end"
-                  onClick={(e) => { e.stopPropagation(); handleFlyToPoi(poi.id); }}
-                  sx={{ opacity: 0.5, "&:hover": { opacity: 1 }, mr: 0.25 }}
-                  title="Fly to POI"
-                >
-                  <FlightTakeoffIcon sx={{ fontSize: 14 }} />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  edge="end"
-                  onClick={(e) => { e.stopPropagation(); handleDeletePoi(poi.id); }}
-                  sx={{ opacity: 0.5, "&:hover": { opacity: 1 } }}
-                  title="Delete POI"
-                >
-                  <DeleteOutlineIcon sx={{ fontSize: 14 }} />
-                </IconButton>
-              </ListItemButton>
-              );
-            })}
-          </List>
-
-          {selectedPoi && (
-            <>
-              <Divider sx={{ my: 2 }} />
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                <Typography
-                  variant="overline"
-                  sx={{
-                    fontSize: "0.7rem",
-                    fontWeight: 600,
-                    color: "text.secondary",
-                    letterSpacing: "0.08em",
-                  }}
-                >
-                  Edit POI
-                </Typography>
-              <FormField label="Name">
-                <TextField
-                  size="small"
-                  fullWidth
-                  value={selectedPoi.name}
-                  onChange={(e) => handleUpdatePoi("name", e.target.value)}
-                />
-              </FormField>
-              <FormField label="Description">
-                <TextField
-                  size="small"
-                  fullWidth
-                  multiline
-                  rows={2}
-                  value={selectedPoi.description ?? ""}
-                  onChange={(e) => handleUpdatePoi("description", e.target.value)}
-                />
-              </FormField>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ mb: 0.75, display: "block" }}>
-                  Category
-                </Typography>
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                  {CATEGORIES.map((cat) => (
-                    <Chip
-                      key={cat}
-                      label={cat}
-                      size="small"
-                      clickable
-                      onClick={() => handleUpdatePoi("category", cat)}
-                      sx={{
-                        fontSize: "0.7rem",
-                        height: 20,
-                        bgcolor: selectedPoi.category === cat
-                          ? POI_CATEGORY_COLORS[cat]
-                          : "action.hover",
-                        color: selectedPoi.category === cat ? "#fff" : "text.secondary",
-                      }}
-                    />
-                  ))}
-                </Box>
-              </Box>
-
-              <Divider />
-
-              {/* Linked Building */}
-              <Box>
-                <Box sx={{ display: "flex", alignItems: "center", mb: 0.75, gap: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
-                    Linked Building
-                  </Typography>
-                  {selectedPoi.linkedBuilding && (
-                    <Button
-                      size="small"
-                      color="inherit"
-                      startIcon={<LinkOffIcon sx={{ fontSize: 14 }} />}
-                      onClick={() => {
-                        apiRef.current?.poi.update(selectedPoi.id, {
-                          linkedBuilding: undefined,
-                        });
-                        setPois(apiRef.current?.poi.getAll() ?? []);
-                      }}
-                      sx={{ fontSize: "0.7rem", textTransform: "none", py: 0, opacity: 0.6 }}
-                    >
-                      Unlink
-                    </Button>
-                  )}
-                </Box>
-                {selectedPoi.linkedBuilding ? (
-                  <Box
-                    sx={{
-                      p: 1.25,
-                      borderRadius: 1,
-                      bgcolor: (t) => alpha(t.palette.primary.main, 0.06),
-                      border: "1px solid",
-                      borderColor: "divider",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                    }}
-                  >
-                    <ApartmentIcon sx={{ fontSize: 20, color: "primary.main" }} />
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography
-                        variant="body2"
-                        sx={{ fontSize: "0.8125rem", fontWeight: 600 }}
-                        noWrap
-                      >
-                        {selectedPoi.linkedBuilding.label ?? "Building"}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ fontFamily: "monospace", fontSize: "0.7rem", display: "block" }}
-                      >
-                        {selectedPoi.linkedBuilding.lng.toFixed(5)},{" "}
-                        {selectedPoi.linkedBuilding.lat.toFixed(5)}
-                      </Typography>
-                    </Box>
-                  </Box>
-                ) : (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                    No building linked. Use the{" "}
-                    <ApartmentIcon sx={{ fontSize: 12, verticalAlign: "middle", mx: 0.25 }} />
-                    tool on the map to link one.
-                  </Typography>
-                )}
-              </Box>
-
-              <Divider />
-
-              <Box>
-                <Box sx={{ display: "flex", alignItems: "center", mb: 0.75, gap: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
-                    Position
-                  </Typography>
-                  <Button
-                    size="small"
-                    startIcon={<FlightTakeoffIcon sx={{ fontSize: 14 }} />}
-                    onClick={() => handleFlyToPoi(selectedPoi.id)}
-                    sx={{ fontSize: "0.7rem", textTransform: "none", py: 0 }}
-                  >
-                    Fly to
-                  </Button>
-                  <Button
-                    size="small"
-                    startIcon={<MyLocationIcon sx={{ fontSize: 14 }} />}
-                    onClick={handleUseMapCenter}
-                    sx={{ fontSize: "0.7rem", textTransform: "none", py: 0 }}
-                  >
-                    Use center
-                  </Button>
-                </Box>
-                <Stack direction="row" spacing={1}>
-                  <FormField label="Lng" sx={{ flex: 1 }}>
-                    <TextField
-                      size="small"
-                      fullWidth
-                      type="number"
-                      slotProps={{ htmlInput: { step: 0.000001 } }}
-                      value={selectedPoi.position[0]}
-                      onChange={(e) =>
-                        handleUpdatePoi("position", [
-                          parseFloat(e.target.value) || 0,
-                          selectedPoi.position[1],
-                          selectedPoi.position[2],
-                        ])
-                      }
-                    />
-                  </FormField>
-                  <FormField label="Lat" sx={{ flex: 1 }}>
-                    <TextField
-                      size="small"
-                      fullWidth
-                      type="number"
-                      slotProps={{ htmlInput: { step: 0.000001 } }}
-                      value={selectedPoi.position[1]}
-                      onChange={(e) =>
-                        handleUpdatePoi("position", [
-                          selectedPoi.position[0],
-                          parseFloat(e.target.value) || 0,
-                          selectedPoi.position[2],
-                        ])
-                      }
-                    />
-                  </FormField>
-                </Stack>
-                <FormField label="Altitude (m)">
-                  <TextField
-                    size="small"
-                    fullWidth
-                    type="number"
-                    slotProps={{ htmlInput: { step: 1 } }}
-                    value={selectedPoi.position[2]}
-                    onChange={(e) =>
-                      handleUpdatePoi("position", [
-                        selectedPoi.position[0],
-                        selectedPoi.position[1],
-                        parseFloat(e.target.value) || 0,
-                      ])
-                    }
-                    sx={{ mt: 1 }}
-                  />
-                </FormField>
-              </Box>
-
-              <Divider />
-
-              <Box>
-                <Box sx={{ display: "flex", alignItems: "center", mb: 0.75, gap: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
-                    View (zoom / pitch / bearing)
-                  </Typography>
-                  <Button
-                    size="small"
-                    onClick={handleCaptureView}
-                    sx={{ fontSize: "0.7rem", textTransform: "none", py: 0 }}
-                  >
-                    Capture
-                  </Button>
-                  {selectedPoi.view && (
-                    <Button
-                      size="small"
-                      color="inherit"
-                      onClick={handleClearView}
-                      sx={{ fontSize: "0.7rem", textTransform: "none", py: 0, opacity: 0.6 }}
-                    >
-                      Clear
-                    </Button>
-                  )}
-                </Box>
-                {selectedPoi.view ? (
-                  <Stack direction="row" spacing={1}>
-                    <FormField label="Zoom" sx={{ flex: 1 }}>
-                      <TextField
-                        size="small"
-                        fullWidth
-                        type="number"
-                        slotProps={{ htmlInput: { step: 0.1, min: 0, max: 22 } }}
-                        value={selectedPoi.view.zoom ?? ""}
-                        onChange={(e) =>
-                          handleUpdatePoi("view", {
-                            ...selectedPoi.view,
-                            zoom: parseFloat(e.target.value) || 0,
-                          })
-                        }
-                      />
-                    </FormField>
-                    <FormField label="Pitch" sx={{ flex: 1 }}>
-                      <TextField
-                        size="small"
-                        fullWidth
-                        type="number"
-                        slotProps={{ htmlInput: { step: 1, min: 0, max: 85 } }}
-                        value={selectedPoi.view.pitch ?? ""}
-                        onChange={(e) =>
-                          handleUpdatePoi("view", {
-                            ...selectedPoi.view,
-                            pitch: parseFloat(e.target.value) || 0,
-                          })
-                        }
-                      />
-                    </FormField>
-                    <FormField label="Bearing" sx={{ flex: 1 }}>
-                      <TextField
-                        size="small"
-                        fullWidth
-                        type="number"
-                        slotProps={{ htmlInput: { step: 1 } }}
-                        value={selectedPoi.view.bearing ?? ""}
-                        onChange={(e) =>
-                          handleUpdatePoi("view", {
-                            ...selectedPoi.view,
-                            bearing: parseFloat(e.target.value) || 0,
-                          })
-                        }
-                      />
-                    </FormField>
-                  </Stack>
-                ) : (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                    No view saved. Fly-to uses defaults.
-                  </Typography>
-                )}
-              </Box>
-
-              <Divider />
-
-              {/* Events */}
-              <Box>
-                <Box sx={{ display: "flex", alignItems: "center", mb: 0.75 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
-                    Events
-                  </Typography>
-                  <Button
-                    size="small"
-                    startIcon={<AddIcon sx={{ fontSize: 14 }} />}
-                    onClick={() => setEventDialogOpen(true)}
-                    sx={{ fontSize: "0.7rem", textTransform: "none", py: 0.25 }}
-                  >
-                    Add event
-                  </Button>
-                </Box>
-                {(selectedPoi.events ?? []).length === 0 ? (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                    No events. Useful for lectures, open days, tours — surfaces
-                    in the public viewer search.
-                  </Typography>
-                ) : (
-                  <Stack spacing={0.75}>
-                    {(selectedPoi.events ?? []).map((ev) => (
-                      <Box
-                        key={ev.id}
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          p: 1,
-                          border: "1px solid",
-                          borderColor: "divider",
-                          borderRadius: 1,
-                          gap: 1,
-                        }}
-                      >
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography variant="body2" fontWeight={600} noWrap>
-                            {ev.title}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
-                            {ev.courseCode ? `${ev.courseCode} · ` : ""}
-                            {new Date(ev.startsAt).toLocaleString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </Typography>
-                        </Box>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleRemoveEvent(selectedPoi.id, ev.id)}
-                          sx={{ opacity: 0.5, "&:hover": { opacity: 1 } }}
-                        >
-                          <DeleteOutlineIcon sx={{ fontSize: 14 }} />
-                        </IconButton>
-                      </Box>
-                    ))}
-                  </Stack>
-                )}
-              </Box>
+                onFlyToPoi={handleFlyToPoi}
+                onDeletePoi={handleDeletePoi}
+                onUseMapCenter={handleUseMapCenter}
+                onCaptureView={handleCaptureView}
+                onClearView={handleClearView}
+                onAddEvent={() => setEventDialogOpen(true)}
+                onRemoveEvent={handleRemoveEvent}
+              />
             </Box>
-          </>
-        )}
-              </Box>
-            </>
           )}
         </RightPanelContainer>
       )}
