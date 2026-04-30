@@ -6,14 +6,13 @@ import {
   Button,
   CircularProgress,
   LinearProgress,
-  MenuItem,
   Stack,
   Typography,
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import ImageIcon from "@mui/icons-material/Image";
 import { toast } from "react-toastify";
-import { FormField, RightDrawer, Select, TextField } from "@klorad/ui";
+import { FormField, MenuItem, RightDrawer, Select, TextField } from "@klorad/ui";
 import { uploadFile } from "@klorad/storage/client";
 import type { FloorPlan, POI } from "@klorad/api";
 

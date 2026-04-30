@@ -7,7 +7,6 @@ import {
   Box,
   Button,
   CircularProgress,
-  TextField,
   Typography,
 } from "@mui/material";
 import {
@@ -15,8 +14,8 @@ import {
   PageCard,
   PageContent,
   PageSection,
+  TextField,
   showToast,
-  textFieldStyles,
 } from "@klorad/ui";
 import { useOrganization } from "@/app/hooks/useOrganizations";
 
@@ -178,7 +177,6 @@ export default function SettingsGeneralPage() {
                 size="small"
                 disabled={!canEdit || saving}
                 placeholder={`Enter ${scopeLabel.toLowerCase()} name`}
-                sx={textFieldStyles}
               />
             </Box>
 
@@ -195,7 +193,6 @@ export default function SettingsGeneralPage() {
                 size="small"
                 disabled={!canEdit || saving || organization.isPersonal}
                 placeholder={`Enter ${scopeLabel.toLowerCase()} slug`}
-                sx={textFieldStyles}
               />
               <Typography
                 sx={(theme) => ({

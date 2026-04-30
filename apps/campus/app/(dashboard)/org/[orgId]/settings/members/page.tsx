@@ -13,7 +13,6 @@ import {
   CircularProgress,
   Dialog,
   IconButton,
-  MenuItem,
   Stack,
   Table,
   TableBody,
@@ -21,12 +20,12 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Tooltip,
   Typography,
   alpha,
 } from "@mui/material";
 import {
+  MenuItem,
   Page,
   PageCard,
   PageContent,
@@ -34,8 +33,8 @@ import {
   Select,
   SettingContainer,
   SettingLabel,
+  TextField,
   showToast,
-  textFieldStyles,
 } from "@klorad/ui";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -517,7 +516,6 @@ export default function SettingsMembersPage() {
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
             placeholder="name@example.com"
-            sx={textFieldStyles}
           />
         </SettingContainer>
         <SettingContainer sx={{ borderBottom: "none", padding: 0 }}>
@@ -527,7 +525,6 @@ export default function SettingsMembersPage() {
             size="small"
             value={inviteRole}
             onChange={(e) => setInviteRole(e.target.value as string)}
-            sx={textFieldStyles}
           >
             <MenuItem value="member">Member</MenuItem>
             <MenuItem value="admin">Admin</MenuItem>
@@ -562,7 +559,6 @@ export default function SettingsMembersPage() {
             size="small"
             value={lastInviteUrl ?? ""}
             InputProps={{ readOnly: true }}
-            sx={textFieldStyles}
           />
           <IconButton
             onClick={() => {

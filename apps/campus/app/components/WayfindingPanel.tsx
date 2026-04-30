@@ -6,7 +6,6 @@ import {
   CircularProgress,
   Divider,
   IconButton,
-  MenuItem,
   Stack,
   Typography,
 } from "@mui/material";
@@ -15,7 +14,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import AccessibleIcon from "@mui/icons-material/Accessible";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
-import { FormField, Select } from "@klorad/ui";
+import { FormField, MenuItem, Select } from "@klorad/ui";
 import type { POI } from "@klorad/api";
 
 export const MY_LOCATION_ID = "__me__";

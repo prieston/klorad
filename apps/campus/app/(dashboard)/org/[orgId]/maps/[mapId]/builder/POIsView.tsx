@@ -7,7 +7,6 @@ import {
   Chip,
   IconButton,
   Stack,
-  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -23,6 +22,7 @@ import MyLocationIcon from "@mui/icons-material/MyLocation";
 import VideocamIcon from "@mui/icons-material/Videocam";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import { TextField } from "@klorad/ui";
 import type { POI, POICategory, POIEvent } from "@klorad/api";
 import Breadcrumbs from "./Breadcrumbs";
 
