@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import {
-  Autocomplete,
   Box,
   Button,
   Chip,
@@ -19,7 +18,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import { MenuItem, TextField } from "@klorad/ui";
+import { Autocomplete, MenuItem, TextField } from "@klorad/ui";
 import type { FloorPlan, POI, Room } from "@klorad/api";
 import {
   ROOM_TEMPLATES,
