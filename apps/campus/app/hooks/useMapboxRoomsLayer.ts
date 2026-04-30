@@ -181,9 +181,10 @@ export function useMapboxRoomsLayer(
             "symbol-z-elevate": true,
           },
           paint: {
-            "text-color": "#ffffff",
-            "text-halo-color": "rgba(0,0,0,0.85)",
-            "text-halo-width": 1.6,
+            "text-color": "#f5f7fa",
+            "text-halo-color": "rgba(15,23,42,0.78)",
+            "text-halo-width": 1.3,
+            "text-halo-blur": 0.6,
           },
         });
       } else if (floorFilter) {

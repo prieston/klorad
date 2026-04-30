@@ -103,18 +103,25 @@ export function useMapboxPoiLayer({
             "circle-radius": [
               "case",
               ["get", "selected"],
-              10,
-              7,
+              9,
+              6,
             ] as unknown as mapboxgl.ExpressionSpecification,
             "circle-color": CATEGORY_COLOR_EXPR,
-            "circle-stroke-color": "#ffffff",
+            // Soft white outline for legibility on busy basemaps;
+            // selected pin gets a brand-blue ring so it pops.
+            "circle-stroke-color": [
+              "case",
+              ["get", "selected"],
+              "#6B9CD8",
+              "#ffffff",
+            ] as unknown as mapboxgl.ExpressionSpecification,
             "circle-stroke-width": [
               "case",
               ["get", "selected"],
               3,
               2,
             ] as unknown as mapboxgl.ExpressionSpecification,
-            "circle-opacity": 1,
+            "circle-opacity": 0.95,
           },
         });
         map.addLayer({
@@ -153,9 +160,13 @@ export function useMapboxPoiLayer({
             "symbol-z-elevate": true,
           } as mapboxgl.SymbolLayerSpecification["layout"],
           paint: {
-            "text-color": "#ffffff",
-            "text-halo-color": "rgba(0,0,0,0.85)",
-            "text-halo-width": 1.8,
+            // Marketing-tuned label — slightly off-white text on a soft
+            // slate halo so labels read clean against both basemap
+            // styles without the harsh white-on-black look.
+            "text-color": "#f5f7fa",
+            "text-halo-color": "rgba(15,23,42,0.78)",
+            "text-halo-width": 1.4,
+            "text-halo-blur": 0.6,
             // When the label IS behind a 3D building (e.g. a tall
             // landmark), fade it to 0 instead of flickering through.
             "text-occlusion-opacity": 0,

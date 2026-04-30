@@ -121,8 +121,20 @@ export default function BuilderClient({ mapId }: Props) {
   const apiRef = useRef<CampusAPI | null>(null);
   const mapboxScene = useSceneStore((s) => s.mapboxSceneData);
 
+  // POI markers + labels follow the active right-panel tab so the map
+  // stays scoped to whatever the user is editing.
+  //   Location → all POIs visible.
+  //   Buildings → no POIs (the building shells / slabs / labels carry
+  //               that tab's information; POI dots would just clutter).
+  //   POIs     → only non-building POIs (children + ad-hoc markers).
+  const visiblePois = useMemo(() => {
+    if (activeView === "buildings") return [];
+    if (activeView === "poi") return pois.filter((p) => !p.linkedBuilding);
+    return pois;
+  }, [pois, activeView]);
+
   useMapboxPoiLayer({
-    pois,
+    pois: visiblePois,
     selectedPoiId,
     onPoiClick: (id) => {
       setSelectedPoiId((prev) => (prev === id ? null : id));
