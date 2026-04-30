@@ -1189,6 +1189,30 @@ export default function BuilderClient({ mapId }: Props) {
                 }}
                 onEditFloor={openEditFloor}
                 onRemoveFloor={(planId) => void handleRemoveFloorPlan(planId)}
+                onRemoveBuilding={(buildingPoiId) => {
+                  if (!apiRef.current) return;
+                  pushSnapshot();
+                  // Cascade: remove rooms + floor plans tied to this
+                  // building, then the POI itself. Without this the
+                  // store would keep orphan rooms with a buildingId
+                  // that no longer points anywhere.
+                  for (const r of apiRef.current.rooms.forBuilding(buildingPoiId)) {
+                    apiRef.current.rooms.remove(r.id);
+                  }
+                  for (const p of apiRef.current.floorPlans.forBuilding(buildingPoiId)) {
+                    apiRef.current.floorPlans.remove(p.id);
+                  }
+                  apiRef.current.poi.remove(buildingPoiId);
+                  setPois(apiRef.current.poi.getAll());
+                  setRooms(apiRef.current.rooms.getAll());
+                  if (selectedPoiId === buildingPoiId) {
+                    setSelectedPoiId(null);
+                    setActivePlanId(null);
+                    setActiveRoomId(null);
+                  }
+                  toast.success("Building deleted");
+                  void persistMap();
+                }}
                 onUpdateRoom={(roomId, patch) => {
                   if (!apiRef.current) return;
                   pushSnapshot();

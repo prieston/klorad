@@ -49,6 +49,7 @@ export interface BuildingsViewProps {
   onAddFloor: (poiId: string) => void;
   onDrawRoom: (poiId: string, floor: number, planId: string | null) => void;
 
+  onRemoveBuilding: (poiId: string) => void;
   onEditFloor: (planId: string) => void;
   onRemoveFloor: (planId: string) => void;
 
@@ -289,6 +290,7 @@ function BuildingDetail({
   onAddFloor,
   onEditFloor,
   onRemoveFloor,
+  onRemoveBuilding,
 }: BuildingsViewProps & { building: POI }) {
   const buildingPlans = plans
     .filter((p) => p.buildingId === building.id)
@@ -317,6 +319,22 @@ function BuildingDetail({
             color: "primary.main",
           })}
         />
+        <Tooltip title="Delete building">
+          <IconButton
+            size="small"
+            onClick={() => {
+              const msg =
+                buildingRooms.length > 0 || buildingPlans.length > 0
+                  ? `Delete "${building.name}"? This also removes ${buildingPlans.length} floor${buildingPlans.length === 1 ? "" : "s"} and ${buildingRooms.length} room${buildingRooms.length === 1 ? "" : "s"}.`
+                  : `Delete "${building.name}"?`;
+              if (typeof window !== "undefined" && window.confirm(msg)) {
+                onRemoveBuilding(building.id);
+              }
+            }}
+          >
+            <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
       </Stack>
 
       {building.description && (
