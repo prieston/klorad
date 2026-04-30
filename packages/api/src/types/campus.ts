@@ -81,6 +81,13 @@ export interface POI {
   linkedBuilding?: POILinkedBuilding;
   /** Scheduled events happening at this POI (lectures, workshops, tours). */
   events?: POIEvent[];
+  /**
+   * Optional logical parent building. Used so a POI (entrance, café,
+   * help desk, …) can be associated with a building POI without having
+   * its own polygon. The parent is itself a POI id whose `linkedBuilding`
+   * carries the polygon. Not mandatory.
+   */
+  parentBuildingId?: string;
 }
 
 export type POIInput = Omit<POI, "id" | "objectId"> & { id?: string };

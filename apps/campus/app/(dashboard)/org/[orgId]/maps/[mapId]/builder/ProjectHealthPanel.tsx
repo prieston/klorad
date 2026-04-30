@@ -2,7 +2,7 @@
 
 import {
   Box,
-  Chip,
+  CircularProgress,
   Divider,
   IconButton,
   Stack,
@@ -16,7 +16,14 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 import LaunchIcon from "@mui/icons-material/Launch";
-import type { HealthFixTarget, ProjectHealth } from "@/app/hooks/useProjectHealth";
+import ApartmentIcon from "@mui/icons-material/Apartment";
+import LayersIcon from "@mui/icons-material/Layers";
+import MeetingRoomIcon from "@mui/icons-material/MeetingRoom";
+import AddLocationAltIcon from "@mui/icons-material/AddLocationAlt";
+import type {
+  HealthFixTarget,
+  ProjectHealth,
+} from "@/app/hooks/useProjectHealth";
 
 interface Props {
   health: ProjectHealth;
@@ -25,13 +32,16 @@ interface Props {
 
 /**
  * The studio's "Project Health" rail — purely informative. Lives on the
- * left side as a counterpart to the right workflow panel: shows the
- * completeness checklist, counts, lints with a "Fix →" jump that hands
- * back the offending entity, and a single context-aware tip.
+ * left side as a counterpart to the right workflow panel: shows a
+ * circular completion gauge, a 2×2 grid of stat tiles, the
+ * checklist, lints with a "Fix →" jump, and a context-aware tip.
  */
 export default function ProjectHealthPanel({ health, onFix }: Props) {
   const { counts, completeness, issues, tip } = health;
-  const allDone = completeness.every((c) => c.done);
+  const doneCount = completeness.filter((c) => c.done).length;
+  const total = completeness.length;
+  const pct = total === 0 ? 0 : Math.round((doneCount / total) * 100);
+  const allDone = doneCount === total && total > 0;
 
   return (
     <Box
@@ -41,7 +51,7 @@ export default function ProjectHealthPanel({ health, onFix }: Props) {
         left: 16,
         top: 16,
         bottom: 16,
-        width: 280,
+        width: 300,
         zIndex: 1399,
         display: "flex",
         flexDirection: "column",
@@ -54,66 +64,146 @@ export default function ProjectHealthPanel({ health, onFix }: Props) {
         overflow: "hidden",
       }}
     >
+      {/* ----------------------------- Hero ------------------------------ */}
       <Box
-        sx={{
-          px: 2,
-          py: 1.5,
+        sx={(t) => ({
+          px: 2.5,
+          py: 2,
           borderBottom: "1px solid",
           borderColor: "divider",
+          background: `linear-gradient(135deg, ${alpha(t.palette.primary.main, 0.18)} 0%, ${alpha(t.palette.primary.main, 0.04)} 100%)`,
           display: "flex",
           alignItems: "center",
-          gap: 1,
-        }}
+          gap: 2,
+        })}
       >
+        <Box sx={{ position: "relative", display: "inline-flex" }}>
+          <CircularProgress
+            variant="determinate"
+            value={100}
+            size={56}
+            thickness={4}
+            sx={(t) => ({
+              color: alpha(t.palette.primary.main, 0.15),
+              position: "absolute",
+            })}
+          />
+          <CircularProgress
+            variant="determinate"
+            value={pct}
+            size={56}
+            thickness={4}
+            sx={(t) => ({
+              color: allDone ? t.palette.success.main : t.palette.primary.main,
+            })}
+          />
+          <Box
+            sx={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Typography
+              variant="caption"
+              fontWeight={700}
+              sx={{ fontSize: "0.75rem" }}
+            >
+              {pct}%
+            </Typography>
+          </Box>
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography
+            variant="overline"
+            sx={{
+              fontSize: "0.65rem",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              color: "text.secondary",
+              display: "block",
+              lineHeight: 1.2,
+            }}
+          >
+            Project health
+          </Typography>
+          <Typography variant="subtitle2" fontWeight={700} sx={{ lineHeight: 1.3 }}>
+            {allDone
+              ? "Ready to share"
+              : doneCount === 0
+                ? "Let's set this up"
+                : `${doneCount} of ${total} done`}
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ fontSize: "0.7rem" }}
+          >
+            {issues.length === 0
+              ? "No issues found"
+              : `${issues.length} thing${issues.length === 1 ? "" : "s"} to look at`}
+          </Typography>
+        </Box>
+      </Box>
+
+      <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 2 }}>
+        {/* ----------------------------- Stats ----------------------------- */}
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 1,
+            mb: 2.5,
+          }}
+        >
+          <StatTile
+            icon={<ApartmentIcon sx={{ fontSize: 16 }} />}
+            label="Buildings"
+            value={counts.buildings}
+          />
+          <StatTile
+            icon={<LayersIcon sx={{ fontSize: 16 }} />}
+            label="Floors"
+            value={counts.floors}
+          />
+          <StatTile
+            icon={<MeetingRoomIcon sx={{ fontSize: 16 }} />}
+            label="Rooms"
+            value={counts.rooms}
+          />
+          <StatTile
+            icon={<AddLocationAltIcon sx={{ fontSize: 16 }} />}
+            label="POIs"
+            value={counts.pois}
+          />
+        </Stack>
+
+        {/* -------------------------- Checklist -------------------------- */}
         <Typography
           variant="overline"
           sx={{
-            fontSize: "0.7rem",
-            fontWeight: 600,
-            letterSpacing: "0.08em",
+            fontSize: "0.65rem",
+            fontWeight: 700,
+            letterSpacing: "0.1em",
             color: "text.secondary",
-            flex: 1,
+            display: "block",
+            mb: 0.75,
           }}
         >
-          Project health
+          Checklist
         </Typography>
-        {issues.length > 0 ? (
-          <Chip
-            size="small"
-            label={`${issues.length}`}
-            sx={(t) => ({
-              height: 20,
-              fontSize: "0.7rem",
-              bgcolor: alpha(t.palette.warning.main, 0.18),
-              color: "warning.main",
-              fontWeight: 600,
-            })}
-          />
-        ) : allDone ? (
-          <Chip
-            size="small"
-            label="Ready"
-            sx={(t) => ({
-              height: 20,
-              fontSize: "0.7rem",
-              bgcolor: alpha(t.palette.success.main, 0.18),
-              color: "success.main",
-              fontWeight: 600,
-            })}
-          />
-        ) : null}
-      </Box>
-
-      <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 1.5 }}>
-        {/* Completeness checklist */}
-        <Stack spacing={0.5} sx={{ mb: 2 }}>
+        <Stack spacing={0.5} sx={{ mb: 2.5 }}>
           {completeness.map((c) => (
             <Stack
               key={c.id}
               direction="row"
               alignItems="center"
               spacing={1}
-              sx={{ minHeight: 22 }}
+              sx={{ minHeight: 24 }}
             >
               {c.done ? (
                 <CheckCircleIcon
@@ -138,53 +228,24 @@ export default function ProjectHealthPanel({ health, onFix }: Props) {
           ))}
         </Stack>
 
-        <Divider sx={{ mb: 2 }} />
-
-        {/* Counts */}
-        <Box sx={{ mb: 2 }}>
-          <Typography
-            variant="overline"
-            sx={{
-              fontSize: "0.7rem",
-              fontWeight: 600,
-              letterSpacing: "0.08em",
-              color: "text.secondary",
-              display: "block",
-              mb: 0.5,
-            }}
-          >
-            Counts
-          </Typography>
-          <Typography
-            sx={{
-              fontFamily: "monospace",
-              fontSize: "0.75rem",
-              color: "text.secondary",
-            }}
-          >
-            {counts.buildings} buildings · {counts.floors} floors ·{" "}
-            {counts.rooms} rooms · {counts.pois} POIs
-          </Typography>
-        </Box>
-
-        {/* Issues */}
+        {/* ---------------------------- Issues --------------------------- */}
         {issues.length > 0 && (
           <>
             <Divider sx={{ mb: 1.5 }} />
             <Typography
               variant="overline"
               sx={{
-                fontSize: "0.7rem",
-                fontWeight: 600,
-                letterSpacing: "0.08em",
+                fontSize: "0.65rem",
+                fontWeight: 700,
+                letterSpacing: "0.1em",
                 color: "text.secondary",
                 display: "block",
-                mb: 0.5,
+                mb: 0.75,
               }}
             >
-              Issues
+              Issues ({issues.length})
             </Typography>
-            <Stack spacing={0.25} sx={{ mb: 2 }}>
+            <Stack spacing={0.5}>
               {issues.map((i) => (
                 <Box
                   key={i.id}
@@ -193,12 +254,17 @@ export default function ProjectHealthPanel({ health, onFix }: Props) {
                     alignItems: "center",
                     gap: 0.75,
                     px: 1,
-                    py: 0.75,
+                    py: 0.875,
                     borderRadius: 1,
                     bgcolor:
                       i.severity === "error"
-                        ? alpha(t.palette.error.main, 0.06)
-                        : alpha(t.palette.warning.main, 0.06),
+                        ? alpha(t.palette.error.main, 0.08)
+                        : alpha(t.palette.warning.main, 0.08),
+                    border: "1px solid",
+                    borderColor:
+                      i.severity === "error"
+                        ? alpha(t.palette.error.main, 0.2)
+                        : alpha(t.palette.warning.main, 0.2),
                   })}
                 >
                   {i.severity === "error" ? (
@@ -238,14 +304,14 @@ export default function ProjectHealthPanel({ health, onFix }: Props) {
         )}
       </Box>
 
-      {/* Tip */}
+      {/* ------------------------------- Tip ------------------------------- */}
       <Box
         sx={(t) => ({
           px: 2,
           py: 1.5,
           borderTop: "1px solid",
           borderColor: "divider",
-          bgcolor: alpha(t.palette.primary.main, 0.04),
+          bgcolor: alpha(t.palette.primary.main, 0.06),
           display: "flex",
           gap: 1,
           alignItems: "flex-start",
@@ -257,11 +323,60 @@ export default function ProjectHealthPanel({ health, onFix }: Props) {
         <Typography
           variant="caption"
           color="text.secondary"
-          sx={{ fontSize: "0.75rem", lineHeight: 1.4 }}
+          sx={{ fontSize: "0.75rem", lineHeight: 1.45 }}
         >
           {tip.replace(/^Tip:\s*/, "")}
         </Typography>
       </Box>
+    </Box>
+  );
+}
+
+function StatTile({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+}) {
+  return (
+    <Box
+      sx={(t) => ({
+        px: 1.25,
+        py: 1,
+        borderRadius: 1.5,
+        border: "1px solid",
+        borderColor: "divider",
+        bgcolor: alpha(t.palette.background.paper, 0.4),
+        display: "flex",
+        flexDirection: "column",
+        gap: 0.25,
+      })}
+    >
+      <Stack direction="row" alignItems="center" spacing={0.75}>
+        <Box sx={{ color: "primary.main", display: "inline-flex" }}>{icon}</Box>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{
+            fontSize: "0.65rem",
+            fontWeight: 600,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+          }}
+        >
+          {label}
+        </Typography>
+      </Stack>
+      <Typography
+        variant="h6"
+        fontWeight={700}
+        sx={{ fontSize: "1.25rem", lineHeight: 1.1 }}
+      >
+        {value}
+      </Typography>
     </Box>
   );
 }

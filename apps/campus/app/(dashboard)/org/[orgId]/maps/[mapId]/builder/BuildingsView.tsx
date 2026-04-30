@@ -79,6 +79,10 @@ export interface BuildingsViewProps {
   onUpdateBuilding: (poiId: string, patch: Partial<POI>) => void;
   onRemoveBuilding: (poiId: string) => void;
   onCapturePOV: (poiId: string) => void;
+  /** Start a place-POI flow that auto-attaches the dropped POI to this building. */
+  onAddPoiToBuilding: (poiId: string) => void;
+  /** Open a POI in the POIs tab. */
+  onOpenPoi: (poiId: string) => void;
 
   onEditFloor: (planId: string) => void;
   onRemoveFloor: (planId: string) => void;
@@ -314,6 +318,7 @@ function BuildingsRoot({
 
 function BuildingDetail({
   building,
+  pois,
   plans,
   rooms,
   onSelectFloor,
@@ -323,7 +328,12 @@ function BuildingDetail({
   onRemoveBuilding,
   onUpdateBuilding,
   onCapturePOV,
+  onAddPoiToBuilding,
+  onOpenPoi,
 }: BuildingsViewProps & { building: POI }) {
+  const childPois = pois.filter(
+    (p) => p.parentBuildingId === building.id && !p.linkedBuilding
+  );
   const buildingPlans = plans
     .filter((p) => p.buildingId === building.id)
     .sort((a, b) => (a.floor ?? 0) - (b.floor ?? 0));
@@ -442,6 +452,91 @@ function BuildingDetail({
           {building.view ? "Re-capture point of view" : "Capture point of view"}
         </Button>
       </Box>
+
+      {/* Points of interest attached to this building */}
+      <Stack direction="row" alignItems="center" spacing={1}>
+        <Typography
+          variant="overline"
+          sx={{
+            fontSize: "0.7rem",
+            fontWeight: 600,
+            color: "text.secondary",
+            letterSpacing: "0.08em",
+            flex: 1,
+          }}
+        >
+          Points of interest
+        </Typography>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<AddIcon sx={{ fontSize: 14 }} />}
+          onClick={() => onAddPoiToBuilding(building.id)}
+          sx={{ textTransform: "none" }}
+        >
+          Add POI
+        </Button>
+      </Stack>
+
+      {childPois.length === 0 ? (
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ fontSize: "0.8125rem" }}
+        >
+          Optional. Drop POIs to mark entrances, cafés, or help desks
+          inside this building. Visitors see them in the public viewer.
+        </Typography>
+      ) : (
+        <Stack spacing={0.5}>
+          {childPois.map((p) => (
+            <Box
+              key={p.id}
+              role="button"
+              onClick={() => onOpenPoi(p.id)}
+              sx={(t) => ({
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                px: 1.25,
+                py: 0.875,
+                borderRadius: 1,
+                border: "1px solid",
+                borderColor: "divider",
+                cursor: "pointer",
+                "&:hover": {
+                  bgcolor: alpha(t.palette.primary.main, 0.06),
+                  borderColor: alpha(t.palette.primary.main, 0.4),
+                },
+              })}
+            >
+              <Box
+                sx={(t) => ({
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  bgcolor: t.palette.primary.main,
+                  flexShrink: 0,
+                })}
+              />
+              <Typography
+                variant="body2"
+                sx={{
+                  flex: 1,
+                  fontWeight: 500,
+                  fontSize: "0.875rem",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {p.name}
+              </Typography>
+              <ChevronRightIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+            </Box>
+          ))}
+        </Stack>
+      )}
 
       <Stack direction="row" alignItems="center" spacing={1}>
         <Typography

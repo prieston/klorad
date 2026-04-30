@@ -64,7 +64,6 @@ import {
 import { useUndoRedo } from "@/app/hooks/useUndoRedo";
 import { ROOM_TEMPLATES, getRoomTemplate } from "@/app/lib/roomTemplates";
 import type { Room } from "@klorad/api";
-import MeetingRoomIcon from "@mui/icons-material/MeetingRoom";
 
 const MapboxViewer = dynamic(
   () => import("@klorad/engine-mapbox").then((m) => ({ default: m.MapboxViewer })),
@@ -98,6 +97,8 @@ export default function BuilderClient({ mapId }: Props) {
   const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [placingPoi, setPlacingPoi] = useState(false);
+  /** When set, the next placed POI is associated with this building. */
+  const [pendingPoiParent, setPendingPoiParent] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<
     "select" | "edit" | "drawRoom" | "drawBuilding"
   >("select");
@@ -518,17 +519,20 @@ export default function BuilderClient({ mapId }: Props) {
       const newPoi = apiRef.current.poi.add({
         name: "New Location",
         position: [e.lngLat.lng, e.lngLat.lat, 0],
-        category: "building",
+        category: pendingPoiParent ? "custom" : "building",
         description: "",
         view: {
           zoom: map.getZoom(),
           pitch: map.getPitch(),
           bearing: map.getBearing(),
         },
+        parentBuildingId: pendingPoiParent ?? undefined,
       });
       setPois(apiRef.current.poi.getAll());
       setSelectedPoiId(newPoi.id);
+      setActiveView("poi");
       setPlacingPoi(false);
+      setPendingPoiParent(null);
     };
     map.once("click", onClick);
 
@@ -536,7 +540,11 @@ export default function BuilderClient({ mapId }: Props) {
       map.off("click", onClick);
       map.getCanvas().style.cursor = "";
     };
-  }, [placingPoi]);
+    // pushSnapshot is intentionally not in deps; it's stable for the
+    // life of the component and including it would re-arm the click
+    // handler every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placingPoi, pendingPoiParent]);
 
   const handleStartPlacingPoi = () => {
     const map = useSceneStore.getState().mapboxMap;
@@ -654,21 +662,6 @@ export default function BuilderClient({ mapId }: Props) {
         setActiveTool((prev) =>
           prev === "drawBuilding" ? "select" : "drawBuilding"
         );
-      },
-    },
-    {
-      id: "drawRoom",
-      icon: <MeetingRoomIcon fontSize="small" />,
-      label: selectedPoiId
-        ? `Draw room on floor ${activePlan?.floor ?? 0}`
-        : "Draw room (select a building POI first)",
-      active: activeTool === "drawRoom",
-      onClick: () => {
-        if (!selectedPoiId) {
-          toast.info("Select a building POI first, then draw the room.");
-          return;
-        }
-        setActiveTool((prev) => (prev === "drawRoom" ? "select" : "drawRoom"));
       },
     },
     {
@@ -999,6 +992,14 @@ export default function BuilderClient({ mapId }: Props) {
                   void persistMap();
                 }}
                 onCapturePOV={handleCapturePOV}
+                onAddPoiToBuilding={(buildingPoiId) => {
+                  setPendingPoiParent(buildingPoiId);
+                  handleStartPlacingPoi();
+                }}
+                onOpenPoi={(poiId) => {
+                  setSelectedPoiId(poiId);
+                  setActiveView("poi");
+                }}
                 onRemoveBuilding={(buildingPoiId) => {
                   if (!apiRef.current) return;
                   pushSnapshot();
