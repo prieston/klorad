@@ -16,41 +16,10 @@ import CloseIcon from "@mui/icons-material/Close";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import FlightTakeoffIcon from "@mui/icons-material/FlightTakeoff";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import MyLocationIcon from "@mui/icons-material/MyLocation";
 import VideocamIcon from "@mui/icons-material/Videocam";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { FormField, TextField } from "@klorad/ui";
-import type { POI, POICategory, POIEvent } from "@klorad/api";
+import type { POI } from "@klorad/api";
 import Breadcrumbs from "./Breadcrumbs";
-
-const CATEGORIES: POICategory[] = [
-  "building",
-  "department",
-  "library",
-  "dining",
-  "parking",
-  "sports",
-  "medical",
-  "admin",
-  "housing",
-  "amenity",
-  "custom",
-];
-
-const POI_CATEGORY_COLORS: Record<POICategory, string> = {
-  building: "#3b82f6",
-  department: "#8b5cf6",
-  library: "#f59e0b",
-  dining: "#10b981",
-  parking: "#6b7280",
-  sports: "#ef4444",
-  medical: "#ec4899",
-  admin: "#0ea5e9",
-  housing: "#f97316",
-  amenity: "#84cc16",
-  custom: "#94a3b8",
-};
 
 export interface POIsViewProps {
   pois: POI[];
@@ -65,21 +34,21 @@ export interface POIsViewProps {
   onFlyToPoi: (id: string) => void;
   onDeletePoi: (id: string) => void;
 
-  onUseMapCenter: () => void;
-  onCaptureView: () => void;
-  onClearView: () => void;
-
-  onAddEvent: () => void;
-  onRemoveEvent: (poiId: string, eventId: string) => void;
+  /**
+   * Save the map's current centre + camera (zoom/pitch/bearing) onto
+   * this POI in one shot. Called from the single "Capture point of
+   * view" affordance in the detail screen.
+   */
+  onCapturePOV: (id: string) => void;
 }
 
 /**
  * POIs panel — a two-state inner navigation that mirrors BuildingsView:
- *   - Root: list of POIs with an inline filter and "+ Add" CTA.
- *   - Detail: focused edit screen for the selected POI, grouped into
- *     three visual blocks (Basics, Map link, Events). Camera "Position
- *     & view" details are collapsed behind a single toggle so the
- *     happy-path screen stays calm.
+ *   - Root: list of non-building POIs (cafés, entrances, parking…)
+ *           with an inline filter and an "Add POI" CTA.
+ *   - Detail: focused edit screen — name, description, and a single
+ *           "Capture point of view" button that saves position + view
+ *           together so the user doesn't think about coordinates.
  */
 export default function POIsView(props: POIsViewProps) {
   const { pois, selectedPoiId, onSelectPoi } = props;
@@ -140,8 +109,7 @@ function PoiList({
     return pois.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
-        (p.description ?? "").toLowerCase().includes(q) ||
-        (p.category ?? "").toLowerCase().includes(q)
+        (p.description ?? "").toLowerCase().includes(q)
     );
   }, [pois, query]);
 
@@ -194,7 +162,7 @@ function PoiList({
         <TextField
           size="small"
           fullWidth
-          placeholder="Filter by name, category…"
+          placeholder="Filter by name…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -234,13 +202,13 @@ function PoiList({
               })}
             >
               <Box
-                sx={{
+                sx={(t) => ({
                   width: 10,
                   height: 10,
                   borderRadius: "50%",
-                  bgcolor: POI_CATEGORY_COLORS[p.category ?? "custom"],
+                  bgcolor: t.palette.primary.main,
                   flexShrink: 0,
-                }}
+                })}
               />
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography
@@ -255,13 +223,21 @@ function PoiList({
                 >
                   {p.name}
                 </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ fontSize: "0.7rem" }}
-                >
-                  {p.category ?? "custom"}
-                </Typography>
+                {p.description && (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{
+                      fontSize: "0.7rem",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      display: "block",
+                    }}
+                  >
+                    {p.description}
+                  </Typography>
+                )}
               </Box>
               <Tooltip title="Fly to">
                 <IconButton
@@ -307,27 +283,12 @@ function PoiDetail({
   onUpdatePoi,
   onFlyToPoi,
   onDeletePoi,
-  onUseMapCenter,
-  onCaptureView,
-  onClearView,
-  onAddEvent,
-  onRemoveEvent,
+  onCapturePOV,
 }: POIsViewProps & { poi: POI }) {
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-
   return (
     <Stack spacing={2.5} sx={{ pt: 1.5 }}>
-      {/* Header — name, category, fly-to, delete */}
+      {/* Header — name, fly-to, delete */}
       <Stack direction="row" alignItems="center" spacing={1}>
-        <Box
-          sx={{
-            width: 12,
-            height: 12,
-            borderRadius: "50%",
-            bgcolor: POI_CATEGORY_COLORS[poi.category ?? "custom"],
-            flexShrink: 0,
-          }}
-        />
         <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>
           {poi.name || "Untitled"}
         </Typography>
@@ -366,299 +327,28 @@ function PoiDetail({
             }
           />
         </FormField>
-        <Box>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block", mb: 0.75 }}
-          >
-            Category
-          </Typography>
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-            {CATEGORIES.map((cat) => {
-              const active = poi.category === cat;
-              return (
-                <Chip
-                  key={cat}
-                  label={cat}
-                  size="small"
-                  clickable
-                  onClick={() => onUpdatePoi(poi.id, { category: cat })}
-                  sx={{
-                    fontSize: "0.7rem",
-                    height: 22,
-                    bgcolor: active
-                      ? POI_CATEGORY_COLORS[cat]
-                      : "action.hover",
-                    color: active ? "#fff" : "text.secondary",
-                  }}
-                />
-              );
-            })}
-          </Box>
-        </Box>
       </Section>
 
-      {/* --------------------------- Map link ------------------------------ */}
-      <Section label="On the map">
-        {/* Position summary + advanced toggle */}
-        <Box>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ flex: 1, fontFamily: "monospace", fontSize: "0.75rem" }}
-            >
-              {poi.position[0].toFixed(5)}, {poi.position[1].toFixed(5)}
-              {poi.position[2] ? ` · ${poi.position[2].toFixed(0)}m` : ""}
-            </Typography>
-            <Button
-              size="small"
-              startIcon={<MyLocationIcon sx={{ fontSize: 14 }} />}
-              onClick={onUseMapCenter}
-              sx={{ textTransform: "none", fontSize: "0.7rem", py: 0 }}
-            >
-              Use centre
-            </Button>
-          </Stack>
-        </Box>
-
-        {/* View capture */}
-        <Box>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ flex: 1, fontSize: "0.75rem" }}
-            >
-              {poi.view
-                ? `View · zoom ${poi.view.zoom?.toFixed(1) ?? "—"}, pitch ${poi.view.pitch?.toFixed(0) ?? "—"}°`
-                : "No view captured"}
-            </Typography>
-            <Button
-              size="small"
-              startIcon={<VideocamIcon sx={{ fontSize: 14 }} />}
-              onClick={onCaptureView}
-              sx={{ textTransform: "none", fontSize: "0.7rem", py: 0 }}
-            >
-              Capture
-            </Button>
-            {poi.view && (
-              <Button
-                size="small"
-                color="inherit"
-                onClick={onClearView}
-                sx={{ textTransform: "none", fontSize: "0.7rem", py: 0, opacity: 0.6 }}
-              >
-                Clear
-              </Button>
-            )}
-          </Stack>
-        </Box>
-
-        <Button
-          size="small"
-          onClick={() => setAdvancedOpen((o) => !o)}
-          startIcon={
-            advancedOpen ? (
-              <ExpandLessIcon sx={{ fontSize: 16 }} />
-            ) : (
-              <ExpandMoreIcon sx={{ fontSize: 16 }} />
-            )
-          }
-          sx={{
-            alignSelf: "flex-start",
-            textTransform: "none",
-            fontSize: "0.7rem",
-            opacity: 0.7,
-            py: 0,
-          }}
+      {/* ----------------------------- Camera ------------------------------ */}
+      <Section label="Point of view">
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ fontSize: "0.75rem" }}
         >
-          {advancedOpen ? "Hide raw position / view" : "Edit raw position / view"}
+          {poi.view
+            ? "Visitors fly to this saved view when they pick this POI."
+            : "Pan and zoom the map to where you want visitors to land, then capture."}
+        </Typography>
+        <Button
+          variant={poi.view ? "outlined" : "contained"}
+          size="small"
+          startIcon={<VideocamIcon sx={{ fontSize: 16 }} />}
+          onClick={() => onCapturePOV(poi.id)}
+          sx={{ alignSelf: "flex-start", textTransform: "none" }}
+        >
+          {poi.view ? "Re-capture point of view" : "Capture point of view"}
         </Button>
-
-        {advancedOpen && (
-          <Stack spacing={1}>
-            <Stack direction="row" spacing={1}>
-              <FormField label="Lng" sx={{ flex: 1 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="number"
-                  slotProps={{ htmlInput: { step: 0.000001 } }}
-                  value={poi.position[0]}
-                  onChange={(e) =>
-                    onUpdatePoi(poi.id, {
-                      position: [
-                        parseFloat(e.target.value) || 0,
-                        poi.position[1],
-                        poi.position[2],
-                      ],
-                    })
-                  }
-                />
-              </FormField>
-              <FormField label="Lat" sx={{ flex: 1 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="number"
-                  slotProps={{ htmlInput: { step: 0.000001 } }}
-                  value={poi.position[1]}
-                  onChange={(e) =>
-                    onUpdatePoi(poi.id, {
-                      position: [
-                        poi.position[0],
-                        parseFloat(e.target.value) || 0,
-                        poi.position[2],
-                      ],
-                    })
-                  }
-                />
-              </FormField>
-              <FormField label="Alt (m)" sx={{ flex: 1 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="number"
-                  slotProps={{ htmlInput: { step: 1 } }}
-                  value={poi.position[2] ?? 0}
-                  onChange={(e) =>
-                    onUpdatePoi(poi.id, {
-                      position: [
-                        poi.position[0],
-                        poi.position[1],
-                        parseFloat(e.target.value) || 0,
-                      ],
-                    })
-                  }
-                />
-              </FormField>
-            </Stack>
-            {poi.view && (
-              <Stack direction="row" spacing={1}>
-                <FormField label="Zoom" sx={{ flex: 1 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    type="number"
-                    slotProps={{ htmlInput: { step: 0.1, min: 0, max: 22 } }}
-                    value={poi.view.zoom ?? ""}
-                    onChange={(e) =>
-                      onUpdatePoi(poi.id, {
-                        view: {
-                          ...poi.view,
-                          zoom: parseFloat(e.target.value) || 0,
-                        },
-                      })
-                    }
-                  />
-                </FormField>
-                <FormField label="Pitch" sx={{ flex: 1 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    type="number"
-                    slotProps={{ htmlInput: { step: 1, min: 0, max: 85 } }}
-                    value={poi.view.pitch ?? ""}
-                    onChange={(e) =>
-                      onUpdatePoi(poi.id, {
-                        view: {
-                          ...poi.view,
-                          pitch: parseFloat(e.target.value) || 0,
-                        },
-                      })
-                    }
-                  />
-                </FormField>
-                <FormField label="Bearing" sx={{ flex: 1 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    type="number"
-                    slotProps={{ htmlInput: { step: 1 } }}
-                    value={poi.view.bearing ?? ""}
-                    onChange={(e) =>
-                      onUpdatePoi(poi.id, {
-                        view: {
-                          ...poi.view,
-                          bearing: parseFloat(e.target.value) || 0,
-                        },
-                      })
-                    }
-                  />
-                </FormField>
-              </Stack>
-            )}
-          </Stack>
-        )}
-      </Section>
-
-      {/* ----------------------------- Events ------------------------------ */}
-      <Section label="Events">
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ flex: 1, fontSize: "0.75rem" }}
-          >
-            {(poi.events ?? []).length === 0
-              ? "Surface lectures / open days in the public search."
-              : `${(poi.events ?? []).length} event${(poi.events ?? []).length === 1 ? "" : "s"}`}
-          </Typography>
-          <Button
-            size="small"
-            onClick={onAddEvent}
-            sx={{ textTransform: "none", fontSize: "0.7rem", py: 0 }}
-          >
-            + Add
-          </Button>
-        </Stack>
-        {(poi.events ?? []).length > 0 && (
-          <Stack spacing={0.5}>
-            {(poi.events ?? []).map((ev: POIEvent) => (
-              <Box
-                key={ev.id}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  p: 1,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  borderRadius: 1,
-                  gap: 1,
-                }}
-              >
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="body2" fontWeight={600} noWrap>
-                    {ev.title}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    noWrap
-                    sx={{ display: "block" }}
-                  >
-                    {ev.courseCode ? `${ev.courseCode} · ` : ""}
-                    {new Date(ev.startsAt).toLocaleString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </Typography>
-                </Box>
-                <IconButton
-                  size="small"
-                  onClick={() => onRemoveEvent(poi.id, ev.id)}
-                  sx={{ opacity: 0.5, "&:hover": { opacity: 1 } }}
-                >
-                  <DeleteOutlineIcon sx={{ fontSize: 14 }} />
-                </IconButton>
-              </Box>
-            ))}
-          </Stack>
-        )}
       </Section>
     </Stack>
   );

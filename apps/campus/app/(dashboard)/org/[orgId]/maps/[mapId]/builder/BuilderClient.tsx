@@ -6,16 +6,11 @@ import {
   Box,
   Button,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   IconButton,
   Stack,
   Typography,
 } from "@mui/material";
-import { v4 as uuidv4 } from "uuid";
 import { alpha } from "@mui/material/styles";
 import {
   LocationSearch,
@@ -130,6 +125,11 @@ export default function BuilderClient({ mapId }: Props) {
     selectedPoiId,
     onPoiClick: (id) => {
       setSelectedPoiId((prev) => (prev === id ? null : id));
+      // Building POIs live in the Buildings tab; flip the right panel
+      // so the click lands on the correct detail screen.
+      const clicked = pois.find((p) => p.id === id);
+      if (clicked?.linkedBuilding) setActiveView("buildings");
+      else setActiveView("poi");
     },
   });
 
@@ -150,48 +150,6 @@ export default function BuilderClient({ mapId }: Props) {
   });
 
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
-  const [eventDialogOpen, setEventDialogOpen] = useState(false);
-  const [eventForm, setEventForm] = useState({
-    title: "",
-    courseCode: "",
-    lecturer: "",
-    startsAt: "",
-    endsAt: "",
-  });
-
-  const handleAddEvent = () => {
-    if (!apiRef.current || !selectedPoiId) return;
-    const poi = apiRef.current.poi.getAll().find((p) => p.id === selectedPoiId);
-    if (!poi) return;
-    const newEvent = {
-      id: uuidv4(),
-      title: eventForm.title,
-      startsAt: new Date(eventForm.startsAt).toISOString(),
-      endsAt: eventForm.endsAt
-        ? new Date(eventForm.endsAt).toISOString()
-        : new Date(new Date(eventForm.startsAt).getTime() + 60 * 60 * 1000).toISOString(),
-      courseCode: eventForm.courseCode || undefined,
-      lecturer: eventForm.lecturer || undefined,
-    };
-    pushSnapshot();
-    apiRef.current.poi.update(selectedPoiId, {
-      events: [...(poi.events ?? []), newEvent],
-    });
-    setPois(apiRef.current.poi.getAll());
-    setEventDialogOpen(false);
-    setEventForm({ title: "", courseCode: "", lecturer: "", startsAt: "", endsAt: "" });
-  };
-
-  const handleRemoveEvent = (poiId: string, eventId: string) => {
-    if (!apiRef.current) return;
-    const poi = apiRef.current.poi.getAll().find((p) => p.id === poiId);
-    if (!poi) return;
-    pushSnapshot();
-    apiRef.current.poi.update(poiId, {
-      events: (poi.events ?? []).filter((e) => e.id !== eventId),
-    });
-    setPois(apiRef.current.poi.getAll());
-  };
 
   // Floor plans available for the currently-selected POI's building
   const floorPlansForSelection = useMemo(() => {
@@ -594,16 +552,6 @@ export default function BuilderClient({ mapId }: Props) {
     apiRef.current?.poi.flyTo(id);
   };
 
-  const handleUseMapCenter = () => {
-    if (!apiRef.current || !selectedPoiId) return;
-    const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
-    if (!map) return;
-    const c = map.getCenter();
-    pushSnapshot();
-    apiRef.current.poi.update(selectedPoiId, { position: [c.lng, c.lat, 0] });
-    setPois(apiRef.current.poi.getAll());
-  };
-
   const handleFlyToSavedLocation = () => {
     const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
     if (!map) return;
@@ -632,12 +580,20 @@ export default function BuilderClient({ mapId }: Props) {
     toast.success("Camera position saved as project location");
   };
 
-  const handleCaptureView = () => {
-    if (!apiRef.current || !selectedPoiId) return;
+  /**
+   * One-shot "Capture point of view" — saves both the map's current
+   * centre (position) and camera (view: zoom/pitch/bearing) onto the
+   * given POI. Used by both the POI detail and the Building detail
+   * screens; the user doesn't see the underlying fields.
+   */
+  const handleCapturePOV = (id: string) => {
+    if (!apiRef.current) return;
     const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
     if (!map) return;
+    const c = map.getCenter();
     pushSnapshot();
-    apiRef.current.poi.update(selectedPoiId, {
+    apiRef.current.poi.update(id, {
+      position: [c.lng, c.lat, 0],
       view: {
         zoom: map.getZoom(),
         pitch: map.getPitch(),
@@ -645,14 +601,7 @@ export default function BuilderClient({ mapId }: Props) {
       },
     });
     setPois(apiRef.current.poi.getAll());
-    toast.success("Current view saved for this POI");
-  };
-
-  const handleClearView = () => {
-    if (!apiRef.current || !selectedPoiId) return;
-    pushSnapshot();
-    apiRef.current.poi.update(selectedPoiId, { view: undefined });
-    setPois(apiRef.current.poi.getAll());
+    toast.success("Point of view saved");
   };
 
   const handleDeletePoi = (id: string) => {
@@ -1042,6 +991,14 @@ export default function BuilderClient({ mapId }: Props) {
                 }}
                 onEditFloor={openEditFloor}
                 onRemoveFloor={(planId) => void handleRemoveFloorPlan(planId)}
+                onUpdateBuilding={(id, patch) => {
+                  if (!apiRef.current) return;
+                  pushSnapshot();
+                  apiRef.current.poi.update(id, patch);
+                  setPois(apiRef.current.poi.getAll());
+                  void persistMap();
+                }}
+                onCapturePOV={handleCapturePOV}
                 onRemoveBuilding={(buildingPoiId) => {
                   if (!apiRef.current) return;
                   pushSnapshot();
@@ -1209,7 +1166,7 @@ export default function BuilderClient({ mapId }: Props) {
           {activeView === "poi" && (
             <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
               <POIsView
-                pois={pois}
+                pois={pois.filter((p) => !p.linkedBuilding)}
                 selectedPoiId={selectedPoiId}
                 placingPoi={placingPoi}
                 onSelectPoi={(id) => {
@@ -1226,89 +1183,12 @@ export default function BuilderClient({ mapId }: Props) {
                 }}
                 onFlyToPoi={handleFlyToPoi}
                 onDeletePoi={handleDeletePoi}
-                onUseMapCenter={handleUseMapCenter}
-                onCaptureView={handleCaptureView}
-                onClearView={handleClearView}
-                onAddEvent={() => setEventDialogOpen(true)}
-                onRemoveEvent={handleRemoveEvent}
+                onCapturePOV={handleCapturePOV}
               />
             </Box>
           )}
         </RightPanelContainer>
       )}
-
-      {/* Add-event dialog */}
-      <Dialog
-        open={eventDialogOpen}
-        onClose={() => setEventDialogOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Add Event</DialogTitle>
-        <DialogContent>
-          <Stack spacing={1.5} sx={{ mt: 1 }}>
-            <FormField label="Title">
-              <TextField
-                size="small"
-                fullWidth
-                placeholder="e.g. Introduction to Molecular Biology"
-                value={eventForm.title}
-                onChange={(e) => setEventForm((f) => ({ ...f, title: e.target.value }))}
-              />
-            </FormField>
-            <Stack direction="row" spacing={1}>
-              <FormField label="Course code" sx={{ flex: 1 }}>
-                <TextField
-                  size="small"
-                  fullWidth
-                  placeholder="e.g. BIO 101"
-                  value={eventForm.courseCode}
-                  onChange={(e) => setEventForm((f) => ({ ...f, courseCode: e.target.value }))}
-                />
-              </FormField>
-              <FormField label="Lecturer" sx={{ flex: 1 }}>
-                <TextField
-                  size="small"
-                  fullWidth
-                  placeholder="Prof. Παπαδόπουλος"
-                  value={eventForm.lecturer}
-                  onChange={(e) => setEventForm((f) => ({ ...f, lecturer: e.target.value }))}
-                />
-              </FormField>
-            </Stack>
-            <Stack direction="row" spacing={1}>
-              <FormField label="Starts" sx={{ flex: 1 }}>
-                <TextField
-                  size="small"
-                  fullWidth
-                  type="datetime-local"
-                  value={eventForm.startsAt}
-                  onChange={(e) => setEventForm((f) => ({ ...f, startsAt: e.target.value }))}
-                />
-              </FormField>
-              <FormField label="Ends" sx={{ flex: 1 }}>
-                <TextField
-                  size="small"
-                  fullWidth
-                  type="datetime-local"
-                  value={eventForm.endsAt}
-                  onChange={(e) => setEventForm((f) => ({ ...f, endsAt: e.target.value }))}
-                />
-              </FormField>
-            </Stack>
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setEventDialogOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handleAddEvent}
-            disabled={!eventForm.title || !eventForm.startsAt}
-          >
-            Add
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Floor plan add / edit drawer */}
       <FloorPlanDrawer

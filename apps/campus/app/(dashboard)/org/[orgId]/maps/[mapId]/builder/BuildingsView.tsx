@@ -18,8 +18,35 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import VideocamIcon from "@mui/icons-material/Videocam";
 import { Autocomplete, FormField, MenuItem, TextField } from "@klorad/ui";
-import type { FloorPlan, POI, Room } from "@klorad/api";
+import type { FloorPlan, POI, POICategory, Room } from "@klorad/api";
+
+const BUILDING_CATEGORIES: POICategory[] = [
+  "building",
+  "department",
+  "library",
+  "dining",
+  "sports",
+  "medical",
+  "admin",
+  "housing",
+  "amenity",
+];
+
+const CATEGORY_COLORS: Record<POICategory, string> = {
+  building: "#3b82f6",
+  department: "#8b5cf6",
+  library: "#f59e0b",
+  dining: "#10b981",
+  parking: "#6b7280",
+  sports: "#ef4444",
+  medical: "#ec4899",
+  admin: "#0ea5e9",
+  housing: "#f97316",
+  amenity: "#84cc16",
+  custom: "#94a3b8",
+};
 import {
   ROOM_TEMPLATES,
   getRoomTemplate,
@@ -49,7 +76,10 @@ export interface BuildingsViewProps {
   onAddFloor: (poiId: string) => void;
   onDrawRoom: (poiId: string, floor: number, planId: string | null) => void;
 
+  onUpdateBuilding: (poiId: string, patch: Partial<POI>) => void;
   onRemoveBuilding: (poiId: string) => void;
+  onCapturePOV: (poiId: string) => void;
+
   onEditFloor: (planId: string) => void;
   onRemoveFloor: (planId: string) => void;
 
@@ -291,6 +321,8 @@ function BuildingDetail({
   onEditFloor,
   onRemoveFloor,
   onRemoveBuilding,
+  onUpdateBuilding,
+  onCapturePOV,
 }: BuildingsViewProps & { building: POI }) {
   const buildingPlans = plans
     .filter((p) => p.buildingId === building.id)
@@ -337,11 +369,79 @@ function BuildingDetail({
         </Tooltip>
       </Stack>
 
-      {building.description && (
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.8125rem" }}>
-          {building.description}
+      <FormField label="Name">
+        <TextField
+          fullWidth
+          size="small"
+          value={building.name}
+          onChange={(e) => onUpdateBuilding(building.id, { name: e.target.value })}
+        />
+      </FormField>
+      <FormField label="Description">
+        <TextField
+          fullWidth
+          size="small"
+          multiline
+          rows={2}
+          placeholder="Short blurb shown on the public viewer card"
+          value={building.description ?? ""}
+          onChange={(e) =>
+            onUpdateBuilding(building.id, { description: e.target.value })
+          }
+        />
+      </FormField>
+      <Box>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", mb: 0.75 }}
+        >
+          Category
         </Typography>
-      )}
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+          {BUILDING_CATEGORIES.map((cat) => {
+            const active = building.category === cat;
+            return (
+              <Chip
+                key={cat}
+                label={cat}
+                size="small"
+                clickable
+                onClick={() =>
+                  onUpdateBuilding(building.id, { category: cat })
+                }
+                sx={{
+                  fontSize: "0.7rem",
+                  height: 22,
+                  bgcolor: active ? CATEGORY_COLORS[cat] : "action.hover",
+                  color: active ? "#fff" : "text.secondary",
+                }}
+              />
+            );
+          })}
+        </Box>
+      </Box>
+
+      <Box>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", mb: 0.75 }}
+        >
+          {building.view
+            ? "Visitors fly to this saved view when they pick this building."
+            : "Pan and zoom the map to where you want visitors to land, then capture."}
+        </Typography>
+        <Button
+          variant={building.view ? "outlined" : "contained"}
+          size="small"
+          startIcon={<VideocamIcon sx={{ fontSize: 16 }} />}
+          onClick={() => onCapturePOV(building.id)}
+          sx={{ textTransform: "none" }}
+        >
+          {building.view ? "Re-capture point of view" : "Capture point of view"}
+        </Button>
+      </Box>
 
       <Stack direction="row" alignItems="center" spacing={1}>
         <Typography
