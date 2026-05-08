@@ -1,11 +1,10 @@
 "use client";
 
-import { createTheme, Theme } from "@mui/material/styles";
+import { alpha, createTheme, Theme } from "@mui/material/styles";
 
 export type ThemeMode = "light" | "dark";
 
 const PRIMARY_BASE = "#6B9CD8";
-const PRIMARY_HOVER = "#5F88C7";
 const PRIMARY_ACTIVE = "#4B6FAF";
 
 export const createAppTheme = (mode: ThemeMode): Theme =>
@@ -116,23 +115,39 @@ export const createAppTheme = (mode: ThemeMode): Theme =>
             fontWeight: 500,
             boxShadow: "none",
           },
-          containedPrimary: {
-            backgroundColor: PRIMARY_BASE,
-            color: "#FFFFFF",
+          // Klorad "ghost primary" — dark card background, primary-coloured
+          // text, primary-tinted border. Matches the look the editor/admin
+          // already apply via per-callsite `sx` overrides; centralising it
+          // here makes new apps (campus, culture) look identical for free.
+          containedPrimary: ({ theme }) => ({
+            backgroundColor:
+              theme.palette.mode === "dark"
+                ? "#161B20"
+                : theme.palette.background.paper,
+            color: theme.palette.primary.main,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
             boxShadow: "none",
             "&:hover": {
-              backgroundColor: PRIMARY_HOVER,
+              backgroundColor:
+                theme.palette.mode === "dark"
+                  ? "#1a1f26"
+                  : alpha(theme.palette.primary.main, 0.05),
+              borderColor: alpha(theme.palette.primary.main, 0.5),
               boxShadow: "none",
             },
             "&:active": {
-              backgroundColor: PRIMARY_ACTIVE,
+              backgroundColor:
+                theme.palette.mode === "dark"
+                  ? "#1a1f26"
+                  : alpha(theme.palette.primary.main, 0.1),
               boxShadow: "none",
             },
-            "&:disabled": {
-              backgroundColor: "rgba(255,255,255,0.12)",
-              color: "rgba(255,255,255,0.35)",
+            "&.Mui-disabled": {
+              backgroundColor: alpha(theme.palette.primary.main, 0.05),
+              color: alpha(theme.palette.primary.main, 0.3),
+              borderColor: alpha(theme.palette.primary.main, 0.1),
             },
-          },
+          }),
           outlined: ({ theme }) => ({
             borderColor:
               theme.palette.mode === "dark"

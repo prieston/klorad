@@ -1,4 +1,6 @@
 "use client";
+
+import "@/styles/vendor/mapbox-gl.css";
 import React from "react";
 import Scene, { SceneProps } from "@klorad/engine-three";
 import dynamic from "next/dynamic";
@@ -6,6 +8,10 @@ import { useWorldStore } from "@klorad/core";
 
 const CesiumViewer = dynamic(
   () => import("@klorad/engine-cesium").then(m => m.CesiumViewer),
+  { ssr: false }
+);
+const MapboxViewer = dynamic(
+  () => import("@klorad/engine-mapbox").then((m) => m.MapboxViewer),
   { ssr: false }
 );
 
@@ -39,6 +45,8 @@ const PreviewScene = ({
     >
       {engine === "cesium" ? (
         <CesiumViewer />
+      ) : engine === "mapbox" ? (
+        <MapboxViewer />
       ) : (
         <Scene
           initialSceneData={initialSceneData}

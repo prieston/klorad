@@ -71,7 +71,19 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, slug } = body;
+    const { name, slug, apps } = body as { name?: string; slug?: string; apps?: unknown };
+    const KNOWN_APPS = ["editor", "campus", "culture"] as const;
+    type KnownApp = (typeof KNOWN_APPS)[number];
+    const normalizedApps: KnownApp[] = Array.isArray(apps)
+      ? Array.from(
+          new Set(
+            apps.filter((v): v is KnownApp =>
+              typeof v === "string" &&
+              (KNOWN_APPS as readonly string[]).includes(v)
+            )
+          )
+        )
+      : [];
 
     if (!name || name.trim().length === 0) {
       return NextResponse.json(
@@ -195,6 +207,7 @@ export async function POST(request: NextRequest) {
         slug: finalSlug,
         isPersonal: false,
         planCode: "free", // Explicitly set to ensure foreign key constraint is satisfied
+        apps: normalizedApps,
       },
     });
 

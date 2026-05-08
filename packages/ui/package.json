@@ -11,6 +11,7 @@
       "import": "./dist/index.mjs",
       "types": "./dist/index.d.mts"
     },
+    "./styles/tokens.css": "./dist/styles/tokens.css",
     "./*": {
       "import": "./dist/*.mjs",
       "types": "./dist/*.d.mts"

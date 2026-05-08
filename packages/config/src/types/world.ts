@@ -1,4 +1,4 @@
-export type Engine = "three" | "cesium";
+export type Engine = "three" | "cesium" | "mapbox";
 
 export interface World {
   id: string;

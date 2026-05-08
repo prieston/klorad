@@ -31,12 +31,24 @@ interface Asset {
 }
 
 interface LocationSearchProps {
-  onAssetSelect: (assetId: string, latitude: number, longitude: number) => void;
+  /**
+   * Cesium / 3D tiles flow: called after the user picks a place and a tile asset.
+   */
+  onAssetSelect?: (
+    assetId: string,
+    latitude: number,
+    longitude: number
+  ) => void;
+  /**
+   * Simple flow (e.g. Mapbox): called when the user picks a search result; skips asset picking.
+   */
+  onPlaceSelect?: (latitude: number, longitude: number) => void;
   boxPadding?: number;
 }
 
 const LocationSearch: React.FC<LocationSearchProps> = ({
   onAssetSelect,
+  onPlaceSelect,
   boxPadding = 2,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -142,14 +154,20 @@ const LocationSearch: React.FC<LocationSearchProps> = ({
   }, [searchQuery]);
 
   const handleLocationSelect = (location: Location) => {
-    setSelectedLocation(location);
     setLocations([]);
     setSearchQuery("");
+    if (onPlaceSelect) {
+      onPlaceSelect(location.latitude, location.longitude);
+      setSelectedLocation(null);
+      setAssets([]);
+      return;
+    }
+    setSelectedLocation(location);
     fetchAvailableAssets(location);
   };
 
   const handleAssetSelect = (asset: Asset) => {
-    if (selectedLocation) {
+    if (selectedLocation && onAssetSelect) {
       onAssetSelect(
         asset.id,
         selectedLocation.latitude,
@@ -162,7 +180,7 @@ const LocationSearch: React.FC<LocationSearchProps> = ({
 
   // Auto-select first asset when assets are loaded
   useEffect(() => {
-    if (assets.length > 0 && selectedLocation) {
+    if (assets.length > 0 && selectedLocation && onAssetSelect) {
       handleAssetSelect(assets[0]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

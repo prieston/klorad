@@ -5,6 +5,7 @@ import { Alert, Button, Collapse } from "@mui/material";
 import { useSceneStore, useWorldStore } from "@klorad/core";
 import { createLogger } from "@klorad/core";
 import { flyToCesiumPosition } from "@klorad/engine-cesium";
+import { flyToMapboxPosition } from "@klorad/engine-mapbox";
 // Import from utils barrel to avoid pulling in 3d-tiles-renderer via components barrel
 import { flyToThreeObject } from "@klorad/engine-three/utils";
 
@@ -52,6 +53,7 @@ export const ObjectPropertiesView: React.FC<ObjectPropertiesViewProps> = memo(
       orbitControlsRef: s.orbitControlsRef,
       isCalculatingVisibility: s.isCalculatingVisibility,
       cesiumViewer: s.cesiumViewer,
+      mapboxMap: s.mapboxMap,
       cesiumIonAssets: s.cesiumIonAssets,
       flyToCesiumIonAsset: s.flyToCesiumIonAsset,
       startVisibilityCalculation: s.startVisibilityCalculation,
@@ -67,6 +69,7 @@ export const ObjectPropertiesView: React.FC<ObjectPropertiesViewProps> = memo(
       orbitControlsRef,
       isCalculatingVisibility,
       cesiumViewer,
+      mapboxMap,
       cesiumIonAssets,
       flyToCesiumIonAsset,
       startVisibilityCalculation,
@@ -140,6 +143,25 @@ export const ObjectPropertiesView: React.FC<ObjectPropertiesViewProps> = memo(
         return;
       }
 
+      if (engine === "mapbox") {
+        if (!mapboxMap) {
+          logger.warn("Mapbox map not available");
+          return;
+        }
+        const lon = geographicCoords?.longitude ?? selectedObject?.position?.[0];
+        const lat = geographicCoords?.latitude ?? selectedObject?.position?.[1];
+        if ([lon, lat].every(Number.isFinite)) {
+          flyToMapboxPosition(
+            mapboxMap as Parameters<typeof flyToMapboxPosition>[0],
+            lon as number,
+            lat as number
+          );
+        } else {
+          logger.warn("No valid coordinates to fly to");
+        }
+        return;
+      }
+
       // Three.js engine
       const obj = useSceneStore
         .getState()
@@ -159,6 +181,7 @@ export const ObjectPropertiesView: React.FC<ObjectPropertiesViewProps> = memo(
       flyToCesiumIonAsset,
       engine,
       cesiumViewer,
+      mapboxMap,
       geographicCoords?.longitude,
       geographicCoords?.latitude,
       geographicCoords?.altitude,
@@ -194,7 +217,11 @@ export const ObjectPropertiesView: React.FC<ObjectPropertiesViewProps> = memo(
         !!cesiumViewer &&
         (Number.isFinite(geographicCoords?.longitude) ||
           Number.isFinite(selectedObject?.position?.[0]))) ||
-      engine !== "cesium";
+      (engine === "mapbox" &&
+        !!mapboxMap &&
+        (Number.isFinite(geographicCoords?.longitude) ||
+          Number.isFinite(selectedObject?.position?.[0]))) ||
+      engine === "three";
 
     return (
       <ScrollContainer>

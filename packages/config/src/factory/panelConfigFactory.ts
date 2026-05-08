@@ -2,6 +2,7 @@ import { PanelConfiguration } from "../types/panelConfig";
 import {
   createThreeJSLeftPanelConfig,
   createCesiumLeftPanelConfig,
+  createMapboxLeftPanelConfig,
 } from "../panels/leftPanelConfig";
 import {
   createThreeJSBottomPanelConfig,
@@ -51,6 +52,8 @@ export const getLeftPanelConfig = (
         basemapType || "cesium",
         setBasemapType || (() => {})
       );
+    case "mapbox":
+      return createMapboxLeftPanelConfig();
     default:
       return createThreeJSLeftPanelConfig(
         gridEnabled,
@@ -105,6 +108,25 @@ export const getBottomPanelConfig = (
         reorderObservationPoints
       );
     case "cesium":
+      return createCesiumBottomPanelConfig(
+        viewMode,
+        setViewMode,
+        isPlaying,
+        togglePlayback,
+        observationPoints,
+        selectedObservation,
+        addObservationPoint,
+        selectObservation,
+        deleteObservationPoint,
+        nextObservation,
+        prevObservation,
+        previewMode,
+        previewIndex,
+        setPreviewIndex,
+        setPreviewMode,
+        reorderObservationPoints
+      );
+    case "mapbox":
       return createCesiumBottomPanelConfig(
         viewMode,
         setViewMode,
@@ -178,6 +200,21 @@ export const getRightPanelConfig = (
         onCancelRepositioning
       );
     case "cesium":
+      return createCesiumRightPanelConfig(
+        selectedObject,
+        selectedObservation,
+        viewMode,
+        controlSettings,
+        updateObjectProperty,
+        updateObservationPoint,
+        deleteObservationPoint,
+        setCapturingPOV,
+        updateControlSettings,
+        repositioning,
+        onStartRepositioning,
+        onCancelRepositioning
+      );
+    case "mapbox":
       return createCesiumRightPanelConfig(
         selectedObject,
         selectedObservation,

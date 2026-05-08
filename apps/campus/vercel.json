@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "buildCommand": "cd ../.. && pnpm --filter @klorad/dev-audits build && pnpm audits:light && pnpm vercel:build:campus",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile --prod=false",
+  "framework": "nextjs",
+  "regions": ["sfo1"],
+  "env": {
+    "NEXT_PUBLIC_VERCEL_ENV": "production",
+    "SKIP_ENV_VALIDATION": "1"
+  },
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
+  "outputDirectory": ".next"
+}

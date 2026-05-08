@@ -1,5 +1,6 @@
 "use client";
 
+import "@/styles/vendor/mapbox-gl.css";
 import React from "react";
 import dynamic from "next/dynamic";
 import { useWorldStore, useSceneStore } from "@klorad/core";
@@ -18,6 +19,10 @@ const CesiumObjectTransformEditor = dynamic(
     import("@klorad/engine-cesium").then((m) => ({
       default: m.CesiumObjectTransformEditor,
     })),
+  { ssr: false }
+);
+const MapboxViewer = dynamic(
+  () => import("@klorad/engine-mapbox").then((m) => m.MapboxViewer),
   { ssr: false }
 );
 // ViewshedAnalysis is rendered within the Cesium engine viewer; do not render here to avoid duplication
@@ -60,6 +65,8 @@ const SceneCanvas: React.FC<SceneCanvasProps> = ({
             )}
             {/* ViewshedAnalysis is handled by CesiumViewer to ensure single source of render */}
           </>
+        ) : engine === "mapbox" ? (
+          <MapboxViewer />
         ) : (
           <Scene
             initialSceneData={initialSceneData}

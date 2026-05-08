@@ -274,7 +274,7 @@ export async function PUT(request: NextRequest, props: ProjectParams) {
     const updateData: {
       title?: string;
       description?: string;
-      engine?: "three" | "cesium";
+      engine?: "three" | "cesium" | "mapbox";
       thumbnail?: string | null;
     } = {};
     if (title !== undefined) updateData.title = title;

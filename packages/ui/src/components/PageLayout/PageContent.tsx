@@ -1,10 +1,12 @@
 import React from "react";
-import { Box } from "@mui/material";
+import { Box, type SxProps, type Theme } from "@mui/material";
 
 export interface PageContentProps {
   children: React.ReactNode;
   maxWidth?: "5xl" | "6xl" | "full";
   className?: string;
+  /** Override the default top margin (defaults to 6 = 48px for PageHeader gap). Pass 0 when there's no header above. */
+  sx?: SxProps<Theme>;
 }
 
 /**
@@ -16,6 +18,7 @@ export const PageContent: React.FC<PageContentProps> = ({
   children,
   maxWidth = "5xl",
   className,
+  sx,
 }) => {
   const maxWidthMap = {
     "5xl": "1280px",
@@ -26,12 +29,13 @@ export const PageContent: React.FC<PageContentProps> = ({
   return (
     <Box
       className={className}
-      sx={{
-        maxWidth: maxWidthMap[maxWidth],
-        mt: 6, // Add spacing from PageHeader/PageDescription
-        // No mx: auto - align left with PageHeader
-        // No horizontal padding - Page component already provides padding
-      }}
+      sx={[
+        {
+          maxWidth: maxWidthMap[maxWidth],
+          mt: 6, // Default: add spacing from PageHeader/PageDescription
+        },
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
     >
       {children}
     </Box>

@@ -6,6 +6,7 @@
     "apps/website",
     "apps/editor",
     "apps/admin",
+    "apps/campus",
     "packages/*"
   ],
   "scripts": {
@@ -13,6 +14,8 @@
     "dev:editor": "cd apps/editor && pnpm dev",
     "dev:website": "cd apps/website && pnpm dev",
     "dev:admin": "cd apps/admin && pnpm dev",
+    "dev:campus": "cd apps/campus && pnpm dev",
+    "build:campus": "pnpm build:packages && cd apps/campus && pnpm build",
     "clean": "node scripts/clean.mjs",
     "build": "pnpm -r build --if-present",
     "build:packages": "pnpm -r --filter './packages/*' --workspace-concurrency=1 run build",
@@ -51,6 +54,7 @@
     "check:tarball": "pnpm -r --filter ./packages... exec bash -lc 'pnpm pack --pack-destination /tmp && tar -tf /tmp/*.tgz | (grep -E \"(^package/dist/|^package/package.json$)\" && ! grep -E \"package/src/\")'",
     "vercel:build:website": "pnpm build:website",
     "vercel:build:admin": "pnpm prisma:generate && pnpm --filter @klorad/prisma prisma migrate deploy && pnpm clean && pnpm build:packages && cd apps/admin && pnpm build",
+    "vercel:build:campus": "pnpm prisma:generate && pnpm --filter @klorad/prisma prisma migrate deploy && pnpm clean && pnpm build:packages && cd apps/campus && pnpm build",
     "postinstall": "pnpm prisma:generate",
     "prepare": "husky || true"
   },
