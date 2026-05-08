@@ -23,6 +23,8 @@ export const getSceneControlsConfig = (
       );
     case "cesium":
       return createCesiumSceneControlsConfig(selectedObject, transformMode);
+    case "mapbox":
+      return createCesiumSceneControlsConfig(selectedObject, transformMode);
     default:
       return createThreeJSSceneControlsConfig(
         selectedObject,

@@ -26,7 +26,10 @@ import {
   CloseIcon,
 } from "@klorad/ui";
 import MembersDialog from "./MembersDialog";
+import AppsDialog from "./AppsDialog";
+import { KLORAD_APPS, type KloradApp } from "./appsConfig";
 import { showToast } from "@klorad/ui";
+import { Checkbox, FormControlLabel } from "@mui/material";
 import useSWR from "swr";
 import { AdminHeader } from "../../components/AdminHeader";
 import { DashboardTabs } from "./tabs/DashboardTabs";
@@ -84,7 +87,15 @@ export default function AdminDashboard() {
   // Create organization form state
   const [orgName, setOrgName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
+  const [orgApps, setOrgApps] = useState<Set<KloradApp>>(new Set());
   const [saving, setSaving] = useState(false);
+
+  const [appsDialogOpen, setAppsDialogOpen] = useState(false);
+  const [orgForApps, setOrgForApps] = useState<{
+    id: string;
+    name: string;
+    apps: string[];
+  } | null>(null);
 
   // License update form state
   const [selectedPlanCode, setSelectedPlanCode] = useState("");
@@ -103,6 +114,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           name: orgName.trim(),
           slug: orgSlug.trim(),
+          apps: Array.from(orgApps),
         }),
       });
 
@@ -118,6 +130,7 @@ export default function AdminDashboard() {
       setCreateOrgOpen(false);
       setOrgName("");
       setOrgSlug("");
+      setOrgApps(new Set());
     } catch (error) {
       console.error("Error creating organization:", error);
       showToast(
@@ -129,7 +142,7 @@ export default function AdminDashboard() {
     } finally {
       setSaving(false);
     }
-  }, [orgName, orgSlug]);
+  }, [orgName, orgSlug, orgApps]);
 
   const handleDeleteOrganization = useCallback(async () => {
     if (!orgToDelete) return;
@@ -303,6 +316,10 @@ export default function AdminDashboard() {
                 setMembersDialogOpen(true);
               }}
               onLicenseClick={openLicenseDialog}
+              onAppsClick={(org) => {
+                setOrgForApps(org);
+                setAppsDialogOpen(true);
+              }}
               onDeleteClick={handleOpenDeleteDialog}
             />
           )}
@@ -400,6 +417,46 @@ export default function AdminDashboard() {
                   helperText="Lowercase letters, numbers, hyphens, and underscores only"
                   sx={textFieldStyles}
                 />
+              </SettingContainer>
+              <SettingContainer>
+                <SettingLabel>Enabled apps</SettingLabel>
+                <Box sx={{ display: "flex", flexDirection: "column" }}>
+                  {KLORAD_APPS.map((app) => (
+                    <FormControlLabel
+                      key={app.key}
+                      control={
+                        <Checkbox
+                          size="small"
+                          checked={orgApps.has(app.key)}
+                          onChange={() =>
+                            setOrgApps((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(app.key)) next.delete(app.key);
+                              else next.add(app.key);
+                              return next;
+                            })
+                          }
+                        />
+                      }
+                      label={
+                        <Typography
+                          variant="body2"
+                          sx={{ fontSize: "0.8125rem" }}
+                        >
+                          {app.label}{" "}
+                          <Typography
+                            component="span"
+                            variant="caption"
+                            sx={{ fontSize: "0.7rem", color: "text.secondary" }}
+                          >
+                            — {app.description}
+                          </Typography>
+                        </Typography>
+                      }
+                      sx={{ m: 0, py: 0.25 }}
+                    />
+                  ))}
+                </Box>
               </SettingContainer>
             </Box>
           </Box>
@@ -938,6 +995,20 @@ export default function AdminDashboard() {
           </Box>
         </Box>
       </Dialog>
+
+      {/* Apps Management Dialog */}
+      {orgForApps && (
+        <AppsDialog
+          open={appsDialogOpen}
+          orgId={orgForApps.id}
+          orgName={orgForApps.name}
+          initialApps={orgForApps.apps}
+          onClose={() => {
+            setAppsDialogOpen(false);
+            setOrgForApps(null);
+          }}
+        />
+      )}
 
       {/* Members Management Dialog */}
       {selectedOrg && (

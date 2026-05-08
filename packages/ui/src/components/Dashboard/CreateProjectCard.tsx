@@ -7,12 +7,18 @@ export interface CreateProjectCardProps {
   onClick?: () => void;
   selected?: boolean;
   onSelect?: () => void;
+  /** Title shown under the plus icon. Defaults to "Create Project". */
+  label?: string;
+  /** Short subtitle under the title. */
+  description?: string;
 }
 
 export default function CreateProjectCard({
   onClick,
   selected,
   onSelect: _onSelect,
+  label = "Create Project",
+  description = "Start building your new XR experience",
 }: CreateProjectCardProps) {
   const handleCardClick = () => {
     _onSelect?.();
@@ -30,7 +36,8 @@ export default function CreateProjectCard({
         const activeShadow = alpha(base, 0.2);
 
         return {
-        width: 300,
+        width: "100%",
+        height: 260,
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
@@ -132,14 +139,14 @@ export default function CreateProjectCard({
           variant="h6"
           sx={{ fontWeight: 600, color: "text.primary" }}
         >
-          Create Project
+          {label}
         </Typography>
         <Typography
           className="glass-card-subtitle"
           variant="body2"
           sx={{ color: "text.secondary", textAlign: "center" }}
         >
-          Start building your new XR experience
+          {description}
         </Typography>
       </CardContent>
     </Card>

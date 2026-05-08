@@ -171,3 +171,36 @@ export async function captureCesiumScreenshot(
   });
 }
 
+/**
+ * Mapbox map canvas capture (after map is idle).
+ */
+export async function captureMapboxScreenshot(map: any): Promise<string | null> {
+  if (!map?.getCanvas) {
+    throw new Error("Mapbox map not ready");
+  }
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const to = setTimeout(() => {
+      if (!settled) reject(new Error("Mapbox screenshot timed out"));
+    }, 8000);
+    const finish = () => {
+      try {
+        const canvas = map.getCanvas() as HTMLCanvasElement;
+        settled = true;
+        clearTimeout(to);
+        resolve(canvas?.toDataURL("image/png") ?? null);
+      } catch (e) {
+        settled = true;
+        clearTimeout(to);
+        reject(e);
+      }
+    };
+    const run = () => {
+      map.once("idle", finish);
+      map.triggerRepaint?.();
+    };
+    if (map.isStyleLoaded?.()) run();
+    else map.once("load", run);
+  });
+}
+

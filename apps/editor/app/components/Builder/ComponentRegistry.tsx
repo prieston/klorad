@@ -29,6 +29,9 @@ import {
   CesiumCameraSettings,
   CesiumSimulationInstructions,
 } from "@klorad/engine-cesium/components";
+import {
+  MapboxEnvironmentSection,
+} from "@klorad/engine-mapbox/components";
 
 export type AnyComponent = React.ComponentType<any>; // intentionally permissive
 
@@ -53,6 +56,7 @@ export const componentRegistry: Record<string, AnyComponent> = {
   CesiumViewModeControls: CesiumViewModeControls,
   CesiumCameraSettings: CesiumCameraSettings,
   CesiumSimulationInstructions: CesiumSimulationInstructions,
+  MapboxEnvironmentSection: MapboxEnvironmentSection,
 };
 
 export const getComponent = (componentName: string): AnyComponent | null => {

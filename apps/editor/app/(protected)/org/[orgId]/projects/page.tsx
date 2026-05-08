@@ -9,7 +9,6 @@ import {
   InputAdornment,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import { SearchIcon } from "@klorad/ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import useProjects from "@/app/hooks/useProjects";
 import { deleteProject } from "@/app/utils/api";
@@ -22,6 +21,7 @@ import {
   PageHeader,
   PageDescription,
   PageContent,
+  SearchIcon,
   textFieldStyles,
 } from "@klorad/ui";
 import {

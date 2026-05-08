@@ -49,8 +49,10 @@ const nextConfig = {
   transpilePackages: [
     '@klorad/ui',
     '@klorad/engine-cesium',
+    '@klorad/engine-mapbox',
     '@klorad/engine-three',
-    '@klorad/ion-sdk'
+    '@klorad/ion-sdk',
+    'threebox-plugin',
   ],
   // Optimize output for better performance
   output: 'standalone',
@@ -120,7 +122,7 @@ const nextConfig = {
         '3d-tiles-renderer',
         'three-stdlib'
       ];
-    } else {
+    } else if (Array.isArray(config.externals)) {
       config.externals.push('sharp');
     }
 
@@ -157,10 +159,33 @@ const nextConfig = {
       use: ['style-loader', 'css-loader'],
     });
 
+    // Mapbox GL CSS — same as Cesium (postcss/tailwind pipeline breaks on this file)
+    config.module.rules.push({
+      test: /\.css$/,
+      include: /node_modules\/mapbox-gl/,
+      use: ['style-loader', 'css-loader'],
+    });
+
+    // Vendored Mapbox stylesheet (imported from app; must bypass postcss/url pipeline)
+    config.module.rules.push({
+      test: /styles\/vendor\/mapbox-gl\.css$/,
+      use: [
+        'style-loader',
+        {
+          loader: 'css-loader',
+          options: { url: false },
+        },
+      ],
+    });
+
     // Handle other CSS files (fallback until packages are split)
     config.module.rules.push({
       test: /\.css$/,
-      exclude: /node_modules\/cesium/,
+      exclude: [
+        /node_modules\/cesium/,
+        /node_modules\/mapbox-gl/,
+        /styles\/vendor\/mapbox-gl\.css$/,
+      ],
       use: [
         'style-loader',
         {
@@ -202,7 +227,8 @@ const nextConfig = {
     // Note: Cesium assets are generated at build time via CopyWebpackPlugin
     // Assets are copied to public/cesium/ but not committed (in .gitignore)
 
-    // Strip console.* in production
+    // Extra minification only — do not override splitChunks / runtimeChunk: custom vendor/cesium/three
+    // splits + runtimeChunk:false break Next 15’s client manifest (undefined module factories in main-app).
     if (!isServer && process.env.NODE_ENV === 'production') {
       const TerserPlugin = require('terser-webpack-plugin');
       config.optimization = {
@@ -212,75 +238,11 @@ const nextConfig = {
           new TerserPlugin({
             terserOptions: {
               compress: {
-                // drop_console: true, // Commented out so console logs show in build
                 drop_console: false,
               },
             },
           }),
         ],
-        splitChunks: {
-          ...config.optimization?.splitChunks,
-          chunks: 'all',
-          cacheGroups: {
-            ...config.optimization?.splitChunks?.cacheGroups,
-            cesium: {
-              test: /[\\/]node_modules[\\/]cesium[\\/]/,
-              name: 'cesium',
-              chunks: 'all',
-              priority: 10,
-              enforce: true,
-            },
-            three: {
-              test: /[\\/]node_modules[\\/]three[\\/]/,
-              name: 'three',
-              chunks: 'all',
-              priority: 9,
-            },
-            vendor: {
-              test: /[\\/]node_modules[\\/]/,
-              name: 'vendors',
-              chunks: 'all',
-              priority: 5,
-            },
-          },
-        },
-        runtimeChunk: {
-          name: 'runtime',
-        },
-      };
-    } else if (!isServer) {
-      // Development optimization
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          ...config.optimization?.splitChunks,
-          chunks: 'all',
-          cacheGroups: {
-            ...config.optimization?.splitChunks?.cacheGroups,
-            cesium: {
-              test: /[\\/]node_modules[\\/]cesium[\\/]/,
-              name: 'cesium',
-              chunks: 'all',
-              priority: 10,
-              enforce: true,
-            },
-            three: {
-              test: /[\\/]node_modules[\\/]three[\\/]/,
-              name: 'three',
-              chunks: 'all',
-              priority: 9,
-            },
-            vendor: {
-              test: /[\\/]node_modules[\\/]/,
-              name: 'vendors',
-              chunks: 'all',
-              priority: 5,
-            },
-          },
-        },
-        runtimeChunk: {
-          name: 'runtime',
-        },
       };
     }
 

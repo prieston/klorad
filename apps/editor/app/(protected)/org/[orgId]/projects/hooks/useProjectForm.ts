@@ -23,7 +23,7 @@ export const useProjectForm = ({ projects, setProjects: _setProjects }: UseProje
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [engine, setEngine] = useState<"cesium" | "three">("cesium");
+  const [engine, setEngine] = useState<"cesium" | "three" | "mapbox">("cesium");
   const [saving, setSaving] = useState(false);
 
   const handleCreateProject = useCallback(() => {
@@ -41,7 +41,7 @@ export const useProjectForm = ({ projects, setProjects: _setProjects }: UseProje
         setEditingProjectId(projectId);
         setTitle(project.title || "");
         setDescription(project.description || "");
-        setEngine((project.engine as "cesium" | "three") || "cesium");
+        setEngine((project.engine as "cesium" | "three" | "mapbox") || "cesium");
         setDrawerOpen(true);
       }
     },
@@ -67,7 +67,7 @@ export const useProjectForm = ({ projects, setProjects: _setProjects }: UseProje
         await updateProject(editingProjectId, {
           title: title.trim(),
           description: description.trim(),
-          engine: engine as "three" | "cesium",
+          engine: engine as "three" | "cesium" | "mapbox",
         });
         // Refresh projects list from SWR
         mutate();
@@ -79,7 +79,7 @@ export const useProjectForm = ({ projects, setProjects: _setProjects }: UseProje
         const response = await createProject({
           title: title.trim(),
           description: description.trim(),
-          engine: engine as "three" | "cesium",
+          engine: engine as "three" | "cesium" | "mapbox",
           organizationId: orgId,
         });
         // Refresh projects list from SWR

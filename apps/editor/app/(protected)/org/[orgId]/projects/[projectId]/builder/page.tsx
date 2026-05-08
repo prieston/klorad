@@ -10,6 +10,10 @@ import { showToast } from "@klorad/ui";
 import { updateProjectScene, publishProject, getModel } from "@/app/utils/api";
 import { extractTransformFromMetadata } from "@klorad/engine-cesium";
 import useProject from "@/app/hooks/useProject";
+import {
+  DEFAULT_MAPBOX_SCENE_DATA,
+  type MapboxSceneData,
+} from "@klorad/core";
 
 // Function to sanitize scene data before saving
 const sanitizeSceneData = (
@@ -26,7 +30,8 @@ const sanitizeSceneData = (
   gridEnabled,
   groundPlaneEnabled,
   skyboxType,
-  ambientLightIntensity
+  ambientLightIntensity,
+  mapboxSceneData
 ) => {
   // Ensure we have valid arrays to work with
   const safeObjects = Array.isArray(objects) ? objects : [];
@@ -178,6 +183,20 @@ const sanitizeSceneData = (
         }
       }
 
+      const mapboxCamera =
+        point.mapboxCamera &&
+        typeof point.mapboxCamera === "object" &&
+        "pitch" in point.mapboxCamera &&
+        "bearing" in point.mapboxCamera &&
+        "zoom" in point.mapboxCamera
+          ? {
+              pitch: Number((point.mapboxCamera as { pitch: number }).pitch) || 0,
+              bearing:
+                Number((point.mapboxCamera as { bearing: number }).bearing) || 0,
+              zoom: Number((point.mapboxCamera as { zoom: number }).zoom) || 0,
+            }
+          : undefined;
+
       return {
         id: point.id || 0,
         title: point.title || "",
@@ -185,6 +204,10 @@ const sanitizeSceneData = (
         position,
         target,
         connectedModelId: point.connectedModelId || undefined,
+        ...(mapboxCamera ? { mapboxCamera } : {}),
+        ...(point.mapboxUseFreeCameraPose === true
+          ? { mapboxUseFreeCameraPose: true }
+          : {}),
       };
     })
     .filter(Boolean);
@@ -242,6 +265,7 @@ const sanitizeSceneData = (
     groundPlaneEnabled: groundPlaneEnabled !== undefined ? groundPlaneEnabled : false,
     skyboxType: skyboxType || "default",
     ambientLightIntensity: ambientLightIntensity !== undefined ? ambientLightIntensity : 0.5,
+    mapbox: mapboxSceneData || { ...DEFAULT_MAPBOX_SCENE_DATA },
   };
 };
 
@@ -295,6 +319,7 @@ export default function BuilderPage() {
             groundPlaneEnabled?: boolean;
             skyboxType?: "default" | "none";
             ambientLightIntensity?: number;
+            mapbox?: Partial<MapboxSceneData> & Record<string, unknown>;
           };
           const {
             objects,
@@ -311,7 +336,36 @@ export default function BuilderPage() {
             groundPlaneEnabled,
             skyboxType,
             ambientLightIntensity,
+            mapbox: mapboxRaw,
           } = sceneData;
+
+          if (mapboxRaw && typeof mapboxRaw === "object") {
+            const m = mapboxRaw as Partial<MapboxSceneData>;
+            const def = DEFAULT_MAPBOX_SCENE_DATA;
+            useSceneStore.setState({
+              mapboxSceneData: {
+                ...def,
+                ...m,
+                styleUrl: m.styleUrl ?? def.styleUrl,
+                center: m.center ?? def.center,
+                zoom: m.zoom ?? def.zoom,
+                pitch: m.pitch ?? def.pitch,
+                bearing: m.bearing ?? def.bearing,
+                projection: m.projection ?? def.projection,
+                layers: Array.isArray(m.layers) ? m.layers : def.layers,
+                floorPlanRasters: Array.isArray(m.floorPlanRasters)
+                  ? m.floorPlanRasters
+                  : def.floorPlanRasters,
+                terrain: m.terrain
+                  ? { ...def.terrain!, ...m.terrain }
+                  : def.terrain,
+                fog: m.fog ? { ...def.fog!, ...m.fog } : def.fog,
+                standardBasemap: m.standardBasemap
+                  ? { ...def.standardBasemap!, ...m.standardBasemap }
+                  : def.standardBasemap,
+              },
+            });
+          }
 
           if (Array.isArray(objects)) {
             // Restore objects with all their properties including observation model data
@@ -525,7 +579,8 @@ export default function BuilderPage() {
         storeState.gridEnabled,
         storeState.groundPlaneEnabled,
         storeState.skyboxType,
-        storeState.ambientLightIntensity
+        storeState.ambientLightIntensity,
+        storeState.mapboxSceneData
       );
 
       await updateProjectScene(projectIdStr, sceneData);

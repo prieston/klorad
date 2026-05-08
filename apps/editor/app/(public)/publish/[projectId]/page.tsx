@@ -9,6 +9,10 @@ import { LockIcon } from "@klorad/ui";
 import { useSceneStore, useWorldStore } from "@klorad/core";
 import { LoadingScreen } from "@klorad/ui";
 import useProject from "@/app/hooks/useProject";
+import {
+  DEFAULT_MAPBOX_SCENE_DATA,
+  type MapboxSceneData,
+} from "@klorad/core";
 import { signIn } from "next-auth/react";
 // eslint-disable-next-line import/extensions
 import MobileLayout from "@/app/components/PublishPage/MobileLayout";
@@ -93,6 +97,7 @@ const PublishedScenePage = () => {
         groundPlaneEnabled?: boolean;
         skyboxType?: "default" | "none";
         ambientLightIntensity?: number;
+        mapbox?: Partial<MapboxSceneData> & Record<string, unknown>;
       };
       const {
         objects,
@@ -108,7 +113,36 @@ const PublishedScenePage = () => {
         groundPlaneEnabled,
         skyboxType,
         ambientLightIntensity,
+        mapbox: mapboxRaw,
       } = sceneData;
+
+      if (mapboxRaw && typeof mapboxRaw === "object") {
+        const m = mapboxRaw as Partial<MapboxSceneData>;
+        const def = DEFAULT_MAPBOX_SCENE_DATA;
+        useSceneStore.setState({
+          mapboxSceneData: {
+            ...def,
+            ...m,
+            styleUrl: m.styleUrl ?? def.styleUrl,
+            center: m.center ?? def.center,
+            zoom: m.zoom ?? def.zoom,
+            pitch: m.pitch ?? def.pitch,
+            bearing: m.bearing ?? def.bearing,
+            projection: m.projection ?? def.projection,
+            layers: Array.isArray(m.layers) ? m.layers : def.layers,
+            floorPlanRasters: Array.isArray(m.floorPlanRasters)
+              ? m.floorPlanRasters
+              : def.floorPlanRasters,
+            terrain: m.terrain
+              ? { ...def.terrain!, ...m.terrain }
+              : def.terrain,
+            fog: m.fog ? { ...def.fog!, ...m.fog } : def.fog,
+            standardBasemap: m.standardBasemap
+              ? { ...def.standardBasemap!, ...m.standardBasemap }
+              : def.standardBasemap,
+          },
+        });
+      }
 
       // Initialize objects (GLB models, etc.)
       if (Array.isArray(objects)) {
@@ -180,9 +214,20 @@ const PublishedScenePage = () => {
           console.warn("Error during Cesium cleanup:", cleanupError);
         }
       }
+      const mapboxMap = useSceneStore.getState().mapboxMap as
+        | { remove?: () => void }
+        | null;
+      if (mapboxMap && typeof mapboxMap.remove === "function") {
+        try {
+          mapboxMap.remove();
+        } catch (cleanupError) {
+          console.warn("Error during Mapbox cleanup:", cleanupError);
+        }
+      }
       // Clear scene store state
       useSceneStore.setState({
         cesiumViewer: null,
+        mapboxMap: null,
         observationPoints: [],
         previewIndex: 0,
         objects: [],

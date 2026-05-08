@@ -8,6 +8,7 @@ export interface KloradManifest {
     core: string;
     ui: string;
     engineCesium: string;
+    engineMapbox: string;
     engineThree: string;
     ionSdk: string;
   };
@@ -31,6 +32,7 @@ export const kloradManifest: KloradManifest = {
     core: "@klorad/core",
     ui: "@klorad/ui",
     engineCesium: "@klorad/engine-cesium",
+    engineMapbox: "@klorad/engine-mapbox",
     engineThree: "@klorad/engine-three",
     ionSdk: "@klorad/ion-sdk",
   },
@@ -58,6 +60,10 @@ export const kloradManifest: KloradManifest = {
     {
       from: "@klorad/engine-three",
       to: "@klorad/(core|ion-sdk|ui|engine-cesium)",
+    },
+    {
+      from: "@klorad/engine-mapbox",
+      to: "@klorad/(core|ui)",
     },
     // UI may depend on core
     {

@@ -47,7 +47,7 @@ interface DesktopLayoutProps {
   nextObservation: () => void;
   prevObservation: () => void;
   projectId: string;
-  engine: "three" | "cesium";
+  engine: "three" | "cesium" | "mapbox";
 }
 
 const DesktopLayout: React.FC<DesktopLayoutProps> = ({

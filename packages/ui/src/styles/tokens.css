@@ -1,0 +1,62 @@
+/**
+ * Klorad Design System — CSS custom properties.
+ * Imported by every Klorad vertical (editor, campus, …) so they share
+ * a single set of design tokens. Override at the app level if needed.
+ */
+:root {
+  /* Light (day) */
+  --color-bg: #ffffff;
+  --color-surface-1: #f8fafc;
+  --color-surface-2: #f1f5f9;
+  --color-border: rgba(15, 23, 42, 0.12);
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+
+  --color-primary: #6b9cd8;
+  --color-primary-400: #5f88c7;
+  --color-primary-600: #4b6faf;
+
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #6b9cd8;
+
+  /* Glass tokens */
+  --glass-bg: #14171a;
+  --glass-bg-fallback: rgba(237, 237, 237, 0.9);
+  --glass-border: rgba(107, 156, 216, 0.28);
+  --glass-shadow: 0 8px 32px rgba(95, 136, 199, 0.15);
+  --glass-text-primary: #0f172a;
+  --glass-text-secondary: #475569;
+}
+
+html.dark {
+  --color-bg: #0e0f10;
+  --color-surface-1: #14171a;
+  --color-surface-2: #1c1f22;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-text-primary: #ffffff;
+  --color-text-secondary: rgba(255, 255, 255, 0.65);
+  --color-primary: #6b9cd8;
+  --color-primary-400: #5f88c7;
+  --color-primary-600: #4b6faf;
+  --color-error: #ff5656;
+  --color-info: #6b9cd8;
+
+  --glass-bg: rgba(17, 19, 23, 0.9);
+  --glass-bg-fallback: rgba(17, 19, 23, 0.92);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 3px 12px rgba(0, 0, 0, 0.35);
+  --glass-text-primary: #ffffff;
+  --glass-text-secondary: rgba(255, 255, 255, 0.65);
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+html.dark body {
+  background-image: linear-gradient(180deg, #0d0e11 0%, #111317 100%);
+  background-attachment: fixed;
+}

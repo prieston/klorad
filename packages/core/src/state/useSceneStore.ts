@@ -3,6 +3,8 @@ import type { SceneState } from "./scene-store/types";
 import { createObjectActions } from "./scene-store/object-actions";
 import { createObservationActions } from "./scene-store/observation-actions";
 import { createCesiumActions } from "./scene-store/cesium-actions";
+import { createMapboxActions } from "./scene-store/mapbox-actions";
+import { DEFAULT_MAPBOX_SCENE_DATA } from "../types/mapbox-scene";
 
 const useSceneStore = create<SceneState>((set, get) => ({
   // Initial state
@@ -11,6 +13,7 @@ const useSceneStore = create<SceneState>((set, get) => ({
   selectedObject: null,
   selectedObservation: null,
   selectedCesiumFeature: null,
+  selectedMapboxBuilding: null,
   selectedAssetId: "2275207",
   selectedLocation: null,
   orbitControlsRef: null,
@@ -19,6 +22,8 @@ const useSceneStore = create<SceneState>((set, get) => ({
   cesiumIonAssets: [],
   cesiumViewer: null,
   cesiumInstance: null,
+  mapboxMap: null,
+  mapboxSceneData: { ...DEFAULT_MAPBOX_SCENE_DATA },
   basemapType: "none",
   gridEnabled: true,
   groundPlaneEnabled: false,
@@ -141,6 +146,9 @@ const useSceneStore = create<SceneState>((set, get) => ({
       cesiumLightingEnabled: false,
       cesiumShadowsEnabled: false,
       cesiumCurrentTime: null,
+      mapboxMap: null,
+      mapboxSceneData: { ...DEFAULT_MAPBOX_SCENE_DATA },
+      selectedMapboxBuilding: null,
     }),
 
   // Object actions
@@ -151,8 +159,17 @@ const useSceneStore = create<SceneState>((set, get) => ({
 
   // Cesium actions
   ...createCesiumActions(set, get),
+
+  // Mapbox actions
+  ...createMapboxActions(set),
 }));
 
 export default useSceneStore;
 export type { SceneState } from "./scene-store/types";
-export type { Model, ObservationPoint, ViewMode, CesiumIonAsset } from "./scene-store/types";
+export type {
+  Model,
+  ObservationPoint,
+  MapboxObservationCamera,
+  ViewMode,
+  CesiumIonAsset,
+} from "./scene-store/types";

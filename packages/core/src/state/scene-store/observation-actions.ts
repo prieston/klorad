@@ -23,6 +23,7 @@ export function createObservationActions(set: any) {
           observationPoints,
           selectedObservation: newPoint,
           previewIndex,
+          selectedMapboxBuilding: null,
         };
       }),
 
@@ -35,6 +36,7 @@ export function createObservationActions(set: any) {
                 (point: ObservationPoint) => point.id === id
               ),
         selectedObject: null,
+        selectedMapboxBuilding: null,
       })),
 
     updateObservationPoint: (id: number, updates: Partial<ObservationPoint>) =>
