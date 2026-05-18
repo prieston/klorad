@@ -2,87 +2,78 @@
 
 import Link from "next/link";
 import useSWR from "swr";
-import { GeometricHint } from "@/components/geometric-hint";
 import { organizationsFetcher } from "@/lib/api";
+import { Eyebrow } from "@/components/ui";
 
 export default function OrgsPage() {
-  const { data: organizations = [], isLoading, error } = useSWR(
-    "/api/orgs",
-    organizationsFetcher,
-    {
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-      refreshInterval: 0, // Disable auto-refresh, but allow manual revalidation
-    }
-  );
+  const {
+    data: organizations = [],
+    isLoading,
+    error,
+  } = useSWR("/api/orgs", organizationsFetcher, {
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+    refreshInterval: 0,
+  });
 
   return (
-    <article className="space-y-0">
-      {/* Hero Section */}
-      <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden mt-[-6rem] pb-28 md:mt-[-8rem]">
-        <GeometricHint variant="radial-vignette" />
-        <div className="relative mx-auto max-w-container px-6 pt-28 md:px-8 md:pt-32">
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <h1 className="max-w-3xl text-4xl font-light text-text-primary md:text-[54px] md:leading-[1.05]">
-                Organizations
-              </h1>
-              <p className="max-w-[640px] text-xl font-light text-text-secondary">
-                Explore organizations building on Klorad.
-              </p>
-              <p className="max-w-[640px] text-[17px] font-light leading-[1.55] text-text-secondary tracking-[0.01em]">
-                Discover published worlds and projects from organizations using our geospatial platform.
-              </p>
-            </div>
+    <div>
+      {/* ── Hero ───────────────────────────────────────────── */}
+      <section className="relative isolate overflow-hidden">
+        <div aria-hidden className="absolute inset-0 grid-field" />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-32 -top-40 h-[600px] w-[600px] rounded-full bg-accent-soft blur-3xl"
+        />
+        <div className="relative z-10 mx-auto max-w-container px-6 py-24 md:px-8 md:py-32">
+          <div className="max-w-2xl animate-fade-up">
+            <Eyebrow>Organizations</Eyebrow>
+            <h1 className="mt-6 text-4xl font-light leading-[1.05] text-text-primary md:text-6xl">
+              Organizations on Klorad.
+            </h1>
+            <p className="mt-6 max-w-xl text-lg font-light leading-relaxed text-text-secondary md:text-xl">
+              Discover published worlds and projects from organizations building
+              on the platform.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* Organizations Grid Section */}
-      <section className="relative left-1/2 w-screen -translate-x-1/2 bg-[#090D12] pt-36 pb-32 md:pt-44 md:pb-36">
-        <div className="relative mx-auto max-w-container px-6 md:px-8">
+      {/* ── Grid ───────────────────────────────────────────── */}
+      <section className="border-t border-line-soft py-20 md:py-28">
+        <div className="mx-auto max-w-container px-6 md:px-8">
           {isLoading ? (
-            <div className="py-24 text-center">
-              <p className="text-lg font-light text-text-secondary">
-                Loading organizations...
-              </p>
-            </div>
+            <p className="py-20 text-center text-text-secondary">
+              Loading organizations…
+            </p>
           ) : error ? (
-            <div className="py-24 text-center">
-              <p className="text-lg font-light text-text-secondary">
-                Failed to load organizations. Please try again later.
-              </p>
-            </div>
+            <p className="py-20 text-center text-text-secondary">
+              Could not load organizations. Please try again later.
+            </p>
           ) : organizations.length > 0 ? (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {organizations.map((org) => (
                 <Link
                   key={org.id}
                   href={`/orgs/${org.slug}`}
-                  className="group relative flex flex-col overflow-hidden rounded-[4px] border border-line-soft bg-base-bg transition-all duration-500 hover:border-white/[0.06]"
+                  className="group glass-panel flex flex-col rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 hover:border-accent"
                 >
-                  {/* Premium gradient overlay on hover */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#4C7FFF]/[0.08] via-[#4C7FFF]/[0.03] to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-                  <div className="relative z-10 flex flex-1 flex-col p-6">
-                    <h3 className="mb-2 text-lg font-light text-text-primary">
-                      {org.name}
-                    </h3>
-                    <span className="mt-auto inline-block text-xs text-text-secondary transition-colors duration-500 group-hover:text-text-primary">
-                      View Worlds →
-                    </span>
-                  </div>
+                  <h3 className="text-lg font-medium text-text-primary">
+                    {org.name}
+                  </h3>
+                  <span className="mt-3 inline-flex items-center gap-1.5 text-sm text-accent">
+                    View worlds →
+                  </span>
                 </Link>
               ))}
             </div>
           ) : (
-            <div className="py-24 text-center">
-              <p className="text-lg font-light text-text-secondary">
-                No organizations available yet.
-              </p>
-            </div>
+            <p className="py-20 text-center text-text-secondary">
+              No organizations published yet.
+            </p>
           )}
         </div>
       </section>
-    </article>
+    </div>
   );
 }

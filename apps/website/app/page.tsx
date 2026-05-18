@@ -1,226 +1,314 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
-import { AmbientField } from "@/components/ambient-field";
-import { ValueHookSection } from "@/components/ValueHookSection";
-import { PrecisionIcon } from "@/components/icons/PrecisionIcon";
-import { IntegrationIcon } from "@/components/icons/IntegrationIcon";
-import { CollaborationIcon } from "@/components/icons/CollaborationIcon";
-import { TraceabilityIcon } from "@/components/icons/TraceabilityIcon";
+import { HeroWorld } from "@/components/hero-world";
+import {
+  Eyebrow,
+  ArrowIcon,
+  SectionHead,
+  btnPrimary,
+  btnGhost,
+} from "@/components/ui";
 
 export const metadata: Metadata = {
-  title: "Klorad - The Geospatial Platform for Operating Real-World Infrastructure",
   description:
-    "Klorad unifies terrain, structures, equipment, and live operational data into one platform. See how your infrastructure behaves, analyze changes over time, and coordinate operations with confidence.",
-  alternates: {
-    canonical: "/",
-  },
-  openGraph: {
-    title: "Klorad - The Geospatial Platform for Operating Real-World Infrastructure",
-    description:
-      "Klorad unifies terrain, structures, equipment, and live operational data into one platform. See how your infrastructure behaves, analyze changes over time, and coordinate operations with confidence.",
-    type: "website",
-  },
+    "Klorad is a geospatial platform for digital twins — a shared foundation that turns real places into living, data-driven worlds. The engine behind Klorad Campus, Mobility, Virtual Heritage, and Urban.",
+  alternates: { canonical: "/" },
 };
+
+const verticals = [
+  {
+    tag: "Campus",
+    name: "Klorad Campus",
+    promise: "Campuses people can navigate.",
+    desc: "Indoor and outdoor wayfinding, room-level detail, points of interest — a campus that works as well on a screen as on foot.",
+    href: "/campus",
+  },
+  {
+    tag: "Mobility",
+    name: "Klorad Mobility",
+    promise: "Road networks, made legible.",
+    desc: "Corridors, junctions, signaling and ITS telemetry as one continuous environment — see how a decision propagates before it is made.",
+    href: "/mobility",
+  },
+  {
+    tag: "Heritage",
+    name: "Klorad Virtual Heritage",
+    promise: "Heritage, reconstructed and understood.",
+    desc: "Sites rebuilt as immersive, interpretable worlds — for preservation, research, and the public.",
+    href: "/virtual-heritage",
+  },
+  {
+    tag: "Urban",
+    name: "Klorad Urban",
+    promise: "Cities and land, as a living model.",
+    desc: "Urban infrastructure and land use unified into one twin — for planning, coordination, and the decisions that shape territory.",
+    href: "/urban",
+  },
+];
+
+const engineFeatures = [
+  {
+    title: "One World model",
+    desc: "A single, engine-agnostic model of scenes, objects, and observations. Define a world once.",
+  },
+  {
+    title: "Three renderers",
+    desc: "Three.js for built scenes, CesiumJS for the geospatial globe and 3D tiles, Mapbox for mapping. Same world, the right renderer.",
+  },
+  {
+    title: "Live data",
+    desc: "IoT and sensor telemetry stream into the world in real time — twins that move with the thing they mirror.",
+  },
+  {
+    title: "Immersive & XR",
+    desc: "Worlds are XR-ready — explorable on a screen, or stepped into.",
+  },
+  {
+    title: "Multi-tenant",
+    desc: "Organizations, projects, and access control built in from the core.",
+  },
+  {
+    title: "The SDK",
+    desc: "@klorad/api — a programmatic scene API with an extension for each vertical. Build your own world on the foundation.",
+  },
+];
 
 export default function HomePage() {
   return (
-    <div className="space-y-0">
-      {/* Hero Section */}
-      <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden mt-[-6rem] pb-32 md:mt-[-8rem]">
-        <AmbientField />
-        <div className="relative mx-auto max-w-container px-6 pt-28 md:px-8 md:pt-32">
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <h1 className="max-w-3xl text-4xl font-light text-text-primary md:text-[54px] md:leading-[1.05]">
-                The Geospatial Platform for Operating Real-World Infrastructure
-              </h1>
-              <p className="max-w-[620px] text-xl font-light text-text-secondary">
-                Klorad unifies terrain, structures, equipment, and live operational data into one platform.
-              </p>
-              <p className="max-w-[620px] text-[17px] font-light leading-[1.55] text-text-secondary tracking-[0.01em]">
-                See how your infrastructure behaves, analyze changes over time, and coordinate operations with confidence.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-4 sm:flex-row">
-              <Link
-                href="/contact"
-                className="inline-flex items-center justify-center rounded-[4px] bg-[#158CA3] px-6 py-3 text-sm font-medium text-white transition hover:bg-[#126E83]"
-              >
-                SCHEDULE DEMO
+    <div>
+      {/* ── Hero ───────────────────────────────────────────── */}
+      <section className="relative isolate overflow-hidden">
+        <HeroWorld />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-32 -top-40 h-[620px] w-[620px] rounded-full bg-accent-soft blur-3xl"
+        />
+        <div className="relative z-10 mx-auto flex min-h-[88svh] max-w-container flex-col justify-center px-6 py-28 md:px-8">
+          <div className="max-w-2xl animate-fade-up">
+            <Eyebrow>The Klorad Platform</Eyebrow>
+            <h1 className="mt-6 text-4xl font-light leading-[1.05] text-text-primary md:text-6xl">
+              Build the virtual worlds of tomorrow.
+            </h1>
+            <p className="mt-6 max-w-xl text-lg font-light leading-relaxed text-text-secondary md:text-xl">
+              Klorad is a geospatial platform for digital twins — a shared
+              foundation that turns real places into living, data-driven worlds.
+            </p>
+            <p className="mt-3 max-w-xl text-[15px] text-text-tertiary">
+              Campuses, road networks, cities, heritage sites. One engine
+              beneath them all.
+            </p>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Link href="/platform" className={btnPrimary}>
+                Explore the platform
               </Link>
               <Link
-                href="/platform"
-                className="inline-flex items-center justify-center text-sm text-text-secondary transition-colors duration-500 hover:text-text-primary"
+                href="/samples"
+                className="inline-flex items-center justify-center gap-1.5 px-2 py-3 text-sm text-text-secondary transition-colors hover:text-text-primary"
               >
-                View Platform →
+                See what&apos;s built on Klorad
+                <ArrowIcon />
               </Link>
             </div>
           </div>
         </div>
       </section>
 
-      <ValueHookSection />
-
-      {/* Trust Section */}
-      <section className="pt-24 pb-20 md:pt-32 md:pb-24">
+      {/* ── Trust ──────────────────────────────────────────── */}
+      <section className="border-t border-line-soft py-12">
         <div className="mx-auto max-w-container px-6 md:px-8">
-          <p className="mb-8 text-sm uppercase tracking-[0.28em] text-text-tertiary">
+          <p className="text-xs uppercase tracking-[0.26em] text-text-tertiary">
             Trusted by leading organizations
           </p>
-          <div className="flex flex-wrap items-center gap-12 opacity-60">
-            <div className="relative h-16 w-auto">
-              <Image
-                src="/prieston-logo-full-white.svg"
-                alt="Prieston"
-                width={200}
-                height={64}
-                className="h-full w-auto object-contain"
-                style={{ filter: "brightness(0) invert(1)" }}
-              />
+          <div className="mt-6 flex flex-wrap items-center gap-10">
+            <Image
+              src="/prieston-logo-full-white.svg"
+              alt="Prieston"
+              width={150}
+              height={40}
+              className="h-7 w-auto opacity-70 invert dark:invert-0"
+            />
+            <Image
+              src="/PSM_LOGO_Med.png"
+              alt="PSM"
+              width={130}
+              height={40}
+              className="h-9 w-auto opacity-70 grayscale dark:invert"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ── What Klorad is ─────────────────────────────────── */}
+      <section className="border-t border-line-soft py-24 md:py-32">
+        <div className="mx-auto max-w-container px-6 md:px-8">
+          <SectionHead
+            center
+            eyebrow="The model"
+            title="Klorad is the foundation. The worlds are the products."
+            intro="Every Klorad product is a digital twin built on the same engine — the same world model, the same geospatial core, the same live-data backbone. We built the hard part once, so each new world doesn't start from zero."
+          />
+          <div className="mt-16 flex flex-col items-center">
+            <div className="glass-panel rounded-xl px-6 py-3 text-sm font-medium tracking-wide text-text-primary shadow-glass">
+              KLORAD <span className="text-text-tertiary">· the world engine</span>
             </div>
-            <div className="relative h-16 w-auto">
-              <Image
-                src="/PSM_LOGO_Med.png"
-                alt="PSM"
-                width={200}
-                height={64}
-                className="h-full w-auto object-contain"
-                style={{ filter: "brightness(0) invert(1)" }}
-              />
+            <div className="h-12 w-px bg-line-strong" />
+            <div className="grid w-full max-w-2xl grid-cols-2 gap-3 md:grid-cols-4">
+              {verticals.map((v) => (
+                <div
+                  key={v.tag}
+                  className="glass-panel rounded-lg px-3 py-3 text-center text-sm text-text-secondary"
+                >
+                  {v.tag}
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Enterprise Value Section */}
-      <section className="relative left-1/2 w-screen -translate-x-1/2 bg-[#090D12] pt-36 pb-32 md:pt-44 md:pb-36">
-        <div className="relative mx-auto max-w-container px-6 md:px-8">
-          <h2 className="mb-12 text-3xl font-light tracking-[0.04em] text-text-primary md:text-[36px] md:leading-[1.15]">
-            Built for organizations where decisions carry real-world consequences
-          </h2>
-          <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <div className="mb-3 text-text-secondary opacity-[0.3]">
-                <PrecisionIcon className="w-8 h-8" />
-              </div>
-              <h3 className="pt-1 pb-1.5 text-2xl font-light text-text-primary">Precision</h3>
-              <p className="text-[17px] font-light leading-[1.5] tracking-[0.01em] text-text-secondary">
-                Maintain alignment between physical and digital worlds.
-              </p>
-            </div>
-            <div className="md:border-l md:border-line-soft/30 md:pl-8">
-              <div className="mb-3 text-text-secondary opacity-[0.3]">
-                <IntegrationIcon className="w-8 h-8" />
-              </div>
-              <h3 className="pt-1 pb-1.5 text-2xl font-light text-text-primary">Integration</h3>
-              <p className="text-[17px] font-light leading-[1.5] tracking-[0.01em] text-text-secondary">
-                Unify models, systems, and live operational signals.
-              </p>
-            </div>
-            <div className="md:border-l md:border-line-soft/30 md:pl-8">
-              <div className="mb-3 text-text-secondary opacity-[0.3]">
-                <CollaborationIcon className="w-8 h-8" />
-              </div>
-              <h3 className="pt-1 pb-1.5 text-2xl font-light text-text-primary">Collaboration</h3>
-              <p className="text-[17px] font-light leading-[1.5] tracking-[0.01em] text-text-secondary">
-                Coordinate stakeholders across control rooms and field devices.
-              </p>
-            </div>
-            <div className="md:border-l md:border-line-soft/30 md:pl-8">
-              <div className="mb-3 text-text-secondary opacity-[0.3]">
-                <TraceabilityIcon className="w-8 h-8" />
-              </div>
-              <h3 className="pt-1 pb-1.5 text-2xl font-light text-text-primary">Traceability</h3>
-              <p className="text-[17px] font-light leading-[1.5] tracking-[0.01em] text-text-secondary">
-                Every change traced to source data and reasoning.
-              </p>
-            </div>
+      {/* ── Choose your world ──────────────────────────────── */}
+      <section className="border-t border-line-soft py-24 md:py-32">
+        <div className="mx-auto max-w-container px-6 md:px-8">
+          <SectionHead
+            eyebrow="Products"
+            title="Choose your world."
+            intro="Four products, one foundation. Each takes a domain into the digital-twin era."
+          />
+          <div className="mt-12 grid gap-5 md:grid-cols-2">
+            {verticals.map((v) => (
+              <Link
+                key={v.href}
+                href={v.href}
+                className="group glass-panel rounded-2xl p-7 transition-all duration-300 hover:-translate-y-1 hover:border-accent hover:shadow-glass"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium uppercase tracking-[0.2em] text-accent">
+                    {v.tag}
+                  </span>
+                  <ArrowIcon className="text-text-tertiary transition-transform duration-300 group-hover:translate-x-1 group-hover:text-accent" />
+                </div>
+                <h3 className="mt-5 text-xl font-medium text-text-primary">
+                  {v.name}
+                </h3>
+                <p className="mt-1 text-[15px] text-text-secondary">
+                  {v.promise}
+                </p>
+                <p className="mt-4 text-sm leading-relaxed text-text-tertiary">
+                  {v.desc}
+                </p>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Industry Grid Section */}
-      <section className="relative left-1/2 w-screen -translate-x-1/2 bg-[#090D12] pt-36 pb-32 md:pt-44 md:pb-36">
-        <div className="relative mx-auto max-w-container px-6 md:px-8">
-          <h2 className="mb-12 text-3xl font-light tracking-[0.04em] text-text-primary md:text-[36px] md:leading-[1.15]">
-            Solutions for your industry
-          </h2>
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-            <Link
-              href="/industries/mobility"
-              className="group flex flex-col rounded-[4px] border border-line-soft p-6 transition-colors duration-500 hover:border-white/[0.06] hover:bg-white/[0.02]"
-            >
-              <h3 className="text-lg font-light text-text-primary mb-4">Mobility & ITS</h3>
-              <p className="text-[17px] font-light leading-[1.6] tracking-[0.01em] text-text-secondary mb-4 flex-1">
-                Optimize traffic flow, manage infrastructure, coordinate operations.
-              </p>
-              <span className="inline-block text-sm text-text-secondary transition-colors duration-500 group-hover:text-text-primary mt-auto">
-                Learn more →
-              </span>
+      {/* ── Inside the engine ──────────────────────────────── */}
+      <section className="border-t border-line-soft bg-surface-2 py-24 md:py-32">
+        <div className="mx-auto max-w-container px-6 md:px-8">
+          <SectionHead
+            eyebrow="The engine"
+            title="One world model. Any way you need to render it."
+            intro="The shared architecture beneath every Klorad product — the part you never have to build again."
+          />
+          <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-line-soft bg-line-soft md:grid-cols-2 lg:grid-cols-3">
+            {engineFeatures.map((f, i) => (
+              <div key={f.title} className="bg-bg p-7">
+                <span className="font-mono text-xs text-accent">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <h3 className="mt-4 text-lg font-medium text-text-primary">
+                  {f.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-text-secondary">
+                  {f.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Worlds built with Klorad ───────────────────────── */}
+      <section className="border-t border-line-soft py-24 md:py-32">
+        <div className="mx-auto max-w-container px-6 md:px-8">
+          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <SectionHead
+              eyebrow="Showcase"
+              title="Worlds built with Klorad."
+              intro="A growing collection of digital twins — explore what the platform makes possible."
+            />
+            <Link href="/samples" className={`${btnGhost} shrink-0`}>
+              Browse the gallery
             </Link>
+          </div>
+          <div className="mt-12 grid gap-5 sm:grid-cols-3">
+            {verticals.slice(0, 3).map((v) => (
+              <div
+                key={v.tag}
+                className="glass-panel relative flex aspect-[4/3] flex-col justify-end overflow-hidden rounded-2xl p-5"
+              >
+                <div
+                  aria-hidden
+                  className="absolute inset-0 bg-accent-soft opacity-60"
+                />
+                <span className="relative text-xs uppercase tracking-[0.2em] text-accent">
+                  {v.tag}
+                </span>
+                <span className="relative mt-1 text-sm text-text-secondary">
+                  {v.promise}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Born from research ─────────────────────────────── */}
+      <section className="border-t border-line-soft bg-surface-2 py-24 md:py-32">
+        <div className="mx-auto max-w-container px-6 md:px-8">
+          <div className="max-w-3xl">
+            <Eyebrow>Origin</Eyebrow>
+            <h2 className="mt-5 text-3xl font-light leading-[1.12] text-text-primary md:text-[42px]">
+              Born from research.
+            </h2>
+            <p className="mt-5 text-base leading-relaxed text-text-secondary md:text-lg">
+              Klorad began as a doctoral thesis — a formal model for describing
+              3D, geospatial worlds on one shared architecture, so each new
+              project would not reinvent the same foundation. The platform is
+              that model, in production.
+            </p>
             <Link
-              href="/industries/cultural-heritage"
-              className="group flex flex-col rounded-[4px] border border-line-soft p-6 transition-colors duration-500 hover:border-white/[0.06] hover:bg-white/[0.02]"
+              href="/research"
+              className="mt-7 inline-flex items-center gap-1.5 text-sm font-medium text-accent transition-colors hover:text-accent-hover"
             >
-              <h3 className="text-lg font-light text-text-primary mb-4">Cultural Heritage</h3>
-              <p className="text-[17px] font-light leading-[1.6] tracking-[0.01em] text-text-secondary mb-4 flex-1">
-                Preserve sites while enabling access and interpretation.
-              </p>
-              <span className="inline-block text-sm text-text-secondary transition-colors duration-500 group-hover:text-text-primary mt-auto">
-                Learn more →
-              </span>
-            </Link>
-            <Link
-              href="/industries/agriculture"
-              className="group flex flex-col rounded-[4px] border border-line-soft p-6 transition-colors duration-500 hover:border-white/[0.06] hover:bg-white/[0.02]"
-            >
-              <h3 className="text-lg font-light text-text-primary mb-4">Agriculture & Land Management</h3>
-              <p className="text-[17px] font-light leading-[1.6] tracking-[0.01em] text-text-secondary mb-4 flex-1">
-                Monitor crops, manage land, optimize operations.
-              </p>
-              <span className="inline-block text-sm text-text-secondary transition-colors duration-500 group-hover:text-text-primary mt-auto">
-                Learn more →
-              </span>
-            </Link>
-            <Link
-              href="/industries/urban-infrastructure"
-              className="group flex flex-col rounded-[4px] border border-line-soft p-6 transition-colors duration-500 hover:border-white/[0.06] hover:bg-white/[0.02]"
-            >
-              <h3 className="text-lg font-light text-text-primary mb-4">Urban Infrastructure</h3>
-              <p className="text-[17px] font-light leading-[1.6] tracking-[0.01em] text-text-secondary mb-4 flex-1">
-                Plan, build, and operate city infrastructure.
-              </p>
-              <span className="inline-block text-sm text-text-secondary transition-colors duration-500 group-hover:text-text-primary mt-auto">
-                Learn more →
-              </span>
+              Read the research
+              <ArrowIcon />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Final CTA Section */}
-      <section className="pt-36 pb-32 md:pt-44 md:pb-40">
-        <div className="mx-auto max-w-container px-6 md:px-8 text-center">
-          <h2 className="mb-6 text-3xl font-light tracking-[0.04em] text-text-primary md:text-[36px] md:leading-[1.15]">
-            Ready to see Klorad in action?
+      {/* ── Closing CTA ────────────────────────────────────── */}
+      <section className="relative isolate overflow-hidden border-t border-line-soft py-28 md:py-36">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent-soft blur-3xl"
+        />
+        <div className="relative mx-auto max-w-container px-6 text-center md:px-8">
+          <h2 className="mx-auto max-w-2xl text-3xl font-light leading-[1.12] text-text-primary md:text-[44px]">
+            Start building your world.
           </h2>
-          <p className="mb-8 text-[17px] font-light leading-[1.6] tracking-[0.01em] text-text-secondary">
-            Schedule a personalized demo for your organization
+          <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-text-secondary md:text-lg">
+            Tell us what you need to model — or explore how the platform fits
+            together.
           </p>
-          <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link
-              href="/contact"
-              className="inline-flex items-center justify-center rounded-[4px] bg-[#158CA3] px-6 py-3 text-sm font-medium text-white transition hover:bg-[#126E83]"
-            >
-              SCHEDULE DEMO
+          <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link href="/contact" className={btnPrimary}>
+              Schedule a demo
             </Link>
-            <Link
-              href="/contact"
-              className="inline-flex items-center justify-center text-sm text-text-secondary transition-colors duration-500 hover:text-text-primary"
-            >
-              Contact Sales →
+            <Link href="/platform" className={btnGhost}>
+              Explore the platform
             </Link>
           </div>
         </div>

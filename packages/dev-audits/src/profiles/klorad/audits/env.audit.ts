@@ -74,8 +74,14 @@ export const envAudit: AuditDefinition = {
     // Merge with process.env (CI takes precedence)
     const finalEnv = { ...env, ...process.env };
 
-    // In CI, require env vars. In local dev, allow missing if .env.local doesn't exist
-    const isCI = !!process.env.CI || !!process.env.VERCEL;
+    // In CI, require env vars. In local dev, allow missing if .env.local doesn't exist.
+    // Vercel preview/development builds legitimately lack production secrets — don't
+    // hard-fail those; GitHub CI and Vercel production deployments still enforce.
+    const isVercelPreview =
+      process.env.VERCEL_ENV === "preview" ||
+      process.env.VERCEL_ENV === "development";
+    const isCI =
+      (!!process.env.CI || !!process.env.VERCEL) && !isVercelPreview;
     const hasEnvFile = actualEnvFile !== null;
 
     // Validate required vars

@@ -24,11 +24,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.9,
     },
+    ...["campus", "mobility", "virtual-heritage", "urban"].map((slug) => ({
+      url: `${siteUrl}/${slug}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.9,
+    })),
     {
-      url: `${siteUrl}/sectors`,
+      url: `${siteUrl}/research`,
       lastModified: new Date(),
       changeFrequency: "monthly",
-      priority: 0.9,
+      priority: 0.7,
+    },
+    {
+      url: `${siteUrl}/samples`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
     },
     {
       url: `${siteUrl}/partners`,

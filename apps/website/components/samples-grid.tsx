@@ -1,88 +1,76 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { SampleImage } from "@/components/sample-image";
 import type { SampleWorld } from "@/lib/samples";
 
-interface SamplesGridProps {
-  worlds: SampleWorld[];
+function chipClass(active: boolean) {
+  return `rounded-full border px-4 py-1.5 text-sm transition-colors ${
+    active
+      ? "border-accent bg-accent-soft text-text-primary"
+      : "border-line-strong text-text-secondary hover:border-accent hover:text-text-primary"
+  }`;
 }
 
-export function SamplesGrid({ worlds }: SamplesGridProps) {
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-
-  // Extract unique categories
-  const categories = useMemo(() => {
-    const cats = new Set<string>();
-    worlds.forEach((world) => {
-      if (world.category) {
-        cats.add(world.category);
-      }
-    });
-    return Array.from(cats).sort();
-  }, [worlds]);
-
-  // Filter worlds based on selected category
-  const filteredWorlds = useMemo(() => {
-    if (!selectedCategory) {
-      return worlds;
-    }
-    return worlds.filter((world) => world.category === selectedCategory);
-  }, [worlds, selectedCategory]);
-
-  const CardContent = (world: SampleWorld) => (
+function CardBody({ world }: { world: SampleWorld }) {
+  return (
     <>
-      <div className="relative aspect-video w-full overflow-hidden rounded-t-[4px] bg-[#0A0F13]">
+      <div className="relative aspect-video w-full overflow-hidden bg-surface-2">
         <SampleImage
           src={world.imageThumbnail || "/images/samples/default.jpg"}
           alt={world.title}
           className="object-cover transition-transform duration-500 group-hover:scale-105"
-          sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
         />
       </div>
-      <div className="flex flex-1 flex-col p-4">
+      <div className="flex flex-1 flex-col p-5">
         {world.category && (
-          <div className="mb-2 text-xs uppercase tracking-[0.2em] text-text-tertiary">
+          <div className="text-xs uppercase tracking-[0.2em] text-accent">
             {world.category}
           </div>
         )}
-        <h3 className="mb-2 line-clamp-2 text-lg font-light text-text-primary">
+        <h3 className="mt-2 line-clamp-2 text-base font-medium text-text-primary">
           {world.title}
         </h3>
         {world.url && (
-          <span className="mt-auto inline-block text-xs text-text-secondary transition-colors duration-500 group-hover:text-text-primary">
+          <span className="mt-3 inline-flex items-center gap-1 text-xs text-text-secondary transition-colors group-hover:text-text-primary">
             View →
           </span>
         )}
       </div>
     </>
   );
+}
+
+export function SamplesGrid({ worlds }: { worlds: SampleWorld[] }) {
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    worlds.forEach((w) => {
+      if (w.category) set.add(w.category);
+    });
+    return Array.from(set).sort();
+  }, [worlds]);
+
+  const filtered = useMemo(
+    () => (selected ? worlds.filter((w) => w.category === selected) : worlds),
+    [worlds, selected],
+  );
 
   return (
     <>
-      {/* Filter Chips */}
       {categories.length > 0 && (
-        <div className="mb-12 flex flex-wrap gap-3">
-          <button
-            onClick={() => setSelectedCategory(null)}
-            className={`rounded-[4px] border px-4 py-2 text-sm font-light transition-all duration-300 ${
-              selectedCategory === null
-                ? "border-white/20 bg-white/5 text-text-primary"
-                : "border-line-soft bg-transparent text-text-secondary hover:border-white/10 hover:text-text-primary"
-            }`}
-          >
+        <div className="mb-10 flex flex-wrap gap-2.5">
+          <button onClick={() => setSelected(null)} className={chipClass(selected === null)}>
             All
           </button>
           {categories.map((category) => (
             <button
               key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`rounded-[4px] border px-4 py-2 text-sm font-light transition-all duration-300 ${
-                selectedCategory === category
-                  ? "border-white/20 bg-white/5 text-text-primary"
-                  : "border-line-soft bg-transparent text-text-secondary hover:border-white/10 hover:text-text-primary"
-              }`}
+              onClick={() => setSelected(category)}
+              className={chipClass(selected === category)}
             >
               {category}
             </button>
@@ -90,49 +78,37 @@ export function SamplesGrid({ worlds }: SamplesGridProps) {
         </div>
       )}
 
-      {/* Grid */}
-      {filteredWorlds.length > 0 ? (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {filteredWorlds.map((world) => {
-            if (world.url) {
-              return (
-                <Link
-                  key={world.id}
-                  href={world.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group relative flex flex-col overflow-hidden rounded-[4px] border border-line-soft bg-base-bg transition-all duration-500 hover:border-white/[0.06]"
-                >
-                  {/* Premium gradient overlay on hover */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#4C7FFF]/[0.08] via-[#4C7FFF]/[0.03] to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-                  <div className="relative z-10">
-                    {CardContent(world)}
-                  </div>
-                </Link>
-              );
-            }
-
-            return (
+      {filtered.length > 0 ? (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((world) =>
+            world.url ? (
+              <Link
+                key={world.id}
+                href={world.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group glass-panel flex flex-col overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:border-accent"
+              >
+                <CardBody world={world} />
+              </Link>
+            ) : (
               <div
                 key={world.id}
-                className="group relative flex flex-col overflow-hidden rounded-[4px] border border-line-soft bg-base-bg"
+                className="group glass-panel relative flex flex-col overflow-hidden rounded-2xl"
               >
-                {CardContent(world)}
-                <div className="absolute right-2 top-2 rounded bg-text-tertiary/20 px-2 py-1 text-xs uppercase tracking-[0.1em] text-text-tertiary backdrop-blur-sm">
-                  Coming Soon
+                <CardBody world={world} />
+                <div className="absolute right-3 top-3 rounded-full bg-glass px-2.5 py-1 text-xs uppercase tracking-[0.1em] text-text-tertiary backdrop-blur">
+                  Coming soon
                 </div>
               </div>
-            );
-          })}
+            ),
+          )}
         </div>
       ) : (
-        <div className="py-24 text-center">
-          <p className="text-lg font-light text-text-secondary">
-            No samples found in this category.
-          </p>
-        </div>
+        <p className="py-24 text-center text-text-secondary">
+          No worlds found in this category.
+        </p>
       )}
     </>
   );
 }
-

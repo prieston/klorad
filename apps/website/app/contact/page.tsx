@@ -1,52 +1,51 @@
-import { ContactForm } from "@/components/contact-form";
-import { GeometricHint } from "@/components/geometric-hint";
-
 import type { Metadata } from "next";
+import { ContactForm } from "@/components/contact-form";
+import { Eyebrow } from "@/components/ui";
 
 export const metadata: Metadata = {
-  title: "Schedule a Demo | Klorad",
+  title: "Contact",
   description:
-    "Schedule a personalized demo of Klorad's geospatial platform. See how we can help you visualize, analyze, and operate your infrastructure with confidence.",
-  openGraph: {
-    title: "Schedule a Demo | Klorad",
-    description:
-      "Schedule a personalized demo of Klorad's geospatial platform for operating real-world infrastructure.",
-  },
-  alternates: {
-    canonical: "/contact",
-  },
+    "Schedule a demo of Klorad — tell us what you need to model and we'll show you the platform mapped to your world.",
+  alternates: { canonical: "/contact" },
 };
+
+const expectations = [
+  "A walkthrough tailored to your domain",
+  "A look at the platform and the SDK",
+  "A direct line to the team behind it",
+];
 
 export default function ContactPage() {
   return (
-    <article className="space-y-0">
-      {/* Hero Section */}
-      <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden mt-[-6rem] pb-28 md:mt-[-8rem]">
-        <GeometricHint variant="radial-vignette" />
-        <div className="relative mx-auto max-w-container px-6 pt-28 md:px-8 md:pt-32">
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <h1 className="max-w-3xl text-4xl font-light text-text-primary md:text-[54px] md:leading-[1.05]">
-                Schedule a Demo
-              </h1>
-              <p className="max-w-[620px] text-xl font-light text-text-secondary">
-                See how Klorad can transform your infrastructure operations.
-              </p>
-              <p className="max-w-[620px] text-[17px] font-light leading-[1.55] text-text-secondary tracking-[0.01em]">
-                Schedule a personalized demo tailored to your industry and use case.
-              </p>
-            </div>
+    <section className="relative isolate overflow-hidden">
+      <div aria-hidden className="absolute inset-0 grid-field" />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-32 -top-40 h-[600px] w-[600px] rounded-full bg-accent-soft blur-3xl"
+      />
+      <div className="relative z-10 mx-auto max-w-container px-6 py-24 md:px-8 md:py-32">
+        <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
+          <div className="animate-fade-up">
+            <Eyebrow>Contact</Eyebrow>
+            <h1 className="mt-6 text-4xl font-light leading-[1.05] text-text-primary md:text-5xl">
+              Schedule a demo.
+            </h1>
+            <p className="mt-6 max-w-md text-lg font-light leading-relaxed text-text-secondary">
+              Tell us about the place you need to model — a campus, a corridor,
+              a city, a site. We&apos;ll show you Klorad mapped to it.
+            </p>
+            <ul className="mt-8 space-y-3 text-sm text-text-secondary">
+              {expectations.map((item) => (
+                <li key={item} className="flex gap-3">
+                  <span className="text-accent">—</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
-      </section>
-
-      {/* Contact Form Section */}
-      <section className="relative left-1/2 w-screen -translate-x-1/2 bg-[#090D12] pt-36 pb-32 md:pt-44 md:pb-36">
-        <div className="relative mx-auto max-w-container px-6 md:px-8">
           <ContactForm />
         </div>
-      </section>
-    </article>
+      </div>
+    </section>
   );
 }
-
