@@ -1,27 +1,32 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 
-const inter = Inter({ subsets: ["latin"], display: "swap" });
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   title: {
-    default: "Klorad",
+    default: "Klorad — Build the virtual worlds of tomorrow",
     template: "%s | Klorad",
   },
   description:
-    "Klorad is the geospatial platform for operating real-world infrastructure. Unify terrain, structures, equipment, and live operational data into one platform.",
+    "Klorad is a geospatial platform for digital twins — a shared foundation that turns real places into living, data-driven worlds. The engine behind Klorad Campus, Mobility, Virtual Heritage, and Urban.",
   keywords: [
     "geospatial platform",
-    "infrastructure operations",
-    "3D visualization",
-    "infrastructure management",
-    "ITS operations",
+    "digital twin",
+    "3D world engine",
+    "campus mapping",
+    "virtual heritage",
+    "mobility",
     "urban infrastructure",
-    "cultural heritage",
-    "agriculture management",
+    "spatial computing",
   ],
   authors: [{ name: "Prieston Technologies" }],
   creator: "Prieston Technologies",
@@ -35,23 +40,23 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "/",
     siteName: "Klorad",
-    title: "Klorad - The Geospatial Platform for Operating Real-World Infrastructure",
+    title: "Klorad — Build the virtual worlds of tomorrow",
     description:
-      "Klorad unifies terrain, structures, equipment, and live operational data into one platform. See how your infrastructure behaves, analyze changes over time, and coordinate operations with confidence.",
+      "A geospatial platform for digital twins. One engine beneath Klorad Campus, Mobility, Virtual Heritage, and Urban.",
     images: [
       {
         url: "/klorad-logo.png",
         width: 1200,
         height: 630,
-        alt: "Klorad - Spatial Operations Platform",
+        alt: "Klorad — the geospatial platform for digital twins",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Klorad - The Geospatial Platform for Operating Real-World Infrastructure",
+    title: "Klorad — Build the virtual worlds of tomorrow",
     description:
-      "Klorad unifies terrain, structures, equipment, and live operational data into one platform.",
+      "A geospatial platform for digital twins. One engine, many worlds.",
     images: ["/klorad-logo.png"],
   },
   robots: {
@@ -66,13 +71,8 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/klorad-favicon.png",
-    apple: "/klorad-favicon.png",
-  },
-  verification: {
-    // Add your verification codes here when available
-    // google: "your-google-verification-code",
-    // yandex: "your-yandex-verification-code",
+    icon: "/klorad-favicon-new.png",
+    apple: "/klorad-favicon-new.png",
   },
 };
 
@@ -86,36 +86,30 @@ export default function RootLayout({
     "@type": "Organization",
     name: "Klorad",
     description:
-      "Geospatial platform for operating real-world infrastructure. Visualize, analyze, and act on infrastructure assets with precision.",
+      "Klorad is a geospatial platform for digital twins — a shared foundation for building 3D, data-driven world applications.",
     url: process.env.NEXT_PUBLIC_SITE_URL || "https://klorad.com",
     logo: `${process.env.NEXT_PUBLIC_SITE_URL || "https://klorad.com"}/klorad-logo.png`,
     founder: {
       "@type": "Organization",
       name: "Prieston Technologies",
     },
-    sameAs: [
-      // Add social media links when available
-      // "https://twitter.com/klorad",
-      // "https://linkedin.com/company/klorad",
-    ],
+    sameAs: [],
   };
 
   return (
-    <html lang="en">
-      <body className={`${inter.className} bg-base-bg text-text-primary`}>
+    <html lang="en" suppressHydrationWarning className={inter.variable}>
+      <body>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <div className="flex min-h-screen flex-col">
-          <SiteHeader />
-          <main className="flex-1">
-            <div className="relative mx-auto w-full max-w-container px-6 pt-24 pb-24 md:px-8 md:pt-32">
-              {children}
-            </div>
-          </main>
-          <SiteFooter />
-        </div>
+        <ThemeProvider>
+          <div className="flex min-h-screen flex-col">
+            <SiteHeader />
+            <main className="flex-1">{children}</main>
+            <SiteFooter />
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );

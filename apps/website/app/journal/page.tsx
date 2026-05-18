@@ -1,91 +1,76 @@
 import Link from "next/link";
-import { journalPosts } from "@/lib/journalPosts";
-import { GeometricHint } from "@/components/geometric-hint";
-
 import type { Metadata } from "next";
+import { journalPosts } from "@/lib/journalPosts";
+import { Eyebrow } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "Journal",
   description:
-    "Notes from the work of building and deploying Klorad across complex environments. Field observations and architectural reasoning.",
-  openGraph: {
-    title: "Journal | Klorad",
-    description:
-      "Notes from the work of building and deploying Klorad across complex environments.",
-  },
-  alternates: {
-    canonical: "/journal",
-  },
+    "Notes from the work of building and deploying Klorad — field observations and architectural reasoning.",
+  alternates: { canonical: "/journal" },
 };
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "long",
-});
+const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "long" });
 
 export default function JournalIndexPage() {
   const posts = [...journalPosts].sort((a, b) =>
-    a.date < b.date ? 1 : a.date > b.date ? -1 : 0
+    a.date < b.date ? 1 : a.date > b.date ? -1 : 0,
   );
 
   return (
-    <article className="space-y-0">
-      {/* Hero Section */}
-      <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden mt-[-6rem] pb-28 md:mt-[-8rem]">
-        <GeometricHint variant="radial-vignette" />
-        <div className="relative mx-auto max-w-container px-6 pt-28 md:px-8 md:pt-32">
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <h1 className="max-w-3xl text-4xl font-light text-text-primary md:text-[54px] md:leading-[1.05]">
-                Journal
-              </h1>
-              <p className="max-w-[640px] text-xl font-light text-text-secondary">
-                Notes from the work of building and deploying Klorad across complex environments.
-              </p>
-              <p className="max-w-[640px] text-[17px] font-light leading-[1.55] text-text-secondary tracking-[0.01em]">
-                Field observations and architectural reasoning.
-              </p>
-            </div>
+    <div>
+      {/* ── Hero ───────────────────────────────────────────── */}
+      <section className="relative isolate overflow-hidden">
+        <div aria-hidden className="absolute inset-0 grid-field" />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-32 -top-40 h-[600px] w-[600px] rounded-full bg-accent-soft blur-3xl"
+        />
+        <div className="relative z-10 mx-auto max-w-container px-6 py-24 md:px-8 md:py-32">
+          <div className="max-w-2xl animate-fade-up">
+            <Eyebrow>Journal</Eyebrow>
+            <h1 className="mt-6 text-4xl font-light leading-[1.05] text-text-primary md:text-6xl">
+              Field notes.
+            </h1>
+            <p className="mt-6 max-w-xl text-lg font-light leading-relaxed text-text-secondary md:text-xl">
+              Notes from the work of building and deploying Klorad — field
+              observations and architectural reasoning.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* Journal Posts Section */}
-      <section className="relative left-1/2 w-screen -translate-x-1/2 bg-[#090D12] pt-36 pb-32 md:pt-44 md:pb-36">
-        <div className="relative mx-auto max-w-container px-6 md:px-8">
-          <div className="space-y-10">
+      {/* ── Posts ──────────────────────────────────────────── */}
+      <section className="border-t border-line-soft py-20 md:py-28">
+        <div className="mx-auto max-w-container px-6 md:px-8">
+          <div className="mx-auto max-w-3xl divide-y divide-line-soft">
             {posts.map((post) => (
-              <article
-                key={post.slug}
-                className="space-y-4 border-b border-line-soft pb-8"
-              >
-                <div className="text-xs uppercase tracking-[0.3em] text-text-tertiary">
+              <article key={post.slug} className="py-10 first:pt-0">
+                <div className="text-xs uppercase tracking-[0.24em] text-text-tertiary">
                   {dateFormatter.format(new Date(post.date))}
                 </div>
-                <h2 className="text-3xl font-light text-text-primary">
+                <h2 className="mt-3 text-2xl font-light text-text-primary md:text-3xl">
                   <Link
                     href={`/journal/${post.slug}`}
-                    className="transition-colors duration-500 hover:text-text-primary/80"
+                    className="transition-colors hover:text-accent"
                   >
                     {post.title}
                   </Link>
                 </h2>
-                <p className="max-w-2xl text-lg leading-[1.55] text-text-secondary">
+                <p className="mt-3 leading-relaxed text-text-secondary">
                   {post.excerpt}
                 </p>
-                <div>
-                  <Link
-                    href={`/journal/${post.slug}`}
-                    className="text-sm text-text-secondary underline underline-offset-4 transition-colors duration-500 hover:text-text-primary"
-                  >
-                    Read
-                  </Link>
-                </div>
+                <Link
+                  href={`/journal/${post.slug}`}
+                  className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent transition-colors hover:text-accent-hover"
+                >
+                  Read
+                </Link>
               </article>
             ))}
           </div>
         </div>
       </section>
-    </article>
+    </div>
   );
 }
-

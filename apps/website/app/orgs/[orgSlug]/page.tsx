@@ -3,10 +3,39 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import useSWR from "swr";
-import { GeometricHint } from "@/components/geometric-hint";
 import { ProjectsGrid } from "@/components/projects-grid";
 import { organizationFetcher } from "@/lib/api";
 import type { PublishedProject } from "@/lib/organizations";
+
+function OrgHero({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <section className="relative isolate overflow-hidden">
+      <div aria-hidden className="absolute inset-0 grid-field" />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-32 -top-40 h-[600px] w-[600px] rounded-full bg-accent-soft blur-3xl"
+      />
+      <div className="relative z-10 mx-auto max-w-container px-6 py-24 md:px-8 md:py-32">
+        <div className="max-w-2xl">
+          <Link
+            href="/orgs"
+            className="text-sm text-text-secondary transition-colors hover:text-text-primary"
+          >
+            ← Organizations
+          </Link>
+          <h1 className="mt-6 text-4xl font-light leading-[1.05] text-text-primary md:text-6xl">
+            {title}
+          </h1>
+          {subtitle && (
+            <p className="mt-6 max-w-xl text-lg font-light leading-relaxed text-text-secondary md:text-xl">
+              {subtitle}
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function OrgSlugPage() {
   const params = useParams();
@@ -18,115 +47,41 @@ export default function OrgSlugPage() {
     {
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
-      refreshInterval: 0, // Disable auto-refresh, but allow manual revalidation
-    }
+      refreshInterval: 0,
+    },
   );
 
   const organization = data?.organization;
   const projects: PublishedProject[] = (data?.projects || []).map((p) => ({
     ...p,
-    updatedAt: typeof p.updatedAt === "string" ? new Date(p.updatedAt) : p.updatedAt,
+    updatedAt:
+      typeof p.updatedAt === "string" ? new Date(p.updatedAt) : p.updatedAt,
   }));
 
   if (isLoading) {
-    return (
-      <article className="space-y-0">
-        <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden mt-[-6rem] pb-28 md:mt-[-8rem]">
-          <GeometricHint variant="radial-vignette" />
-          <div className="relative mx-auto max-w-container px-6 pt-28 md:px-8 md:pt-32">
-            <div className="space-y-8">
-              <div className="space-y-4">
-                <div className="mb-4">
-                  <Link
-                    href="/orgs"
-                    className="text-sm text-text-secondary transition-colors duration-500 hover:text-text-primary"
-                  >
-                    ← Back to Organizations
-                  </Link>
-                </div>
-                <h1 className="max-w-3xl text-4xl font-light text-text-primary md:text-[54px] md:leading-[1.05]">
-                  Loading...
-                </h1>
-              </div>
-            </div>
-          </div>
-        </section>
-        <section className="relative left-1/2 w-screen -translate-x-1/2 bg-[#090D12] pt-36 pb-32 md:pt-44 md:pb-36">
-          <div className="relative mx-auto max-w-container px-6 md:px-8">
-            <div className="py-24 text-center">
-              <p className="text-lg font-light text-text-secondary">
-                Loading organization...
-              </p>
-            </div>
-          </div>
-        </section>
-      </article>
-    );
+    return <OrgHero title="Loading…" />;
   }
 
   if (error || !organization) {
     return (
-      <article className="space-y-0">
-        <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden mt-[-6rem] pb-28 md:mt-[-8rem]">
-          <GeometricHint variant="radial-vignette" />
-          <div className="relative mx-auto max-w-container px-6 pt-28 md:px-8 md:pt-32">
-            <div className="space-y-8">
-              <div className="space-y-4">
-                <div className="mb-4">
-                  <Link
-                    href="/orgs"
-                    className="text-sm text-text-secondary transition-colors duration-500 hover:text-text-primary"
-                  >
-                    ← Back to Organizations
-                  </Link>
-                </div>
-                <h1 className="max-w-3xl text-4xl font-light text-text-primary md:text-[54px] md:leading-[1.05]">
-                  Organization Not Found
-                </h1>
-                <p className="max-w-[640px] text-xl font-light text-text-secondary">
-                  The organization you&apos;re looking for doesn&apos;t exist or has been removed.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-      </article>
+      <OrgHero
+        title="Organization not found"
+        subtitle="The organization you're looking for doesn't exist or has been removed."
+      />
     );
   }
 
   return (
-    <article className="space-y-0">
-      {/* Hero Section */}
-      <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden mt-[-6rem] pb-28 md:mt-[-8rem]">
-        <GeometricHint variant="radial-vignette" />
-        <div className="relative mx-auto max-w-container px-6 pt-28 md:px-8 md:pt-32">
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <div className="mb-4">
-                <Link
-                  href="/orgs"
-                  className="text-sm text-text-secondary transition-colors duration-500 hover:text-text-primary"
-                >
-                  ← Back to Organizations
-                </Link>
-              </div>
-              <h1 className="max-w-3xl text-4xl font-light text-text-primary md:text-[54px] md:leading-[1.05]">
-                {organization.name}
-              </h1>
-              <p className="max-w-[640px] text-xl font-light text-text-secondary">
-                Published worlds and projects.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Projects Grid Section */}
-      <section className="relative left-1/2 w-screen -translate-x-1/2 bg-[#090D12] pt-36 pb-32 md:pt-44 md:pb-36">
-        <div className="relative mx-auto max-w-container px-6 md:px-8">
+    <div>
+      <OrgHero
+        title={organization.name}
+        subtitle="Published worlds and projects."
+      />
+      <section className="border-t border-line-soft py-20 md:py-28">
+        <div className="mx-auto max-w-container px-6 md:px-8">
           <ProjectsGrid projects={projects} />
         </div>
       </section>
-    </article>
+    </div>
   );
 }

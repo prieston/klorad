@@ -12,6 +12,15 @@ const bundleAnalyzer = withBundleAnalyzer({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async redirects() {
+    return [
+      { source: '/industries/mobility', destination: '/mobility', permanent: true },
+      { source: '/industries/cultural-heritage', destination: '/virtual-heritage', permanent: true },
+      { source: '/industries/agriculture', destination: '/urban', permanent: true },
+      { source: '/industries/urban-infrastructure', destination: '/urban', permanent: true },
+      { source: '/sectors', destination: '/platform', permanent: true },
+    ];
+  },
   // Image optimization configuration
   images: {
     remotePatterns: [

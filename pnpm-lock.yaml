@@ -598,6 +598,9 @@ importers:
       next:
         specifier: ^15.1.9
         version: 15.5.7(@babel/core@7.28.5)(@playwright/test@1.56.1)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      next-themes:
+        specifier: ^0.4.6
+        version: 0.4.6(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       postcss:
         specifier: ^8.4.47
         version: 8.5.6
@@ -616,10 +619,16 @@ importers:
       tailwindcss:
         specifier: ^3.4.14
         version: 3.4.18(tsx@4.20.6)(yaml@2.8.1)
+      three:
+        specifier: ^0.170.0
+        version: 0.170.0
       zod:
         specifier: ^4.1.13
         version: 4.1.13
     devDependencies:
+      '@types/three':
+        specifier: ^0.170.0
+        version: 0.170.0
       copy-webpack-plugin:
         specifier: ^11.0.0
         version: 11.0.0(webpack@5.102.1(esbuild@0.25.12))
@@ -6278,6 +6287,12 @@ packages:
         optional: true
       nodemailer:
         optional: true
+
+  next-themes@0.4.6:
+    resolution: {integrity: sha512-pZvgD5L0IEvX5/9GWyHMf3m8BKiVQwsCMHfoFosXtXBMnaS0ZnIJ9ST4b4NqLVKDEm8QBxoNNGNaBv2JNF6XNA==}
+    peerDependencies:
+      react: ^19.2.1
+      react-dom: ^19.2.1
 
   next@15.5.7:
     resolution: {integrity: sha512-+t2/0jIJ48kUpGKkdlhgkv+zPTEOoXyr60qXe68eB/pl3CMJaLeIGjzp5D6Oqt25hCBiBTt8wEeeAzfJvUKnPQ==}
@@ -14187,6 +14202,11 @@ snapshots:
       '@auth/core': 0.41.0
       next: 15.5.7(@babel/core@7.28.5)(@playwright/test@1.56.1)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       react: 19.2.1
+
+  next-themes@0.4.6(react-dom@19.2.1(react@19.2.1))(react@19.2.1):
+    dependencies:
+      react: 19.2.1
+      react-dom: 19.2.1(react@19.2.1)
 
   next@15.5.7(@babel/core@7.28.5)(@playwright/test@1.56.1)(react-dom@19.2.1(react@19.2.1))(react@19.2.1):
     dependencies:
