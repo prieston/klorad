@@ -3,6 +3,7 @@ const nextConfig = {
   transpilePackages: [
     "@klorad/api",
     "@klorad/core",
+    "@klorad/design-system",
     "@klorad/ui",
     "@klorad/engine-mapbox",
     "@klorad/engine-three",

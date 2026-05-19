@@ -1,5 +1,10 @@
 @import "@klorad/ui/styles/tokens.css";
+@import "@klorad/design-system/tokens.css";
 @import "mapbox-gl/dist/mapbox-gl.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 *,
 *::before,
