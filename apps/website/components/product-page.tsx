@@ -47,7 +47,7 @@ export function ProductPage({ data }: { data: ProductData }) {
                 fill
                 priority
                 sizes="(max-width: 768px) 100vw, 72vw"
-                className="object-cover"
+                className="object-cover object-left-top"
               />
             </div>
             {/* theme-aware scrim — keeps the hero text legible over the image */}
