@@ -176,7 +176,7 @@ function CampusCard({
   });
   return (
     <Link href={href} className="group block">
-      <Panel className="overflow-hidden rounded-2xl transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-accent group-hover:shadow-glass">
+      <Panel className="overflow-hidden rounded-2xl transition-colors duration-200 group-hover:border-line-strong">
         <div className="aspect-video bg-surface-2">
           {thumbnail ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -209,7 +209,7 @@ function QuickAction({
 }) {
   return (
     <Link href={href} className="group block">
-      <Panel className="h-full rounded-2xl p-5 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-accent group-hover:shadow-glass">
+      <Panel className="h-full rounded-2xl p-5 transition-colors duration-200 group-hover:border-line-strong">
         <div className="text-sm font-semibold text-text-primary">{title}</div>
         <div className="mt-1 text-xs leading-relaxed text-text-secondary">
           {description}
