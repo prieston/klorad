@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import type { Metadata } from "next";
 import { HeroWorld } from "@/components/hero-world";
 import {
@@ -110,31 +109,6 @@ export default function HomePage() {
                 <ArrowIcon />
               </Link>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Trust ──────────────────────────────────────────── */}
-      <section className="border-t border-line-soft py-12">
-        <div className="mx-auto max-w-container px-6 md:px-8">
-          <p className="text-xs uppercase tracking-[0.26em] text-text-tertiary">
-            Trusted by leading organizations
-          </p>
-          <div className="mt-6 flex flex-wrap items-center gap-10">
-            <Image
-              src="/prieston-logo.svg"
-              alt="Prieston"
-              width={225}
-              height={60}
-              className="h-7 w-auto opacity-90 dark:invert-0"
-            />
-            <Image
-              src="/PSM_LOGO_Med.png"
-              alt="PSM"
-              width={195}
-              height={60}
-              className="h-9 w-auto opacity-100 dark:invert"
-            />
           </div>
         </div>
       </section>
