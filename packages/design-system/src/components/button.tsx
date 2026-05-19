@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "../utils/cn";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md";
 
 const base =
@@ -15,6 +15,7 @@ const variantClass: Record<ButtonVariant, string> = {
   secondary:
     "border border-line-strong text-text-primary hover:border-accent hover:text-accent",
   ghost: "text-text-secondary hover:bg-accent-soft hover:text-text-primary",
+  danger: "bg-red-600 text-white hover:bg-red-700",
 };
 
 const sizeClass: Record<ButtonSize, string> = {

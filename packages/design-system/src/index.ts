@@ -27,6 +27,17 @@ export {
   Textarea,
   type FieldProps,
 } from "./components/field";
+export { Avatar, type AvatarProps } from "./components/avatar";
+export { Badge, type BadgeProps, type BadgeTone } from "./components/badge";
+export { Spinner, type SpinnerProps } from "./components/spinner";
+export { Select, type SelectProps } from "./components/select";
+export { Modal, type ModalProps } from "./components/modal";
+export {
+  Menu,
+  MenuItem,
+  type MenuProps,
+  type MenuItemProps,
+} from "./components/menu";
 export {
   AppShell,
   type AppShellProps,

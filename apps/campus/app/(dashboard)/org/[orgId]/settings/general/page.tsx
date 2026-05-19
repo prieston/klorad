@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useParams } from "next/navigation";
-import { Button, Field, Input, Panel, cn } from "@klorad/design-system";
+import { Button, Field, Input, Panel, Spinner, cn } from "@klorad/design-system";
 import { showToast } from "@klorad/ui";
 import { useOrganization } from "@/app/hooks/useOrganizations";
 
@@ -177,15 +177,6 @@ export default function SettingsGeneralPage() {
         </div>
       </Panel>
     </div>
-  );
-}
-
-function Spinner() {
-  return (
-    <div
-      className="h-6 w-6 animate-spin rounded-full border-2 border-line-strong border-t-accent"
-      aria-label="Loading"
-    />
   );
 }
 
