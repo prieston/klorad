@@ -13,6 +13,7 @@ import {
   ListItemIcon,
   ListItemText,
   alpha,
+  useTheme,
 } from "@mui/material";
 import { ExpandMoreIcon, LogoutIcon, PersonIcon } from "../icons/Icons";
 
@@ -39,6 +40,10 @@ export interface UserAccountMenuProps {
  * inside an accordion summary. Expanding reveals Profile and Logout
  * rows. Presentational — pass a session in, wire navigation / logout
  * handlers from the calling app.
+ *
+ * Shares its shell (rounded bordered card, transparent accordion,
+ * divider-on-expand) with `OrganizationSwitcher` so the two sidebar
+ * controls read as the same element.
  */
 export function UserAccountMenu({
   name,
@@ -50,6 +55,7 @@ export function UserAccountMenu({
   profileActive = false,
   className,
 }: UserAccountMenuProps) {
+  const theme = useTheme();
   const [expanded, setExpanded] = useState(false);
   const userName = name || email || "User";
   const initial = useMemo(
@@ -58,84 +64,85 @@ export function UserAccountMenu({
   );
 
   return (
-    <Box className={className} sx={{ width: "100%" }}>
+    <Box
+      className={className}
+      sx={{
+        width: "100%",
+        minWidth: 0,
+        overflow: "hidden",
+        borderRadius: 1,
+        border: `1px solid ${theme.palette.divider}`,
+      }}
+    >
       <Accordion
         expanded={expanded}
         onChange={(_e, v) => setExpanded(v)}
         sx={{
-          marginBottom: 0,
           boxShadow: "none",
+          backgroundColor: "transparent",
           "&:before": { display: "none" },
           "&.Mui-expanded": { margin: 0 },
-          backgroundColor: "transparent",
         }}
       >
         <AccordionSummary
           expandIcon={<ExpandMoreIcon />}
-          sx={(theme) => ({
-            backgroundColor:
-              theme.palette.mode === "dark"
-                ? theme.palette.background.paper
-                : "rgba(248,250,252,0.6)",
-            borderRadius: 0,
-            minHeight: 48,
-            p: theme.spacing(1.5, 2),
-            "&.Mui-expanded": { minHeight: 48 },
+          sx={{
+            minHeight: 56,
+            px: 1.5,
+            py: 1.5,
+            "&.Mui-expanded": {
+              minHeight: 56,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+            },
             "& .MuiAccordionSummary-content": {
               margin: 0,
+              minWidth: 0,
+              alignItems: "center",
               "&.Mui-expanded": { margin: 0 },
             },
             "&:hover": {
-              backgroundColor: alpha(theme.palette.primary.main, 0.1),
+              backgroundColor: alpha(theme.palette.primary.main, 0.08),
               color: theme.palette.primary.main,
             },
             transition: "background-color 0.15s ease, color 0.15s ease",
-          })}
+          }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
-            <Avatar
-              src={image ?? undefined}
-              alt={userName}
-              sx={{ width: 32, height: 32, mr: 1.5 }}
+          <Avatar
+            src={image ?? undefined}
+            alt={userName}
+            sx={{ width: 32, height: 32, mr: 1.5, fontSize: "0.875rem" }}
+          >
+            {initial}
+          </Avatar>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Box
+              sx={{
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                letterSpacing: "0.01em",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
             >
-              {initial}
-            </Avatar>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
+              {userName}
+            </Box>
+            {email && name && (
               <Box
                 sx={{
-                  fontSize: "0.875rem",
-                  fontWeight: 500,
+                  fontSize: "0.7rem",
+                  color: "text.secondary",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                 }}
               >
-                {userName}
+                {email}
               </Box>
-              {email && name && (
-                <Box
-                  sx={{
-                    fontSize: "0.75rem",
-                    color: "text.secondary",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {email}
-                </Box>
-              )}
-            </Box>
+            )}
           </Box>
         </AccordionSummary>
-        <AccordionDetails
-          sx={(t) => ({
-            p: 0,
-            backgroundColor: "transparent",
-            borderBottom: "1px solid",
-            borderColor: alpha(t.palette.common.white, 0.08),
-          })}
-        >
+        <AccordionDetails sx={{ p: 0 }}>
           <List component="div" disablePadding>
             <ListItem disablePadding>
               <ListItemButton
@@ -145,14 +152,14 @@ export function UserAccountMenu({
                   onProfile?.();
                 }}
                 selected={profileActive}
-                sx={(theme) => ({
-                  pl: 6,
-                  borderRadius: 0,
-                  p: theme.spacing(1.5, 2),
+                sx={{
+                  pl: 1.5,
+                  py: 1.25,
+                  minWidth: 0,
+                  color: profileActive ? theme.palette.primary.main : "inherit",
                   backgroundColor: profileActive
                     ? alpha(theme.palette.primary.main, 0.18)
-                    : theme.palette.background.paper,
-                  color: profileActive ? "primary.main" : "text.primary",
+                    : "transparent",
                   "&.Mui-selected": {
                     backgroundColor: alpha(theme.palette.primary.main, 0.18),
                     color: theme.palette.primary.main,
@@ -161,19 +168,21 @@ export function UserAccountMenu({
                     },
                   },
                   "&:hover": {
-                    backgroundColor: profileActive
-                      ? alpha(theme.palette.primary.main, 0.24)
-                      : alpha(theme.palette.primary.main, 0.1),
-                    color: "primary.main",
+                    backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                    color: theme.palette.primary.main,
                   },
-                })}
+                }}
               >
-                <ListItemIcon sx={{ minWidth: 40, color: "inherit" }}>
-                  <PersonIcon />
+                <ListItemIcon sx={{ minWidth: 36, color: "inherit" }}>
+                  <PersonIcon sx={{ fontSize: "1.25rem" }} />
                 </ListItemIcon>
                 <ListItemText
                   primary="Profile"
-                  primaryTypographyProps={{ fontSize: "0.875rem", fontWeight: profileActive ? 600 : 400 }}
+                  primaryTypographyProps={{
+                    fontSize: "0.8125rem",
+                    fontWeight: profileActive ? 600 : 400,
+                    noWrap: true,
+                  }}
                 />
               </ListItemButton>
             </ListItem>
@@ -183,22 +192,24 @@ export function UserAccountMenu({
                   e.stopPropagation();
                   onLogout();
                 }}
-                sx={(theme) => ({
-                  pl: 6,
-                  borderRadius: 0,
-                  p: theme.spacing(1.5, 2),
-                  backgroundColor: theme.palette.background.paper,
-                  color: "text.primary",
+                sx={{
+                  pl: 1.5,
+                  py: 1.25,
+                  minWidth: 0,
+                  color: "inherit",
                   "&:hover": {
                     backgroundColor: alpha(theme.palette.error.main, 0.12),
                     color: theme.palette.error.main,
                   },
-                })}
+                }}
               >
-                <ListItemIcon sx={{ minWidth: 40, color: "inherit" }}>
-                  <LogoutIcon />
+                <ListItemIcon sx={{ minWidth: 36, color: "inherit" }}>
+                  <LogoutIcon sx={{ fontSize: "1.25rem" }} />
                 </ListItemIcon>
-                <ListItemText primary="Sign out" primaryTypographyProps={{ fontSize: "0.875rem" }} />
+                <ListItemText
+                  primary="Sign out"
+                  primaryTypographyProps={{ fontSize: "0.8125rem", noWrap: true }}
+                />
               </ListItemButton>
             </ListItem>
           </List>
