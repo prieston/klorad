@@ -76,7 +76,15 @@ export function OrganizationSwitcher({
     null;
 
   return (
-    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+    <Box
+      sx={{
+        width: "100%",
+        minWidth: 0,
+        overflow: "hidden",
+        borderRadius: 1,
+        border: `1px solid ${theme.palette.divider}`,
+      }}
+    >
       <Accordion
         expanded={expanded}
         onChange={(_e, v) => setExpanded(v)}
@@ -91,12 +99,15 @@ export function OrganizationSwitcher({
           expandIcon={<ExpandMoreIcon />}
           sx={{
             minHeight: 56,
-            px: 2,
+            px: 1.5,
             py: 1.5,
-            borderBottom: `1px solid ${theme.palette.divider}`,
-            "&.Mui-expanded": { minHeight: 56, borderBottom: "none" },
+            "&.Mui-expanded": {
+              minHeight: 56,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+            },
             "& .MuiAccordionSummary-content": {
               margin: 0,
+              minWidth: 0,
               alignItems: "center",
               "&.Mui-expanded": { margin: 0 },
             },
@@ -151,7 +162,7 @@ export function OrganizationSwitcher({
             }}
           />
         </AccordionSummary>
-        <AccordionDetails sx={{ p: 0, borderBottom: `1px solid ${theme.palette.divider}` }}>
+        <AccordionDetails sx={{ p: 0 }}>
           <List component="div" disablePadding>
             {organizations.length === 0 && !loading && (
               <ListItem disablePadding>
@@ -166,7 +177,13 @@ export function OrganizationSwitcher({
                 <ListItem key={org.id} disablePadding>
                   <Link
                     href={buildHref(org.id)}
-                    style={{ textDecoration: "none", color: "inherit", width: "100%" }}
+                    style={{
+                      textDecoration: "none",
+                      color: "inherit",
+                      width: "100%",
+                      minWidth: 0,
+                      display: "block",
+                    }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <ListItemButton
@@ -174,6 +191,7 @@ export function OrganizationSwitcher({
                       sx={{
                         pl: 6,
                         py: 1.25,
+                        minWidth: 0,
                         color: isSelected ? theme.palette.primary.main : "inherit",
                         backgroundColor: isSelected
                           ? alpha(theme.palette.primary.main, 0.18)
