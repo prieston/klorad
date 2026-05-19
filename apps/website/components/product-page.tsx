@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   Eyebrow,
   ArrowIcon,
@@ -10,6 +11,8 @@ import {
 export type ProductData = {
   /** Full product name, e.g. "Klorad Campus". */
   product: string;
+  /** Optional hero background image (path under /public). */
+  heroImage?: string;
   /** Hero headline — the promise. */
   promise: string;
   /** Hero subhead. */
@@ -32,6 +35,20 @@ export function ProductPage({ data }: { data: ProductData }) {
     <div>
       {/* ── Hero ───────────────────────────────────────────── */}
       <section className="relative isolate overflow-hidden">
+        {data.heroImage && (
+          <>
+            <Image
+              src={data.heroImage}
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+            />
+            {/* theme-aware scrim — keeps the hero text legible over the image */}
+            <div aria-hidden className="absolute inset-0 hero-image-scrim" />
+          </>
+        )}
         <div aria-hidden className="absolute inset-0 grid-field" />
         <div
           aria-hidden
