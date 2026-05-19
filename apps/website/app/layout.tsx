@@ -13,11 +13,11 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Klorad — Build the virtual worlds of tomorrow",
+    default: "Klorad | Build the virtual worlds of tomorrow",
     template: "%s | Klorad",
   },
   description:
-    "Klorad is a geospatial platform for digital twins — a shared foundation that turns real places into living, data-driven worlds. The engine behind Klorad Campus, Mobility, Virtual Heritage, and Urban.",
+    "Klorad is a geospatial platform for digital twins, a shared foundation that turns real places into living, data-driven worlds. The engine behind Klorad Campus, Mobility, Virtual Heritage, and Urban.",
   keywords: [
     "geospatial platform",
     "digital twin",
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "/",
     siteName: "Klorad",
-    title: "Klorad — Build the virtual worlds of tomorrow",
+    title: "Klorad | Build the virtual worlds of tomorrow",
     description:
       "A geospatial platform for digital twins. One engine beneath Klorad Campus, Mobility, Virtual Heritage, and Urban.",
     images: [
@@ -48,13 +48,13 @@ export const metadata: Metadata = {
         url: "/klorad-logo.png",
         width: 1200,
         height: 630,
-        alt: "Klorad — the geospatial platform for digital twins",
+        alt: "Klorad, the geospatial platform for digital twins",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Klorad — Build the virtual worlds of tomorrow",
+    title: "Klorad | Build the virtual worlds of tomorrow",
     description:
       "A geospatial platform for digital twins. One engine, many worlds.",
     images: ["/klorad-logo.png"],
@@ -86,7 +86,7 @@ export default function RootLayout({
     "@type": "Organization",
     name: "Klorad",
     description:
-      "Klorad is a geospatial platform for digital twins — a shared foundation for building 3D, data-driven world applications.",
+      "Klorad is a geospatial platform for digital twins, a shared foundation for building 3D, data-driven world applications.",
     url: process.env.NEXT_PUBLIC_SITE_URL || "https://klorad.com",
     logo: `${process.env.NEXT_PUBLIC_SITE_URL || "https://klorad.com"}/klorad-logo.png`,
     founder: {

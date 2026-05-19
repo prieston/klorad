@@ -11,14 +11,14 @@ import {
 export const metadata: Metadata = {
   title: "Research",
   description:
-    "Klorad began as a doctoral thesis — a formal model for describing 3D, geospatial worlds on one shared architecture. The platform is that research, in production.",
+    "Klorad began as a doctoral thesis: a formal model for describing 3D, geospatial worlds on one shared architecture. The platform is that research, in production.",
   alternates: { canonical: "/research" },
 };
 
 const principles = [
   {
     title: "Define once",
-    desc: "A world is described independently of how it is drawn — geometry, data, and meaning, not rendering quirks.",
+    desc: "A world is described independently of how it is drawn: geometry, data, and meaning, not rendering quirks.",
   },
   {
     title: "Render anywhere",
@@ -26,7 +26,7 @@ const principles = [
   },
   {
     title: "Build on shared ground",
-    desc: "Every project inherits the same foundation, so effort goes to the new problem — not the plumbing.",
+    desc: "Every project inherits the same foundation, so effort goes to the new problem, not the plumbing.",
   },
 ];
 
@@ -48,7 +48,7 @@ export default function ResearchPage() {
             </h1>
             <p className="mt-6 max-w-xl text-lg font-light leading-relaxed text-text-secondary md:text-xl">
               Klorad did not start as a product. It started as a question in a
-              doctoral thesis — and an architecture built to answer it.
+              doctoral thesis, and an architecture built to answer it.
             </p>
           </div>
         </div>
@@ -60,7 +60,7 @@ export default function ResearchPage() {
           <SectionHead
             eyebrow="The problem"
             title="Every 3D, geospatial project rebuilds the same foundation."
-            intro="Across years of research, one pattern kept repeating. Each new study, each new demonstrator, began the same way — rebuilding 3D scenes, geospatial plumbing, and software architecture from scratch before the real question could be asked. The foundation was reinvented every time."
+            intro="Across years of research, one pattern kept repeating. Each new study, each new demonstrator, began the same way: rebuilding 3D scenes, geospatial plumbing, and software architecture from scratch before the real question could be asked. The foundation was reinvented every time."
           />
         </div>
       </section>
@@ -71,7 +71,7 @@ export default function ResearchPage() {
           <SectionHead
             eyebrow="The thesis"
             title="A formal model for 3D worlds."
-            intro="The doctoral work produced a class diagram — a single, formal way to describe 3D, geospatial worlds and the architecture that renders them. Define the model once, and any number of worlds can share it. The thesis argued that the foundation should be designed, not reinvented."
+            intro="The doctoral work produced a class diagram: a single, formal way to describe 3D, geospatial worlds and the architecture that renders them. Define the model once, and any number of worlds can share it. The thesis argued that the foundation should be designed, not reinvented."
           />
           <div className="mt-12 grid gap-5 md:grid-cols-3">
             {principles.map((p) => (
@@ -95,7 +95,7 @@ export default function ResearchPage() {
             <Eyebrow>From research to product</Eyebrow>
             <p className="mt-5 max-w-3xl text-2xl font-light leading-[1.3] text-text-primary md:text-3xl">
               Klorad is that model, in production. The class diagram became the
-              World type at the core of the platform — and the foundation
+              World type at the core of the platform, and the foundation
               beneath Campus, Mobility, Virtual Heritage, and Urban.
             </p>
             <Link

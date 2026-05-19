@@ -162,7 +162,7 @@ export function ProductPage({ data }: { data: ProductData }) {
             {data.ctaTitle}
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-text-secondary md:text-lg">
-            See {data.product} mapped to your needs — book a walkthrough with
+            See {data.product} mapped to your needs. Book a walkthrough with
             the team.
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">

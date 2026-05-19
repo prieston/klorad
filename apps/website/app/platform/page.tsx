@@ -11,12 +11,12 @@ import {
 export const metadata: Metadata = {
   title: "Platform",
   description:
-    "Klorad is the world engine — a geospatial platform with one World model, three rendering engines, live data, XR, and an SDK. The shared foundation beneath every Klorad product.",
+    "Klorad is the world engine: a geospatial platform with one World model, three rendering engines, live data, XR, and an SDK. The shared foundation beneath every Klorad product.",
   alternates: { canonical: "/platform" },
   openGraph: {
     title: "Platform | Klorad",
     description:
-      "The world engine — one World model, three renderers, live data, XR, and an SDK.",
+      "The world engine: one World model, three renderers, live data, XR, and an SDK.",
   },
 };
 
@@ -26,7 +26,7 @@ const renderers = [
   {
     name: "Three.js",
     role: "Built scenes",
-    desc: "Interiors, models, and designed environments — full control over geometry, materials, and detail.",
+    desc: "Interiors, models, and designed environments, with full control over geometry, materials, and detail.",
   },
   {
     name: "CesiumJS",
@@ -43,7 +43,7 @@ const renderers = [
 const capabilities = [
   {
     title: "Live data & IoT",
-    desc: "Sensor and telemetry feeds stream into the world in real time — twins that move with reality.",
+    desc: "Sensor and telemetry feeds stream into the world in real time. Twins that move with reality.",
   },
   {
     title: "XR-ready",
@@ -55,7 +55,7 @@ const capabilities = [
   },
   {
     title: "Config-driven UI",
-    desc: "Panels, controls, and layout described as configuration — not rebuilt for every app.",
+    desc: "Panels, controls, and layout described as configuration, not rebuilt for every app.",
   },
   {
     title: "Assets & storage",
@@ -63,7 +63,7 @@ const capabilities = [
   },
   {
     title: "Coordinate-true",
-    desc: "Everything anchored to real-world coordinates — consistently, across every renderer.",
+    desc: "Everything anchored to real-world coordinates, consistent across every renderer.",
   },
 ];
 
@@ -76,7 +76,7 @@ const verticals = [
 
 const codeSample = `import { createSceneAPI } from "@klorad/api";
 
-// define a world once — render it with any engine
+// define a world once, render with any engine
 const world = createSceneAPI({ engine: "cesium" });
 
 world.objects.add(model);
@@ -99,7 +99,7 @@ export default function PlatformPage() {
               The world engine.
             </h1>
             <p className="mt-6 max-w-xl text-lg font-light leading-relaxed text-text-secondary md:text-xl">
-              Klorad is the shared foundation beneath every product — one model
+              Klorad is the shared foundation beneath every product: one model
               of 3D, geospatial worlds that you define once and render, stream
               live data into, and step into anywhere.
             </p>
@@ -124,7 +124,7 @@ export default function PlatformPage() {
           <SectionHead
             eyebrow="The model"
             title="Define a world once."
-            intro="At the center is a single abstraction — the World. Scenes, objects, observations, and live data, described independently of how they are drawn. It began as a doctoral class diagram; it is now the type at the heart of the platform."
+            intro="At the center is a single abstraction, the World. Scenes, objects, observations, and live data, described independently of how they are drawn. It began as a doctoral class diagram; it is now the type at the heart of the platform."
           />
           <div className="mt-16 flex flex-col items-center">
             <div className="glass-panel rounded-xl px-6 py-3 text-sm font-medium tracking-wide text-text-primary shadow-glass">
@@ -151,7 +151,7 @@ export default function PlatformPage() {
           <SectionHead
             eyebrow="Rendering"
             title="One world. Three renderers."
-            intro="The same world model drives three rendering engines. Klorad uses whichever fits the job — or all three within one project."
+            intro="The same world model drives three rendering engines. Klorad uses whichever fits the job, or all three within one project."
           />
           <div className="mt-12 grid gap-5 md:grid-cols-3">
             {renderers.map((r) => (
@@ -177,7 +177,7 @@ export default function PlatformPage() {
           <SectionHead
             eyebrow="Built in"
             title="Everything a world needs, from the core."
-            intro="These are not add-ons. They are part of the foundation — available to every product and every world from day one."
+            intro="These are not add-ons. They are part of the foundation, available to every product and every world from day one."
           />
           <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-line-soft bg-line-soft md:grid-cols-2 lg:grid-cols-3">
             {capabilities.map((c, i) => (
@@ -204,8 +204,8 @@ export default function PlatformPage() {
             <div>
               <SectionHead
                 eyebrow="The SDK"
-                title="A programmatic API — with an extension for every vertical."
-                intro="@klorad/api turns the platform into code: a core scene API, plus an extension for each domain — campus, heritage, digital twin. Klorad's own products are built on it. So is anything you build."
+                title="A programmatic API, with an extension for every vertical."
+                intro="@klorad/api turns the platform into code: a core scene API, plus an extension for each domain (campus, heritage, digital twin). Klorad's own products are built on it. So is anything you build."
               />
               <Link
                 href="/research"
@@ -228,7 +228,7 @@ export default function PlatformPage() {
           <SectionHead
             eyebrow="In production"
             title="The platform, proven."
-            intro="Klorad is not a framework looking for a use. It ships as four products — each a world built on this foundation."
+            intro="Klorad is not a framework looking for a use. It ships as four products, each a world built on this foundation."
           />
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {verticals.map((v) => (

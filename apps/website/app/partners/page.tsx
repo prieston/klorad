@@ -5,7 +5,7 @@ import { Eyebrow, SectionHead, btnPrimary, btnGhost } from "@/components/ui";
 export const metadata: Metadata = {
   title: "Partners",
   description:
-    "Partner with Klorad — deliver geospatial digital-twin solutions on a platform you don't have to build. You bring the domain expertise; Klorad provides the foundation.",
+    "Partner with Klorad to deliver geospatial digital-twin solutions on a platform you don't have to build. You bring the domain expertise; Klorad provides the foundation.",
   alternates: { canonical: "/partners" },
 };
 
@@ -16,7 +16,7 @@ const reasons = [
   },
   {
     title: "For real projects",
-    desc: "Klorad is built for substantial work — infrastructure, mobility, heritage, land. Not experiments: deployments.",
+    desc: "Klorad is built for substantial work across infrastructure, mobility, heritage, and land. Real deployments, not experiments.",
   },
   {
     title: "You own the service",
@@ -25,7 +25,7 @@ const reasons = [
 ];
 
 const lookingFor = [
-  "Deep expertise in a domain — mobility, infrastructure, heritage, planning, engineering",
+  "Deep expertise in a domain: mobility, infrastructure, heritage, planning, or engineering",
   "Experience delivering to enterprise and public-sector clients",
   "The ability to coordinate stakeholders, requirements, and timelines",
   "A commitment to long-term, professional collaboration",
@@ -49,7 +49,7 @@ export default function PartnersPage() {
             </h1>
             <p className="mt-6 max-w-xl text-lg font-light leading-relaxed text-text-secondary md:text-xl">
               Klorad partners with engineering firms, domain specialists, and
-              integrators who bring real expertise to complex environments — and
+              integrators who bring real expertise to complex environments, and
               need a platform they don&apos;t have to build.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -93,7 +93,7 @@ export default function PartnersPage() {
             <SectionHead
               eyebrow="Who we look for"
               title="Selected with discipline."
-              intro="We collaborate where domain expertise genuinely matters — with organisations that understand their environments and can deliver responsibly."
+              intro="We collaborate where domain expertise genuinely matters, with organisations that understand their environments and can deliver responsibly."
             />
             <div className="glass-panel rounded-2xl p-8">
               <ul className="space-y-4">
@@ -102,7 +102,7 @@ export default function PartnersPage() {
                     key={item}
                     className="flex gap-3 text-sm leading-relaxed text-text-secondary"
                   >
-                    <span className="mt-0.5 text-accent">—</span>
+                    <span className="mt-0.5 text-accent">·</span>
                     {item}
                   </li>
                 ))}

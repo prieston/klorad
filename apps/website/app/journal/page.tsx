@@ -6,7 +6,7 @@ import { Eyebrow } from "@/components/ui";
 export const metadata: Metadata = {
   title: "Journal",
   description:
-    "Notes from the work of building and deploying Klorad — field observations and architectural reasoning.",
+    "Notes from the work of building and deploying Klorad: field observations and architectural reasoning.",
   alternates: { canonical: "/journal" },
 };
 
@@ -33,7 +33,7 @@ export default function JournalIndexPage() {
               Field notes.
             </h1>
             <p className="mt-6 max-w-xl text-lg font-light leading-relaxed text-text-secondary md:text-xl">
-              Notes from the work of building and deploying Klorad — field
+              Notes from the work of building and deploying Klorad: field
               observations and architectural reasoning.
             </p>
           </div>

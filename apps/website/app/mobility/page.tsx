@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { ProductPage, type ProductData } from "@/components/product-page";
 
 export const metadata: Metadata = {
-  title: { absolute: "Klorad Mobility — Roads, ITS & corridors" },
+  title: { absolute: "Klorad Mobility | Roads, ITS & corridors" },
   description:
-    "Klorad Mobility brings corridors, junctions, signaling, and ITS telemetry into one continuous environment — see how a decision propagates before it is made.",
+    "Klorad Mobility brings corridors, junctions, signaling, and ITS telemetry into one continuous environment. See how a decision propagates before it is made.",
   alternates: { canonical: "/mobility" },
 };
 
@@ -12,7 +12,7 @@ const data: ProductData = {
   product: "Klorad Mobility",
   heroImage: "/klorad-mobility.webp",
   promise: "Road networks, made legible.",
-  lede: "Corridors, junctions, signaling and ITS telemetry brought into one continuous environment — so you can see how a decision propagates before it is made.",
+  lede: "Corridors, junctions, signaling and ITS telemetry brought into one continuous environment, so you can see how a decision propagates before it is made.",
   intro: "For road authorities, operators, and mobility teams.",
   capabilities: [
     {
@@ -25,7 +25,7 @@ const data: ProductData = {
     },
     {
       title: "Decisions, rehearsed",
-      desc: "Evaluate an intervention against the network before it is enacted — not after.",
+      desc: "Evaluate an intervention against the network before it is enacted, not after.",
     },
   ],
   features: [
@@ -55,7 +55,7 @@ const data: ProductData = {
     },
   ],
   builtOn:
-    "Klorad Mobility is a world built on the Klorad platform — the same World model, the three renderers, and the live-data backbone behind every Klorad product.",
+    "Klorad Mobility is a world built on the Klorad platform. It runs on the same World model, the three renderers, and the live-data backbone behind every Klorad product.",
   ctaTitle: "See your network as one.",
 };
 

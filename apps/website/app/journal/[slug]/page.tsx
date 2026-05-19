@@ -84,7 +84,7 @@ export default async function JournalEntryPage(props: JournalEntryPageProps) {
       </div>
 
       <footer className="mt-14 border-t border-line-soft pt-8 text-xs uppercase tracking-[0.28em] text-text-tertiary">
-        Klorad Journal — field observations and architectural reasoning.
+        Klorad Journal · field observations and architectural reasoning.
       </footer>
     </article>
   );
