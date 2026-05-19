@@ -1,19 +1,9 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import useSWR from "swr";
-import {
-  Box,
-  Button,
-  Chip,
-  Tab,
-  Tabs,
-  Typography,
-} from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
-import { Page, PageContent } from "@klorad/ui";
-import { Skeleton } from "@mui/material";
+import { Badge, Button, cn } from "@klorad/design-system";
 import OverviewTab from "./tabs/OverviewTab";
 import SettingsTab from "./tabs/SettingsTab";
 import IntegrationsTab from "./tabs/IntegrationsTab";
@@ -48,9 +38,14 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab") as TabKey | null;
-  const activeTab: TabKey = TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : "overview";
+  const activeTab: TabKey = TABS.some((t) => t.key === tabParam)
+    ? (tabParam as TabKey)
+    : "overview";
 
-  const { data: map, isLoading } = useSWR<CampusMap>(`/api/maps/${mapId}`, fetcher);
+  const { data: map, isLoading } = useSWR<CampusMap>(
+    `/api/maps/${mapId}`,
+    fetcher,
+  );
 
   const setTab = (key: TabKey) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -62,78 +57,66 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
 
   if (!map && isLoading) {
     return (
-      <Page>
-        <PageContent sx={{ mt: 0 }}>
-          <Skeleton variant="rounded" height={48} sx={{ mb: 2 }} />
-          <Skeleton variant="rounded" height={320} />
-        </PageContent>
-      </Page>
+      <div className="w-full space-y-3 px-6 py-8 md:px-10">
+        <div className="h-12 animate-pulse rounded-xl bg-surface-2" />
+        <div className="h-80 animate-pulse rounded-xl bg-surface-2" />
+      </div>
     );
   }
+
   if (!map) {
     return (
-      <Page>
-        <PageContent sx={{ mt: 0 }}>
-          <Typography color="error">Map not found.</Typography>
-        </PageContent>
-      </Page>
+      <div className="w-full px-6 py-8 md:px-10">
+        <p className="text-sm text-red-600">Map not found.</p>
+      </div>
     );
   }
 
   return (
-    <Page>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 2, mb: 3 }}>
-        <Chip
-          label="Live"
-          size="small"
-          sx={{
-            height: 24,
-            fontSize: "0.75rem",
-            fontWeight: 600,
-            bgcolor: (th) => th.palette.success.main + "22",
-            color: "success.main",
-            "& .MuiChip-label": { px: 1.25 },
-          }}
-        />
-        <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+    <div className="w-full px-6 py-8 md:px-10">
+      <div className="flex items-center gap-3">
+        <Badge tone="success">Live</Badge>
+        <span className="flex-1 text-sm text-text-secondary">
           Last updated {new Date(map.updatedAt).toLocaleDateString()}
-        </Typography>
+        </span>
         <Button
-          variant="contained"
-          startIcon={<EditIcon />}
-          component={Link}
-          href={`/org/${orgId}/maps/${mapId}/builder`}
-          sx={{ textTransform: "none" }}
+          onClick={() => router.push(`/org/${orgId}/maps/${mapId}/builder`)}
         >
+          <EditIcon fontSize="small" />
           Enter Studio
         </Button>
-      </Box>
+      </div>
 
-      <Tabs
-        value={activeTab}
-        onChange={(_e, v) => setTab(v)}
-        sx={{
-          borderBottom: "1px solid",
-          borderColor: "divider",
-          "& .MuiTab-root": {
-            fontSize: "0.875rem",
-            textTransform: "none",
-            fontWeight: 500,
-            minHeight: 44,
-          },
-          "& .Mui-selected": { color: "primary.main" },
-        }}
-      >
+      <div className="mt-6 flex gap-1 border-b border-line-soft">
         {TABS.map((t) => (
-          <Tab key={t.key} value={t.key} label={t.label} />
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            className={cn(
+              "relative px-3 py-2.5 text-sm font-medium transition-colors",
+              activeTab === t.key
+                ? "text-text-primary"
+                : "text-text-secondary hover:text-text-primary",
+            )}
+          >
+            {t.label}
+            {activeTab === t.key && (
+              <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-accent" />
+            )}
+          </button>
         ))}
-      </Tabs>
+      </div>
 
-      <PageContent>
-        {activeTab === "overview" && <OverviewTab orgId={orgId} mapId={mapId} map={map} />}
-        {activeTab === "settings" && <SettingsTab orgId={orgId} mapId={mapId} map={map} />}
+      <div className="pt-2">
+        {activeTab === "overview" && (
+          <OverviewTab orgId={orgId} mapId={mapId} map={map} />
+        )}
+        {activeTab === "settings" && (
+          <SettingsTab orgId={orgId} mapId={mapId} map={map} />
+        )}
         {activeTab === "integrations" && <IntegrationsTab />}
-      </PageContent>
-    </Page>
+      </div>
+    </div>
   );
 }
