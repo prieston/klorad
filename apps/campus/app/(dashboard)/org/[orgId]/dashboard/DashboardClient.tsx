@@ -1,24 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Box, Button, Stack, Typography } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 import MapIcon from "@mui/icons-material/Map";
 import PlaceIcon from "@mui/icons-material/Place";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import AccessibleIcon from "@mui/icons-material/Accessible";
-import AddIcon from "@mui/icons-material/Add";
-import {
-  MetricCard,
-  Page,
-  PageCard,
-  PageContent,
-  PageSection,
-  DashboardProjectCard,
-} from "@klorad/ui";
-import { Skeleton } from "@mui/material";
+import { Panel, Button } from "@klorad/design-system";
 import { useMaps } from "@/app/hooks/useMaps";
 import LocationsHeader from "../maps/LocationsHeader";
 
@@ -34,150 +24,181 @@ export default function DashboardClient({ orgId }: Props) {
   const showSkeleton = isLoading && maps.length === 0;
 
   return (
-    <Page>
-      <PageContent sx={{ mt: 0 }}>
-        <Box>
-          <LocationsHeader maps={maps} />
-        </Box>
+    <div className="mx-auto w-full max-w-6xl space-y-10 px-6 py-8 md:px-8">
+      <LocationsHeader maps={maps} />
 
-        {/* KPI row */}
-        <Box
-          sx={{
-            display: "grid",
-            gap: 2,
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, 1fr)",
-              md: "repeat(4, 1fr)",
-            },
-          }}
-        >
-          <MetricCard icon={<MapIcon fontSize="small" />} value={maps.length} label="Campus maps" />
-          <MetricCard icon={<PlaceIcon fontSize="small" />} value="—" label="POIs across maps" />
-          <MetricCard icon={<VisibilityIcon fontSize="small" />} value="—" label="Public views (30d)" />
-          <MetricCard icon={<AccessibleIcon fontSize="small" />} value="—" label="Accessibility coverage" />
-        </Box>
+      {/* KPI row */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={<MapIcon fontSize="small" />}
+          value={String(maps.length)}
+          label="Campus maps"
+        />
+        <StatCard
+          icon={<PlaceIcon fontSize="small" />}
+          value="—"
+          label="POIs across maps"
+        />
+        <StatCard
+          icon={<VisibilityIcon fontSize="small" />}
+          value="—"
+          label="Public views (30d)"
+        />
+        <StatCard
+          icon={<AccessibleIcon fontSize="small" />}
+          value="—"
+          label="Accessibility coverage"
+        />
+      </div>
 
-        <PageSection title="Recent campuses" spacing="tight">
-          {showSkeleton ? (
-            <Box
-              sx={{
-                display: "grid",
-                gap: 2,
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "repeat(2, 1fr)",
-                  md: "repeat(3, 1fr)",
-                },
-              }}
+      {/* Recent campuses */}
+      <section className="space-y-4">
+        <SectionTitle>Recent campuses</SectionTitle>
+        {showSkeleton ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-[208px] animate-pulse rounded-xl bg-surface-2"
+              />
+            ))}
+          </div>
+        ) : recentMaps.length === 0 ? (
+          <Panel className="flex flex-col items-center gap-3 px-6 py-12 text-center">
+            <MapIcon className="text-accent opacity-60" fontSize="large" />
+            <p className="text-base font-medium text-text-primary">
+              No campuses yet
+            </p>
+            <p className="max-w-sm text-sm text-text-secondary">
+              Create your first campus map. Drop some POIs, share the URL —
+              it&apos;s a five-minute setup.
+            </p>
+            <Button
+              className="mt-1"
+              onClick={() => router.push(`/org/${orgId}/maps`)}
             >
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} variant="rounded" height={260} />
+              Create a campus
+            </Button>
+          </Panel>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {recentMaps.map((m) => (
+                <CampusCard
+                  key={m.id}
+                  name={m.name}
+                  updatedAt={m.updatedAt}
+                  thumbnail={m.thumbnail ?? undefined}
+                  href={`/org/${orgId}/maps/${m.id}`}
+                />
               ))}
-            </Box>
-          ) : recentMaps.length === 0 ? (
-            <PageCard>
-              <Box
-                sx={{
-                  textAlign: "center",
-                  py: 5,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 1.5,
-                }}
+            </div>
+            <div className="flex justify-end">
+              <Link
+                href={`/org/${orgId}/maps`}
+                className="text-sm font-medium text-accent transition-colors hover:text-accent-hover"
               >
-                <MapIcon sx={{ fontSize: 48, color: "primary.main", opacity: 0.5 }} />
-                <Typography variant="subtitle1" fontWeight={600}>
-                  No campuses yet
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420 }}>
-                  Create your first campus map. Drop some POIs, share the URL — it&apos;s a
-                  five-minute setup.
-                </Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => router.push(`/org/${orgId}/maps`)}
-                  sx={{ mt: 1, textTransform: "none" }}
-                >
-                  Create a campus
-                </Button>
-              </Box>
-            </PageCard>
-          ) : (
-            <Stack spacing={2}>
-              <Box
-                sx={{
-                  display: "grid",
-                  gap: 2,
-                  gridTemplateColumns: {
-                    xs: "1fr",
-                    sm: "repeat(2, 1fr)",
-                    md: "repeat(3, 1fr)",
-                  },
-                }}
-              >
-                {recentMaps.map((m) => (
-                  <DashboardProjectCard
-                    key={m.id}
-                    project={{
-                      id: m.id,
-                      title: m.name,
-                      updatedAt: m.updatedAt,
-                      createdAt: m.createdAt,
-                      thumbnail: m.thumbnail ?? undefined,
-                    }}
-                    onGoToBuilder={(id) => router.push(`/org/${orgId}/maps/${id}`)}
-                    onMenuOpen={() => {}}
-                  />
-                ))}
-              </Box>
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <Button
-                  component={Link}
-                  href={`/org/${orgId}/maps`}
-                  size="small"
-                  sx={{ textTransform: "none" }}
-                >
-                  View all campuses →
-                </Button>
-              </Box>
-            </Stack>
-          )}
-        </PageSection>
+                View all campuses →
+              </Link>
+            </div>
+          </div>
+        )}
+      </section>
 
-        <PageSection title="Quick actions" spacing="tight">
-          <Box
-            sx={{
-              display: "grid",
-              gap: 2,
-              gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
-            }}
-          >
-            <QuickActionCard
-              title="Create a new campus"
-              description="Start with a blank 3D map. Drop POIs in seconds."
-              href={`/org/${orgId}/maps`}
-            />
-            <QuickActionCard
-              title="Invite a teammate"
-              description="Bring marketing or facilities staff into the org."
-              href={`/org/${orgId}/settings/members`}
-            />
-            <QuickActionCard
-              title="Review usage"
-              description="See plan limits, POI counts, and view analytics."
-              href={`/org/${orgId}/settings/usage`}
-            />
-          </Box>
-        </PageSection>
-      </PageContent>
-    </Page>
+      {/* Quick actions */}
+      <section className="space-y-4">
+        <SectionTitle>Quick actions</SectionTitle>
+        <div className="grid gap-4 md:grid-cols-3">
+          <QuickAction
+            title="Create a new campus"
+            description="Start with a blank 3D map. Drop POIs in seconds."
+            href={`/org/${orgId}/maps`}
+          />
+          <QuickAction
+            title="Invite a teammate"
+            description="Bring marketing or facilities staff into the org."
+            href={`/org/${orgId}/settings/members`}
+          />
+          <QuickAction
+            title="Review usage"
+            description="See plan limits, POI counts, and view analytics."
+            href={`/org/${orgId}/settings/usage`}
+          />
+        </div>
+      </section>
+    </div>
   );
 }
 
-function QuickActionCard({
+function SectionTitle({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-text-tertiary">
+      {children}
+    </h2>
+  );
+}
+
+function StatCard({
+  icon,
+  value,
+  label,
+}: {
+  icon: ReactNode;
+  value: string;
+  label: string;
+}) {
+  return (
+    <Panel className="p-5">
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-accent">
+        {icon}
+      </div>
+      <div className="mt-4 text-2xl font-light text-text-primary">{value}</div>
+      <div className="mt-0.5 text-sm text-text-secondary">{label}</div>
+    </Panel>
+  );
+}
+
+function CampusCard({
+  name,
+  updatedAt,
+  thumbnail,
+  href,
+}: {
+  name: string;
+  updatedAt: string | number | Date;
+  thumbnail?: string;
+  href: string;
+}) {
+  const updated = new Date(updatedAt).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  return (
+    <Link href={href} className="group block">
+      <Panel className="overflow-hidden transition-colors group-hover:border-accent">
+        <div className="aspect-video bg-surface-2">
+          {thumbnail ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={thumbnail}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : null}
+        </div>
+        <div className="p-4">
+          <div className="font-medium text-text-primary">{name}</div>
+          <div className="mt-1 text-xs text-text-tertiary">
+            Updated {updated}
+          </div>
+        </div>
+      </Panel>
+    </Link>
+  );
+}
+
+function QuickAction({
   title,
   description,
   href,
@@ -187,31 +208,13 @@ function QuickActionCard({
   href: string;
 }) {
   return (
-    <Box
-      component={Link}
-      href={href}
-      sx={(t) => ({
-        display: "block",
-        p: 2.5,
-        borderRadius: 1,
-        textDecoration: "none",
-        color: "inherit",
-        bgcolor: "#161B20",
-        border: "1px solid",
-        borderColor: "divider",
-        transition: "all 0.15s ease",
-        "&:hover": {
-          borderColor: alpha(t.palette.primary.main, 0.5),
-          backgroundColor: alpha(t.palette.primary.main, 0.04),
-        },
-      })}
-    >
-      <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>
-        {title}
-      </Typography>
-      <Typography variant="caption" color="text.secondary">
-        {description}
-      </Typography>
-    </Box>
+    <Link href={href} className="group block">
+      <Panel className="h-full p-5 transition-colors group-hover:border-accent group-hover:bg-accent-soft">
+        <div className="text-sm font-semibold text-text-primary">{title}</div>
+        <div className="mt-1 text-xs leading-relaxed text-text-secondary">
+          {description}
+        </div>
+      </Panel>
+    </Link>
   );
 }
