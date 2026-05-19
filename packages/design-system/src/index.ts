@@ -26,3 +26,8 @@ export {
   Textarea,
   type FieldProps,
 } from "./components/field";
+export {
+  AppShell,
+  type AppShellProps,
+  type NavItem,
+} from "./components/app-shell";
