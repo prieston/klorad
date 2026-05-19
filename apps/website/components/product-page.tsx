@@ -37,19 +37,29 @@ export function ProductPage({ data }: { data: ProductData }) {
       <section className="relative isolate overflow-hidden">
         {data.heroImage && (
           <>
-            <Image
-              src={data.heroImage}
-              alt=""
-              fill
-              priority
-              sizes="100vw"
-              className="object-cover"
-            />
+            <div
+              aria-hidden
+              className="absolute inset-y-0 right-0 w-full md:w-[72%]"
+            >
+              <Image
+                src={data.heroImage}
+                alt=""
+                fill
+                priority
+                sizes="(max-width: 768px) 100vw, 72vw"
+                className="object-cover"
+              />
+            </div>
             {/* theme-aware scrim — keeps the hero text legible over the image */}
             <div aria-hidden className="absolute inset-0 hero-image-scrim" />
           </>
         )}
-        <div aria-hidden className="absolute inset-0 grid-field" />
+        <div
+          aria-hidden
+          className={`absolute inset-0 grid-field${
+            data.heroImage ? " grid-field-faded" : ""
+          }`}
+        />
         <div
           aria-hidden
           className="pointer-events-none absolute -right-32 -top-40 h-[600px] w-[600px] rounded-full bg-accent-soft blur-3xl"

@@ -116,6 +116,13 @@
       linear-gradient(to right, var(--bg) 38%, transparent 88%),
       linear-gradient(to top, var(--bg), transparent 58%);
   }
+
+  /* Fades the grid out toward the right so it clears a hero image —
+     mirrors how the image scrim fades toward the text on the left. */
+  .grid-field-faded {
+    -webkit-mask-image: linear-gradient(to right, #000 30%, transparent 78%);
+    mask-image: linear-gradient(to right, #000 30%, transparent 78%);
+  }
 }
 
 /* ============================================================

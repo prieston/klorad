@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 
 const data: ProductData = {
   product: "Klorad Mobility",
+  heroImage: "/klorad-mobility.png",
   promise: "Road networks, made legible.",
   lede: "Corridors, junctions, signaling and ITS telemetry brought into one continuous environment — so you can see how a decision propagates before it is made.",
   intro: "For road authorities, operators, and mobility teams.",
