@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 const data: ProductData = {
   product: "Klorad Campus",
-  heroImage: "/klorad-campus.png",
+  heroImage: "/klorad-campus.webp",
   promise: "Campuses people can navigate.",
   lede: "Indoor and outdoor wayfinding, room-level detail, and live points of interest — a digital twin of your campus that works as well on a screen as on foot.",
   intro: "For universities, hospitals, and corporate campuses.",
