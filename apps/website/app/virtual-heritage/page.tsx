@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 
 const data: ProductData = {
   product: "Klorad Virtual Heritage",
+  heroImage: "/klorad-heritage.webp",
   promise: "Heritage, reconstructed and understood.",
   lede: "Cultural sites rebuilt as immersive, interpretable worlds — for preservation, for research, and for the public who may never stand there.",
   intro: "For museums, heritage bodies, and research institutions.",
