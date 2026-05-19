@@ -27,6 +27,8 @@ const DefaultLink: LinkComponent = ({ href, className, children }) => (
 export type AppShellProps = {
   /** Brand block at the top of the sidebar (logo + name). */
   brand: ReactNode;
+  /** Optional node between the brand and the nav — e.g. an org/workspace switcher. */
+  sidebarHeader?: ReactNode;
   /** Primary navigation. */
   nav: NavItem[];
   /** Optional node pinned to the bottom of the sidebar (user menu, org switcher). */
@@ -47,6 +49,7 @@ export type AppShellProps = {
  */
 export function AppShell({
   brand,
+  sidebarHeader,
   nav,
   sidebarFooter,
   title,
@@ -59,6 +62,9 @@ export function AppShell({
   const sidebar = (
     <div className="flex h-full flex-col">
       <div className="flex h-16 shrink-0 items-center px-5">{brand}</div>
+      {sidebarHeader ? (
+        <div className="shrink-0 px-3 pb-2">{sidebarHeader}</div>
+      ) : null}
       <nav
         className="flex-1 space-y-1 overflow-y-auto px-3 py-2"
         onClick={() => setMobileOpen(false)}
