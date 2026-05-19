@@ -11,7 +11,9 @@
     "./tokens.css": "./src/styles/tokens.css"
   },
   "dependencies": {
-    "next-themes": "^0.4.6"
+    "clsx": "^2.1.1",
+    "next-themes": "^0.4.6",
+    "tailwind-merge": "^3.6.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",
