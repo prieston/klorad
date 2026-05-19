@@ -5,8 +5,9 @@ import type { ComponentProps } from "react";
 
 /**
  * Wraps next-themes. Theme is applied via the `.dark` class on <html>
- * (see tailwind.config darkMode: "class"). Default follows the visitor's
- * system preference; dark is the fallback when none can be resolved.
+ * (see tailwind.config darkMode: "class"). New visitors get the light
+ * theme by default — the OS preference is not used. The toggle still
+ * lets visitors switch to dark, and that choice is remembered.
  */
 export function ThemeProvider({
   children,
@@ -15,8 +16,8 @@ export function ThemeProvider({
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="system"
-      enableSystem
+      defaultTheme="light"
+      enableSystem={false}
       disableTransitionOnChange
       {...props}
     >
