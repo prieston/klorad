@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 
 const data: ProductData = {
   product: "Klorad Urban",
+  heroImage: "/klorad-smart-city.webp",
   promise: "Cities and land, as a living model.",
   lede: "Urban infrastructure and land use unified into one digital twin — for planning, coordination, and the decisions that shape territory.",
   intro: "For municipalities, planners, and land authorities.",
