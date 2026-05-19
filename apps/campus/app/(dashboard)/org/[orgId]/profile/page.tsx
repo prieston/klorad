@@ -1,7 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { Page, PageCard, PageContent, PageSection } from "@klorad/ui";
-import { Avatar, Box, Stack, Typography } from "@mui/material";
+import { Panel } from "@klorad/design-system";
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -11,34 +10,44 @@ export default async function ProfilePage() {
   const initial = (name?.charAt(0) || email?.charAt(0) || "U").toUpperCase();
 
   return (
-    <Page>
-      <PageContent sx={{ mt: 0 }}>
-        <PageSection title="Account" spacing="tight">
-          <PageCard>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <Avatar src={image ?? undefined} sx={{ width: 64, height: 64 }}>
-                {initial}
-              </Avatar>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="h6" fontWeight={700}>
-                  {name ?? "User"}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {email}
-                </Typography>
-              </Box>
-            </Stack>
-          </PageCard>
-        </PageSection>
-        <PageSection title="Preferences" spacing="tight">
-          <PageCard>
-            <Typography variant="body2" color="text.secondary">
-              Language, default locale, and notification preferences will
-              appear here.
-            </Typography>
-          </PageCard>
-        </PageSection>
-      </PageContent>
-    </Page>
+    <div className="w-full space-y-10 px-6 py-8 md:px-10">
+      <section className="space-y-4">
+        <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-text-tertiary">
+          Account
+        </h2>
+        <Panel className="flex items-center gap-4 rounded-2xl p-5">
+          {image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={image}
+              alt=""
+              className="h-16 w-16 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xl font-semibold text-accent">
+              {initial}
+            </div>
+          )}
+          <div className="min-w-0">
+            <div className="truncate text-lg font-semibold text-text-primary">
+              {name ?? "User"}
+            </div>
+            <div className="truncate text-sm text-text-secondary">{email}</div>
+          </div>
+        </Panel>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-text-tertiary">
+          Preferences
+        </h2>
+        <Panel className="rounded-2xl p-5">
+          <p className="text-sm text-text-secondary">
+            Language, default locale, and notification preferences will appear
+            here.
+          </p>
+        </Panel>
+      </section>
+    </div>
   );
 }
