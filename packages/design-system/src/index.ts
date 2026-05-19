@@ -11,6 +11,7 @@ export { cn } from "./utils/cn";
 export { ThemeProvider } from "./theme/theme-provider";
 export { ThemeToggle } from "./theme/theme-toggle";
 
+export { KloradMark, type KloradMarkProps } from "./components/klorad-mark";
 export {
   Button,
   IconButton,
