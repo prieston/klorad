@@ -41,7 +41,7 @@ export function ContactForm() {
 
   const message =
     state === "submitted"
-      ? "Thank you — we've received your message and will be in touch."
+      ? "Thank you. We've received your message and will be in touch."
       : state === "error"
         ? "Something went wrong. Please try again, or email us directly."
         : null;

@@ -7,7 +7,7 @@ import { Eyebrow, btnPrimary } from "@/components/ui";
 export const metadata: Metadata = {
   title: "Worlds",
   description:
-    "Explore published worlds built with Klorad — real applications of the geospatial platform across campus, mobility, heritage, and urban domains.",
+    "Explore published worlds built with Klorad: real applications of the geospatial platform across campus, mobility, heritage, and urban domains.",
   alternates: { canonical: "/samples" },
 };
 
@@ -30,7 +30,7 @@ export default async function SamplesPage() {
               Worlds built with Klorad.
             </h1>
             <p className="mt-6 max-w-xl text-lg font-light leading-relaxed text-text-secondary md:text-xl">
-              A growing collection of digital twins — real applications of the
+              A growing collection of digital twins: real applications of the
               platform across campuses, corridors, cities, and heritage sites.
             </p>
           </div>
@@ -44,7 +44,7 @@ export default async function SamplesPage() {
             <SamplesGrid worlds={sampleWorlds} />
           ) : (
             <p className="py-20 text-center text-text-secondary">
-              No worlds published yet — check back soon.
+              No worlds published yet. Check back soon.
             </p>
           )}
         </div>
@@ -61,7 +61,7 @@ export default async function SamplesPage() {
             Build the next one.
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-text-secondary md:text-lg">
-            See how Klorad would model your world — book a walkthrough with the
+            See how Klorad would model your world. Book a walkthrough with the
             team.
           </p>
           <div className="mt-9 flex justify-center">

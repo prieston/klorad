@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import type { Metadata } from "next";
 import { HeroWorld } from "@/components/hero-world";
 import {
@@ -12,7 +11,7 @@ import {
 
 export const metadata: Metadata = {
   description:
-    "Klorad is a geospatial platform for digital twins — a shared foundation that turns real places into living, data-driven worlds. The engine behind Klorad Campus, Mobility, Virtual Heritage, and Urban.",
+    "Klorad is a geospatial platform for digital twins, a shared foundation that turns real places into living, data-driven worlds. The engine behind Klorad Campus, Mobility, Virtual Heritage, and Urban.",
   alternates: { canonical: "/" },
 };
 
@@ -21,28 +20,28 @@ const verticals = [
     tag: "Campus",
     name: "Klorad Campus",
     promise: "Campuses people can navigate.",
-    desc: "Indoor and outdoor wayfinding, room-level detail, points of interest — a campus that works as well on a screen as on foot.",
+    desc: "Indoor and outdoor wayfinding, room-level detail, points of interest. A campus that works on a screen as well as on foot.",
     href: "/campus",
   },
   {
     tag: "Mobility",
     name: "Klorad Mobility",
     promise: "Road networks, made legible.",
-    desc: "Corridors, junctions, signaling and ITS telemetry as one continuous environment — see how a decision propagates before it is made.",
+    desc: "Corridors, junctions, signaling and ITS telemetry as one continuous environment. See how a decision propagates before it is made.",
     href: "/mobility",
   },
   {
     tag: "Heritage",
     name: "Klorad Virtual Heritage",
     promise: "Heritage, reconstructed and understood.",
-    desc: "Sites rebuilt as immersive, interpretable worlds — for preservation, research, and the public.",
+    desc: "Sites rebuilt as immersive, interpretable worlds for preservation, research, and the public.",
     href: "/virtual-heritage",
   },
   {
     tag: "Urban",
     name: "Klorad Urban",
     promise: "Cities and land, as a living model.",
-    desc: "Urban infrastructure and land use unified into one twin — for planning, coordination, and the decisions that shape territory.",
+    desc: "Urban infrastructure and land use unified into one twin for planning, coordination, and the decisions that shape territory.",
     href: "/urban",
   },
 ];
@@ -58,11 +57,11 @@ const engineFeatures = [
   },
   {
     title: "Live data",
-    desc: "IoT and sensor telemetry stream into the world in real time — twins that move with the thing they mirror.",
+    desc: "IoT and sensor telemetry stream into the world in real time. Twins that move with the thing they mirror.",
   },
   {
     title: "Immersive & XR",
-    desc: "Worlds are XR-ready — explorable on a screen, or stepped into.",
+    desc: "Worlds are XR-ready, explorable on a screen or stepped into.",
   },
   {
     title: "Multi-tenant",
@@ -70,7 +69,7 @@ const engineFeatures = [
   },
   {
     title: "The SDK",
-    desc: "@klorad/api — a programmatic scene API with an extension for each vertical. Build your own world on the foundation.",
+    desc: "@klorad/api: a programmatic scene API with an extension for each vertical. Build your own world on the foundation.",
   },
 ];
 
@@ -91,7 +90,7 @@ export default function HomePage() {
               Build the virtual worlds of tomorrow.
             </h1>
             <p className="mt-6 max-w-xl text-lg font-light leading-relaxed text-text-secondary md:text-xl">
-              Klorad is a geospatial platform for digital twins — a shared
+              Klorad is a geospatial platform for digital twins, a shared
               foundation that turns real places into living, data-driven worlds.
             </p>
             <p className="mt-3 max-w-xl text-[15px] text-text-tertiary">
@@ -114,31 +113,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Trust ──────────────────────────────────────────── */}
-      <section className="border-t border-line-soft py-12">
-        <div className="mx-auto max-w-container px-6 md:px-8">
-          <p className="text-xs uppercase tracking-[0.26em] text-text-tertiary">
-            Trusted by leading organizations
-          </p>
-          <div className="mt-6 flex flex-wrap items-center gap-10">
-            <Image
-              src="/prieston-logo-full-white.svg"
-              alt="Prieston"
-              width={150}
-              height={40}
-              className="h-7 w-auto opacity-70 invert dark:invert-0"
-            />
-            <Image
-              src="/PSM_LOGO_Med.png"
-              alt="PSM"
-              width={130}
-              height={40}
-              className="h-9 w-auto opacity-70 grayscale dark:invert"
-            />
-          </div>
-        </div>
-      </section>
-
       {/* ── What Klorad is ─────────────────────────────────── */}
       <section className="border-t border-line-soft py-24 md:py-32">
         <div className="mx-auto max-w-container px-6 md:px-8">
@@ -146,11 +120,12 @@ export default function HomePage() {
             center
             eyebrow="The model"
             title="Klorad is the foundation. The worlds are the products."
-            intro="Every Klorad product is a digital twin built on the same engine — the same world model, the same geospatial core, the same live-data backbone. We built the hard part once, so each new world doesn't start from zero."
+            intro="Every Klorad product is a digital twin built on the same engine: the same world model, the same geospatial core, the same live-data backbone. We built the hard part once, so each new world doesn't start from zero."
           />
           <div className="mt-16 flex flex-col items-center">
             <div className="glass-panel rounded-xl px-6 py-3 text-sm font-medium tracking-wide text-text-primary shadow-glass">
-              KLORAD <span className="text-text-tertiary">· the world engine</span>
+              KLORAD{" "}
+              <span className="text-text-tertiary">· the world engine</span>
             </div>
             <div className="h-12 w-px bg-line-strong" />
             <div className="grid w-full max-w-2xl grid-cols-2 gap-3 md:grid-cols-4">
@@ -209,7 +184,7 @@ export default function HomePage() {
           <SectionHead
             eyebrow="The engine"
             title="One world model. Any way you need to render it."
-            intro="The shared architecture beneath every Klorad product — the part you never have to build again."
+            intro="The shared architecture beneath every Klorad product. The part you never have to build again."
           />
           <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-line-soft bg-line-soft md:grid-cols-2 lg:grid-cols-3">
             {engineFeatures.map((f, i) => (
@@ -236,7 +211,7 @@ export default function HomePage() {
             <SectionHead
               eyebrow="Showcase"
               title="Worlds built with Klorad."
-              intro="A growing collection of digital twins — explore what the platform makes possible."
+              intro="A growing collection of digital twins. Explore what the platform makes possible."
             />
             <Link href="/samples" className={`${btnGhost} shrink-0`}>
               Browse the gallery
@@ -273,7 +248,7 @@ export default function HomePage() {
               Born from research.
             </h2>
             <p className="mt-5 text-base leading-relaxed text-text-secondary md:text-lg">
-              Klorad began as a doctoral thesis — a formal model for describing
+              Klorad began as a doctoral thesis: a formal model for describing
               3D, geospatial worlds on one shared architecture, so each new
               project would not reinvent the same foundation. The platform is
               that model, in production.
@@ -300,7 +275,7 @@ export default function HomePage() {
             Start building your world.
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-text-secondary md:text-lg">
-            Tell us what you need to model — or explore how the platform fits
+            Tell us what you need to model, or explore how the platform fits
             together.
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">

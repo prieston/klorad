@@ -5,7 +5,7 @@ import { Eyebrow } from "@/components/ui";
 export const metadata: Metadata = {
   title: "Contact",
   description:
-    "Schedule a demo of Klorad — tell us what you need to model and we'll show you the platform mapped to your world.",
+    "Schedule a demo of Klorad. Tell us what you need to model and we'll show you the platform mapped to your world.",
   alternates: { canonical: "/contact" },
 };
 
@@ -31,13 +31,13 @@ export default function ContactPage() {
               Schedule a demo.
             </h1>
             <p className="mt-6 max-w-md text-lg font-light leading-relaxed text-text-secondary">
-              Tell us about the place you need to model — a campus, a corridor,
+              Tell us about the place you need to model: a campus, a corridor,
               a city, a site. We&apos;ll show you Klorad mapped to it.
             </p>
             <ul className="mt-8 space-y-3 text-sm text-text-secondary">
               {expectations.map((item) => (
                 <li key={item} className="flex gap-3">
-                  <span className="text-accent">—</span>
+                  <span className="text-accent">·</span>
                   {item}
                 </li>
               ))}

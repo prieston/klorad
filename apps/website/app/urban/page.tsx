@@ -2,16 +2,17 @@ import type { Metadata } from "next";
 import { ProductPage, type ProductData } from "@/components/product-page";
 
 export const metadata: Metadata = {
-  title: { absolute: "Klorad Urban — Cities & land as a living model" },
+  title: { absolute: "Klorad Urban | Cities & land as a living model" },
   description:
-    "Klorad Urban unifies urban infrastructure and land use into one digital twin — for planning, coordination, and the decisions that shape territory.",
+    "Klorad Urban unifies urban infrastructure and land use into one digital twin for planning, coordination, and the decisions that shape territory.",
   alternates: { canonical: "/urban" },
 };
 
 const data: ProductData = {
   product: "Klorad Urban",
+  heroImage: "/klorad-smart-city.webp",
   promise: "Cities and land, as a living model.",
-  lede: "Urban infrastructure and land use unified into one digital twin — for planning, coordination, and the decisions that shape territory.",
+  lede: "Urban infrastructure and land use unified into one digital twin for planning, coordination, and the decisions that shape territory.",
   intro: "For municipalities, planners, and land authorities.",
   capabilities: [
     {
@@ -54,7 +55,7 @@ const data: ProductData = {
     },
   ],
   builtOn:
-    "Klorad Urban is a world built on the Klorad platform — the same World model, the three renderers, and the live-data backbone behind every Klorad product.",
+    "Klorad Urban is a world built on the Klorad platform. It runs on the same World model, the three renderers, and the live-data backbone behind every Klorad product.",
   ctaTitle: "Model the territory you govern.",
 };
 

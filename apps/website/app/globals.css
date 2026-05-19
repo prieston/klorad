@@ -108,6 +108,21 @@
       linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
     background-size: 64px 64px;
   }
+
+  /* Theme-aware scrim for hero background images — keeps overlaid text
+     legible in both light and dark by fading the page bg over the image. */
+  .hero-image-scrim {
+    background:
+      linear-gradient(to right, var(--bg) 38%, transparent 88%),
+      linear-gradient(to top, var(--bg), transparent 58%);
+  }
+
+  /* Fades the grid out toward the right so it clears a hero image —
+     mirrors how the image scrim fades toward the text on the left. */
+  .grid-field-faded {
+    -webkit-mask-image: linear-gradient(to right, #000 30%, transparent 78%);
+    mask-image: linear-gradient(to right, #000 30%, transparent 78%);
+  }
 }
 
 /* ============================================================

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   Eyebrow,
   ArrowIcon,
@@ -10,6 +11,8 @@ import {
 export type ProductData = {
   /** Full product name, e.g. "Klorad Campus". */
   product: string;
+  /** Optional hero background image (path under /public). */
+  heroImage?: string;
   /** Hero headline — the promise. */
   promise: string;
   /** Hero subhead. */
@@ -32,7 +35,31 @@ export function ProductPage({ data }: { data: ProductData }) {
     <div>
       {/* ── Hero ───────────────────────────────────────────── */}
       <section className="relative isolate overflow-hidden">
-        <div aria-hidden className="absolute inset-0 grid-field" />
+        {data.heroImage && (
+          <>
+            <div
+              aria-hidden
+              className="absolute inset-y-0 right-0 w-full md:w-[72%]"
+            >
+              <Image
+                src={data.heroImage}
+                alt=""
+                fill
+                priority
+                sizes="(max-width: 768px) 100vw, 72vw"
+                className="object-cover object-left-top"
+              />
+            </div>
+            {/* theme-aware scrim — keeps the hero text legible over the image */}
+            <div aria-hidden className="absolute inset-0 hero-image-scrim" />
+          </>
+        )}
+        <div
+          aria-hidden
+          className={`absolute inset-0 grid-field${
+            data.heroImage ? " grid-field-faded" : ""
+          }`}
+        />
         <div
           aria-hidden
           className="pointer-events-none absolute -right-32 -top-40 h-[600px] w-[600px] rounded-full bg-accent-soft blur-3xl"
@@ -135,7 +162,7 @@ export function ProductPage({ data }: { data: ProductData }) {
             {data.ctaTitle}
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-text-secondary md:text-lg">
-            See {data.product} mapped to your needs — book a walkthrough with
+            See {data.product} mapped to your needs. Book a walkthrough with
             the team.
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">

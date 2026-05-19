@@ -49,7 +49,7 @@ export function SiteFooter() {
               </span>
             </Link>
             <p className="max-w-xs text-sm leading-relaxed text-text-secondary">
-              A geospatial platform for digital twins — the foundation
+              A geospatial platform for digital twins. The foundation
               beneath the virtual worlds of tomorrow.
             </p>
           </div>
@@ -78,7 +78,7 @@ export function SiteFooter() {
         {/* Bottom bar */}
         <div className="mt-14 flex flex-col gap-3 border-t border-line-soft pt-8 text-sm text-text-tertiary md:flex-row md:items-center md:justify-between">
           <span>
-            © {new Date().getFullYear()} Klorad — developed by Prieston
+            © {new Date().getFullYear()} Klorad. Developed by Prieston
             Technologies.
           </span>
           <span>Athens · Thessaloniki · Remote</span>
