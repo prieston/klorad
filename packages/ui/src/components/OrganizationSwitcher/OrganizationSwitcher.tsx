@@ -76,7 +76,7 @@ export function OrganizationSwitcher({
     null;
 
   return (
-    <Box sx={{ width: "100%" }}>
+    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
       <Accordion
         expanded={expanded}
         onChange={(_e, v) => setExpanded(v)}
@@ -93,7 +93,7 @@ export function OrganizationSwitcher({
             minHeight: 56,
             px: 2,
             py: 1.5,
-            borderBottom: "1px solid rgba(255,255,255,0.08)",
+            borderBottom: `1px solid ${theme.palette.divider}`,
             "&.Mui-expanded": { minHeight: 56, borderBottom: "none" },
             "& .MuiAccordionSummary-content": {
               margin: 0,
@@ -151,7 +151,7 @@ export function OrganizationSwitcher({
             }}
           />
         </AccordionSummary>
-        <AccordionDetails sx={{ p: 0, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+        <AccordionDetails sx={{ p: 0, borderBottom: `1px solid ${theme.palette.divider}` }}>
           <List component="div" disablePadding>
             {organizations.length === 0 && !loading && (
               <ListItem disablePadding>
@@ -197,6 +197,7 @@ export function OrganizationSwitcher({
                         primaryTypographyProps={{
                           fontSize: "0.8125rem",
                           fontWeight: isSelected ? 600 : 400,
+                          noWrap: true,
                         }}
                         secondaryTypographyProps={{
                           fontSize: "0.7rem",

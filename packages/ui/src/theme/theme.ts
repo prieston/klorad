@@ -12,7 +12,7 @@ const PRIMARY_ACTIVE = "#126E83";
 export const createAppTheme = (mode: ThemeMode): Theme =>
   createTheme({
     shape: {
-      borderRadius: 4,
+      borderRadius: 8,
     },
     palette: {
       mode,

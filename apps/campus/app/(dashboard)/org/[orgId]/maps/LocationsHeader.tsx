@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Button, Chip, Stack, Typography, useTheme } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import mapboxgl, { type Map as MapboxMap, type Marker } from "mapbox-gl";
 import type { CampusMap } from "@/app/hooks/useMaps";
@@ -140,9 +141,10 @@ export default function LocationsHeader({ maps }: Props) {
           px: 1.5,
           py: 0.75,
           borderRadius: 999,
-          backgroundColor: "rgba(15,23,42,0.78)",
-          color: "#fff",
-          backdropFilter: "blur(6px)",
+          backgroundColor: alpha(theme.palette.background.paper, 0.9),
+          color: theme.palette.text.primary,
+          border: `1px solid ${theme.palette.divider}`,
+          backdropFilter: "blur(8px)",
         }}
       >
         <Typography variant="caption" sx={{ fontWeight: 600 }}>
@@ -154,8 +156,8 @@ export default function LocationsHeader({ maps }: Props) {
           sx={{
             height: 18,
             fontSize: "0.7rem",
-            backgroundColor: "rgba(255,255,255,0.18)",
-            color: "#fff",
+            backgroundColor: alpha(theme.palette.primary.main, 0.16),
+            color: theme.palette.primary.main,
             "& .MuiChip-label": { px: 1 },
           }}
         />

@@ -24,7 +24,7 @@ export default function ThemeModeProvider({
 }) {
   const [mode, setMode] = useState<ThemeMode>(() => {
     if (typeof window === "undefined") return "light";
-    return window.localStorage.getItem("klorad-theme-mode") === "dark"
+    return window.localStorage.getItem("klorad-theme") === "dark"
       ? "dark"
       : "light";
   });
@@ -36,7 +36,7 @@ export default function ThemeModeProvider({
       else root.classList.remove("dark");
     }
     if (typeof window !== "undefined") {
-      window.localStorage.setItem("klorad-theme-mode", mode);
+      window.localStorage.setItem("klorad-theme", mode);
     }
   }, [mode]);
 

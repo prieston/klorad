@@ -113,11 +113,16 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         <Link
           href={orgId ? `/org/${orgId}/dashboard` : "/"}
           aria-label="Klorad Campus"
-          className="flex items-center gap-2.5"
+          className="flex items-center gap-2.5 no-underline"
         >
-          <KloradMark className="h-7 w-auto" />
-          <span className="text-sm font-semibold tracking-tight text-text-primary">
-            Klorad Campus
+          <KloradMark className="h-8 w-auto" />
+          <span className="flex flex-col leading-none">
+            <span className="text-sm font-semibold uppercase tracking-[0.18em] text-text-primary">
+              Klorad
+            </span>
+            <span className="mt-1 text-[10px] font-medium uppercase tracking-[0.26em] text-text-tertiary">
+              Campus
+            </span>
           </span>
         </Link>
       }

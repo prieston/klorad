@@ -24,7 +24,7 @@ export default function DashboardClient({ orgId }: Props) {
   const showSkeleton = isLoading && maps.length === 0;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-10 px-6 py-8 md:px-8">
+    <div className="w-full space-y-10 px-6 py-8 md:px-10">
       <LocationsHeader maps={maps} />
 
       {/* KPI row */}
@@ -148,7 +148,7 @@ function StatCard({
   label: string;
 }) {
   return (
-    <Panel className="p-5">
+    <Panel className="rounded-2xl p-5">
       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-accent">
         {icon}
       </div>
@@ -176,7 +176,7 @@ function CampusCard({
   });
   return (
     <Link href={href} className="group block">
-      <Panel className="overflow-hidden transition-colors group-hover:border-accent">
+      <Panel className="overflow-hidden rounded-2xl transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-accent group-hover:shadow-glass">
         <div className="aspect-video bg-surface-2">
           {thumbnail ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -209,7 +209,7 @@ function QuickAction({
 }) {
   return (
     <Link href={href} className="group block">
-      <Panel className="h-full p-5 transition-colors group-hover:border-accent group-hover:bg-accent-soft">
+      <Panel className="h-full rounded-2xl p-5 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-accent group-hover:shadow-glass">
         <div className="text-sm font-semibold text-text-primary">{title}</div>
         <div className="mt-1 text-xs leading-relaxed text-text-secondary">
           {description}
