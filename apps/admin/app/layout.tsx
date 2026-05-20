@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import "react-toastify/dist/ReactToastify.css";
 import { Providers } from "./providers";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   title: "Klorad | Admin Dashboard",
@@ -15,33 +22,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning className={`dark ${inter.variable}`}>
       <head>
+        {/* Admin is dark-only for now — force it on first paint so the
+            class is present before next-themes hydrates. Persisted under
+            the same `klorad-theme` key the design-system reads from. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{if(typeof document!=='undefined'){var root=document.documentElement;root.classList.add('dark');}if(typeof localStorage!=='undefined'){localStorage.setItem('klorad-theme-mode','dark');}}catch(e){}})();",
-          }}
-        />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-              html, body {
-                background: linear-gradient(135deg, #0a0d10 0%, #14171a 50%, #1a1f24 100%);
-                min-height: 100vh;
-                margin: 0;
-              }
-            `,
+              "(function(){try{if(typeof document!=='undefined'){document.documentElement.classList.add('dark');}if(typeof localStorage!=='undefined'){localStorage.setItem('klorad-theme','dark');}}catch(e){}})();",
           }}
         />
       </head>
@@ -51,4 +40,3 @@ export default function RootLayout({
     </html>
   );
 }
-

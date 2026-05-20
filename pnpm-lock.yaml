@@ -130,6 +130,9 @@ importers:
       '@auth/prisma-adapter':
         specifier: ^2.11.1
         version: 2.11.1(@prisma/client@5.22.0(prisma@5.22.0))
+      '@klorad/design-system':
+        specifier: workspace:^
+        version: link:../../packages/design-system
       '@klorad/prisma':
         specifier: workspace:*
         version: link:../../packages/prisma

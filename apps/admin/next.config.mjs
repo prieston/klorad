@@ -8,6 +8,7 @@ const bundleAnalyzer = withBundleAnalyzer({
 
 const nextConfig = {
   transpilePackages: [
+    '@klorad/design-system',
     '@klorad/ui',
   ],
   output: 'standalone',
