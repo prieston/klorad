@@ -22,7 +22,12 @@ export default function ThemeModeProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [mode, setMode] = useState<ThemeMode>(() => "dark");
+  const [mode, setMode] = useState<ThemeMode>(() => {
+    if (typeof window === "undefined") return "light";
+    return window.localStorage.getItem("klorad-theme") === "dark"
+      ? "dark"
+      : "light";
+  });
 
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -31,7 +36,7 @@ export default function ThemeModeProvider({
       else root.classList.remove("dark");
     }
     if (typeof window !== "undefined") {
-      window.localStorage.setItem("klorad-theme-mode", mode);
+      window.localStorage.setItem("klorad-theme", mode);
     }
   }, [mode]);
 

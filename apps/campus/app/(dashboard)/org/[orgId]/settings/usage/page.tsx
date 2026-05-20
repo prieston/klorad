@@ -1,48 +1,75 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { Box } from "@mui/material";
-import { MetricCard, Page, PageCard, PageContent, PageSection } from "@klorad/ui";
+import type { ReactNode } from "react";
 import MapIcon from "@mui/icons-material/Map";
 import PlaceIcon from "@mui/icons-material/Place";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import ApartmentIcon from "@mui/icons-material/Apartment";
-import { Typography } from "@mui/material";
+import { Panel } from "@klorad/design-system";
 
 export default async function SettingsUsagePage() {
   const session = await auth();
   if (!session) redirect("/auth/signin");
 
   return (
-    <Page>
-      <PageContent sx={{ mt: 0 }}>
-        <Box
-          sx={{
-            display: "grid",
-            gap: 2,
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, 1fr)",
-              md: "repeat(4, 1fr)",
-            },
-          }}
-        >
-          <MetricCard icon={<MapIcon fontSize="small" />} value="—" label="Campus maps" />
-          <MetricCard icon={<PlaceIcon fontSize="small" />} value="—" label="Total POIs" />
-          <MetricCard icon={<ApartmentIcon fontSize="small" />} value="—" label="Floor plans" />
-          <MetricCard icon={<VisibilityIcon fontSize="small" />} value="—" label="Views (30d)" />
-        </Box>
-        <PageSection title="Plan" spacing="tight">
-          <PageCard>
-            <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-              Pro · €5k / yr
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Detailed usage, plan limits, and invoicing land here once
-              billing is wired. Contact us to adjust your plan meanwhile.
-            </Typography>
-          </PageCard>
-        </PageSection>
-      </PageContent>
-    </Page>
+    <div className="w-full space-y-10 px-6 py-8 md:px-10">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={<MapIcon fontSize="small" />}
+          value="—"
+          label="Campus maps"
+        />
+        <StatCard
+          icon={<PlaceIcon fontSize="small" />}
+          value="—"
+          label="Total POIs"
+        />
+        <StatCard
+          icon={<ApartmentIcon fontSize="small" />}
+          value="—"
+          label="Floor plans"
+        />
+        <StatCard
+          icon={<VisibilityIcon fontSize="small" />}
+          value="—"
+          label="Views (30d)"
+        />
+      </div>
+
+      <section className="space-y-4">
+        <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-text-tertiary">
+          Plan
+        </h2>
+        <Panel className="rounded-2xl p-5">
+          <div className="text-sm font-semibold text-text-primary">
+            Pro · €5k / yr
+          </div>
+          <p className="mt-1 max-w-prose text-sm text-text-secondary">
+            Detailed usage, plan limits, and invoicing land here once billing is
+            wired. Contact us to adjust your plan meanwhile.
+          </p>
+        </Panel>
+      </section>
+    </div>
+  );
+}
+
+function StatCard({
+  icon,
+  value,
+  label,
+}: {
+  icon: ReactNode;
+  value: string;
+  label: string;
+}) {
+  return (
+    <Panel className="rounded-2xl p-5">
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-accent">
+        {icon}
+      </div>
+      <div className="mt-4 text-2xl font-light text-text-primary">{value}</div>
+      <div className="mt-0.5 text-sm text-text-secondary">{label}</div>
+    </Panel>
   );
 }

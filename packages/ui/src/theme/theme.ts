@@ -4,33 +4,35 @@ import { alpha, createTheme, Theme } from "@mui/material/styles";
 
 export type ThemeMode = "light" | "dark";
 
-const PRIMARY_BASE = "#6B9CD8";
-const PRIMARY_ACTIVE = "#4B6FAF";
+// Klorad teal — mirrors the @klorad/design-system accent so MUI surfaces
+// stay on-brand while the app migrates off MUI.
+const PRIMARY_BASE = "#158CA3";
+const PRIMARY_ACTIVE = "#126E83";
 
 export const createAppTheme = (mode: ThemeMode): Theme =>
   createTheme({
     shape: {
-      borderRadius: 4,
+      borderRadius: 8,
     },
     palette: {
       mode,
       primary: {
         main: PRIMARY_BASE,
         dark: PRIMARY_ACTIVE,
-        light: "#87ADD9",
+        light: "#3FB6CC",
         contrastText: "#FFFFFF",
       },
-      secondary: { main: mode === "dark" ? "#94a3b8" : "#646464" },
+      secondary: { main: mode === "dark" ? "#9BA7B4" : "#48535F" },
       background: {
-        default: mode === "dark" ? "#0E0F10" : "#ffffff",
-        paper: mode === "dark" ? "#14171A" : "#f8fafc",
+        default: mode === "dark" ? "#04070A" : "#EEF1F4",
+        paper: mode === "dark" ? "#11171D" : "#FFFFFF",
       },
       text: {
-        primary: mode === "dark" ? "#FFFFFF" : "#0f172a",
-        secondary: mode === "dark" ? "rgba(255, 255, 255, 0.65)" : "#475569",
+        primary: mode === "dark" ? "#E6EBF0" : "#0B1116",
+        secondary: mode === "dark" ? "#9BA7B4" : "#48535F",
       },
       divider:
-        mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.12)",
+        mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(12,17,22,0.08)",
       error: { main: mode === "dark" ? "#FF5656" : "#ef4444" },
     },
     typography: {

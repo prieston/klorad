@@ -1,0 +1,62 @@
+export type KloradMarkProps = {
+  className?: string;
+  /** Accessible label; omit (and the mark is decorative) by passing "". */
+  title?: string;
+};
+
+/**
+ * The Klorad geometric brand mark. Fixed brand colors — it reads cleanly on
+ * both light and dark surfaces, so it does not need to theme.
+ */
+export function KloradMark({ className, title = "Klorad" }: KloradMarkProps) {
+  return (
+    <svg
+      viewBox="0 0 73 77"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      role="img"
+      aria-label={title || undefined}
+      aria-hidden={title ? undefined : true}
+    >
+      <path d="M0 0.000232697H22L21.5 19.0002L0 0.000232697Z" fill="#0F396B" />
+      <path
+        d="M21.5 19.0002L0.00390625 38.5002L0 0.000232697L10.4834 9.26464L21.5 19.0002Z"
+        fill="#143E72"
+      />
+      <path
+        d="M72.4873 0.000465393L38 37L21.5 19.0002L40.9841 0L54.9873 0.000232697L72.4873 0.000465393Z"
+        fill="#27CEE7"
+      />
+      <path
+        d="M20.5 55.5L0.0078125 77.0002L0.00390625 38.5002L20.5 55.5Z"
+        fill="#0E3D71"
+      />
+      <path
+        d="M38 37L0.00390625 38.5002L21.5 19.0002L38 37Z"
+        fill="#14639A"
+      />
+      <path
+        d="M38 37L18.9873 37.7046L0.00390625 38.5002L20.5 55.5L38 37Z"
+        fill="#124B7E"
+      />
+      <path
+        d="M71.4873 73.0005L38 37L20.5 55.5L41.9873 73.0005H48.4873H71.4873Z"
+        fill="#27C2E2"
+      />
+      <path
+        d="M54.4798 19.0002H40.5H21.5L38 37L42 32.1678L54.4798 19.0002Z"
+        fill="#1589B6"
+      />
+      <path
+        d="M54.4798 19.0002L40.9841 0L21.5 19.0002H54.4798Z"
+        fill="#1DABD0"
+      />
+      <path d="M52.5 52.5L38 37L20.5 55.5L52.5 52.5Z" fill="#1589B6" />
+      <path
+        d="M52.5 52.5L20.5 55.5L41.9873 73.0005L52.5 52.5Z"
+        fill="#199FCA"
+      />
+    </svg>
+  );
+}

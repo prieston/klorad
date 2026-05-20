@@ -1,41 +1,22 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import {
-  Alert,
   Avatar,
-  Box,
+  Badge,
   Button,
-  Chip,
-  CircularProgress,
-  Dialog,
+  Field,
   IconButton,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Tooltip,
-  Typography,
-  alpha,
-} from "@mui/material";
-import {
-  MenuItem,
-  Page,
-  PageCard,
-  PageContent,
-  RightDrawer,
+  Input,
+  Modal,
+  Panel,
   Select,
-  SettingContainer,
-  SettingLabel,
-  TextField,
-  showToast,
-} from "@klorad/ui";
+  Spinner,
+} from "@klorad/design-system";
+import { showToast } from "@klorad/ui";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CancelIcon from "@mui/icons-material/Cancel";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -80,7 +61,7 @@ export default function SettingsMembersPage() {
   const { data, error, isLoading, mutate } = useSWR<MembersData>(
     orgId && organization && !isPersonalOrg
       ? `/api/organizations/${orgId}/members`
-      : null
+      : null,
   );
 
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -182,7 +163,8 @@ export default function SettingsMembersPage() {
         body: JSON.stringify({ inviteId: inviteToCancel.id }),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to cancel invitation");
+      if (!res.ok)
+        throw new Error(result.error || "Failed to cancel invitation");
       showToast("Invitation cancelled", "success");
       setCancelOpen(false);
       setInviteToCancel(null);
@@ -194,452 +176,349 @@ export default function SettingsMembersPage() {
     }
   };
 
-  const formatRole = (role: string) => role.charAt(0).toUpperCase() + role.slice(1);
+  const formatRole = (role: string) =>
+    role.charAt(0).toUpperCase() + role.slice(1);
 
   if (loadingOrganization || (!isPersonalOrg && isLoading && !data)) {
     return (
-      <Page>
-        <PageContent sx={{ mt: 0 }}>
-          <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
-            <CircularProgress />
-          </Box>
-        </PageContent>
-      </Page>
+      <div className="flex w-full justify-center px-6 py-20">
+        <Spinner />
+      </div>
     );
   }
 
   if (!isPersonalOrg && error) {
     return (
-      <Page>
-        <PageContent sx={{ mt: 0 }}>
-          <Alert severity="error">Failed to load members</Alert>
-        </PageContent>
-      </Page>
+      <div className="w-full px-6 py-8 md:px-10">
+        <Panel className="rounded-2xl border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-300">
+          Failed to load members
+        </Panel>
+      </div>
+    );
+  }
+
+  if (isPersonalOrg) {
+    return (
+      <div className="w-full px-6 py-8 md:px-10">
+        <Panel className="rounded-2xl p-6">
+          <h2 className="text-sm font-semibold text-text-primary">
+            Personal organizations don&apos;t have members
+          </h2>
+          <p className="mt-2 max-w-prose text-sm text-text-secondary">
+            Personal organizations are for individual use only. To collaborate
+            with teammates, ask support to upgrade this workspace to an
+            organization.
+          </p>
+        </Panel>
+      </div>
     );
   }
 
   return (
-    <Page>
-      <PageContent sx={{ mt: 0 }} maxWidth="6xl">
-        {isPersonalOrg ? (
-          <PageCard>
-            <Alert severity="info">
-              <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
-                Personal organizations don&apos;t have members
-              </Typography>
-              <Typography variant="body2">
-                Personal organizations are for individual use only. To
-                collaborate with teammates, ask support to upgrade this
-                workspace to an organization.
-              </Typography>
-            </Alert>
-          </PageCard>
-        ) : (
-          <>
-            <Box
-              sx={(theme) => ({
-                display: "flex",
-                gap: 2,
-                mb: 3,
-                pb: 3,
-                alignItems: "center",
-                justifyContent: "flex-end",
-                borderBottom: `1px solid ${theme.palette.divider}`,
-              })}
-            >
-              {canInvite && (
-                <Button
-                  variant="contained"
-                  startIcon={<PersonAddIcon />}
-                  onClick={() => setInviteOpen(true)}
-                  size="small"
-                  sx={{ textTransform: "none", fontSize: "0.75rem", fontWeight: 500 }}
-                >
-                  Invite Member
-                </Button>
-              )}
-            </Box>
-
-            <PageCard>
-              <Typography
-                variant="h6"
-                sx={{ mb: 3, fontWeight: 600, fontSize: "1rem" }}
-              >
-                Organization Members
-              </Typography>
-
-              {!data ? (
-                <Box sx={{ textAlign: "center", py: 6 }}>
-                  <CircularProgress />
-                </Box>
-              ) : data.members.length === 0 && data.invites.length === 0 ? (
-                <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
-                  <Typography variant="body1" sx={{ mb: 1 }}>
-                    No members yet
-                  </Typography>
-                  <Typography variant="body2">
-                    {canInvite
-                      ? "Invite your first team member to get started"
-                      : "No members in this organization"}
-                  </Typography>
-                </Box>
-              ) : (
-                <TableContainer
-                  component={Box}
-                  sx={{ backgroundColor: "transparent", boxShadow: "none" }}
-                >
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ fontSize: "0.75rem", fontWeight: 600 }}>
-                          Member
-                        </TableCell>
-                        <TableCell sx={{ fontSize: "0.75rem", fontWeight: 600 }}>
-                          Role
-                        </TableCell>
-                        <TableCell sx={{ fontSize: "0.75rem", fontWeight: 600 }}>
-                          Joined
-                        </TableCell>
-                        {isOwner && (
-                          <TableCell
-                            align="right"
-                            sx={{ fontSize: "0.75rem", fontWeight: 600 }}
-                          >
-                            Actions
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {data.members.map((member) => (
-                        <TableRow key={member.id} hover sx={{ "& td": { borderBottom: "none" } }}>
-                          <TableCell sx={{ fontSize: "0.75rem" }}>
-                            <Stack direction="row" spacing={1.5} alignItems="center">
-                              <Avatar
-                                src={member.user.image || undefined}
-                                sx={{ width: 32, height: 32, fontSize: "0.875rem" }}
-                              >
-                                {(member.user.name || member.user.email)
-                                  ?.charAt(0)
-                                  .toUpperCase()}
-                              </Avatar>
-                              <Box>
-                                <Typography sx={{ fontSize: "0.75rem", fontWeight: 500 }}>
-                                  {member.user.name || member.user.email}
-                                </Typography>
-                                {member.user.name && (
-                                  <Typography
-                                    sx={{ fontSize: "0.75rem", color: "text.secondary" }}
-                                  >
-                                    {member.user.email}
-                                  </Typography>
-                                )}
-                              </Box>
-                            </Stack>
-                          </TableCell>
-                          <TableCell sx={{ fontSize: "0.75rem" }}>
-                            {isOwner && member.userId !== session?.user?.id ? (
-                              <Select
-                                value={member.role}
-                                onChange={(e) =>
-                                  handleUpdateRole(member.id, e.target.value as string)
-                                }
-                                size="small"
-                                disabled={updatingRole === member.id}
-                                sx={(theme) => ({
-                                  minWidth: 100,
-                                  fontSize: "0.75rem",
-                                  backgroundColor: alpha(theme.palette.primary.main, 0.15),
-                                  color: theme.palette.primary.main,
-                                })}
-                              >
-                                <MenuItem value="member">Member</MenuItem>
-                                <MenuItem value="admin">Admin</MenuItem>
-                                <MenuItem value="owner">Owner</MenuItem>
-                              </Select>
-                            ) : (
-                              <Chip
-                                label={formatRole(member.role)}
-                                size="small"
-                                sx={(theme) => ({
-                                  fontSize: "0.75rem",
-                                  backgroundColor: alpha(theme.palette.primary.main, 0.15),
-                                  color: theme.palette.primary.main,
-                                  border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-                                })}
-                              />
-                            )}
-                          </TableCell>
-                          <TableCell sx={{ fontSize: "0.75rem", color: "text.secondary" }}>
-                            {new Date(member.createdAt).toLocaleDateString()}
-                          </TableCell>
-                          {isOwner && (
-                            <TableCell align="right">
-                              {member.userId !== session?.user?.id && (
-                                <Tooltip title="Remove member">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => {
-                                      setMemberToRemove(member);
-                                      setRemoveOpen(true);
-                                    }}
-                                    sx={{ color: "error.main" }}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))}
-                      {data.invites.map((invite) => (
-                        <TableRow key={invite.id} hover sx={{ "& td": { borderBottom: "none" } }}>
-                          <TableCell sx={{ fontSize: "0.75rem" }}>
-                            <Stack direction="row" spacing={1.5} alignItems="center">
-                              <Avatar
-                                sx={(theme) => ({
-                                  width: 32,
-                                  height: 32,
-                                  fontSize: "0.875rem",
-                                  backgroundColor: alpha(theme.palette.primary.main, 0.15),
-                                  color: theme.palette.primary.main,
-                                })}
-                              >
-                                {invite.email.charAt(0).toUpperCase()}
-                              </Avatar>
-                              <Box>
-                                <Typography sx={{ fontSize: "0.75rem", fontWeight: 500 }}>
-                                  {invite.email}
-                                </Typography>
-                                <Typography
-                                  sx={{ fontSize: "0.75rem", color: "text.secondary" }}
-                                >
-                                  Pending invitation
-                                </Typography>
-                              </Box>
-                            </Stack>
-                          </TableCell>
-                          <TableCell sx={{ fontSize: "0.75rem" }}>
-                            <Chip
-                              label={formatRole(invite.role)}
-                              size="small"
-                              sx={(theme) => ({
-                                fontSize: "0.75rem",
-                                backgroundColor: alpha(theme.palette.primary.main, 0.15),
-                                color: theme.palette.primary.main,
-                                border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-                              })}
-                            />
-                          </TableCell>
-                          <TableCell sx={{ fontSize: "0.75rem", color: "text.secondary" }}>
-                            Invited {new Date(invite.createdAt).toLocaleDateString()}
-                          </TableCell>
-                          {isOwner && (
-                            <TableCell align="right">
-                              <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
-                                <Chip
-                                  label="Pending"
-                                  size="small"
-                                  sx={(theme) => ({
-                                    fontSize: "0.75rem",
-                                    backgroundColor: alpha(theme.palette.warning.main, 0.15),
-                                    color: theme.palette.warning.main,
-                                    border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}`,
-                                  })}
-                                />
-                                <Tooltip title="Cancel invitation">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => {
-                                      setInviteToCancel(invite);
-                                      setCancelOpen(true);
-                                    }}
-                                    disabled={cancelling}
-                                    sx={{ color: "error.main" }}
-                                  >
-                                    <CancelIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                              </Stack>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
-            </PageCard>
-          </>
+    <>
+      <div className="w-full space-y-6 px-6 py-8 md:px-10">
+        {canInvite && (
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => setInviteOpen(true)}>
+              <PersonAddIcon fontSize="small" />
+              Invite member
+            </Button>
+          </div>
         )}
-      </PageContent>
 
-      {/* Invite drawer */}
-      <RightDrawer
+        <Panel className="rounded-2xl p-6">
+          <h2 className="text-sm font-semibold text-text-primary">
+            Organization members
+          </h2>
+
+          {!data ? (
+            <div className="flex justify-center py-10">
+              <Spinner />
+            </div>
+          ) : data.members.length === 0 && data.invites.length === 0 ? (
+            <div className="py-10 text-center">
+              <p className="text-sm font-medium text-text-primary">
+                No members yet
+              </p>
+              <p className="mt-1 text-sm text-text-secondary">
+                {canInvite
+                  ? "Invite your first team member to get started"
+                  : "No members in this organization"}
+              </p>
+            </div>
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-line-soft text-xs uppercase tracking-[0.14em] text-text-tertiary">
+                    <th className="px-3 py-2 text-left font-medium">Member</th>
+                    <th className="px-3 py-2 text-left font-medium">Role</th>
+                    <th className="px-3 py-2 text-left font-medium">Joined</th>
+                    {isOwner && (
+                      <th className="px-3 py-2 text-right font-medium">
+                        Actions
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.members.map((member) => {
+                    const editable =
+                      isOwner && member.userId !== session?.user?.id;
+                    return (
+                      <tr
+                        key={member.id}
+                        className="border-b border-line-soft last:border-0"
+                      >
+                        <td className="px-3 py-3 align-middle">
+                          <div className="flex items-center gap-3">
+                            <Avatar
+                              src={member.user.image}
+                              name={member.user.name || member.user.email}
+                            />
+                            <div className="min-w-0">
+                              <div className="truncate font-medium text-text-primary">
+                                {member.user.name || member.user.email}
+                              </div>
+                              {member.user.name && (
+                                <div className="truncate text-xs text-text-secondary">
+                                  {member.user.email}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 align-middle">
+                          {editable ? (
+                            <Select
+                              className="w-32"
+                              value={member.role}
+                              disabled={updatingRole === member.id}
+                              onChange={(e) =>
+                                handleUpdateRole(member.id, e.target.value)
+                              }
+                            >
+                              <option value="member">Member</option>
+                              <option value="admin">Admin</option>
+                              <option value="owner">Owner</option>
+                            </Select>
+                          ) : (
+                            <Badge tone="accent">
+                              {formatRole(member.role)}
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 align-middle text-text-secondary">
+                          {new Date(member.createdAt).toLocaleDateString()}
+                        </td>
+                        {isOwner && (
+                          <td className="px-3 py-3 text-right align-middle">
+                            {member.userId !== session?.user?.id && (
+                              <button
+                                type="button"
+                                aria-label="Remove member"
+                                onClick={() => {
+                                  setMemberToRemove(member);
+                                  setRemoveOpen(true);
+                                }}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-red-500/10 hover:text-red-600"
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </button>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                  {data.invites.map((invite) => (
+                    <tr
+                      key={invite.id}
+                      className="border-b border-line-soft last:border-0"
+                    >
+                      <td className="px-3 py-3 align-middle">
+                        <div className="flex items-center gap-3">
+                          <Avatar name={invite.email} />
+                          <div className="min-w-0">
+                            <div className="truncate font-medium text-text-primary">
+                              {invite.email}
+                            </div>
+                            <div className="truncate text-xs text-text-secondary">
+                              Pending invitation
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 align-middle">
+                        <Badge tone="warning">{formatRole(invite.role)}</Badge>
+                      </td>
+                      <td className="px-3 py-3 align-middle text-text-secondary">
+                        Invited{" "}
+                        {new Date(invite.createdAt).toLocaleDateString()}
+                      </td>
+                      {isOwner && (
+                        <td className="px-3 py-3 text-right align-middle">
+                          <button
+                            type="button"
+                            aria-label="Cancel invitation"
+                            disabled={cancelling}
+                            onClick={() => {
+                              setInviteToCancel(invite);
+                              setCancelOpen(true);
+                            }}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-red-500/10 hover:text-red-600 disabled:opacity-50"
+                          >
+                            <CancelIcon fontSize="small" />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      <Modal
         open={inviteOpen}
-        onClose={() => {
-          if (inviting) return;
-          setInviteOpen(false);
-        }}
-        title="Invite Member"
-        actions={
+        onClose={() => !inviting && setInviteOpen(false)}
+        title="Invite member"
+        footer={
           <>
             <Button
-              variant="outlined"
+              variant="secondary"
               onClick={() => setInviteOpen(false)}
               disabled={inviting}
-              fullWidth
-              sx={{ textTransform: "none" }}
             >
               Cancel
             </Button>
             <Button
-              variant="contained"
               onClick={handleInvite}
               disabled={!inviteEmail || inviting}
-              fullWidth
-              sx={{ textTransform: "none" }}
             >
-              {inviting ? <CircularProgress size={16} /> : "Send invitation"}
+              {inviting ? "Sending…" : "Send invitation"}
             </Button>
           </>
         }
       >
-        <SettingContainer sx={{ borderBottom: "none", padding: 0 }}>
-          <SettingLabel>Email Address *</SettingLabel>
-          <TextField
-            autoFocus
-            type="email"
-            fullWidth
-            size="small"
-            value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)}
-            placeholder="name@example.com"
-          />
-        </SettingContainer>
-        <SettingContainer sx={{ borderBottom: "none", padding: 0 }}>
-          <SettingLabel>Role *</SettingLabel>
-          <Select
-            fullWidth
-            size="small"
-            value={inviteRole}
-            onChange={(e) => setInviteRole(e.target.value as string)}
-          >
-            <MenuItem value="member">Member</MenuItem>
-            <MenuItem value="admin">Admin</MenuItem>
-            {isOwner && <MenuItem value="owner">Owner</MenuItem>}
-          </Select>
-        </SettingContainer>
-      </RightDrawer>
+        <div className="space-y-4">
+          <Field label="Email address *">
+            <Input
+              autoFocus
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="name@example.com"
+            />
+          </Field>
+          <Field label="Role *">
+            <Select
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value)}
+            >
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+              {isOwner && <option value="owner">Owner</option>}
+            </Select>
+          </Field>
+        </div>
+      </Modal>
 
-      {/* Invite URL share drawer */}
-      <RightDrawer
+      <Modal
         open={inviteUrlOpen}
         onClose={() => setInviteUrlOpen(false)}
         title="Share invitation link"
-        actions={
-          <Button
-            variant="contained"
-            onClick={() => setInviteUrlOpen(false)}
-            fullWidth
-            sx={{ textTransform: "none" }}
-          >
-            Done
-          </Button>
+        description="Email delivery is not yet wired on Klorad Campus. Copy this link and send it to the invitee. It expires in 7 days."
+        footer={
+          <Button onClick={() => setInviteUrlOpen(false)}>Done</Button>
         }
       >
-        <Typography variant="body2" color="text.secondary">
-          Email delivery is not yet wired on Klorad Campus. Copy this link
-          and send it to the invitee. It expires in 7 days.
-        </Typography>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <TextField
-            fullWidth
-            size="small"
-            value={lastInviteUrl ?? ""}
-            InputProps={{ readOnly: true }}
-          />
+        <div className="flex items-center gap-2">
+          <Input readOnly value={lastInviteUrl ?? ""} className="flex-1" />
           <IconButton
+            variant="secondary"
+            aria-label="Copy link"
             onClick={() => {
               if (lastInviteUrl) {
                 navigator.clipboard.writeText(lastInviteUrl).then(
                   () => showToast("Copied to clipboard", "success"),
-                  () => showToast("Copy failed", "error")
+                  () => showToast("Copy failed", "error"),
                 );
               }
             }}
-            sx={{ color: "primary.main" }}
           >
             <ContentCopyIcon fontSize="small" />
           </IconButton>
-        </Stack>
-      </RightDrawer>
+        </div>
+      </Modal>
 
-      {/* Remove confirm dialog */}
-      <Dialog open={removeOpen} onClose={() => setRemoveOpen(false)} maxWidth="sm" fullWidth>
-        <Box sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            Remove Member
-          </Typography>
-          <Typography variant="body2" sx={{ mb: 3 }}>
-            Are you sure you want to remove{" "}
-            <strong>{memberToRemove?.user.name || memberToRemove?.user.email}</strong>{" "}
-            from this organization? This action cannot be undone.
-          </Typography>
-          <Stack direction="row" spacing={2} justifyContent="flex-end">
+      <Modal
+        open={removeOpen}
+        onClose={() => !removing && setRemoveOpen(false)}
+        title="Remove member"
+        description={
+          <>
+            Remove{" "}
+            <strong className="text-text-primary">
+              {memberToRemove?.user.name || memberToRemove?.user.email}
+            </strong>{" "}
+            from this organization? This cannot be undone.
+          </>
+        }
+        footer={
+          <>
             <Button
-              variant="outlined"
+              variant="secondary"
               onClick={() => setRemoveOpen(false)}
               disabled={removing}
-              sx={{ textTransform: "none" }}
             >
               Cancel
             </Button>
             <Button
-              variant="contained"
-              color="error"
+              variant="danger"
               onClick={handleRemove}
               disabled={removing}
-              sx={{ textTransform: "none" }}
             >
-              {removing ? <CircularProgress size={16} /> : "Remove"}
+              {removing ? "Removing…" : "Remove member"}
             </Button>
-          </Stack>
-        </Box>
-      </Dialog>
+          </>
+        }
+      />
 
-      {/* Cancel invite dialog */}
-      <Dialog open={cancelOpen} onClose={() => setCancelOpen(false)} maxWidth="sm" fullWidth>
-        <Box sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            Cancel Invitation
-          </Typography>
-          <Typography variant="body2" sx={{ mb: 3 }}>
-            Are you sure you want to cancel the invitation sent to{" "}
-            <strong>{inviteToCancel?.email}</strong>? This action cannot be undone.
-          </Typography>
-          <Stack direction="row" spacing={2} justifyContent="flex-end">
+      <Modal
+        open={cancelOpen}
+        onClose={() => !cancelling && setCancelOpen(false)}
+        title="Cancel invitation"
+        description={
+          <>
+            Cancel the invitation sent to{" "}
+            <strong className="text-text-primary">
+              {inviteToCancel?.email}
+            </strong>
+            ? This cannot be undone.
+          </>
+        }
+        footer={
+          <>
             <Button
-              variant="outlined"
+              variant="secondary"
               onClick={() => setCancelOpen(false)}
               disabled={cancelling}
-              sx={{ textTransform: "none" }}
             >
               Keep invitation
             </Button>
             <Button
-              variant="contained"
-              color="error"
+              variant="danger"
               onClick={handleCancelInvite}
               disabled={cancelling}
-              sx={{ textTransform: "none" }}
             >
-              {cancelling ? <CircularProgress size={16} /> : "Cancel invitation"}
+              {cancelling ? "Cancelling…" : "Cancel invitation"}
             </Button>
-          </Stack>
-        </Box>
-      </Dialog>
-    </Page>
+          </>
+        }
+      />
+    </>
   );
 }

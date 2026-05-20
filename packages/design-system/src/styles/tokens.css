@@ -1,0 +1,125 @@
+/* ============================================================
+   Klorad design tokens — the shared visual backbone.
+   Light is the :root default; dark applies via the `.dark` class
+   (next-themes, attribute="class"). The teal accent #158CA3 is
+   constant across themes — only neutrals and glass shift.
+
+   Apps import this once: `@import "@klorad/design-system/tokens.css";`
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* surfaces — ascending elevation */
+  --bg: #eef1f4;
+  --surface-1: #ffffff;
+  --surface-2: #e7eaee;
+  --surface-3: #ffffff;
+
+  /* glass — translucent panels for the immersive layer */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(15, 23, 30, 0.1);
+  --glass-highlight: rgba(255, 255, 255, 0.9);
+
+  /* text */
+  --text-primary: #0b1116;
+  --text-secondary: #48535f;
+  --text-tertiary: #8a95a1;
+
+  /* lines */
+  --line-soft: rgba(12, 17, 22, 0.08);
+  --line-strong: #d3d9df;
+
+  /* accent — Klorad teal, constant across themes */
+  --accent: #158ca3;
+  --accent-hover: #126e83;
+  --accent-soft: rgba(21, 140, 163, 0.1);
+  --accent-contrast: #ffffff;
+  --accent-glow: rgba(21, 140, 163, 0.26);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --bg: #04070a;
+  --surface-1: #090d12;
+  --surface-2: #11171d;
+  --surface-3: #1a2129;
+
+  --glass-bg: rgba(17, 23, 31, 0.62);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-highlight: rgba(255, 255, 255, 0.06);
+
+  --text-primary: #e6ebf0;
+  --text-secondary: #9ba7b4;
+  --text-tertiary: #5e6a76;
+
+  --line-soft: rgba(255, 255, 255, 0.06);
+  --line-strong: #2a2f32;
+
+  --accent: #158ca3;
+  --accent-hover: #126e83;
+  --accent-soft: rgba(21, 140, 163, 0.16);
+  --accent-contrast: #ffffff;
+  --accent-glow: rgba(21, 140, 163, 0.4);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-inter), "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+/* ── Surface helpers ───────────────────────────────────────── */
+
+.glass-panel {
+  background-color: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+}
+
+.grid-field {
+  background-image:
+    linear-gradient(var(--line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+/* ── Motion ────────────────────────────────────────────────── */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

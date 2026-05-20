@@ -1,10 +1,7 @@
-import { Box, Stack, Typography } from "@mui/material";
-import Link from "next/link";
-import Image from "next/image";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { KloradMark, buttonClassName } from "@klorad/design-system";
 import SignOutLink from "./SignOutLink";
-import { Button } from "@mui/material";
 
 export default async function OnboardingPage() {
   const session = await auth();
@@ -19,7 +16,9 @@ export default async function OnboardingPage() {
   const hasOrgsWithoutCampus =
     memberships.length > 0 &&
     !memberships.some(
-      (m) => !m.organization.isPersonal && (m.organization.apps ?? []).includes("campus")
+      (m) =>
+        !m.organization.isPersonal &&
+        (m.organization.apps ?? []).includes("campus"),
     );
 
   const title = hasOrgsWithoutCampus
@@ -31,52 +30,26 @@ export default async function OnboardingPage() {
     : "You don't belong to any organization yet. Contact us to get started with a campus map for your institution.";
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 3,
-        bgcolor: "#0a0d10",
-        color: "text.primary",
-        px: 3,
-        textAlign: "center",
-      }}
-    >
-      <Image
-        src="/images/logo/klorad-campus-logo-white.svg"
-        alt="Klorad Campus"
-        width={180}
-        height={40}
-        priority
-        style={{ objectFit: "contain", height: "auto" }}
-      />
-      <Stack spacing={1} sx={{ maxWidth: 460 }}>
-        <Typography variant="h6" fontWeight={700}>
-          {title}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {description}
-        </Typography>
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-bg px-6 text-center text-text-primary">
+      <KloradMark className="h-10 w-auto" />
+      <div className="max-w-md space-y-2">
+        <h1 className="text-lg font-semibold text-text-primary">{title}</h1>
+        <p className="text-sm text-text-secondary">{description}</p>
         {session?.user?.email && (
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+          <p className="pt-2 text-xs text-text-tertiary">
             Signed in as {session.user.email}
-          </Typography>
+          </p>
         )}
-      </Stack>
-      <Stack direction="row" spacing={1.5}>
-        <Button
-          variant="contained"
-          component={Link}
+      </div>
+      <div className="flex items-center gap-3">
+        <a
           href="mailto:support@klorad.com?subject=Enable%20Klorad%20Campus"
-          sx={{ textTransform: "none" }}
+          className={buttonClassName()}
         >
           Contact us
-        </Button>
+        </a>
         {session?.user && <SignOutLink />}
-      </Stack>
-    </Box>
+      </div>
+    </div>
   );
 }

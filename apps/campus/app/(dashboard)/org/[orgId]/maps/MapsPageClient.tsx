@@ -1,19 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Grid, Button, Skeleton } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import {
-  Page,
-  PageContent,
-  DashboardProjectCard,
-  DashboardCreateProjectCard,
-  DashboardOptionsMenu,
-  DashboardDeleteConfirmationDialog,
-  RightDrawer,
-  TextField,
-  FormField,
-} from "@klorad/ui";
+  Button,
+  Field,
+  IconButton,
+  Input,
+  Menu,
+  MenuItem,
+  Modal,
+  Panel,
+} from "@klorad/design-system";
 import { useMaps } from "@/app/hooks/useMaps";
 import LocationsHeader from "./LocationsHeader";
 
@@ -28,9 +29,11 @@ export default function MapsPageClient({ orgId }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
-  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
-  const [menuMapId, setMenuMapId] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const closeCreate = () => {
     if (creating) return;
@@ -39,7 +42,7 @@ export default function MapsPageClient({ orgId }: Props) {
   };
 
   const handleCreate = async () => {
-    if (!newName.trim()) return;
+    if (!newName.trim() || creating) return;
     setCreating(true);
     const map = await createMap(newName.trim());
     setCreating(false);
@@ -48,123 +51,179 @@ export default function MapsPageClient({ orgId }: Props) {
     if (map) router.push(`/org/${orgId}/maps/${map.id}`);
   };
 
-  const handleMenuOpen = (e: React.MouseEvent, id: string) => {
-    setMenuAnchor(e.currentTarget as HTMLElement);
-    setMenuMapId(id);
-  };
-
-  const handleMenuClose = () => {
-    setMenuAnchor(null);
-    setMenuMapId(null);
-  };
-
-  const handleRequestDelete = () => {
-    if (menuMapId) setConfirmDeleteId(menuMapId);
-    handleMenuClose();
-  };
-
   const handleConfirmDelete = async () => {
-    if (!confirmDeleteId) return;
-    await deleteMap(confirmDeleteId);
-    setConfirmDeleteId(null);
+    if (!confirmDelete) return;
+    setDeleting(true);
+    await deleteMap(confirmDelete.id);
+    setDeleting(false);
+    setConfirmDelete(null);
   };
 
   const showSkeleton = isLoading && maps.length === 0;
 
   return (
-    <Page>
-      <PageContent sx={{ mt: 0 }}>
-        <LocationsHeader maps={maps} />
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={4} lg={3}>
-            <DashboardCreateProjectCard
-              onClick={() => setCreateOpen(true)}
-              label="New Map"
-              description="Create a new campus map"
-            />
-          </Grid>
-          {showSkeleton
-            ? Array.from({ length: 3 }).map((_, i) => (
-                <Grid item xs={12} sm={6} md={4} lg={3} key={`skeleton-${i}`}>
-                  <Skeleton variant="rounded" height={260} />
-                </Grid>
-              ))
-            : maps.map((map) => (
-                <Grid item xs={12} sm={6} md={4} lg={3} key={map.id}>
-                  <DashboardProjectCard
-                    project={{
-                      id: map.id,
-                      title: map.name,
-                      updatedAt: map.updatedAt,
-                      createdAt: map.createdAt,
-                      thumbnail: map.thumbnail ?? undefined,
-                    }}
-                    onGoToBuilder={(id) => router.push(`/org/${orgId}/maps/${id}`)}
-                    onMenuOpen={handleMenuOpen}
-                  />
-                </Grid>
-              ))}
-        </Grid>
-      </PageContent>
+    <div className="w-full space-y-8 px-6 py-8 md:px-10">
+      <LocationsHeader maps={maps} />
 
-      <DashboardOptionsMenu
-        anchorEl={menuAnchor}
-        open={Boolean(menuAnchor)}
-        onClose={handleMenuClose}
-        onEdit={() => {
-          if (menuMapId) router.push(`/org/${orgId}/maps/${menuMapId}`);
-          handleMenuClose();
-        }}
-        onDelete={handleRequestDelete}
-      />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        <button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          className="group flex min-h-[208px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-line-strong bg-surface-1 text-text-secondary transition-colors hover:border-accent hover:text-accent"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-accent">
+            <AddIcon fontSize="small" />
+          </span>
+          <span className="text-sm font-medium">New map</span>
+          <span className="text-xs text-text-tertiary">
+            Create a new campus map
+          </span>
+        </button>
 
-      <DashboardDeleteConfirmationDialog
-        open={Boolean(confirmDeleteId)}
-        onCancel={() => setConfirmDeleteId(null)}
-        onConfirm={handleConfirmDelete}
-        title="Delete map?"
-        message="This map and all its POIs will be permanently removed. This cannot be undone."
-      />
+        {showSkeleton
+          ? [0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-[208px] animate-pulse rounded-2xl bg-surface-2"
+              />
+            ))
+          : maps.map((map) => (
+              <CampusCard
+                key={map.id}
+                name={map.name}
+                updatedAt={map.updatedAt}
+                thumbnail={map.thumbnail ?? undefined}
+                href={`/org/${orgId}/maps/${map.id}`}
+                onEdit={() => router.push(`/org/${orgId}/maps/${map.id}`)}
+                onDelete={() =>
+                  setConfirmDelete({ id: map.id, name: map.name })
+                }
+              />
+            ))}
+      </div>
 
-      <RightDrawer
+      <Modal
         open={createOpen}
         onClose={closeCreate}
-        title="New Campus Map"
-        actions={
+        title="New campus map"
+        footer={
           <>
             <Button
-              variant="outlined"
+              variant="secondary"
               onClick={closeCreate}
               disabled={creating}
-              fullWidth
-              sx={{ textTransform: "none" }}
             >
               Cancel
             </Button>
             <Button
-              variant="contained"
               onClick={handleCreate}
               disabled={!newName.trim() || creating}
-              fullWidth
-              sx={{ textTransform: "none" }}
             >
               {creating ? "Creating…" : "Create map"}
             </Button>
           </>
         }
       >
-        <FormField label="Map name" gutterBottom>
-          <TextField
+        <Field label="Map name">
+          <Input
             autoFocus
-            fullWidth
-            size="small"
             placeholder="e.g. Main Campus"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleCreate()}
           />
-        </FormField>
-      </RightDrawer>
-    </Page>
+        </Field>
+      </Modal>
+
+      <Modal
+        open={confirmDelete !== null}
+        onClose={() => !deleting && setConfirmDelete(null)}
+        title="Delete map?"
+        description={`"${confirmDelete?.name ?? ""}" and all its POIs will be permanently removed. This cannot be undone.`}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setConfirmDelete(null)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting…" : "Delete map"}
+            </Button>
+          </>
+        }
+      />
+    </div>
+  );
+}
+
+function CampusCard({
+  name,
+  updatedAt,
+  thumbnail,
+  href,
+  onEdit,
+  onDelete,
+}: {
+  name: string;
+  updatedAt: string | number | Date;
+  thumbnail?: string;
+  href: string;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const updated = new Date(updatedAt).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  return (
+    <div className="group relative">
+      <Link href={href} className="block">
+        <Panel className="overflow-hidden rounded-2xl transition-colors duration-200 group-hover:border-line-strong">
+          <div className="aspect-video bg-surface-2">
+            {thumbnail ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={thumbnail}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : null}
+          </div>
+          <div className="p-4">
+            <div className="truncate font-medium text-text-primary">{name}</div>
+            <div className="mt-1 text-xs text-text-tertiary">
+              Updated {updated}
+            </div>
+          </div>
+        </Panel>
+      </Link>
+      <div className="absolute right-2 top-2">
+        <Menu
+          trigger={
+            <IconButton
+              variant="secondary"
+              size="sm"
+              aria-label="Map options"
+              className="bg-surface-1"
+            >
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+          }
+        >
+          <MenuItem onClick={onEdit}>Edit</MenuItem>
+          <MenuItem tone="danger" onClick={onDelete}>
+            Delete
+          </MenuItem>
+        </Menu>
+      </div>
+    </div>
   );
 }

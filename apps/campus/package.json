@@ -19,11 +19,13 @@
     "@emotion/styled": "^11.14.0",
     "@klorad/api": "workspace:^",
     "@klorad/core": "workspace:^",
+    "@klorad/design-system": "workspace:^",
     "@klorad/engine-mapbox": "workspace:^",
     "@klorad/engine-three": "workspace:^",
     "@klorad/prisma": "workspace:*",
     "@klorad/storage": "workspace:^",
     "@klorad/ui": "workspace:^",
+    "@mapbox/mapbox-gl-draw": "^1.5.0",
     "@mui/icons-material": "^6.4.2",
     "@mui/material": "^6.4.1",
     "@prisma/client": "^5.22.0",
@@ -31,7 +33,6 @@
     "@types/node": "^20.11.30",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@mapbox/mapbox-gl-draw": "^1.5.0",
     "mapbox-gl": "^3.9.4",
     "next": "^15.1.9",
     "next-auth": "5.0.0-beta.30",
@@ -39,8 +40,8 @@
     "react-dom": "^19.2.1",
     "react-toastify": "^11.0.5",
     "swr": "^2.2.4",
-    "threebox-plugin": "2.2.7",
     "three": "^0.170.0",
+    "threebox-plugin": "2.2.7",
     "uuid": "^11.1.0",
     "zod": "^3.24.2",
     "zustand": "^5.0.3"
@@ -48,8 +49,11 @@
   "devDependencies": {
     "@types/mapbox__mapbox-gl-draw": "^1.4.9",
     "@types/uuid": "^9.0.8",
+    "autoprefixer": "10.4.20",
     "eslint": "^8.56.0",
     "eslint-config-next": "^15.1.9",
+    "postcss": "8.4.47",
+    "tailwindcss": "3.4.14",
     "typescript": "^5.9.0"
   }
 }

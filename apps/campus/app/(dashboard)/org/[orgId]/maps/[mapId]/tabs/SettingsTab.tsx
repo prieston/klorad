@@ -1,20 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import type { ReactNode } from "react";
 import useSWR, { mutate } from "swr";
-import {
-  Button,
-  IconButton,
-  InputAdornment,
-  Stack,
-  Tooltip,
-  Typography,
-} from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { toast } from "react-toastify";
-import { PageCard, PageSection, TextField, FormField } from "@klorad/ui";
+import { Button, Field, IconButton, Input, Panel, Textarea } from "@klorad/design-system";
 import type { Branding, SceneData } from "@klorad/api";
 
 interface Props {
@@ -53,7 +45,8 @@ export default function SettingsTab({ orgId: _orgId, mapId, map }: Props) {
   const [savingBrand, setSavingBrand] = useState(false);
 
   useEffect(() => {
-    if (serverMap?.sceneData?.branding) setBranding(serverMap.sceneData.branding);
+    if (serverMap?.sceneData?.branding)
+      setBranding(serverMap.sceneData.branding);
   }, [serverMap]);
 
   const handleSaveBranding = async () => {
@@ -79,194 +72,173 @@ export default function SettingsTab({ orgId: _orgId, mapId, map }: Props) {
   };
 
   return (
-    <Stack spacing={4} sx={{ mt: 3 }}>
-      <PageSection title="General" spacing="tight">
-        <PageCard>
-          <Stack spacing={2}>
-            <FormField label="Campus name">
-              <TextField fullWidth size="small" defaultValue={map.name} />
-            </FormField>
-            <Typography variant="caption" color="text.secondary">
-              Name changes save automatically (not yet wired — placeholder).
-            </Typography>
-          </Stack>
-        </PageCard>
-      </PageSection>
+    <div className="space-y-8 pt-6">
+      <Section title="General">
+        <Panel className="rounded-2xl p-6">
+          <Field label="Campus name">
+            <Input defaultValue={map.name} />
+          </Field>
+          <p className="mt-2 text-xs text-text-tertiary">
+            Name changes save automatically (not yet wired — placeholder).
+          </p>
+        </Panel>
+      </Section>
 
-      <PageSection title="Branding" spacing="tight">
-        <PageCard>
-          <Stack spacing={2}>
-            <FormField
-              label="Public display name"
-              helperText="Overrides the campus name in the public viewer header. Leave blank to use the campus name above."
-            >
-              <TextField
-                fullWidth
-                size="small"
-                placeholder={map.name}
-                value={branding.name ?? ""}
-                onChange={(e) => setBranding((b) => ({ ...b, name: e.target.value }))}
+      <Section title="Branding">
+        <Panel className="space-y-5 rounded-2xl p-6">
+          <Field
+            label="Public display name"
+            hint="Overrides the campus name in the public viewer header. Leave blank to use the campus name above."
+          >
+            <Input
+              placeholder={map.name}
+              value={branding.name ?? ""}
+              onChange={(e) =>
+                setBranding((b) => ({ ...b, name: e.target.value }))
+              }
+            />
+          </Field>
+          <Field
+            label="Logo URL"
+            hint="Paste a public URL to your university's logo (SVG or PNG, roughly 240×60). Shown top-left on the public viewer."
+          >
+            <Input
+              placeholder="https://…/logo.svg"
+              value={branding.logo ?? ""}
+              onChange={(e) =>
+                setBranding((b) => ({ ...b, logo: e.target.value }))
+              }
+            />
+          </Field>
+          <Field
+            label="Primary color"
+            hint="Hex code (e.g. #6B9CD8). Recolors pins, routes, buttons, and highlights on the public viewer."
+          >
+            <div className="flex items-center gap-2">
+              <Input
+                className="max-w-[180px]"
+                placeholder="#6B9CD8"
+                value={branding.primaryColor ?? ""}
+                onChange={(e) =>
+                  setBranding((b) => ({ ...b, primaryColor: e.target.value }))
+                }
               />
-            </FormField>
-            <FormField
-              label="Logo URL"
-              helperText="Paste a public URL to your university's logo (SVG or PNG, roughly 240×60). Shown top-left on the public viewer."
-            >
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="https://…/logo.svg"
-                value={branding.logo ?? ""}
-                onChange={(e) => setBranding((b) => ({ ...b, logo: e.target.value }))}
-              />
-            </FormField>
-            <FormField
-              label="Primary color"
-              helperText="Hex code (e.g. #6B9CD8). Recolors pins, routes, buttons, and highlights on the public viewer."
-            >
-              <Stack direction="row" spacing={1} alignItems="center">
-                <TextField
-                  size="small"
-                  placeholder="#6B9CD8"
-                  sx={{ maxWidth: 180 }}
-                  value={branding.primaryColor ?? ""}
-                  onChange={(e) =>
-                    setBranding((b) => ({ ...b, primaryColor: e.target.value }))
-                  }
+              {branding.primaryColor && (
+                <span
+                  className="h-9 w-9 shrink-0 rounded-md border border-line-soft"
+                  style={{ backgroundColor: branding.primaryColor }}
                 />
-                {branding.primaryColor && (
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 4,
-                      backgroundColor: branding.primaryColor,
-                      border: "1px solid rgba(255,255,255,0.12)",
-                    }}
-                  />
-                )}
-              </Stack>
-            </FormField>
-
-            {branding.logo && (
-              <div>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.75 }}>
-                  Logo preview
-                </Typography>
-                <div
-                  style={{
-                    padding: "16px 20px",
-                    borderRadius: 4,
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    background: "rgba(0,0,0,0.25)",
-                    display: "flex",
-                    alignItems: "center",
-                    width: "fit-content",
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={branding.logo}
-                    alt="Logo preview"
-                    style={{ maxHeight: 40, maxWidth: 280, display: "block" }}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div>
-              <Button
-                variant="contained"
-                size="small"
-                onClick={handleSaveBranding}
-                disabled={savingBrand}
-                sx={{ textTransform: "none" }}
-              >
-                {savingBrand ? "Saving…" : "Save branding"}
-              </Button>
+              )}
             </div>
-          </Stack>
-        </PageCard>
-      </PageSection>
+          </Field>
 
-      <PageSection title="Sharing" spacing="tight">
-        <PageCard>
-          <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-            Public Link
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {branding.logo && (
+            <div>
+              <div className="mb-1.5 text-xs text-text-tertiary">
+                Logo preview
+              </div>
+              <div className="inline-flex items-center rounded-lg border border-line-soft bg-surface-2 px-5 py-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={branding.logo}
+                  alt="Logo preview"
+                  style={{ maxHeight: 40, maxWidth: 280, display: "block" }}
+                />
+              </div>
+            </div>
+          )}
+
+          <Button size="sm" onClick={handleSaveBranding} disabled={savingBrand}>
+            {savingBrand ? "Saving…" : "Save branding"}
+          </Button>
+        </Panel>
+      </Section>
+
+      <Section title="Sharing">
+        <Panel className="rounded-2xl p-6">
+          <h3 className="text-sm font-semibold text-text-primary">
+            Public link
+          </h3>
+          <p className="mt-1 text-sm text-text-secondary">
             Share this link to let anyone view the interactive campus map.
-          </Typography>
-          <TextField
-            fullWidth
-            size="small"
-            value={publicUrl}
-            slotProps={{
-              input: {
-                readOnly: true,
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <Tooltip title="Copy link">
-                      <IconButton size="small" onClick={() => copy(publicUrl, "url")}>
-                        <ContentCopyIcon
-                          fontSize="small"
-                          sx={{ color: copied === "url" ? "success.main" : undefined }}
-                        />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Open in new tab">
-                      <IconButton size="small" component={Link} href={publicUrl} target="_blank">
-                        <OpenInNewIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
-        </PageCard>
-      </PageSection>
+          </p>
+          <div className="mt-3 flex items-center gap-2">
+            <Input readOnly value={publicUrl} className="flex-1" />
+            <IconButton
+              variant="secondary"
+              aria-label="Copy link"
+              title="Copy link"
+              onClick={() => copy(publicUrl, "url")}
+            >
+              <ContentCopyIcon
+                fontSize="small"
+                className={copied === "url" ? "text-emerald-500" : undefined}
+              />
+            </IconButton>
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open in new tab"
+              title="Open in new tab"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-line-strong text-text-primary transition-colors hover:border-accent hover:text-accent"
+            >
+              <OpenInNewIcon fontSize="small" />
+            </a>
+          </div>
+        </Panel>
+      </Section>
 
-      <PageSection title="Embed" spacing="tight">
-        <PageCard>
-          <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-            Embed Code
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      <Section title="Embed">
+        <Panel className="rounded-2xl p-6">
+          <h3 className="text-sm font-semibold text-text-primary">
+            Embed code
+          </h3>
+          <p className="mt-1 text-sm text-text-secondary">
             Paste this snippet into any webpage to embed the campus map.
-          </Typography>
-          <TextField
-            fullWidth
-            size="small"
-            multiline
+          </p>
+          <Textarea
+            readOnly
             rows={3}
             value={embedCode}
-            slotProps={{
-              input: {
-                readOnly: true,
-                style: { fontFamily: "monospace", fontSize: "0.8125rem" },
-              },
-            }}
+            className="mt-3 font-mono text-xs"
           />
           <Button
-            size="small"
-            variant="outlined"
-            startIcon={<ContentCopyIcon />}
+            variant="secondary"
+            size="sm"
+            className="mt-3"
             onClick={() => copy(embedCode, "embed")}
-            sx={{ mt: 1.5, textTransform: "none" }}
           >
+            <ContentCopyIcon fontSize="small" />
             {copied === "embed" ? "Copied!" : "Copy embed code"}
           </Button>
-        </PageCard>
-      </PageSection>
+        </Panel>
+      </Section>
 
-      <PageSection title="Members" spacing="tight">
-        <PageCard>
-          <Typography variant="body2" color="text.secondary">
+      <Section title="Members">
+        <Panel className="rounded-2xl p-6">
+          <p className="text-sm text-text-secondary">
             Invite teammates as Admin, Editor, or Viewer. Coming next.
-          </Typography>
-        </PageCard>
-      </PageSection>
-    </Stack>
+          </p>
+        </Panel>
+      </Section>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-text-tertiary">
+        {title}
+      </h2>
+      {children}
+    </section>
   );
 }
