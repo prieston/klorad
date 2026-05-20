@@ -43,6 +43,11 @@
       "types": "./dist/utils/index.d.ts",
       "import": "./dist/utils/index.js",
       "default": "./dist/utils/index.js"
+    },
+    "./workbench": {
+      "types": "./dist/workbench/index.d.ts",
+      "import": "./dist/workbench/index.js",
+      "default": "./dist/workbench/index.js"
     }
   },
   "peerDependencies": {
