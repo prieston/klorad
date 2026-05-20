@@ -293,13 +293,15 @@ export default function PlatformPage() {
               and design validation use cases in our 2025 publication:{" "}
               <em>The Metaverse Is Geospatial: A System Model Architecture.</em>
             </p>
-            <Link
-              href="/research"
+            <a
+              href="https://www.mdpi.com/2220-9964/14/3/126"
+              target="_blank"
+              rel="noopener noreferrer"
               className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-accent transition-colors hover:text-accent-hover"
             >
               Access the ISPRS Architecture Publication
               <ArrowIcon />
-            </Link>
+            </a>
           </div>
         </div>
       </section>
