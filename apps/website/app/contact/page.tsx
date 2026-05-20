@@ -5,7 +5,7 @@ import { Eyebrow } from "@/components/ui";
 export const metadata: Metadata = {
   title: "Contact",
   description:
-    "Schedule a demo of Klorad. Tell us what you need to model and we'll show you the platform mapped to your world.",
+    "Book an architecture audit with the Klorad team. Tell us what you need to model and we'll walk you through the platform mapped to your world.",
   alternates: { canonical: "/contact" },
 };
 
@@ -28,7 +28,7 @@ export default function ContactPage() {
           <div className="animate-fade-up">
             <Eyebrow>Contact</Eyebrow>
             <h1 className="mt-6 text-4xl font-light leading-[1.05] text-text-primary md:text-5xl">
-              Schedule a demo.
+              Book an architecture audit.
             </h1>
             <p className="mt-6 max-w-md text-lg font-light leading-relaxed text-text-secondary">
               Tell us about the place you need to model: a campus, a corridor,

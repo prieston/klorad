@@ -48,28 +48,16 @@ const verticals = [
 
 const engineFeatures = [
   {
-    title: "One World model",
-    desc: "A single, engine-agnostic model of scenes, objects, and observations. Define a world once.",
+    title: "Ingest Data Once. Render Anywhere.",
+    desc: "Power web interfaces, fully immersive setups, and XR (Extended Reality) configurations simultaneously without rewriting your underlying data pipelines.",
   },
   {
-    title: "Three renderers",
-    desc: "Three.js for built scenes, CesiumJS for the geospatial globe and 3D tiles, Mapbox for mapping. Same world, the right renderer.",
+    title: "Enterprise-Grade Multi-Tenancy",
+    desc: "Secure, isolated data environments built to scale smoothly across corporate, governmental, and municipal boundaries.",
   },
   {
-    title: "Live data",
-    desc: "IoT and sensor telemetry stream into the world in real time. Twins that move with the thing they mirror.",
-  },
-  {
-    title: "Immersive & XR",
-    desc: "Worlds are XR-ready, explorable on a screen or stepped into.",
-  },
-  {
-    title: "Multi-tenant",
-    desc: "Organizations, projects, and access control built in from the core.",
-  },
-  {
-    title: "The SDK",
-    desc: "@klorad/api: a programmatic scene API with an extension for each vertical. Build your own world on the foundation.",
+    title: "Developer-First SDK",
+    desc: "Unconstrain your dev team. Our flexible, robust software development kit allows for infinite platform integration and custom pipeline scripting.",
   },
 ];
 
@@ -87,26 +75,20 @@ export default function HomePage() {
           <div className="max-w-2xl animate-fade-up">
             <Eyebrow>The Klorad Platform</Eyebrow>
             <h1 className="mt-6 text-4xl font-light leading-[1.05] text-text-primary md:text-6xl">
-              Build the virtual worlds of tomorrow.
+              Build Enterprise Digital Twins in Days, Not Months.
             </h1>
             <p className="mt-6 max-w-xl text-lg font-light leading-relaxed text-text-secondary md:text-xl">
-              Klorad is a geospatial platform for digital twins, a shared
-              foundation that turns real places into living, data-driven worlds.
-            </p>
-            <p className="mt-3 max-w-xl text-[15px] text-text-tertiary">
-              Campuses, road networks, cities, heritage sites. One engine
-              beneath them all.
+              The world engine for live geospatial data. Klorad provides the
+              unified core, multi-tenant infrastructure, and cross-platform
+              renderers out of the box. Stop rebuilding your geospatial
+              foundation from scratch.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link href="/platform" className={btnPrimary}>
-                Explore the platform
+              <Link href="/contact" className={btnPrimary}>
+                Request Architecture Walkthrough
               </Link>
-              <Link
-                href="/samples"
-                className="inline-flex items-center justify-center gap-1.5 px-2 py-3 text-sm text-text-secondary transition-colors hover:text-text-primary"
-              >
-                See what&apos;s built on Klorad
-                <ArrowIcon />
+              <Link href="/platform" className={btnGhost}>
+                Explore the Platform
               </Link>
             </div>
           </div>
@@ -182,11 +164,11 @@ export default function HomePage() {
       <section className="border-t border-line-soft bg-surface-2 py-24 md:py-32">
         <div className="mx-auto max-w-container px-6 md:px-8">
           <SectionHead
-            eyebrow="The engine"
-            title="One world model. Any way you need to render it."
-            intro="The shared architecture beneath every Klorad product. The part you never have to build again."
+            eyebrow="The platform"
+            title="Out of the box."
+            intro="Three things enterprise teams burn quarters rebuilding. Klorad ships them on day one."
           />
-          <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-line-soft bg-line-soft md:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-line-soft bg-line-soft md:grid-cols-3">
             {engineFeatures.map((f, i) => (
               <div key={f.title} className="bg-bg p-7">
                 <span className="font-mono text-xs text-accent">
@@ -280,10 +262,10 @@ export default function HomePage() {
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/contact" className={btnPrimary}>
-              Schedule a demo
+              Book an Architecture Audit
             </Link>
             <Link href="/platform" className={btnGhost}>
-              Explore the platform
+              Explore the Platform
             </Link>
           </div>
         </div>

@@ -61,12 +61,12 @@ export default async function SamplesPage() {
             Build the next one.
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-text-secondary md:text-lg">
-            See how Klorad would model your world. Book a walkthrough with the
-            team.
+            See how Klorad would model your world. Book an architecture audit
+            with the team.
           </p>
           <div className="mt-9 flex justify-center">
             <Link href="/contact" className={btnPrimary}>
-              Schedule a demo
+              Book an Architecture Audit
             </Link>
           </div>
         </div>
