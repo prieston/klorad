@@ -23,12 +23,29 @@ const sizeClass: Record<ButtonSize, string> = {
   md: "h-10 px-4 text-sm",
 };
 
+/**
+ * The design-system button class string. Use this on anything that can't
+ * be a `<button>` — a Next.js `<Link>`, a mailto anchor, an external
+ * `<a target="_blank">`. For a real button, prefer `<Button>`.
+ */
+export function buttonClassName({
+  variant = "primary",
+  size = "md",
+  className,
+}: {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  className?: string;
+} = {}) {
+  return cn(base, variantClass[variant], sizeClass[size], className);
+}
+
 export type ButtonProps = ComponentProps<"button"> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
 };
 
-/** The standard action button. Variants: primary, secondary, ghost. */
+/** The standard action button. Variants: primary, secondary, ghost, danger. */
 export function Button({
   variant = "primary",
   size = "md",
@@ -39,9 +56,30 @@ export function Button({
   return (
     <button
       type={type}
-      className={cn(base, variantClass[variant], sizeClass[size], className)}
+      className={buttonClassName({ variant, size, className })}
       {...props}
     />
+  );
+}
+
+/**
+ * The design-system icon-button class string — same variants as
+ * `buttonClassName`, but square (h-8 w-8 for sm, h-10 w-10 for md).
+ */
+export function iconButtonClassName({
+  variant = "ghost",
+  size = "md",
+  className,
+}: {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  className?: string;
+} = {}) {
+  return cn(
+    base,
+    variantClass[variant],
+    size === "sm" ? "h-8 w-8" : "h-10 w-10",
+    className,
   );
 }
 
@@ -61,12 +99,7 @@ export function IconButton({
   return (
     <button
       type={type}
-      className={cn(
-        base,
-        variantClass[variant],
-        size === "sm" ? "h-8 w-8" : "h-10 w-10",
-        className,
-      )}
+      className={iconButtonClassName({ variant, size, className })}
       {...props}
     />
   );

@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Box, Button, Chip, Stack, Typography, useTheme } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import mapboxgl, { type Map as MapboxMap, type Marker } from "mapbox-gl";
+import { Button } from "@klorad/design-system";
 import type { CampusMap } from "@/app/hooks/useMaps";
 
 interface Props {
@@ -13,10 +12,10 @@ interface Props {
 
 const FALLBACK_CENTER: [number, number] = [23.7275, 37.9838]; // Athens
 const FALLBACK_ZOOM = 4;
+// Brand accent — constant across themes (mirrors --accent in tokens.css).
+const PIN_COLOR = "#158ca3";
 
 export default function LocationsHeader({ maps }: Props) {
-  const theme = useTheme();
-  const pinColor = theme.palette.primary.main;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
@@ -29,10 +28,10 @@ export default function LocationsHeader({ maps }: Props) {
           (m): m is CampusMap & { center: [number, number] } =>
             Array.isArray(m.center) &&
             typeof m.center[0] === "number" &&
-            typeof m.center[1] === "number"
+            typeof m.center[1] === "number",
         )
         .map((m) => ({ id: m.id, name: m.name, center: m.center })),
-    [maps]
+    [maps],
   );
 
   const fitToExtent = () => {
@@ -85,101 +84,45 @@ export default function LocationsHeader({ maps }: Props) {
       el.style.width = "14px";
       el.style.height = "14px";
       el.style.borderRadius = "50%";
-      el.style.background = pinColor;
+      el.style.background = PIN_COLOR;
       el.style.border = "2px solid #fff";
       el.style.boxShadow = "0 1px 4px rgba(0,0,0,0.35)";
       el.title = pin.name;
-      const marker = new mapboxgl.Marker(el).setLngLat(pin.center).addTo(mapRef.current);
+      const marker = new mapboxgl.Marker(el)
+        .setLngLat(pin.center)
+        .addTo(mapRef.current);
       markersRef.current.push(marker);
     }
 
     fitToExtent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pins, ready, pinColor]);
+  }, [pins, ready]);
 
   const hasToken = Boolean(process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN);
 
   return (
-    <Box
-      sx={(theme) => ({
-        position: "relative",
-        width: "100%",
-        height: 200,
-        borderRadius: 2,
-        overflow: "hidden",
-        border: `1px solid ${theme.palette.divider}`,
-        backgroundColor: theme.palette.background.paper,
-        mb: 3,
-      })}
-    >
-      <Box ref={containerRef} sx={{ position: "absolute", inset: 0 }} />
+    <div className="relative mb-6 h-[200px] w-full overflow-hidden rounded-2xl border border-line-soft bg-surface-1">
+      <div ref={containerRef} className="absolute inset-0" />
       {!hasToken && (
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "text.secondary",
-            fontSize: "0.875rem",
-            px: 2,
-            textAlign: "center",
-          }}
-        >
+        <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-sm text-text-secondary">
           Set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN to see campus locations on a map.
-        </Box>
+        </div>
       )}
-      <Stack
-        direction="row"
-        spacing={1}
-        alignItems="center"
-        sx={{
-          position: "absolute",
-          top: 12,
-          left: 12,
-          px: 1.5,
-          py: 0.75,
-          borderRadius: 999,
-          backgroundColor: alpha(theme.palette.background.paper, 0.9),
-          color: theme.palette.text.primary,
-          border: `1px solid ${theme.palette.divider}`,
-          backdropFilter: "blur(8px)",
-        }}
-      >
-        <Typography variant="caption" sx={{ fontWeight: 600 }}>
-          Campus locations
-        </Typography>
-        <Chip
-          size="small"
-          label={pins.length}
-          sx={{
-            height: 18,
-            fontSize: "0.7rem",
-            backgroundColor: alpha(theme.palette.primary.main, 0.16),
-            color: theme.palette.primary.main,
-            "& .MuiChip-label": { px: 1 },
-          }}
-        />
-      </Stack>
+      <div className="glass-panel absolute left-3 top-3 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-text-primary">
+        <span>Campus locations</span>
+        <span className="inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-[0.7rem] font-semibold text-accent">
+          {pins.length}
+        </span>
+      </div>
       <Button
-        size="small"
-        variant="contained"
+        size="sm"
         onClick={fitToExtent}
-        startIcon={<CenterFocusStrongIcon sx={{ fontSize: 16 }} />}
         disabled={pins.length === 0}
-        sx={{
-          position: "absolute",
-          top: 12,
-          right: 12,
-          textTransform: "none",
-          fontSize: "0.75rem",
-          py: 0.5,
-          px: 1.25,
-        }}
+        className="absolute right-3 top-3"
       >
+        <CenterFocusStrongIcon sx={{ fontSize: 16 }} />
         Fit to extent
       </Button>
-    </Box>
+    </div>
   );
 }

@@ -15,6 +15,8 @@ export { KloradMark, type KloradMarkProps } from "./components/klorad-mark";
 export {
   Button,
   IconButton,
+  buttonClassName,
+  iconButtonClassName,
   type ButtonProps,
   type IconButtonProps,
   type ButtonVariant,
