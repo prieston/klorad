@@ -12,6 +12,7 @@ const bundleAnalyzer = withBundleAnalyzer({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  transpilePackages: ["@klorad/design-system"],
   async redirects() {
     return [
       { source: '/industries/mobility', destination: '/mobility', permanent: true },

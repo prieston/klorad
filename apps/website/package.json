@@ -16,6 +16,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@klorad/design-system": "workspace:^",
     "@klorad/prisma": "workspace:^",
     "@react-email/components": "^1.0.1",
     "@react-email/render": "^2.0.0",
