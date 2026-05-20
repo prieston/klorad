@@ -17,3 +17,4 @@
 
 export * from "./types";
 export { defineWorkbench } from "./define";
+export { emptyEntityIndex } from "./runtime";

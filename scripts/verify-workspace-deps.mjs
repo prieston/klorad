@@ -68,8 +68,10 @@ for (const pkg of fs.readdirSync(packagesDir)) {
       .replace(/\/\/.*$/gm, "") // Remove single-line comments
       .replace(/\/\*[\s\S]*?\*\//g, ""); // Remove multi-line comments
     // Match both 'from "@klorad/..."' and 'from '@klorad/...'
-    for (const match of contentWithoutComments.matchAll(/from ["'](@klorad\/[^"']+)["']/g)) {
-      imports.add(match[1]);
+    // Strip subpath imports (e.g. "@klorad/config/workbench" -> "@klorad/config")
+    // so the dep check matches the package name as declared in package.json.
+    for (const match of contentWithoutComments.matchAll(/from ["']@klorad\/([^"'/]+)(?:\/[^"']*)?["']/g)) {
+      imports.add(`@klorad/${match[1]}`);
     }
   }
 
