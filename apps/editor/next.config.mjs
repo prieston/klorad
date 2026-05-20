@@ -47,6 +47,7 @@ const pwa = withPWA({
 
 const nextConfig = {
   transpilePackages: [
+    '@klorad/design-system',
     '@klorad/ui',
     '@klorad/engine-cesium',
     '@klorad/engine-mapbox',

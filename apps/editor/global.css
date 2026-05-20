@@ -1,45 +1,99 @@
-/* Reset default styles */
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+@import "@klorad/design-system/tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Editor-specific extensions
+   Tokens, body styling, glass-panel, fade-up motion and reduced
+   motion all live in the design-system's tokens.css. Anything
+   below is unique to the editor.
+   ============================================================ */
+
+@layer base {
+  /* Legacy editor aliases. The old `--color-*` token vocabulary is mapped
+     onto the design-system vars so the existing class names (which used to
+     reference `var(--color-bg)`, etc.) still resolve. Removed once editor
+     components have been swept to use the canonical DS class names. */
+  :root {
+    --color-bg: var(--bg);
+    --color-surface-1: var(--surface-1);
+    --color-surface-2: var(--surface-2);
+    --color-border: var(--line-soft);
+    --color-text-primary: var(--text-primary);
+    --color-text-secondary: var(--text-secondary);
+    --color-primary: var(--accent);
+    --color-primary-400: var(--accent);
+    --color-primary-600: var(--accent-hover);
+    --color-success: #22c55e;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
+    --color-info: var(--accent);
+  }
+
+  /* Reset */
+  * {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+  }
+
+  html,
+  body {
+    max-width: 100vw;
+    overflow-x: hidden;
+    height: 100%;
+  }
+
+  body {
+    min-height: 100vh;
+    position: relative;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  *:focus {
+    outline: none;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  ul,
+  ol {
+    list-style: none;
+  }
+
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-  height: 100%;
+/* Themed scrollbar — replaces the previous hardcoded blue */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-soft) transparent;
 }
 
-body {
-  min-height: 100vh;
-  position: relative;
+html::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-/* Remove default focus outline and add custom one */
-*:focus {
-  outline: none;
+html::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-*:focus-visible {
-  outline: 2px solid #1976d2;
-  outline-offset: 2px;
+html::-webkit-scrollbar-thumb {
+  background: var(--accent-soft);
+  border-radius: 4px;
+  transition: background 0.2s ease;
 }
 
-/* Improve text rendering */
-body {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Remove default list styles */
-ul, ol {
-  list-style: none;
-}
-
-/* Remove default link underline */
-a {
-  text-decoration: none;
-  color: inherit;
+html::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
 }
