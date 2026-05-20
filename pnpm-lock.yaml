@@ -242,6 +242,9 @@ importers:
       '@klorad/api':
         specifier: workspace:^
         version: link:../../packages/api
+      '@klorad/config':
+        specifier: workspace:^
+        version: link:../../packages/config
       '@klorad/core':
         specifier: workspace:^
         version: link:../../packages/core
