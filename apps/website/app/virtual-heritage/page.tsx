@@ -12,7 +12,7 @@ const data: ProductData = {
   product: "Klorad Virtual Heritage",
   heroImage: "/klorad-heritage.webp",
   promise: "Heritage, reconstructed and understood.",
-  lede: "Cultural sites rebuilt as immersive, interpretable worlds for preservation, for research, and for the public who may never stand there.",
+  lede: "Immersive, high-fidelity digital preservation and interactive virtual archives for historical landmarks. Cultural sites rebuilt as worlds the public can step into.",
   intro: "For museums, heritage bodies, and research institutions.",
   capabilities: [
     {

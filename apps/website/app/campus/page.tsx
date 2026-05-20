@@ -12,7 +12,7 @@ const data: ProductData = {
   product: "Klorad Campus",
   heroImage: "/klorad-campus.webp",
   promise: "Campuses people can navigate.",
-  lede: "Indoor and outdoor wayfinding, room-level detail, and live points of interest. A digital twin of your campus that works on a screen as well as on foot.",
+  lede: "Reduce facility operational costs, streamline infrastructure maintenance, and map campus utility assets dynamically. A digital twin of your campus that works on a screen as well as on foot.",
   intro: "For universities, hospitals, and corporate campuses.",
   capabilities: [
     {

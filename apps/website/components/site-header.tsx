@@ -32,7 +32,7 @@ const products = [
 const links = [
   { name: "Platform", href: "/platform" },
   { name: "Worlds", href: "/samples" },
-  { name: "Research", href: "/research" },
+  { name: "Proven R&D", href: "/research" },
   { name: "Journal", href: "/journal" },
 ] as const;
 
@@ -153,7 +153,7 @@ export function SiteHeader() {
             Worlds
           </Link>
           <Link href="/research" className={navClass(isActive("/research"))}>
-            Research
+            Proven R&amp;D
           </Link>
           <Link href="/journal" className={navClass(isActive("/journal"))}>
             Journal
@@ -166,7 +166,7 @@ export function SiteHeader() {
             href="/contact"
             className="hidden rounded-md bg-accent px-5 py-2.5 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover sm:inline-flex"
           >
-            Schedule a demo
+            Book an Architecture Audit
           </Link>
           <button
             type="button"
@@ -240,7 +240,7 @@ export function SiteHeader() {
               href="/contact"
               className="mt-3 rounded-md bg-accent px-4 py-3 text-center text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover"
             >
-              Schedule a demo
+              Book an Architecture Audit
             </Link>
           </div>
         </nav>

@@ -12,7 +12,7 @@ const data: ProductData = {
   product: "Klorad Mobility",
   heroImage: "/klorad-mobility.webp",
   promise: "Road networks, made legible.",
-  lede: "Corridors, junctions, signaling and ITS telemetry brought into one continuous environment, so you can see how a decision propagates before it is made.",
+  lede: "Optimize live routing efficiency and simulate transit throughput via real-time IoT sensor integration. Corridors, junctions, signaling and ITS telemetry brought into one continuous environment.",
   intro: "For road authorities, operators, and mobility teams.",
   capabilities: [
     {

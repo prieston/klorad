@@ -16,7 +16,7 @@ const columns = [
     links: [
       { name: "Overview", href: "/platform" },
       { name: "Worlds", href: "/samples" },
-      { name: "Research", href: "/research" },
+      { name: "Proven R&D", href: "/research" },
     ],
   },
   {

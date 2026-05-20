@@ -12,7 +12,7 @@ const data: ProductData = {
   product: "Klorad Urban",
   heroImage: "/klorad-smart-city.webp",
   promise: "Cities and land, as a living model.",
-  lede: "Urban infrastructure and land use unified into one digital twin for planning, coordination, and the decisions that shape territory.",
+  lede: "Empower municipal planning, accelerate civil engineering projects, and model smart city infrastructure on a single unified core. Urban infrastructure and land use as one digital twin.",
   intro: "For municipalities, planners, and land authorities.",
   capabilities: [
     {
