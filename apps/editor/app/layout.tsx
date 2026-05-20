@@ -1,9 +1,16 @@
 import "@/global.css";
 import "react-toastify/dist/ReactToastify.css";
 import { ReactNode } from "react";
+import { Inter } from "next/font/google";
 import { ThemeWrapper } from "./ThemeWrapper";
 import { auth } from "@/auth";
 import { SessionProviderWrapper } from "./components/SessionProviderWrapper";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata = {
   title: "Klorad | Platform",
@@ -19,33 +26,15 @@ export default async function RootLayout({
   const session = await auth();
 
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning className={`dark ${inter.variable}`}>
       <head>
+        {/* Editor is dark-only for now — force it on first paint so the
+            class is present before next-themes hydrates. Persisted under
+            the same `klorad-theme` key the design-system reads from. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{if(typeof document!=='undefined'){var root=document.documentElement;root.classList.add('dark');}if(typeof localStorage!=='undefined'){localStorage.setItem('klorad-theme-mode','dark');}}catch(e){}})();",
-          }}
-        />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap"
-          rel="stylesheet"
-        />
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-              html, body {
-                background: linear-gradient(135deg, #0a0d10 0%, #14171a 50%, #1a1f24 100%);
-                min-height: 100vh;
-                margin: 0;
-              }
-            `,
+              "(function(){try{if(typeof document!=='undefined'){document.documentElement.classList.add('dark');}if(typeof localStorage!=='undefined'){localStorage.setItem('klorad-theme','dark');}}catch(e){}})();",
           }}
         />
       </head>
@@ -57,4 +46,3 @@ export default async function RootLayout({
     </html>
   );
 }
-

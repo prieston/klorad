@@ -1,0 +1,44 @@
+import type { Config } from "tailwindcss";
+import preset from "@klorad/design-system/tailwind-preset";
+
+/**
+ * Editor extends the shared design-system preset (Klorad teal accent, Inter,
+ * `--bg` / `--accent` / etc.). The legacy editor class names —
+ * `bg-surface-1`, `text-primary`, `bg-primary`, `border-border`,
+ * `text-success` … — stay as colour aliases that now resolve to the new
+ * tokens, so the bulk of existing markup keeps rendering without a
+ * class-name sweep.
+ */
+const config: Config = {
+  presets: [preset],
+  content: [
+    "./app/**/*.{js,ts,jsx,tsx}",
+    "./src/**/*.{js,ts,jsx,tsx}",
+    "../../packages/design-system/src/**/*.{ts,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        // Legacy editor aliases — every name re-points at the design-system
+        // tokens. Remove once the components have been swept to the canonical
+        // DS names (`text-text-primary`, `bg-accent`, …).
+        border: "var(--line-soft)",
+        text: {
+          primary: "var(--text-primary)",
+          secondary: "var(--text-secondary)",
+        },
+        primary: {
+          DEFAULT: "var(--accent)",
+          400: "var(--accent)",
+          600: "var(--accent-hover)",
+        },
+        success: "#22c55e",
+        warning: "#f59e0b",
+        error: "#ef4444",
+        info: "var(--accent)",
+      },
+    },
+  },
+};
+
+export default config;

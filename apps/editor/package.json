@@ -29,6 +29,7 @@
     "@emotion/styled": "^11.14.0",
     "@klorad/config": "workspace:^",
     "@klorad/core": "workspace:^",
+    "@klorad/design-system": "workspace:^",
     "@klorad/engine-cesium": "workspace:^",
     "@klorad/engine-mapbox": "workspace:^",
     "@klorad/engine-three": "workspace:^",
