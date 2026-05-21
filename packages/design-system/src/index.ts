@@ -60,3 +60,30 @@ export {
   type WorkbenchStatTileProps,
   type WorkbenchOperationButtonProps,
 } from "./components/workbench-primitives";
+export {
+  CommandPalette,
+  type CommandPaletteProps,
+} from "./components/command-palette";
+export {
+  ContextMenu,
+  type ContextMenuProps,
+} from "./components/context-menu";
+export {
+  WorkbenchTopBar,
+  type WorkbenchTopBarProps,
+} from "./components/workbench-top-bar";
+export {
+  WorkflowPanel,
+  WorkflowTabBar,
+  WorkflowListItem,
+  WorkflowListButton,
+  WorkflowDrillHeader,
+  useWorkflowDrill,
+  type WorkflowStep,
+  type WorkflowPanelProps,
+  type WorkflowTabBarProps,
+  type WorkflowListItemProps,
+  type WorkflowListButtonProps,
+  type WorkflowDrillHeaderProps,
+  type WorkflowDrillAPI,
+} from "./components/workflow-panel";

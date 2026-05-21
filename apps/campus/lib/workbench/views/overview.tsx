@@ -2,33 +2,25 @@
 
 import {
   WorkbenchOperationButton,
-  WorkbenchSection,
-  WorkbenchStatTile,
+  cn,
 } from "@klorad/design-system";
 import type { View, ViewProps } from "@klorad/config/workbench";
 
 /**
- * Phase 4a — the Overview view.
+ * The Overview view — right dock summary.
  *
- * A compact landing panel that summarises the current world: how
- * many POIs / buildings / floor plans are loaded, plus simple
- * accessibility coverage. Lives in the right dock region by default
- * so it sits next to the map without competing for the centre.
+ * Restyled to match platform.klorad's hairline-grid + bg-bg cell
+ * treatment. The dock column itself is `surface-1` (white in light
+ * mode), so cards using `bg-surface-1` would disappear; instead we
+ * use `bg-bg` cells inside `bg-line-soft` containers, the same
+ * pattern the platform's "Built in" capabilities section uses.
  *
- * Reads everything from `ctx.entities`. No writes; no engine
- * interaction. The simplest possible "second view" — proves the
- * dock supports more than one View consuming the shared entity
- * index, and sets the pattern that TableView and HierarchyView
- * follow in Phases 4b and 4c.
- *
- * Phase 5c1 — operations render generically from
- * `ctx.applicableOperations`. Add a new op to `workbench.config.ts`
- * and it shows up in the SelectionPanel automatically.
- *
- * Style pass — built on `@klorad/design-system`'s `WorkbenchSection`,
- * `WorkbenchStatTile`, and `WorkbenchOperationButton` so the view
- * matches the dashboard's `rounded-2xl` / Panel aesthetic. Future
- * verticals' OverviewViews inherit the same primitives.
+ * Sections, top to bottom:
+ *   - Header — title + shortened worldId
+ *   - Stats — 2×2 hairline grid (POIs, Buildings, Floor plans, Events)
+ *   - Accessibility coverage card
+ *   - Selection card (entity ops)
+ *   - World actions card (world-level ops)
  */
 function OverviewViewComponent({ ctx }: ViewProps) {
   const pois = ctx.entities.byType("campus.poi");
@@ -36,10 +28,6 @@ function OverviewViewComponent({ ctx }: ViewProps) {
   const floorPlans = ctx.entities.byType("campus.floor-plan");
   const events = ctx.entities.byType("campus.event");
 
-  // Accessibility coverage — pulls `wheelchairAccessible` off each
-  // POI's payload. Typed loosely here to avoid coupling the view to
-  // the @klorad/api `POI` shape directly; if accessibility becomes a
-  // first-class concept it gets its own field on `EntityType`.
   const accessibleCount = pois.filter((p) => {
     const payload = p.payload as {
       accessibility?: { wheelchairAccessible?: boolean };
@@ -49,40 +37,48 @@ function OverviewViewComponent({ ctx }: ViewProps) {
   const accessibilityPct =
     pois.length > 0 ? Math.round((accessibleCount / pois.length) * 100) : 0;
 
-  // Short worldId for the subtitle — full id is preserved on hover.
-  const shortWorldId = ctx.worldId.length > 12
-    ? `${ctx.worldId.slice(0, 6)}…${ctx.worldId.slice(-4)}`
-    : ctx.worldId;
+  const shortWorldId =
+    ctx.worldId.length > 12
+      ? `${ctx.worldId.slice(0, 6)}…${ctx.worldId.slice(-4)}`
+      : ctx.worldId;
 
   return (
-    <div className="flex h-full flex-col gap-4 px-4 pb-4">
-      <header className="space-y-1">
-        <h2 className="text-base font-semibold text-text-primary">Overview</h2>
+    // The right dock column is flex-1 inside a flex column; without
+    // `min-h-0` + `overflow-y-auto` here, our content blows past the
+    // viewport with no scrollbar. `min-w-0 + overflow-x-hidden`
+    // belt-and-braces against long worldIds / button labels.
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-y-auto overflow-x-hidden px-4 pb-4">
+      <header className="min-w-0 space-y-1 pt-1">
+        <h2 className="text-base font-semibold tracking-tight text-text-primary">
+          Overview
+        </h2>
         <p
-          className="font-mono text-[0.7rem] text-text-tertiary"
+          className="truncate font-mono text-[0.7rem] text-text-tertiary"
           title={ctx.worldId}
         >
           {shortWorldId}
         </p>
       </header>
 
-      <div className="grid grid-cols-2 gap-3">
-        <WorkbenchStatTile label="POIs" value={pois.length} />
-        <WorkbenchStatTile label="Buildings" value={buildings.length} />
-        <WorkbenchStatTile label="Floor plans" value={floorPlans.length} />
-        <WorkbenchStatTile label="Events" value={events.length} />
+      {/* Hairline-grid stats — bg-bg cells visible against the white
+          dock, gap-px hairlines between them. */}
+      <div className="grid w-full grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line-soft bg-line-soft">
+        <StatCell label="POIs" value={pois.length} />
+        <StatCell label="Buildings" value={buildings.length} />
+        <StatCell label="Floor plans" value={floorPlans.length} />
+        <StatCell label="Events" value={events.length} />
       </div>
 
-      <WorkbenchSection title="Accessibility coverage">
+      <Card title="Accessibility coverage">
         <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-light tabular-nums text-text-primary">
+          <span className="text-3xl font-light tabular-nums leading-none text-text-primary">
             {accessibilityPct}%
           </span>
-          <span className="text-xs text-text-secondary">
+          <span className="truncate text-xs text-text-secondary">
             {accessibleCount} / {pois.length} POIs
           </span>
         </div>
-      </WorkbenchSection>
+      </Card>
 
       <SelectionPanel ctx={ctx} />
       <WorldActions ctx={ctx} />
@@ -90,114 +86,78 @@ function OverviewViewComponent({ ctx }: ViewProps) {
   );
 }
 
-/**
- * World-level operations (`scope: []`) — `world.open-viewer`,
- * `world.copy-link`. Apply regardless of selection so they live in
- * their own panel. Rendered with `secondary` variant so they read
- * as ambient actions rather than competing with the selection ops.
- *
- * 5c3 will generate this panel from `ctx.applicableOperations` so
- * any future world-level op surfaces automatically.
- */
-function WorldActions({ ctx }: { ctx: ViewProps["ctx"] }) {
+/** One stat cell — large number over a small caps label. */
+function StatCell({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | string;
+}) {
   return (
-    <WorkbenchSection tone="soft" title="World actions">
-      <div className="flex flex-wrap gap-1.5">
-        <WorkbenchOperationButton
-          label="Open viewer"
-          icon={OpenViewerIcon}
-          variant="secondary"
-          onClick={() =>
-            void ctx.runOperation("world.open-viewer", undefined, [])
-          }
-        />
-        <WorkbenchOperationButton
-          label="Copy link"
-          icon={CopyIcon}
-          variant="secondary"
-          onClick={() =>
-            void ctx.runOperation("world.copy-link", undefined, [])
-          }
-        />
+    <div className="min-w-0 overflow-hidden bg-bg p-4">
+      <div className="truncate text-[0.65rem] font-medium uppercase tracking-[0.14em] text-text-tertiary">
+        {label}
       </div>
-    </WorkbenchSection>
+      <div className="mt-1.5 truncate text-xl font-light tabular-nums leading-none text-text-primary">
+        {value}
+      </div>
+    </div>
   );
 }
 
-function OpenViewerIcon({ className }: { className?: string }) {
+/** Light-bg card. `bg-bg` is darker than the dock's `surface-1`, so
+ *  the card reads as a tile on a sheet, not "white on white". */
+function Card({
+  title,
+  actions,
+  tone = "solid",
+  children,
+}: {
+  title?: React.ReactNode;
+  actions?: React.ReactNode;
+  tone?: "solid" | "dashed";
+  children: React.ReactNode;
+}) {
   return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
+    <section
+      className={cn(
+        "rounded-2xl p-4",
+        tone === "dashed"
+          ? "border border-dashed border-line-soft bg-transparent"
+          : "border border-line-soft bg-bg",
+      )}
     >
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-      <polyline points="15 3 21 3 21 9" />
-      <line x1="10" y1="14" x2="21" y2="3" />
-    </svg>
+      {(title || actions) && (
+        <header className="mb-2 flex items-start justify-between gap-3">
+          {title ? (
+            <h3 className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
+              {title}
+            </h3>
+          ) : (
+            <span />
+          )}
+          {actions}
+        </header>
+      )}
+      {children}
+    </section>
   );
 }
 
-function CopyIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <rect x="9" y="9" width="13" height="13" rx="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
-  );
-}
-
-/**
- * "What's selected" — echoes the focused id and surfaces every
- * applicable entity-scoped operation. Rendered from
- * `ctx.applicableOperations` (Phase 5c1); world-level ops are
- * filtered out and surface in `WorldActions` above.
- *
- * Clear button is a UI affordance, not an operation — `OpInvokeContext`
- * deliberately doesn't carry `setSelection`. Calls `ctx.setSelection`
- * directly.
- */
 function SelectionPanel({ ctx }: { ctx: ViewProps["ctx"] }) {
   const focusedId = ctx.selection.focusedId;
   const entityOps = ctx.applicableOperations.filter(
     (r) => r.operation.scope.length > 0,
   );
-
-  const subtitle = focusedId ? (
-    <code className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[0.7rem] text-text-primary">
-      {focusedId}
-    </code>
-  ) : (
-    <span className="text-xs text-text-tertiary">Nothing selected</span>
-  );
-
   const handleClear = () => {
     ctx.setSelection({ ids: new Set<string>(), focusedId: null });
   };
 
   return (
-    <WorkbenchSection
+    <Card
       tone="dashed"
       title="Selection"
-      subtitle={subtitle}
       actions={
         focusedId ? (
           <button
@@ -210,27 +170,68 @@ function SelectionPanel({ ctx }: { ctx: ViewProps["ctx"] }) {
         ) : null
       }
     >
-      {entityOps.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {entityOps.map(({ operation, on }) => (
-            <WorkbenchOperationButton
-              key={operation.id}
-              label={operation.label}
-              icon={operation.icon}
-              onClick={() =>
-                void ctx.runOperation(operation.id, undefined, on)
-              }
-            />
-          ))}
-        </div>
-      ) : (
-        <p className="text-xs text-text-tertiary">
-          {focusedId
-            ? "No actions available for this selection."
-            : "Click anything on the map or in the list to see what you can do with it."}
-        </p>
-      )}
-    </WorkbenchSection>
+      <div className="space-y-2">
+        {focusedId ? (
+          <code className="block truncate rounded bg-surface-2 px-1.5 py-1 font-mono text-[0.7rem] text-text-primary">
+            {focusedId}
+          </code>
+        ) : (
+          <p className="text-xs text-text-tertiary">
+            Click anything on the map or in the list to see what you can do
+            with it.
+          </p>
+        )}
+        {entityOps.length > 0 ? (
+          <div className="flex flex-col gap-1.5">
+            {entityOps.map(({ operation, on }) => (
+              <WorkbenchOperationButton
+                key={operation.id}
+                label={operation.label}
+                icon={operation.icon}
+                className="w-full justify-start"
+                onClick={() =>
+                  void ctx.runOperation(operation.id, undefined, on)
+                }
+              />
+            ))}
+          </div>
+        ) : focusedId ? (
+          <p className="text-xs text-text-tertiary">
+            No actions available for this selection.
+          </p>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+function WorldActions({ ctx }: { ctx: ViewProps["ctx"] }) {
+  const worldOps = ctx.applicableOperations.filter(
+    (r) => r.operation.scope.length === 0,
+  );
+  if (worldOps.length === 0) return null;
+  return (
+    <Card title="World actions">
+      {/*
+        Vertical stack — each button takes the card's full width, so
+        long labels can never push horizontal scroll. Same pattern
+        Linear / Notion use for settings actions.
+      */}
+      <div className="flex flex-col gap-1.5">
+        {worldOps.map(({ operation, on }) => (
+          <WorkbenchOperationButton
+            key={operation.id}
+            label={operation.label}
+            icon={operation.icon}
+            variant="secondary"
+            className="w-full justify-start"
+            onClick={() =>
+              void ctx.runOperation(operation.id, undefined, on)
+            }
+          />
+        ))}
+      </div>
+    </Card>
   );
 }
 

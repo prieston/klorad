@@ -1,50 +1,79 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import type { POI } from "@klorad/api";
 import type { Entity, View, ViewProps } from "@klorad/config/workbench";
-import { cn } from "@klorad/design-system";
+import { ContextMenu, cn } from "@klorad/design-system";
 
 /**
- * Phase 4b — TableView.
- *
- * A compact list of POIs in the left dock region. Click a row to
- * select; selection bridges to the map (the 3D view highlights the
- * same id). v1 is POI-only and renders as a single-column list
- * because the left dock is narrow for a real table.
- *
- * Per-entity-type column definitions (so the same component can
- * render Buildings, FloorPlans, etc. with their own columns) are
- * deferred. When TableView starts surfacing more than one entity
- * type, `EntityType` gains a `tableColumns: { key, label, render }`
- * field and this component renders against that.
- *
- * Style pass — typography matches OverviewView's header treatment;
- * row hover and selected states use the brand accent for the active
- * row, with a sharp 2px left rail so the eye locks onto it from a
- * peripheral glance.
+ * Modern lite — TableView, redesigned to match platform.klorad's
+ * hairline-grid pattern (`grid gap-px bg-line-soft` parent +
+ * `bg-bg` children). One calm sheet with thin dividers, no
+ * per-row borders, glass-pill search input above.
  */
 function TableViewComponent({ ctx }: ViewProps) {
   const pois = ctx.entities.byType("campus.poi") as Entity<POI>[];
   const selectedId = ctx.selection.focusedId;
 
+  const [query, setQuery] = useState("");
+  const [menu, setMenu] = useState<{
+    x: number;
+    y: number;
+    entityId: string;
+  } | null>(null);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return pois;
+    return pois.filter((e) => {
+      const poi = e.payload;
+      const haystack = [
+        poi.name,
+        poi.category,
+        poi.description,
+        ...(poi.tags ?? []),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [pois, query]);
+
   return (
     <div className="flex h-full flex-col">
-      <header className="space-y-1 px-4 pb-3">
-        <h2 className="text-base font-semibold text-text-primary">POIs</h2>
-        <p className="text-[0.7rem] text-text-tertiary">
-          {pois.length} {pois.length === 1 ? "entry" : "entries"}
-        </p>
+      <header className="space-y-3 px-4 pt-1 pb-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-semibold tracking-tight text-text-primary">
+            POIs
+          </h2>
+          {pois.length > 0 ? (
+            <span className="inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-[0.7rem] font-semibold tabular-nums text-accent">
+              {pois.length}
+            </span>
+          ) : null}
+        </div>
+        {pois.length > 0 ? (
+          <SearchPill value={query} onChange={setQuery} />
+        ) : null}
       </header>
 
       {pois.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center px-6 py-12 text-center text-xs text-text-tertiary">
-          No POIs in this world yet. Place one on the map to start.
+        <EmptyState />
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-1 items-center justify-center px-6 py-8 text-center text-xs text-text-tertiary">
+          Nothing matches “{query}”.
         </div>
       ) : (
-        <ul className="min-h-0 flex-1 overflow-auto px-2 pb-3">
-          {pois.map((entity) => {
+        // Chunky-button list. Each row is its own padded grey
+        // rectangle; `space-y-2` puts a clear gap between them. No
+        // borders, no outlines, no focus rings — purely background-
+        // driven (per user direction).
+        <ul role="list" className="min-h-0 flex-1 space-y-2 overflow-auto px-3 pb-3">
+          {filtered.map((entity) => {
             const poi = entity.payload;
             const isSelected = entity.id === selectedId;
+            const isAccessible = !!poi.accessibility?.wheelchairAccessible;
             const handleClick = () => {
               ctx.setSelection({
                 ids: isSelected ? new Set<string>() : new Set([entity.id]),
@@ -56,29 +85,44 @@ function TableViewComponent({ ctx }: ViewProps) {
                 <button
                   type="button"
                   onClick={handleClick}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setMenu({
+                      x: e.clientX,
+                      y: e.clientY,
+                      entityId: entity.id,
+                    });
+                  }}
                   aria-pressed={isSelected}
+                  title={poi.category ? `${poi.name} · ${poi.category}` : poi.name}
                   className={cn(
-                    "group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left transition-colors",
-                    "border-l-2",
+                    "group flex w-full items-center gap-2.5 rounded-2xl p-4 text-left transition-colors",
                     isSelected
-                      ? "border-l-accent bg-accent-soft text-text-primary"
-                      : "border-l-transparent text-text-secondary hover:bg-surface-2 hover:text-text-primary",
+                      ? "bg-accent-soft text-accent"
+                      : "bg-surface-2 text-text-secondary hover:bg-accent-soft/40 hover:text-text-primary",
                   )}
                 >
-                  <span className="min-w-0 flex-1 truncate text-sm">
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "inline-block h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
+                      isSelected
+                        ? "bg-accent"
+                        : "bg-text-tertiary/40 group-hover:bg-text-tertiary",
+                    )}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-medium">
                     {poi.name || "Unnamed POI"}
                   </span>
-                  {poi.category ? (
+                  {isAccessible ? (
                     <span
+                      aria-label="Wheelchair accessible"
+                      title="Wheelchair accessible"
                       className={cn(
-                        "shrink-0 rounded-full border border-line-soft px-1.5 py-0.5 text-[0.65rem] uppercase tracking-[0.04em] transition-colors",
-                        isSelected
-                          ? "bg-surface-1 text-text-secondary"
-                          : "bg-surface-1 text-text-tertiary",
+                        "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
+                        isSelected ? "bg-accent" : "bg-accent/60",
                       )}
-                    >
-                      {poi.category}
-                    </span>
+                    />
                   ) : null}
                 </button>
               </li>
@@ -86,7 +130,134 @@ function TableViewComponent({ ctx }: ViewProps) {
           })}
         </ul>
       )}
+
+      {menu ? (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          operations={ctx.operationsForEntity(menu.entityId)}
+          onRun={(resolved) =>
+            void ctx.runOperation(
+              resolved.operation.id,
+              undefined,
+              resolved.on,
+            )
+          }
+          onClose={() => setMenu(null)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * Search input — pure light-grey rounded box. No border, no outline,
+ * 14px padding (matches the chunky-button rhythm the rest of the
+ * left panel uses). Focus is invisible (a11y trade-off the user
+ * explicitly asked for).
+ */
+function SearchPill({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="group flex items-center gap-2.5 rounded-2xl bg-surface-2 p-4">
+      <SearchIcon className="h-3.5 w-3.5 shrink-0 text-text-tertiary" />
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Search POIs…"
+        className="w-full bg-transparent text-xs text-text-primary placeholder:text-text-tertiary"
+      />
+      {value ? (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label="Clear search"
+          className="text-text-tertiary transition-colors hover:text-text-primary"
+        >
+          <ClearIcon className="h-3 w-3" />
+        </button>
+      ) : null}
+    </label>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent">
+        <PoiIcon className="h-4 w-4" />
+      </span>
+      <p className="text-[0.8125rem] font-medium text-text-primary">
+        No POIs yet
+      </p>
+      <p className="text-[0.7rem] text-text-tertiary">
+        Press{" "}
+        <kbd className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[0.65rem] text-text-secondary">
+          ⌘K
+        </kbd>{" "}
+        and pick “Place POI”.
+      </p>
+    </div>
+  );
+}
+
+function PoiIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M12 21s-7-6.5-7-12a7 7 0 1 1 14 0c0 5.5-7 12-7 12Z" />
+      <circle cx="12" cy="9" r="2.5" />
+    </svg>
+  );
+}
+
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
+
+function ClearIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </svg>
   );
 }
 

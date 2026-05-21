@@ -1,29 +1,21 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { ReactNode } from "react";
 import type { FloorPlan, POI } from "@klorad/api";
 import type { Entity, View, ViewProps } from "@klorad/config/workbench";
+import { ContextMenu, cn } from "@klorad/design-system";
 import type { Building } from "../entities/building";
 
 /**
- * Phase 4c — HierarchyView.
+ * Minimal file-tree HierarchyView.
  *
- * A collapsible tree of Building → (FloorPlans + child POIs), with
- * a flat "Unbuilt" section underneath for POIs that don't belong to
- * a building. Lives in the left dock, stacked under TableView.
+ * Buildings are plain rows (no glass-panel wrappers, no outlines) —
+ * a chevron, an icon, a name, and a tiny right-aligned count when
+ * the building has contents. Expanding indents children under a
+ * thin `border-l` guideline, like Linear / Notion / VS Code sidebars.
  *
- * - Buildings come from `ctx.entities.byType("campus.building")`.
- * - Child POIs are matched by `payload.parentBuildingId === building.id`.
- * - Floor plans are matched by `payload.buildingId === building.id`.
- * - Standalone POIs are POIs without a `parentBuildingId` that aren't
- *   themselves Building-entities.
- *
- * Clicking any leaf or building name fires `ctx.setSelection(...)`.
- * The 3D scene + table + overview all react via the shared selection.
- *
- * Local UI state: which buildings are expanded. Selection state
- * lives in the shell.
+ * Idle rows have no chrome. Hover lifts a soft `bg-surface-2`.
+ * Selected rows fill with `bg-accent-soft` + accent text.
  */
 function HierarchyViewComponent({ ctx }: ViewProps) {
   const buildings = ctx.entities.byType(
@@ -62,7 +54,6 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
         else map.set(bid, [fp]);
       }
     }
-    // Sort floor plans by floor number where available.
     for (const list of map.values()) {
       list.sort((a, b) => (a.payload.floor ?? 0) - (b.payload.floor ?? 0));
     }
@@ -96,24 +87,34 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
     });
   };
 
+  const [menu, setMenu] = useState<{
+    x: number;
+    y: number;
+    entityId: string;
+  } | null>(null);
+  const openMenu = (e: React.MouseEvent, entityId: string) => {
+    e.preventDefault();
+    setMenu({ x: e.clientX, y: e.clientY, entityId });
+  };
+
   const isEmpty = buildings.length === 0 && standalonePois.length === 0;
 
   return (
     <div className="flex h-full flex-col">
-      <header className="space-y-1 px-4 pb-3">
-        <h2 className="text-base font-semibold text-text-primary">Hierarchy</h2>
-        <p className="text-[0.7rem] text-text-tertiary">
-          {buildings.length} building{buildings.length === 1 ? "" : "s"} ·{" "}
-          {standalonePois.length} unbuilt
-        </p>
+      <header className="flex items-center gap-2 px-4 pt-1 pb-2">
+        <h2 className="text-base font-semibold tracking-tight text-text-primary">
+          Hierarchy
+        </h2>
+        {buildings.length > 0 ? (
+          <span className="inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-[0.7rem] font-semibold tabular-nums text-accent">
+            {buildings.length}
+          </span>
+        ) : null}
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto pb-3">
+      <div className="min-h-0 flex-1 space-y-2 overflow-auto px-3 pb-3" style={{ scrollbarGutter: "stable" }}>
         {isEmpty ? (
-          <div className="px-4 py-8 text-center text-xs text-text-tertiary">
-            Nothing in this world yet. Draw a building or place a POI on
-            the map to start filling the tree.
-          </div>
+          <EmptyHierarchy />
         ) : (
           <>
             {buildings.map((b) => {
@@ -121,157 +122,324 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
               const children = childPoisByBuilding.get(b.id) ?? [];
               const floors = floorsByBuilding.get(b.id) ?? [];
               const isSelected = focusedId === b.id;
+              const itemCount = floors.length + children.length;
               return (
-                <div key={b.id}>
-                  <div className="flex items-stretch">
-                    <button
-                      type="button"
-                      onClick={() => toggleExpanded(b.id)}
-                      className="flex w-7 shrink-0 items-center justify-center text-text-tertiary hover:text-text-primary"
-                      aria-label={open ? "Collapse" : "Expand"}
-                      aria-expanded={open}
-                    >
-                      <Chevron open={open} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => select(b.id)}
-                      aria-pressed={isSelected}
-                      className={
-                        "flex flex-1 items-center gap-1.5 truncate py-1.5 pr-3 text-left text-sm transition-colors " +
-                        (isSelected
-                          ? "font-medium text-accent"
-                          : "text-text-primary hover:text-accent")
-                      }
-                    >
-                      <BuildingIcon />
-                      <span className="truncate">
-                        {b.payload.name || "Unnamed building"}
-                      </span>
-                    </button>
-                  </div>
-
-                  {open ? (
-                    <div className="ml-3.5 border-l border-line-soft pl-1.5 pb-1">
-                      {floors.length === 0 && children.length === 0 ? (
-                        <Leaf>
-                          <span className="italic">
-                            No floors or child POIs
-                          </span>
-                        </Leaf>
-                      ) : null}
-                      {floors.map((f) => (
-                        <Leaf
-                          key={f.id}
-                          icon={<FloorIcon />}
-                          label={
-                            f.payload.name ??
-                            (f.payload.floor !== undefined
-                              ? `Floor ${f.payload.floor}`
-                              : "Floor")
-                          }
-                          selected={focusedId === f.id}
-                          onSelect={() => select(f.id)}
-                        />
-                      ))}
-                      {children.map((p) => (
-                        <Leaf
-                          key={p.id}
-                          icon={<PoiIcon />}
-                          label={p.payload.name || "Unnamed POI"}
-                          selected={focusedId === p.id}
-                          onSelect={() => select(p.id)}
-                        />
-                      ))}
-                    </div>
+                <BuildingRow
+                  key={b.id}
+                  name={b.payload.name || "Unnamed building"}
+                  open={open}
+                  selected={isSelected}
+                  itemCount={itemCount}
+                  onToggle={() => toggleExpanded(b.id)}
+                  onSelect={() => select(b.id)}
+                  onContextMenu={(e) => openMenu(e, b.id)}
+                >
+                  {itemCount === 0 ? (
+                    <p className="px-2 py-1 text-[0.7rem] italic text-text-tertiary">
+                      Empty
+                    </p>
                   ) : null}
-                </div>
+                  {floors.map((f) => (
+                    <FloorRow
+                      key={f.id}
+                      floor={f.payload}
+                      selected={focusedId === f.id}
+                      onSelect={() => select(f.id)}
+                      onContextMenu={(e) => openMenu(e, f.id)}
+                    />
+                  ))}
+                  {children.map((p) => (
+                    <PoiRow
+                      key={p.id}
+                      poi={p.payload}
+                      selected={focusedId === p.id}
+                      onSelect={() => select(p.id)}
+                      onContextMenu={(e) => openMenu(e, p.id)}
+                    />
+                  ))}
+                </BuildingRow>
               );
             })}
 
             {standalonePois.length > 0 ? (
-              <>
-                <div className="border-t border-line-soft px-4 pt-3 pb-1 text-[0.65rem] uppercase tracking-[0.14em] text-text-tertiary">
-                  Unbuilt POIs
-                </div>
+              <section className="mt-1 space-y-1">
+                <header className="flex items-center gap-2 px-2 pb-0.5 pt-1">
+                  <span className="text-[0.65rem] font-medium uppercase tracking-[0.14em] text-text-tertiary">
+                    Unbuilt
+                  </span>
+                  <span className="text-[0.65rem] font-medium tabular-nums text-text-tertiary">
+                    {standalonePois.length}
+                  </span>
+                </header>
                 {standalonePois.map((p) => (
-                  <button
+                  <PoiRow
                     key={p.id}
-                    type="button"
-                    onClick={() => select(p.id)}
-                    aria-pressed={focusedId === p.id}
-                    className={
-                      "flex w-full items-center gap-1.5 truncate px-4 py-1.5 text-left text-sm transition-colors " +
-                      (focusedId === p.id
-                        ? "bg-accent-soft font-medium text-accent"
-                        : "text-text-secondary hover:text-text-primary")
-                    }
-                  >
-                    <PoiIcon />
-                    <span className="truncate">
-                      {p.payload.name || "Unnamed POI"}
-                    </span>
-                  </button>
+                    poi={p.payload}
+                    selected={focusedId === p.id}
+                    onSelect={() => select(p.id)}
+                    onContextMenu={(e) => openMenu(e, p.id)}
+                  />
                 ))}
-              </>
+              </section>
             ) : null}
           </>
         )}
       </div>
+
+      {menu ? (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          operations={ctx.operationsForEntity(menu.entityId)}
+          onRun={(resolved) =>
+            void ctx.runOperation(
+              resolved.operation.id,
+              undefined,
+              resolved.on,
+            )
+          }
+          onClose={() => setMenu(null)}
+        />
+      ) : null}
     </div>
   );
 }
 
-function Leaf({
-  icon,
-  label,
+/**
+ * One building — borderless light-grey card. Drops the `glass-panel`
+ * treatment whose 1px outline read as "dark" against the white dock;
+ * uses solid `bg-surface-2` instead, with hover and selected states
+ * differentiated purely by background colour.
+ *
+ * When expanded, children render flush inside the same card (no top
+ * divider line — the slight bg shift on a hovered child is enough
+ * peripheral signal).
+ */
+function BuildingRow({
+  name,
+  open,
   selected,
+  itemCount,
+  onToggle,
   onSelect,
+  onContextMenu,
   children,
 }: {
-  icon?: ReactNode;
-  label?: string;
-  selected?: boolean;
-  onSelect?: () => void;
-  children?: ReactNode;
+  name: string;
+  open: boolean;
+  selected: boolean;
+  itemCount: number;
+  onToggle: () => void;
+  onSelect: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+  children?: React.ReactNode;
 }) {
-  if (!onSelect) {
-    return (
-      <div className="flex items-center gap-1.5 py-1 pl-2 pr-3 text-xs text-text-tertiary">
-        {children}
+  return (
+    <article
+      className={cn(
+        "group overflow-hidden rounded-2xl transition-colors",
+        selected
+          ? "bg-accent-soft"
+          : "bg-surface-2 hover:bg-accent-soft/40",
+      )}
+    >
+      <div className="flex items-center gap-2.5 p-4">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={open ? "Collapse" : "Expand"}
+          aria-expanded={open}
+          className={cn(
+            "flex h-5 w-5 shrink-0 items-center justify-center rounded border-0 outline-none transition-colors focus:outline-none",
+            selected ? "text-accent" : "text-text-tertiary",
+          )}
+        >
+          <Chevron open={open} />
+        </button>
+        <button
+          type="button"
+          onClick={onSelect}
+          onContextMenu={onContextMenu}
+          aria-pressed={selected}
+          className="flex min-w-0 flex-1 items-center gap-2 border-0 text-left outline-none focus:outline-none"
+        >
+          <BuildingIcon
+            className={cn(
+              "h-3.5 w-3.5 shrink-0 transition-colors",
+              selected ? "text-accent" : "text-text-tertiary",
+            )}
+          />
+          <span
+            className={cn(
+              "truncate text-xs font-medium transition-colors",
+              selected ? "text-accent" : "text-text-primary",
+            )}
+          >
+            {name}
+          </span>
+        </button>
+        {itemCount > 0 ? (
+          <span
+            className={cn(
+              "shrink-0 text-[0.65rem] tabular-nums transition-colors",
+              selected ? "text-accent/70" : "text-text-tertiary",
+            )}
+          >
+            {itemCount}
+          </span>
+        ) : null}
       </div>
-    );
-  }
+      {open ? (
+        <div className="space-y-1.5 px-2 pb-3">{children}</div>
+      ) : null}
+    </article>
+  );
+}
+
+function FloorRow({
+  floor,
+  selected,
+  onSelect,
+  onContextMenu,
+}: {
+  floor: FloorPlan;
+  selected: boolean;
+  onSelect: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+}) {
+  const label =
+    floor.name ??
+    (floor.floor !== undefined ? `Floor ${floor.floor}` : "Floor");
   return (
     <button
       type="button"
       onClick={onSelect}
+      onContextMenu={onContextMenu}
       aria-pressed={selected}
-      className={
-        "flex w-full items-center gap-1.5 truncate py-1 pl-2 pr-3 text-left text-[0.8125rem] transition-colors " +
-        (selected
-          ? "font-medium text-accent"
-          : "text-text-secondary hover:text-text-primary")
-      }
+      className={cn(
+        "flex w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left transition-colors",
+        selected
+          ? "bg-accent-soft text-accent"
+          : "text-text-secondary hover:bg-bg hover:text-text-primary",
+      )}
     >
-      {icon}
-      <span className="truncate">{label}</span>
+      <FloorBadge floor={floor.floor} selected={selected} />
+      <span className="flex-1 truncate text-[0.75rem]">{label}</span>
     </button>
+  );
+}
+
+function PoiRow({
+  poi,
+  selected,
+  onSelect,
+  onContextMenu,
+}: {
+  poi: POI;
+  selected: boolean;
+  onSelect: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+}) {
+  const isAccessible = !!poi.accessibility?.wheelchairAccessible;
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      onContextMenu={onContextMenu}
+      aria-pressed={selected}
+      className={cn(
+        "group flex w-full items-center gap-2.5 rounded-xl border-0 px-3 py-2.5 text-left outline-none transition-colors focus:outline-none",
+        selected
+          ? "bg-accent-soft text-accent"
+          : "text-text-secondary hover:bg-bg hover:text-text-primary",
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          "inline-block h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
+          selected
+            ? "bg-accent"
+            : "bg-text-tertiary/40 group-hover:bg-text-tertiary",
+        )}
+      />
+      <span className="flex-1 truncate text-[0.75rem]">
+        {poi.name || "Unnamed POI"}
+      </span>
+      {isAccessible ? (
+        <span
+          aria-label="Accessible"
+          title="Accessible"
+          className={cn(
+            "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
+            selected ? "bg-accent" : "bg-accent/60",
+          )}
+        />
+      ) : null}
+    </button>
+  );
+}
+
+function FloorBadge({
+  floor,
+  selected,
+}: {
+  floor?: number;
+  selected: boolean;
+}) {
+  const display =
+    floor === undefined
+      ? "—"
+      : floor > 0
+        ? `${floor}F`
+        : floor === 0
+          ? "G"
+          : `${Math.abs(floor)}B`;
+  return (
+    <span
+      className={cn(
+        "inline-flex h-4 min-w-[1.25rem] shrink-0 items-center justify-center rounded px-1 font-mono text-[0.6rem] font-medium tabular-nums transition-colors",
+        selected
+          ? "bg-accent text-accent-contrast"
+          : "bg-surface-2 text-text-tertiary",
+      )}
+    >
+      {display}
+    </span>
+  );
+}
+
+function EmptyHierarchy() {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent">
+        <BuildingIcon className="h-4 w-4" />
+      </span>
+      <p className="text-[0.8125rem] font-medium text-text-primary">
+        Nothing here yet
+      </p>
+      <p className="text-[0.7rem] text-text-tertiary">
+        Draw a building or place a POI to fill the tree.
+      </p>
+    </div>
   );
 }
 
 function Chevron({ open }: { open: boolean }) {
   return (
     <svg
-      width="11"
-      height="11"
+      width="10"
+      height="10"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="2.4"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={"transition-transform " + (open ? "rotate-90" : "")}
+      className={cn(
+        "transition-transform duration-200",
+        open ? "rotate-90" : "",
+      )}
       aria-hidden
     >
       <path d="m9 6 6 6-6 6" />
@@ -279,18 +447,16 @@ function Chevron({ open }: { open: boolean }) {
   );
 }
 
-function BuildingIcon() {
+function BuildingIcon({ className }: { className?: string }) {
   return (
     <svg
-      width="12"
-      height="12"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="shrink-0"
+      className={cn("shrink-0", className)}
       aria-hidden
     >
       <rect x="4" y="3" width="16" height="18" rx="1" />
@@ -299,45 +465,6 @@ function BuildingIcon() {
       <line x1="9" y1="12" x2="9" y2="12" />
       <line x1="15" y1="12" x2="15" y2="12" />
       <line x1="9" y1="17" x2="15" y2="17" />
-    </svg>
-  );
-}
-
-function FloorIcon() {
-  return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      className="shrink-0"
-      aria-hidden
-    >
-      <line x1="3" y1="8" x2="21" y2="8" />
-      <line x1="3" y1="16" x2="21" y2="16" />
-    </svg>
-  );
-}
-
-function PoiIcon() {
-  return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="shrink-0"
-      aria-hidden
-    >
-      <path d="M12 21s-7-6.5-7-12a7 7 0 1 1 14 0c0 5.5-7 12-7 12Z" />
-      <circle cx="12" cy="9" r="2.5" />
     </svg>
   );
 }

@@ -34,7 +34,10 @@ interface Poi {
 
 export default function OverviewTab({ orgId, mapId, map }: Props) {
   const router = useRouter();
-  const studioHref = `/org/${orgId}/maps/${mapId}/builder`;
+  // Phase 6 — points to the new Workbench. The const name stays
+  // `studioHref` to minimise the blast radius; downstream JSX just
+  // reads it as "the editor URL".
+  const studioHref = `/org/${orgId}/maps/${mapId}/workbench`;
 
   // Derive simple stats from the scene data — no analytics backend yet.
   const stats = useMemo(() => {

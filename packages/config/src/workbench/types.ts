@@ -147,6 +147,15 @@ export interface Operation<Args = void> {
   applies(sel: SelectionState, entities: EntityIndex): boolean;
   /** Optional form for gathering `Args` from the user before `invoke`. */
   Form?: React.ComponentType<OperationFormProps<Args>>;
+  /**
+   * Optional pre-populator for the Form. Called by the shell when it
+   * opens the Form modal; the returned value is passed as
+   * `initialArgs`. Skipped if the op has no Form.
+   */
+  initialArgs?(
+    ctx: Pick<OpInvokeContext, "worldId" | "entities">,
+    on: EntityId[],
+  ): Args | undefined;
   /** The work. May call the server, mutate the entity index, etc. */
   invoke(
     ctx: OpInvokeContext,
@@ -174,6 +183,14 @@ export type DockRegion = "left" | "center" | "right" | "bottom";
 /** Data and callbacks every view receives. */
 export interface ViewContext {
   worldId: string;
+  /**
+   * Who's running the show — user / ai / system. Views surface this
+   * (e.g. an "AI is suggesting" indicator); ops route around it (the
+   * shell runs an approval gate before invoking when `actor.kind === "ai"`).
+   * Phase 7 lands the actor model; the approval gate ships with the
+   * first AI-authored operation.
+   */
+  actor: Actor;
   selection: SelectionState;
   setSelection(next: SelectionState): void;
   entities: EntityIndex;
@@ -188,6 +205,13 @@ export interface ViewContext {
   ): Promise<OpResult>;
   /** Operations applicable to the current selection, scope-filtered. */
   applicableOperations: ResolvedOperation[];
+  /**
+   * Compute the operations applicable to one entity, independent of
+   * the current selection. Used by right-click menus and any other
+   * surface that targets a single entity. The returned ops are bound
+   * to `on: [entityId]`.
+   */
+  operationsForEntity(entityId: EntityId): ResolvedOperation[];
 }
 
 export interface ViewProps {

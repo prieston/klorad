@@ -3,15 +3,32 @@ import {
   poiEntity,
   buildingEntity,
   floorPlanEntity,
+  roomEntity,
   tourStopEntity,
   eventEntity,
   mapView,
   overviewView,
   tableView,
   hierarchyView,
+  aiPanelView,
+  workflowView,
   flyToPoiOp,
   openViewerOp,
   copyLinkOp,
+  deletePoiOp,
+  deleteFloorPlanOp,
+  deleteBuildingOp,
+  editPoiOp,
+  editBuildingOp,
+  editFloorPlanOp,
+  saveWorldOp,
+  captureThumbnailOp,
+  placePoiOp,
+  drawBuildingOp,
+  deleteRoomOp,
+  editRoomOp,
+  defineRoomOp,
+  uploadFloorPlanOp,
 } from "@/lib/workbench";
 
 /**
@@ -33,6 +50,12 @@ import {
  * - Phase 5b  — `ctx.toast` wired through to react-toastify; two
  *                world-level ops added (`world.open-viewer`,
  *                `world.copy-link`)
+ * - Phase 5c1 — operations surface generically from
+ *                `ctx.applicableOperations`
+ * - Phase 5c2 — command palette over the same registry (mod+k)
+ * - Phase 5c3 — right-click context menu + generic world-actions
+ * - Phase 5d-a — first wave of write ops: `poi.delete`,
+ *                `floor-plan.delete`, `building.delete` (cascading)
  *
  * Imported by `/maps/[mapId]/workbench/page.tsx` at runtime; the old
  * `/maps/[mapId]/builder` route stays untouched until Phase 6.
@@ -45,16 +68,46 @@ const workbenchConfig = defineWorkbench({
     poiEntity,
     buildingEntity,
     floorPlanEntity,
+    roomEntity,
     tourStopEntity,
     eventEntity,
   ],
-  views: [mapView, overviewView, tableView, hierarchyView],
-  operations: [flyToPoiOp, openViewerOp, copyLinkOp],
+  views: [
+    mapView,
+    overviewView,
+    workflowView,
+    tableView,
+    hierarchyView,
+    aiPanelView,
+  ],
+  operations: [
+    flyToPoiOp,
+    openViewerOp,
+    copyLinkOp,
+    deletePoiOp,
+    deleteFloorPlanOp,
+    deleteBuildingOp,
+    editPoiOp,
+    editBuildingOp,
+    editFloorPlanOp,
+    saveWorldOp,
+    captureThumbnailOp,
+    placePoiOp,
+    drawBuildingOp,
+    deleteRoomOp,
+    editRoomOp,
+    defineRoomOp,
+    uploadFloorPlanOp,
+  ],
   defaultLayout: {
-    left: ["table", "hierarchy"],
+    // Left dock = a single guided Workflow view (Location / Buildings
+    // / POIs). The standalone `table` + `hierarchy` views stay
+    // registered for `mod+k` palette navigation but don't dock by
+    // default — the workflow is the new user-facing surface.
+    left: ["workflow"],
     center: ["map"],
     right: ["overview"],
-    bottom: [],
+    bottom: ["ai-panel"],
   },
 });
 

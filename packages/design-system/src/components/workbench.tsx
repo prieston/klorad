@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   Actor,
   DockRegion,
   EntityIndex,
   OpResult,
+  Operation,
   ResolvedOperation,
   SelectionState,
   ToastTone,
@@ -13,7 +14,9 @@ import type {
   WorkbenchConfig,
 } from "@klorad/config/workbench";
 import { emptyEntityIndex } from "@klorad/config/workbench";
+import { CommandPalette } from "./command-palette";
 import { Dock } from "./dock";
+import { Modal } from "./modal";
 
 export type WorkbenchToast = (msg: string, tone?: ToastTone) => void;
 
@@ -41,18 +44,22 @@ const noopToast: WorkbenchToast = () => {
 };
 
 /**
- * The Workbench shell — Phase 2 v1.
+ * The Workbench shell.
  *
  * Reads a `WorkbenchConfig`, resolves views from the config's default
  * layout, and mounts each view into its dock region with a shared
  * `ViewContext`. Selection state lives in the shell; operation
  * invocation looks up the op by id and dispatches.
  *
- * Out of scope for v1 (each is its own phase per WORKBENCH.md):
- * - Free-rearrange layout, drag-to-resize handles, layout persistence
- * - Pre-computed `applicableOperations` per selection
- * - Command palette (`mod+k`), right-click menu, keyboard shortcuts
- * - AI suggestion stream / approval gating
+ * Shipped:
+ * - Phase 2  — config-driven dock + views
+ * - Phase 5b — `ctx.toast` plumbed to the host app
+ * - Phase 5c1 — `applicableOperations` computed per render
+ * - Phase 5c2 — command palette (`mod+k`) over `applicableOperations`
+ *
+ * Still queued (own phase each):
+ * - Right-click menu (5c3), AI suggestion stream + approval gating (7),
+ *   layout persistence + drag-to-rearrange.
  */
 export function Workbench({
   config,
@@ -65,6 +72,35 @@ export function Workbench({
     ids: new Set<string>(),
     focusedId: null,
   }));
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Phase 5d-b — Form modal state. When an op with a `Form` is invoked
+  // without explicit args, the shell opens its Form here, awaits the
+  // user, then runs `invoke(args)` once the form submits. `resolve`
+  // is the deferred promise from the `runOperation` call that
+  // triggered the form — fulfilled on submit or cancel.
+  const [activeForm, setActiveForm] = useState<{
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    op: Operation<any>;
+    on: string[];
+    initialArgs: unknown;
+    resolve: (result: OpResult) => void;
+  } | null>(null);
+
+  // `mod+k` toggles the command palette globally. Accept both Cmd
+  // (macOS) and Ctrl (everywhere else) so the binding feels native
+  // on either platform. `e.preventDefault()` is load-bearing: every
+  // major browser hijacks Cmd/Ctrl+K to focus the address bar.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key.toLowerCase() !== "k") return;
+      e.preventDefault();
+      setPaletteOpen((v) => !v);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const viewById = useMemo(
     () => new Map(config.views.map((v) => [v.id, v])),
@@ -103,34 +139,128 @@ export function Workbench({
     return resolved;
   }, [config.operations, selection, entities]);
 
+  const runOperation = useCallback(
+    async <A,>(
+      opId: string,
+      args: A,
+      on: string[],
+    ): Promise<OpResult> => {
+      const op = operationById.get(opId);
+      if (!op) {
+        return { ok: false, reason: `Unknown operation: ${opId}` };
+      }
+      // Phase 5d-b — if the op declares a Form and the caller didn't
+      // pass explicit args, gather them via a Modal first. The Modal
+      // submits with the Args; cancellation resolves with `ok: false`.
+      // Callers that already have args (programmatic / AI / replay)
+      // skip the form entirely by passing a non-`undefined` value.
+      if (op.Form && args === undefined) {
+        return new Promise<OpResult>((resolve) => {
+          const initial = op.initialArgs
+            ? op.initialArgs({ worldId, entities }, on)
+            : undefined;
+          setActiveForm({
+            op,
+            on,
+            initialArgs: initial,
+            resolve,
+          });
+        });
+      }
+      return op.invoke(
+        { worldId, actor, entities, toast },
+        args as never,
+        on,
+      );
+    },
+    [operationById, worldId, actor, entities, toast],
+  );
+
+  // Form-modal lifecycle. `runForm` is called from inside the Modal
+  // when the Form submits; it invokes the op with the gathered args
+  // and resolves the deferred promise from `runOperation`. `closeForm`
+  // is the cancel path — resolves with a `Cancelled` failure so the
+  // caller can distinguish "user backed out" from "op failed".
+  const runForm = useCallback(
+    async (args: unknown) => {
+      if (!activeForm) return;
+      const result = await activeForm.op.invoke(
+        { worldId, actor, entities, toast },
+        args as never,
+        activeForm.on,
+      );
+      activeForm.resolve(result);
+      setActiveForm(null);
+    },
+    [activeForm, worldId, actor, entities, toast],
+  );
+
+  const closeForm = useCallback(() => {
+    if (!activeForm) return;
+    activeForm.resolve({ ok: false, reason: "Cancelled" });
+    setActiveForm(null);
+  }, [activeForm]);
+
+  // Phase 5c3 — operations applicable to one specific entity,
+  // independent of the current selection. The right-click menu uses
+  // this so the menu reflects what the user right-clicked, not
+  // what's selected. Builds a hypothetical single-entity selection
+  // and runs each op's `applies` predicate against it.
+  const operationsForEntity = useCallback(
+    (entityId: string): ResolvedOperation[] => {
+      const entity = entities.byId(entityId);
+      if (!entity) return [];
+      const hypothetical: SelectionState = {
+        ids: new Set([entityId]),
+        focusedId: entityId,
+      };
+      const resolved: ResolvedOperation[] = [];
+      for (const op of config.operations) {
+        // Skip entity-scoped ops whose scope doesn't include this type.
+        if (op.scope.length > 0 && !op.scope.includes(entity.typeId)) {
+          continue;
+        }
+        if (!op.applies(hypothetical, entities)) continue;
+        // World-level ops still get `on: []`; entity-scoped get `[id]`.
+        resolved.push({
+          operation: op,
+          on: op.scope.length === 0 ? [] : [entityId],
+        });
+      }
+      return resolved;
+    },
+    [config.operations, entities],
+  );
+
   const ctx = useMemo<ViewContext>(
     () => ({
       worldId,
+      actor,
       selection,
       setSelection,
       entities,
-      runOperation: async (opId, args, on): Promise<OpResult> => {
-        const op = operationById.get(opId);
-        if (!op) {
-          return { ok: false, reason: `Unknown operation: ${opId}` };
-        }
-        return op.invoke(
-          { worldId, actor, entities, toast },
-          args as never,
-          on,
-        );
-      },
+      runOperation,
       applicableOperations,
+      operationsForEntity,
     }),
     [
       worldId,
+      actor,
       selection,
       entities,
-      actor,
-      operationById,
+      runOperation,
       applicableOperations,
-      toast,
+      operationsForEntity,
     ],
+  );
+
+  // Invoked by the command palette when the user picks a row. Fires
+  // the operation through the same dispatch as view-authored buttons.
+  const handlePaletteRun = useCallback(
+    (resolved: ResolvedOperation) => {
+      void runOperation(resolved.operation.id, undefined, resolved.on);
+    },
+    [runOperation],
   );
 
   const renderRegion = (region: DockRegion) => {
@@ -169,12 +299,47 @@ export function Workbench({
   };
 
   return (
-    <Dock
-      left={renderRegion("left")}
-      center={renderRegion("center") ?? <EmptyCenter />}
-      right={renderRegion("right")}
-      bottom={renderRegion("bottom")}
-    />
+    <>
+      <Dock
+        left={renderRegion("left")}
+        center={renderRegion("center") ?? <EmptyCenter />}
+        right={renderRegion("right")}
+        bottom={renderRegion("bottom")}
+      />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        operations={applicableOperations}
+        onRun={handlePaletteRun}
+      />
+      {activeForm && activeForm.op.Form ? (
+        <Modal
+          open
+          onClose={closeForm}
+          title={activeForm.op.label}
+          className="max-w-lg"
+        >
+          {(() => {
+            // Local alias so the JSX expression below sees a non-
+            // optional component type. The earlier guard ensures Form
+            // exists; TS just can't track it through a deep property.
+            const Form = activeForm.op
+              .Form as React.ComponentType<{
+              initialArgs?: unknown;
+              submit(args: unknown): void;
+              cancel(): void;
+            }>;
+            return (
+              <Form
+                initialArgs={activeForm.initialArgs}
+                submit={(args: unknown) => void runForm(args)}
+                cancel={closeForm}
+              />
+            );
+          })()}
+        </Modal>
+      ) : null}
+    </>
   );
 }
 
