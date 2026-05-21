@@ -26,7 +26,7 @@ export default async function RootLayout({
   const session = await auth();
 
   return (
-    <html lang="en" suppressHydrationWarning className={`dark ${inter.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`dark ${inter?.variable ?? ""}`}>
       <head>
         {/* Editor is dark-only for now — force it on first paint so the
             class is present before next-themes hydrates. Persisted under
