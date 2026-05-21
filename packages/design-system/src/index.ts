@@ -60,3 +60,7 @@ export {
   type WorkbenchStatTileProps,
   type WorkbenchOperationButtonProps,
 } from "./components/workbench-primitives";
+export {
+  CommandPalette,
+  type CommandPaletteProps,
+} from "./components/command-palette";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   Actor,
   DockRegion,
@@ -13,6 +13,7 @@ import type {
   WorkbenchConfig,
 } from "@klorad/config/workbench";
 import { emptyEntityIndex } from "@klorad/config/workbench";
+import { CommandPalette } from "./command-palette";
 import { Dock } from "./dock";
 
 export type WorkbenchToast = (msg: string, tone?: ToastTone) => void;
@@ -41,18 +42,22 @@ const noopToast: WorkbenchToast = () => {
 };
 
 /**
- * The Workbench shell — Phase 2 v1.
+ * The Workbench shell.
  *
  * Reads a `WorkbenchConfig`, resolves views from the config's default
  * layout, and mounts each view into its dock region with a shared
  * `ViewContext`. Selection state lives in the shell; operation
  * invocation looks up the op by id and dispatches.
  *
- * Out of scope for v1 (each is its own phase per WORKBENCH.md):
- * - Free-rearrange layout, drag-to-resize handles, layout persistence
- * - Pre-computed `applicableOperations` per selection
- * - Command palette (`mod+k`), right-click menu, keyboard shortcuts
- * - AI suggestion stream / approval gating
+ * Shipped:
+ * - Phase 2  — config-driven dock + views
+ * - Phase 5b — `ctx.toast` plumbed to the host app
+ * - Phase 5c1 — `applicableOperations` computed per render
+ * - Phase 5c2 — command palette (`mod+k`) over `applicableOperations`
+ *
+ * Still queued (own phase each):
+ * - Right-click menu (5c3), AI suggestion stream + approval gating (7),
+ *   layout persistence + drag-to-rearrange.
  */
 export function Workbench({
   config,
@@ -65,6 +70,22 @@ export function Workbench({
     ids: new Set<string>(),
     focusedId: null,
   }));
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // `mod+k` toggles the command palette globally. Accept both Cmd
+  // (macOS) and Ctrl (everywhere else) so the binding feels native
+  // on either platform. `e.preventDefault()` is load-bearing: every
+  // major browser hijacks Cmd/Ctrl+K to focus the address bar.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key.toLowerCase() !== "k") return;
+      e.preventDefault();
+      setPaletteOpen((v) => !v);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const viewById = useMemo(
     () => new Map(config.views.map((v) => [v.id, v])),
@@ -103,34 +124,44 @@ export function Workbench({
     return resolved;
   }, [config.operations, selection, entities]);
 
+  const runOperation = useCallback(
+    async <A,>(
+      opId: string,
+      args: A,
+      on: string[],
+    ): Promise<OpResult> => {
+      const op = operationById.get(opId);
+      if (!op) {
+        return { ok: false, reason: `Unknown operation: ${opId}` };
+      }
+      return op.invoke(
+        { worldId, actor, entities, toast },
+        args as never,
+        on,
+      );
+    },
+    [operationById, worldId, actor, entities, toast],
+  );
+
   const ctx = useMemo<ViewContext>(
     () => ({
       worldId,
       selection,
       setSelection,
       entities,
-      runOperation: async (opId, args, on): Promise<OpResult> => {
-        const op = operationById.get(opId);
-        if (!op) {
-          return { ok: false, reason: `Unknown operation: ${opId}` };
-        }
-        return op.invoke(
-          { worldId, actor, entities, toast },
-          args as never,
-          on,
-        );
-      },
+      runOperation,
       applicableOperations,
     }),
-    [
-      worldId,
-      selection,
-      entities,
-      actor,
-      operationById,
-      applicableOperations,
-      toast,
-    ],
+    [worldId, selection, entities, runOperation, applicableOperations],
+  );
+
+  // Invoked by the command palette when the user picks a row. Fires
+  // the operation through the same dispatch as view-authored buttons.
+  const handlePaletteRun = useCallback(
+    (resolved: ResolvedOperation) => {
+      void runOperation(resolved.operation.id, undefined, resolved.on);
+    },
+    [runOperation],
   );
 
   const renderRegion = (region: DockRegion) => {
@@ -169,12 +200,20 @@ export function Workbench({
   };
 
   return (
-    <Dock
-      left={renderRegion("left")}
-      center={renderRegion("center") ?? <EmptyCenter />}
-      right={renderRegion("right")}
-      bottom={renderRegion("bottom")}
-    />
+    <>
+      <Dock
+        left={renderRegion("left")}
+        center={renderRegion("center") ?? <EmptyCenter />}
+        right={renderRegion("right")}
+        bottom={renderRegion("bottom")}
+      />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        operations={applicableOperations}
+        onRun={handlePaletteRun}
+      />
+    </>
   );
 }
 
