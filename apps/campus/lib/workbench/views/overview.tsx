@@ -91,11 +91,11 @@ function StatCell({
   value: number | string;
 }) {
   return (
-    <div className="bg-bg p-3.5">
-      <div className="text-[0.65rem] font-medium uppercase tracking-[0.16em] text-text-tertiary">
+    <div className="min-w-0 overflow-hidden bg-bg p-4">
+      <div className="truncate text-[0.65rem] font-medium uppercase tracking-[0.14em] text-text-tertiary">
         {label}
       </div>
-      <div className="mt-1 text-2xl font-light tabular-nums text-text-primary">
+      <div className="mt-1.5 truncate text-xl font-light tabular-nums leading-none text-text-primary">
         {value}
       </div>
     </div>

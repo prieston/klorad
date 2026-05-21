@@ -96,7 +96,7 @@ function TableViewComponent({ ctx }: ViewProps) {
                   aria-pressed={isSelected}
                   title={poi.category ? `${poi.name} · ${poi.category}` : poi.name}
                   className={cn(
-                    "group flex w-full appearance-none items-center gap-2.5 rounded-xl border-0 p-3.5 text-left outline-none transition-colors focus:outline-none",
+                    "group flex w-full items-center gap-2.5 rounded-2xl p-4 text-left transition-colors",
                     isSelected
                       ? "bg-accent-soft text-accent"
                       : "bg-surface-2 text-text-secondary hover:bg-accent-soft/40 hover:text-text-primary",
@@ -164,7 +164,7 @@ function SearchPill({
   onChange: (v: string) => void;
 }) {
   return (
-    <label className="group flex items-center gap-2.5 rounded-xl bg-surface-2 p-3.5">
+    <label className="group flex items-center gap-2.5 rounded-2xl bg-surface-2 p-4">
       <SearchIcon className="h-3.5 w-3.5 shrink-0 text-text-tertiary" />
       <input
         type="text"

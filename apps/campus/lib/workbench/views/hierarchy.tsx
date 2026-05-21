@@ -237,13 +237,13 @@ function BuildingRow({
   return (
     <article
       className={cn(
-        "group overflow-hidden rounded-xl transition-colors",
+        "group overflow-hidden rounded-2xl transition-colors",
         selected
           ? "bg-accent-soft"
           : "bg-surface-2 hover:bg-accent-soft/40",
       )}
     >
-      <div className="flex items-center gap-2.5 p-3.5">
+      <div className="flex items-center gap-2.5 p-4">
         <button
           type="button"
           onClick={onToggle}
@@ -317,7 +317,7 @@ function FloorRow({
       onContextMenu={onContextMenu}
       aria-pressed={selected}
       className={cn(
-        "flex w-full items-center gap-2.5 rounded-xl border-0 px-3 py-2.5 text-left outline-none transition-colors focus:outline-none",
+        "flex w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left transition-colors",
         selected
           ? "bg-accent-soft text-accent"
           : "text-text-secondary hover:bg-bg hover:text-text-primary",
