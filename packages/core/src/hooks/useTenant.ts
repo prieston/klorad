@@ -20,10 +20,14 @@ const tenantConfigs: Record<TenantId, TenantConfig> = {
     id: "klorad",
     name: "Klorad Studio",
     domain: "klorad.com",
-    logo: "/images/logo/klorad-logo.svg",
+    // The Klorad brand refreshed alongside the website redesign (white
+    // wordmark + cyan accent variant authored for dark backgrounds, the
+    // only theme the editor currently supports). The canonical
+    // multi-color asset lives at `klorad-logo-new.svg`.
+    logo: "/images/logo/klorad-logo-new-dark.svg",
     logoAlt: "Klorad Studio",
-    logoWidth: 650,
-    logoHeight: 128.67,
+    logoWidth: 383,
+    logoHeight: 78,
   },
   psmdt: {
     id: "psmdt",
