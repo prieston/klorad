@@ -143,6 +143,37 @@ export function Workbench({
     [operationById, worldId, actor, entities, toast],
   );
 
+  // Phase 5c3 — operations applicable to one specific entity,
+  // independent of the current selection. The right-click menu uses
+  // this so the menu reflects what the user right-clicked, not
+  // what's selected. Builds a hypothetical single-entity selection
+  // and runs each op's `applies` predicate against it.
+  const operationsForEntity = useCallback(
+    (entityId: string): ResolvedOperation[] => {
+      const entity = entities.byId(entityId);
+      if (!entity) return [];
+      const hypothetical: SelectionState = {
+        ids: new Set([entityId]),
+        focusedId: entityId,
+      };
+      const resolved: ResolvedOperation[] = [];
+      for (const op of config.operations) {
+        // Skip entity-scoped ops whose scope doesn't include this type.
+        if (op.scope.length > 0 && !op.scope.includes(entity.typeId)) {
+          continue;
+        }
+        if (!op.applies(hypothetical, entities)) continue;
+        // World-level ops still get `on: []`; entity-scoped get `[id]`.
+        resolved.push({
+          operation: op,
+          on: op.scope.length === 0 ? [] : [entityId],
+        });
+      }
+      return resolved;
+    },
+    [config.operations, entities],
+  );
+
   const ctx = useMemo<ViewContext>(
     () => ({
       worldId,
@@ -151,8 +182,16 @@ export function Workbench({
       entities,
       runOperation,
       applicableOperations,
+      operationsForEntity,
     }),
-    [worldId, selection, entities, runOperation, applicableOperations],
+    [
+      worldId,
+      selection,
+      entities,
+      runOperation,
+      applicableOperations,
+      operationsForEntity,
+    ],
   );
 
   // Invoked by the command palette when the user picks a row. Fires

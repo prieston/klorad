@@ -64,3 +64,7 @@ export {
   CommandPalette,
   type CommandPaletteProps,
 } from "./components/command-palette";
+export {
+  ContextMenu,
+  type ContextMenuProps,
+} from "./components/context-menu";

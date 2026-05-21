@@ -188,6 +188,13 @@ export interface ViewContext {
   ): Promise<OpResult>;
   /** Operations applicable to the current selection, scope-filtered. */
   applicableOperations: ResolvedOperation[];
+  /**
+   * Compute the operations applicable to one entity, independent of
+   * the current selection. Used by right-click menus and any other
+   * surface that targets a single entity. The returned ops are bound
+   * to `on: [entityId]`.
+   */
+  operationsForEntity(entityId: EntityId): ResolvedOperation[];
 }
 
 export interface ViewProps {

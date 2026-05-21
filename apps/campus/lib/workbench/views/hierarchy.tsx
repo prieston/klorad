@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { FloorPlan, POI } from "@klorad/api";
 import type { Entity, View, ViewProps } from "@klorad/config/workbench";
+import { ContextMenu } from "@klorad/design-system";
 import type { Building } from "../entities/building";
 
 /**
@@ -96,6 +97,19 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
     });
   };
 
+  // Right-click context menu. Pulls `operationsForEntity` so the menu
+  // shows ops for the *right-clicked* row, not necessarily the
+  // currently-selected one.
+  const [menu, setMenu] = useState<{
+    x: number;
+    y: number;
+    entityId: string;
+  } | null>(null);
+  const openMenu = (e: React.MouseEvent, entityId: string) => {
+    e.preventDefault();
+    setMenu({ x: e.clientX, y: e.clientY, entityId });
+  };
+
   const isEmpty = buildings.length === 0 && standalonePois.length === 0;
 
   return (
@@ -136,6 +150,7 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
                     <button
                       type="button"
                       onClick={() => select(b.id)}
+                      onContextMenu={(e) => openMenu(e, b.id)}
                       aria-pressed={isSelected}
                       className={
                         "flex flex-1 items-center gap-1.5 truncate py-1.5 pr-3 text-left text-sm transition-colors " +
@@ -172,6 +187,7 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
                           }
                           selected={focusedId === f.id}
                           onSelect={() => select(f.id)}
+                          onContextMenu={(e) => openMenu(e, f.id)}
                         />
                       ))}
                       {children.map((p) => (
@@ -181,6 +197,7 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
                           label={p.payload.name || "Unnamed POI"}
                           selected={focusedId === p.id}
                           onSelect={() => select(p.id)}
+                          onContextMenu={(e) => openMenu(e, p.id)}
                         />
                       ))}
                     </div>
@@ -199,6 +216,7 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
                     key={p.id}
                     type="button"
                     onClick={() => select(p.id)}
+                    onContextMenu={(e) => openMenu(e, p.id)}
                     aria-pressed={focusedId === p.id}
                     className={
                       "flex w-full items-center gap-1.5 truncate px-4 py-1.5 text-left text-sm transition-colors " +
@@ -218,6 +236,22 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
           </>
         )}
       </div>
+
+      {menu ? (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          operations={ctx.operationsForEntity(menu.entityId)}
+          onRun={(resolved) =>
+            void ctx.runOperation(
+              resolved.operation.id,
+              undefined,
+              resolved.on,
+            )
+          }
+          onClose={() => setMenu(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -227,12 +261,14 @@ function Leaf({
   label,
   selected,
   onSelect,
+  onContextMenu,
   children,
 }: {
   icon?: ReactNode;
   label?: string;
   selected?: boolean;
   onSelect?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
   children?: ReactNode;
 }) {
   if (!onSelect) {
@@ -246,6 +282,7 @@ function Leaf({
     <button
       type="button"
       onClick={onSelect}
+      onContextMenu={onContextMenu}
       aria-pressed={selected}
       className={
         "flex w-full items-center gap-1.5 truncate py-1 pl-2 pr-3 text-left text-[0.8125rem] transition-colors " +

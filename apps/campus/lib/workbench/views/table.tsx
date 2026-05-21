@@ -1,14 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import type { POI } from "@klorad/api";
 import type { Entity, View, ViewProps } from "@klorad/config/workbench";
-import { cn } from "@klorad/design-system";
+import { ContextMenu, cn } from "@klorad/design-system";
 
 /**
  * Phase 4b — TableView.
  *
  * A compact list of POIs in the left dock region. Click a row to
- * select; selection bridges to the map (the 3D view highlights the
+ * select; right-click for a context menu of applicable operations
+ * (5c3). Selection bridges to the map (the 3D view highlights the
  * same id). v1 is POI-only and renders as a single-column list
  * because the left dock is narrow for a real table.
  *
@@ -26,6 +28,11 @@ import { cn } from "@klorad/design-system";
 function TableViewComponent({ ctx }: ViewProps) {
   const pois = ctx.entities.byType("campus.poi") as Entity<POI>[];
   const selectedId = ctx.selection.focusedId;
+  const [menu, setMenu] = useState<{
+    x: number;
+    y: number;
+    entityId: string;
+  } | null>(null);
 
   return (
     <div className="flex h-full flex-col">
@@ -56,6 +63,14 @@ function TableViewComponent({ ctx }: ViewProps) {
                 <button
                   type="button"
                   onClick={handleClick}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setMenu({
+                      x: e.clientX,
+                      y: e.clientY,
+                      entityId: entity.id,
+                    });
+                  }}
                   aria-pressed={isSelected}
                   className={cn(
                     "group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left transition-colors",
@@ -86,6 +101,22 @@ function TableViewComponent({ ctx }: ViewProps) {
           })}
         </ul>
       )}
+
+      {menu ? (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          operations={ctx.operationsForEntity(menu.entityId)}
+          onRun={(resolved) =>
+            void ctx.runOperation(
+              resolved.operation.id,
+              undefined,
+              resolved.on,
+            )
+          }
+          onClose={() => setMenu(null)}
+        />
+      ) : null}
     </div>
   );
 }

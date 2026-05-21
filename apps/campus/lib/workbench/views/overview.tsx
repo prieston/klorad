@@ -92,76 +92,35 @@ function OverviewViewComponent({ ctx }: ViewProps) {
 
 /**
  * World-level operations (`scope: []`) — `world.open-viewer`,
- * `world.copy-link`. Apply regardless of selection so they live in
- * their own panel. Rendered with `secondary` variant so they read
- * as ambient actions rather than competing with the selection ops.
+ * `world.copy-link`, plus any future ones. Rendered generically
+ * from `ctx.applicableOperations`: filter `scope.length === 0`,
+ * iterate. Each op declares its own `icon` + `label`, so adding a
+ * new world op requires no edits here.
  *
- * 5c3 will generate this panel from `ctx.applicableOperations` so
- * any future world-level op surfaces automatically.
+ * `secondary` variant so these ambient actions read quieter than
+ * the selection-scoped buttons above.
  */
 function WorldActions({ ctx }: { ctx: ViewProps["ctx"] }) {
+  const worldOps = ctx.applicableOperations.filter(
+    (r) => r.operation.scope.length === 0,
+  );
+  if (worldOps.length === 0) return null;
   return (
     <WorkbenchSection tone="soft" title="World actions">
       <div className="flex flex-wrap gap-1.5">
-        <WorkbenchOperationButton
-          label="Open viewer"
-          icon={OpenViewerIcon}
-          variant="secondary"
-          onClick={() =>
-            void ctx.runOperation("world.open-viewer", undefined, [])
-          }
-        />
-        <WorkbenchOperationButton
-          label="Copy link"
-          icon={CopyIcon}
-          variant="secondary"
-          onClick={() =>
-            void ctx.runOperation("world.copy-link", undefined, [])
-          }
-        />
+        {worldOps.map(({ operation, on }) => (
+          <WorkbenchOperationButton
+            key={operation.id}
+            label={operation.label}
+            icon={operation.icon}
+            variant="secondary"
+            onClick={() =>
+              void ctx.runOperation(operation.id, undefined, on)
+            }
+          />
+        ))}
       </div>
     </WorkbenchSection>
-  );
-}
-
-function OpenViewerIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-      <polyline points="15 3 21 3 21 9" />
-      <line x1="10" y1="14" x2="21" y2="3" />
-    </svg>
-  );
-}
-
-function CopyIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <rect x="9" y="9" width="13" height="13" rx="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
   );
 }
 
