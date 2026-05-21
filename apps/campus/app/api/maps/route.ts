@@ -20,6 +20,7 @@ export async function GET(req: Request) {
       createdAt: true,
       sceneData: true,
       thumbnail: true,
+      isPublished: true,
     },
   });
 
@@ -49,6 +50,7 @@ export async function GET(req: Request) {
         createdAt: m.createdAt,
         center,
         thumbnail: m.thumbnail,
+        isPublished: m.isPublished,
       };
     })
   );

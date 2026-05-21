@@ -7,6 +7,7 @@ import useSWR from "swr";
 import EditIcon from "@mui/icons-material/Edit";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import ShareIcon from "@mui/icons-material/Share";
+import PublishIcon from "@mui/icons-material/Publish";
 import {
   Badge,
   Button,
@@ -29,6 +30,7 @@ interface CampusMap {
   createdAt: string;
   sceneData?: unknown;
   thumbnail?: string | null;
+  isPublished?: boolean;
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -66,7 +68,7 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
     ? (tabParam as TabKey)
     : "overview";
 
-  const { data: map, isLoading } = useSWR<CampusMap>(
+  const { data: map, isLoading, mutate } = useSWR<CampusMap>(
     `/api/maps/${mapId}`,
     fetcher,
   );
@@ -99,7 +101,12 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
 
   return (
     <div className="w-full px-6 py-8 md:px-10">
-      <CampusProfileHero orgId={orgId} mapId={mapId} map={map} />
+      <CampusProfileHero
+        orgId={orgId}
+        mapId={mapId}
+        map={map}
+        onMutate={mutate}
+      />
 
       <div className="mt-8 flex gap-1 border-b border-line-soft">
         {TABS.map((t) => (
@@ -149,18 +156,32 @@ interface CampusHeroPoi {
 
 /**
  * Top-of-page hero: status, name, last-updated, four stat tiles, and
- * three primary actions. Generic enough to template into a shared
- * `WorldProfileHero` later — kept inline here while it's a one-off
- * (per the "lift when a second consumer is plausible" rule).
+ * a context-aware action group.
+ *
+ * The CTAs reshape based on `isPublished`:
+ *   - Draft (with ≥1 POI)  → [Publish] (primary), [Edit campus]
+ *   - Draft (empty)        → [Edit campus] only (Publish disabled
+ *                              with a tooltip)
+ *   - Published            → [Share], [Open public viewer], [Edit campus]
+ *
+ * `onMutate` is the SWR revalidator from the parent — called after
+ * a publish / unpublish so the badge and CTA shape update without
+ * a page reload.
+ *
+ * Stays inline in `CampusProfileClient` for now. Lifts to a shared
+ * `WorldProfileHero` DS primitive when the second vertical needs
+ * it (`memory/reusable-feature-primitives.md`).
  */
 function CampusProfileHero({
   orgId,
   mapId,
   map,
+  onMutate,
 }: {
   orgId: string;
   mapId: string;
   map: CampusMap;
+  onMutate: () => Promise<unknown>;
 }) {
   const router = useRouter();
 
@@ -185,12 +206,10 @@ function CampusProfileHero({
     };
   }, [map.sceneData]);
 
-  // Provisional publish state — once a real `status` field lands on
-  // Map, swap this heuristic for `map.status`.
-  const status: { label: string; tone: "neutral" | "success" } =
-    stats.poiCount > 0
-      ? { label: "Published", tone: "success" }
-      : { label: "Draft", tone: "neutral" };
+  const isPublished = Boolean(map.isPublished);
+  const status: { label: string; tone: "neutral" | "success" } = isPublished
+    ? { label: "Published", tone: "success" }
+    : { label: "Draft", tone: "neutral" };
 
   const publicUrl =
     typeof window !== "undefined"
@@ -198,6 +217,7 @@ function CampusProfileHero({
       : `/campus/${mapId}`;
 
   const [shareBusy, setShareBusy] = useState(false);
+  const [publishBusy, setPublishBusy] = useState(false);
 
   const handleShare = async () => {
     if (typeof window === "undefined") return;
@@ -211,6 +231,28 @@ function CampusProfileHero({
       setShareBusy(false);
     }
   };
+
+  const setPublished = async (next: boolean) => {
+    setPublishBusy(true);
+    try {
+      const res = await fetch(`/api/maps/${mapId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPublished: next }),
+      });
+      if (!res.ok) throw new Error("Patch failed");
+      await onMutate();
+      toastify.success(next ? "Campus published" : "Campus unpublished");
+    } catch {
+      toastify.error(
+        next ? "Couldn't publish the campus" : "Couldn't unpublish",
+      );
+    } finally {
+      setPublishBusy(false);
+    }
+  };
+
+  const canPublish = stats.poiCount > 0;
 
   return (
     <section className="space-y-5">
@@ -227,30 +269,52 @@ function CampusProfileHero({
           </h1>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {isPublished ? (
+            <>
+              <Button
+                variant="secondary"
+                onClick={handleShare}
+                disabled={shareBusy}
+              >
+                <ShareIcon fontSize="small" />
+                {shareBusy ? "Copying…" : "Share"}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  window.open(publicUrl, "_blank", "noopener,noreferrer")
+                }
+              >
+                <OpenInNewIcon fontSize="small" />
+                Open public viewer
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setPublished(false)}
+                disabled={publishBusy}
+              >
+                {publishBusy ? "Working…" : "Unpublish"}
+              </Button>
+            </>
+          ) : (
+            <Button
+              onClick={() => setPublished(true)}
+              disabled={publishBusy || !canPublish}
+              title={
+                !canPublish
+                  ? "Add at least one POI before publishing"
+                  : undefined
+              }
+            >
+              <PublishIcon fontSize="small" />
+              {publishBusy ? "Publishing…" : "Publish"}
+            </Button>
+          )}
           <Button
-            variant="secondary"
-            onClick={handleShare}
-            disabled={shareBusy}
-          >
-            <ShareIcon fontSize="small" />
-            {shareBusy ? "Copying…" : "Share"}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => window.open(publicUrl, "_blank", "noopener,noreferrer")}
-            disabled={stats.poiCount === 0}
-            title={
-              stats.poiCount === 0
-                ? "Add a POI before opening the public viewer"
-                : undefined
+            onClick={() =>
+              router.push(`/org/${orgId}/maps/${mapId}/workbench`)
             }
-          >
-            <OpenInNewIcon fontSize="small" />
-            Open public viewer
-          </Button>
-          <Button
-            onClick={() => router.push(`/org/${orgId}/maps/${mapId}/workbench`)}
           >
             <EditIcon fontSize="small" />
             Edit campus
@@ -270,9 +334,11 @@ function CampusProfileHero({
           label="Status"
           value={status.label}
           hint={
-            stats.poiCount === 0
+            !canPublish
               ? "Add your first POI to publish"
-              : "Reachable via the public link"
+              : isPublished
+                ? "Reachable via the public link"
+                : "Not yet published"
           }
         />
       </div>
