@@ -43,13 +43,17 @@ function OverviewViewComponent({ ctx }: ViewProps) {
       : ctx.worldId;
 
   return (
-    <div className="flex h-full flex-col gap-4 px-4 pb-4">
-      <header className="space-y-1 pt-1">
+    // The right dock column is flex-1 inside a flex column; without
+    // `min-h-0` + `overflow-y-auto` here, our content blows past the
+    // viewport with no scrollbar. `min-w-0 + overflow-x-hidden`
+    // belt-and-braces against long worldIds / button labels.
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-y-auto overflow-x-hidden px-4 pb-4">
+      <header className="min-w-0 space-y-1 pt-1">
         <h2 className="text-base font-semibold tracking-tight text-text-primary">
           Overview
         </h2>
         <p
-          className="font-mono text-[0.7rem] text-text-tertiary"
+          className="truncate font-mono text-[0.7rem] text-text-tertiary"
           title={ctx.worldId}
         >
           {shortWorldId}
@@ -58,7 +62,7 @@ function OverviewViewComponent({ ctx }: ViewProps) {
 
       {/* Hairline-grid stats — bg-bg cells visible against the white
           dock, gap-px hairlines between them. */}
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line-soft bg-line-soft">
+      <div className="grid w-full grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line-soft bg-line-soft">
         <StatCell label="POIs" value={pois.length} />
         <StatCell label="Buildings" value={buildings.length} />
         <StatCell label="Floor plans" value={floorPlans.length} />
@@ -67,10 +71,10 @@ function OverviewViewComponent({ ctx }: ViewProps) {
 
       <Card title="Accessibility coverage">
         <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-light tabular-nums text-text-primary">
+          <span className="text-3xl font-light tabular-nums leading-none text-text-primary">
             {accessibilityPct}%
           </span>
-          <span className="text-xs text-text-secondary">
+          <span className="truncate text-xs text-text-secondary">
             {accessibleCount} / {pois.length} POIs
           </span>
         </div>
