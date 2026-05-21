@@ -777,7 +777,7 @@ export default function BuilderClient({ mapId }: Props) {
   });
 
   return (
-    <Box sx={{ display: "flex", height: "calc(100vh - 64px)", overflow: "hidden" }}>
+    <Box sx={{ display: "flex", height: "100vh", overflow: "hidden" }}>
       <BuilderLeftPanel pois={pois} />
 
       {/* Map */}

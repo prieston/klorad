@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -16,6 +15,7 @@ import {
   Typography,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
+import { KloradMark } from "@klorad/design-system";
 import { LeftPanelContainer } from "@klorad/ui";
 import { useSceneStore } from "@klorad/core";
 import type { POI } from "@klorad/api";
@@ -124,7 +124,8 @@ export default function BuilderLeftPanel({ mapName, pois }: Props) {
         flexDirection: "column",
       }}
     >
-      {/* Logo */}
+      {/* Logo — matches the campus dashboard brand block:
+          KloradMark + stacked "Klorad / Campus" wordmark. */}
       <Box
         sx={{
           display: "flex",
@@ -135,18 +136,20 @@ export default function BuilderLeftPanel({ mapName, pois }: Props) {
           flexShrink: 0,
         }}
       >
-        <Link href={profileHref} aria-label="Back to Campus Profile" style={{ textDecoration: "none", display: "flex" }}>
-          <Image
-            src="/images/logo/klorad-campus-logo-white.svg"
-            alt="Klorad Campus"
-            width={140}
-            height={32}
-            priority
-            style={{
-              objectFit: "contain",
-              height: "auto",
-            }}
-          />
+        <Link
+          href={profileHref}
+          aria-label="Back to Campus Profile"
+          className="flex items-center gap-2.5 no-underline"
+        >
+          <KloradMark className="h-8 w-auto" />
+          <span className="flex flex-col leading-none">
+            <span className="text-sm font-semibold uppercase tracking-[0.18em] text-text-primary">
+              Klorad
+            </span>
+            <span className="mt-1 text-[10px] font-medium uppercase tracking-[0.26em] text-text-tertiary">
+              Campus
+            </span>
+          </span>
         </Link>
       </Box>
 
