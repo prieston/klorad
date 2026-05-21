@@ -121,14 +121,16 @@ function TabBar({
             onClick={() => onChange(s.id)}
             title={s.label}
             className={cn(
-              "flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 transition-colors",
+              "flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2.5 transition-colors",
               isActive
                 ? "bg-accent-soft text-accent"
                 : "text-text-tertiary hover:bg-surface-2 hover:text-text-primary",
             )}
           >
-            <Icon className="h-4 w-4 shrink-0" />
-            <span className="text-[0.7rem] font-medium">{s.label}</span>
+            <Icon className="h-3.5 w-3.5 shrink-0" />
+            <span className="text-[0.6rem] font-medium uppercase tracking-[0.06em]">
+              {s.label}
+            </span>
           </button>
         );
       })}
