@@ -15,6 +15,7 @@ export {
 } from "./edit-floor-plan";
 export { saveWorldOp } from "./save-world";
 export { captureThumbnailOp } from "./capture-thumbnail";
+export { publishWorldOp } from "./publish-world";
 export { placePoiOp } from "./place-poi";
 export { drawBuildingOp } from "./draw-building";
 export { deleteRoomOp } from "./delete-room";
