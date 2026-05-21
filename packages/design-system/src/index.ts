@@ -51,3 +51,12 @@ export {
   type WorkbenchProps,
   type WorkbenchToast,
 } from "./components/workbench";
+export {
+  WorkbenchSection,
+  WorkbenchStatTile,
+  WorkbenchOperationButton,
+  type WorkbenchSectionProps,
+  type WorkbenchSectionTone,
+  type WorkbenchStatTileProps,
+  type WorkbenchOperationButtonProps,
+} from "./components/workbench-primitives";
