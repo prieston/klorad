@@ -1,6 +1,5 @@
 "use client";
 
-import { WorkbenchSection } from "@klorad/design-system";
 import type { View, ViewProps } from "@klorad/config/workbench";
 
 /**
@@ -10,9 +9,11 @@ import type { View, ViewProps } from "@klorad/config/workbench";
  * is wired in the shell; this view is the visible surface where the
  * AI co-pilot will live once a model is connected.
  *
- * For v1: status-only. Lists nothing, suggests nothing, runs nothing.
- * The placeholder lets us validate the dock layout (bottom region +
- * collapse animation) before the model integration lands.
+ * For now: a hero state that shows what the panel will do once a
+ * model is plugged in. Surfaces example prompts based on the
+ * registered operations so the value prop is concrete instead of
+ * "AI" hand-waving. Each prompt is illustrative — clicking them
+ * doesn't run yet (model not connected).
  *
  * Approval-gating happens in `Workbench.runOperation` — when
  * `actor.kind === "ai"`, the shell will route the op through a
@@ -27,31 +28,77 @@ function AIPanelComponent({ ctx }: ViewProps) {
         ? `AI · ${ctx.actor.sessionId}`
         : `System · ${ctx.actor.reason}`;
 
+  const opCount = ctx.applicableOperations.length;
+
   return (
-    <div className="flex h-full flex-col gap-3 p-4">
-      <header className="flex items-center justify-between gap-3">
-        <div>
+    <div className="flex h-full gap-6 px-5 py-4">
+      {/* Hero / brand cluster. */}
+      <div className="flex w-64 shrink-0 flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-accent/30 to-accent/0 text-accent">
+            <SparkleIcon className="h-4 w-4" />
+          </span>
           <h2 className="text-sm font-semibold text-text-primary">
             AI co-pilot
           </h2>
-          <p className="text-[0.7rem] text-text-tertiary">
-            Acting as: {actorLabel}
-          </p>
         </div>
-        <span className="inline-flex items-center gap-2 rounded-full border border-line-soft bg-surface-2 px-2 py-1 text-[0.65rem] uppercase tracking-[0.14em] text-text-tertiary">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-text-tertiary" />
-          Not connected
-        </span>
-      </header>
-
-      <WorkbenchSection tone="dashed">
-        <p className="text-xs text-text-tertiary">
-          The actor model is wired and operations are typed end-to-end,
-          so the shell knows how to route an AI-authored op through an
-          approval gate before invoking. The model itself plugs in via
-          a follow-up — until then, ops only run when a user clicks them.
+        <p className="text-[0.75rem] leading-relaxed text-text-secondary">
+          Soon, ask the co-pilot to draw a building, place POIs from a
+          spreadsheet, or summarise accessibility coverage. Approve
+          changes before they run.
         </p>
-      </WorkbenchSection>
+        <div className="mt-2 flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.14em] text-text-tertiary">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-bg px-2 py-1">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-text-tertiary" />
+            Not connected
+          </span>
+          <span>Acting as: {actorLabel}</span>
+        </div>
+      </div>
+
+      {/* Example prompts — what the co-pilot will be able to do. */}
+      <div className="flex min-w-0 flex-1 flex-col gap-2 overflow-auto">
+        <div className="text-[0.65rem] uppercase tracking-[0.14em] text-text-tertiary">
+          Example prompts
+        </div>
+        <ExamplePrompt
+          label="Place POIs from a CSV"
+          hint="Upload a list of names + coordinates and let the co-pilot drop them on the map."
+        />
+        <ExamplePrompt
+          label="Draw all buildings from OSM"
+          hint="Use OpenStreetMap polygons to seed the campus's buildings, then refine."
+        />
+        <ExamplePrompt
+          label="Summarise accessibility coverage"
+          hint="Get a one-line audit: % of POIs with step-free access, missing notes, etc."
+        />
+        <ExamplePrompt
+          label="Suggest tour stops"
+          hint="Pick a 6-stop walking tour from the current POIs, balanced by category."
+        />
+        <p className="mt-2 text-[0.65rem] text-text-tertiary">
+          {opCount} operation{opCount === 1 ? "" : "s"} currently
+          applicable to your selection — the same surface the co-pilot
+          will draw from when it ships.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ExamplePrompt({ label, hint }: { label: string; hint: string }) {
+  return (
+    <div
+      className="group rounded-xl border border-dashed border-line-soft bg-surface-1 px-3 py-2 text-left transition-colors"
+      role="note"
+      aria-label={label}
+    >
+      <div className="flex items-center gap-2 text-xs font-medium text-text-primary">
+        <span className="text-text-tertiary">›</span>
+        {label}
+      </div>
+      <p className="mt-0.5 pl-3 text-[0.7rem] text-text-tertiary">{hint}</p>
     </div>
   );
 }

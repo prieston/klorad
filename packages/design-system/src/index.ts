@@ -68,3 +68,7 @@ export {
   ContextMenu,
   type ContextMenuProps,
 } from "./components/context-menu";
+export {
+  WorkbenchTopBar,
+  type WorkbenchTopBarProps,
+} from "./components/workbench-top-bar";

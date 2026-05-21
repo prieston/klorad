@@ -6,6 +6,7 @@ export type {
   MapboxObservationCamera,
   ViewMode,
   CesiumIonAsset,
+  SceneState,
 } from "./useSceneStore";
 export { useIoTStore } from "./iot-store";
 export { useXRStore } from "./xr-store";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useSceneStore } from "@klorad/core";
+import { useSceneStore, type SceneState } from "@klorad/core";
 import type { SceneAPI, SceneEventBusAPI } from "../types/interfaces";
 import type {
   SceneObject,
@@ -10,12 +10,19 @@ import type {
   SceneEventHandler,
 } from "../types";
 
+// The store-selector parameter type. Explicit because the zustand
+// `UseBoundStoreWithEqualityFn` wrapper Klorad's @klorad/core uses
+// loses generic inference through the DTS build pipeline; without
+// this annotation, every selector below falls back to implicit-any
+// and the package's types fail to emit.
+type S = SceneState;
+
 // ---------------------------------------------------------------------------
 // useObjects — reactive list of all scene objects
 // ---------------------------------------------------------------------------
 export function useObjects(): SceneObject[] {
-  const raw = useSceneStore((s) => s.objects);
-  return raw.map((obj) => ({
+  const raw = useSceneStore((s: S) => s.objects);
+  return raw.map((obj: S["objects"][number]) => ({
     id: obj.id,
     name: obj.name ?? "",
     url: obj.url,
@@ -33,7 +40,7 @@ export function useObjects(): SceneObject[] {
 // useSelectedObject — reactive selected object
 // ---------------------------------------------------------------------------
 export function useSelectedObject(): SceneObject | null {
-  const selected = useSceneStore((s) => s.selectedObject);
+  const selected = useSceneStore((s: S) => s.selectedObject);
   if (!selected) return null;
   return {
     id: selected.id,
@@ -57,18 +64,20 @@ export function useTour(): {
   current: TourStop | null;
   isPlaying: boolean;
 } {
-  const observationPoints = useSceneStore((s) => s.observationPoints);
-  const previewMode = useSceneStore((s) => s.previewMode);
-  const previewIndex = useSceneStore((s) => s.previewIndex);
+  const observationPoints = useSceneStore((s: S) => s.observationPoints);
+  const previewMode = useSceneStore((s: S) => s.previewMode);
+  const previewIndex = useSceneStore((s: S) => s.previewIndex);
 
-  const stops: TourStop[] = observationPoints.map((p) => ({
-    id: p.id,
-    title: p.title,
-    description: p.description,
-    cameraPosition: p.position as [number, number, number] | null,
-    cameraTarget: p.target as [number, number, number] | null,
-    linkedObjectId: p.connectedModelId,
-  }));
+  const stops: TourStop[] = observationPoints.map(
+    (p: S["observationPoints"][number]) => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      cameraPosition: p.position as [number, number, number] | null,
+      cameraTarget: p.target as [number, number, number] | null,
+      linkedObjectId: p.connectedModelId,
+    }),
+  );
 
   const currentRaw = previewMode ? observationPoints[previewIndex] : null;
   const current: TourStop | null = currentRaw
