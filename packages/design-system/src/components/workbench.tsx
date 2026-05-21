@@ -235,6 +235,7 @@ export function Workbench({
   const ctx = useMemo<ViewContext>(
     () => ({
       worldId,
+      actor,
       selection,
       setSelection,
       entities,
@@ -244,6 +245,7 @@ export function Workbench({
     }),
     [
       worldId,
+      actor,
       selection,
       entities,
       runOperation,

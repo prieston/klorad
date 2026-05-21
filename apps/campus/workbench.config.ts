@@ -10,6 +10,7 @@ import {
   overviewView,
   tableView,
   hierarchyView,
+  aiPanelView,
   flyToPoiOp,
   openViewerOp,
   copyLinkOp,
@@ -69,7 +70,7 @@ const workbenchConfig = defineWorkbench({
     tourStopEntity,
     eventEntity,
   ],
-  views: [mapView, overviewView, tableView, hierarchyView],
+  views: [mapView, overviewView, tableView, hierarchyView, aiPanelView],
   operations: [
     flyToPoiOp,
     openViewerOp,
@@ -92,7 +93,7 @@ const workbenchConfig = defineWorkbench({
     left: ["table", "hierarchy"],
     center: ["map"],
     right: ["overview"],
-    bottom: [],
+    bottom: ["ai-panel"],
   },
 });
 

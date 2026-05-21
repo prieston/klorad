@@ -183,6 +183,14 @@ export type DockRegion = "left" | "center" | "right" | "bottom";
 /** Data and callbacks every view receives. */
 export interface ViewContext {
   worldId: string;
+  /**
+   * Who's running the show — user / ai / system. Views surface this
+   * (e.g. an "AI is suggesting" indicator); ops route around it (the
+   * shell runs an approval gate before invoking when `actor.kind === "ai"`).
+   * Phase 7 lands the actor model; the approval gate ships with the
+   * first AI-authored operation.
+   */
+  actor: Actor;
   selection: SelectionState;
   setSelection(next: SelectionState): void;
   entities: EntityIndex;
