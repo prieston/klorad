@@ -100,18 +100,19 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="border-b border-line-soft px-4 py-3">
-        <h2 className="text-sm font-semibold text-text-primary">Hierarchy</h2>
-        <p className="mt-0.5 text-[0.7rem] text-text-tertiary">
+      <header className="space-y-1 px-4 pb-3">
+        <h2 className="text-base font-semibold text-text-primary">Hierarchy</h2>
+        <p className="text-[0.7rem] text-text-tertiary">
           {buildings.length} building{buildings.length === 1 ? "" : "s"} ·{" "}
           {standalonePois.length} unbuilt
         </p>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto py-1">
+      <div className="min-h-0 flex-1 overflow-auto pb-3">
         {isEmpty ? (
-          <div className="px-4 py-6 text-center text-xs text-text-tertiary">
-            Nothing in this world yet.
+          <div className="px-4 py-8 text-center text-xs text-text-tertiary">
+            Nothing in this world yet. Draw a building or place a POI on
+            the map to start filling the tree.
           </div>
         ) : (
           <>
