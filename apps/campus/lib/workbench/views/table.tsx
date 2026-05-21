@@ -65,11 +65,11 @@ function TableViewComponent({ ctx }: ViewProps) {
           Nothing matches “{query}”.
         </div>
       ) : (
-        // Minimal list — no outer container chrome, no per-row
-        // borders. Rows are spaced with `space-y-px` so they read as
-        // a flat list; idle rows are bare, selected = accent-soft
-        // fill, hover = soft surface bump.
-        <ul role="list" className="min-h-0 flex-1 space-y-px overflow-auto px-2 pb-3">
+        // Chunky-button list. Each row is its own padded grey
+        // rectangle; `space-y-2` puts a clear gap between them. No
+        // borders, no outlines, no focus rings — purely background-
+        // driven (per user direction).
+        <ul role="list" className="min-h-0 flex-1 space-y-2 overflow-auto px-3 pb-3">
           {filtered.map((entity) => {
             const poi = entity.payload;
             const isSelected = entity.id === selectedId;
@@ -96,10 +96,10 @@ function TableViewComponent({ ctx }: ViewProps) {
                   aria-pressed={isSelected}
                   title={poi.category ? `${poi.name} · ${poi.category}` : poi.name}
                   className={cn(
-                    "group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left transition-colors",
+                    "group flex w-full items-center gap-2.5 rounded-xl border-0 p-3.5 text-left outline-none transition-colors focus:outline-none",
                     isSelected
                       ? "bg-accent-soft text-accent"
-                      : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
+                      : "bg-surface-2 text-text-secondary hover:bg-accent-soft/40 hover:text-text-primary",
                   )}
                 >
                   <span
@@ -151,10 +151,10 @@ function TableViewComponent({ ctx }: ViewProps) {
 }
 
 /**
- * Search input — borderless light-grey rounded box. No `glass-panel`
- * because its 1px `glass-border` reads as a hard outline on the
- * white dock; instead solid `bg-surface-2` carries the contrast and
- * the only visible state is the ring on focus.
+ * Search input — pure light-grey rounded box. No border, no outline,
+ * 14px padding (matches the chunky-button rhythm the rest of the
+ * left panel uses). Focus is invisible (a11y trade-off the user
+ * explicitly asked for).
  */
 function SearchPill({
   value,
@@ -164,21 +164,21 @@ function SearchPill({
   onChange: (v: string) => void;
 }) {
   return (
-    <label className="group flex items-center gap-2.5 rounded-xl bg-surface-2 px-3 py-2 transition-colors focus-within:ring-2 focus-within:ring-accent/40">
+    <label className="group flex items-center gap-2.5 rounded-xl border-0 bg-surface-2 p-3.5 outline-none">
       <SearchIcon className="h-3.5 w-3.5 shrink-0 text-text-tertiary" />
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search POIs…"
-        className="w-full bg-transparent text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none"
+        className="w-full border-0 bg-transparent text-xs text-text-primary outline-none placeholder:text-text-tertiary focus:outline-none"
       />
       {value ? (
         <button
           type="button"
           onClick={() => onChange("")}
           aria-label="Clear search"
-          className="text-text-tertiary transition-colors hover:text-text-primary"
+          className="border-0 text-text-tertiary outline-none transition-colors hover:text-text-primary focus:outline-none"
         >
           <ClearIcon className="h-3 w-3" />
         </button>

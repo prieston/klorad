@@ -112,7 +112,7 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
         ) : null}
       </header>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-auto px-3 pb-3">
+      <div className="min-h-0 flex-1 space-y-2 overflow-auto px-3 pb-3" style={{ scrollbarGutter: "stable" }}>
         {isEmpty ? (
           <EmptyHierarchy />
         ) : (
@@ -237,20 +237,20 @@ function BuildingRow({
   return (
     <article
       className={cn(
-        "group overflow-hidden rounded-xl transition-colors",
+        "group overflow-hidden rounded-xl border-0 outline-none transition-colors",
         selected
           ? "bg-accent-soft"
-          : "bg-surface-2 hover:bg-surface-2/70",
+          : "bg-surface-2 hover:bg-accent-soft/40",
       )}
     >
-      <div className="flex items-center gap-2.5 px-3 py-2">
+      <div className="flex items-center gap-2.5 p-3.5">
         <button
           type="button"
           onClick={onToggle}
           aria-label={open ? "Collapse" : "Expand"}
           aria-expanded={open}
           className={cn(
-            "flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors",
+            "flex h-5 w-5 shrink-0 items-center justify-center rounded border-0 outline-none transition-colors focus:outline-none",
             selected ? "text-accent" : "text-text-tertiary",
           )}
         >
@@ -261,7 +261,7 @@ function BuildingRow({
           onClick={onSelect}
           onContextMenu={onContextMenu}
           aria-pressed={selected}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          className="flex min-w-0 flex-1 items-center gap-2 border-0 text-left outline-none focus:outline-none"
         >
           <BuildingIcon
             className={cn(
@@ -290,7 +290,7 @@ function BuildingRow({
         ) : null}
       </div>
       {open ? (
-        <div className="space-y-px px-1.5 pb-1.5">{children}</div>
+        <div className="space-y-1.5 px-2 pb-3">{children}</div>
       ) : null}
     </article>
   );
@@ -317,10 +317,10 @@ function FloorRow({
       onContextMenu={onContextMenu}
       aria-pressed={selected}
       className={cn(
-        "flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors",
+        "flex w-full items-center gap-2.5 rounded-xl border-0 px-3 py-2.5 text-left outline-none transition-colors focus:outline-none",
         selected
           ? "bg-accent-soft text-accent"
-          : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
+          : "text-text-secondary hover:bg-bg hover:text-text-primary",
       )}
     >
       <FloorBadge floor={floor.floor} selected={selected} />
@@ -348,10 +348,10 @@ function PoiRow({
       onContextMenu={onContextMenu}
       aria-pressed={selected}
       className={cn(
-        "group flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors",
+        "group flex w-full items-center gap-2.5 rounded-xl border-0 px-3 py-2.5 text-left outline-none transition-colors focus:outline-none",
         selected
           ? "bg-accent-soft text-accent"
-          : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
+          : "text-text-secondary hover:bg-bg hover:text-text-primary",
       )}
     >
       <span
