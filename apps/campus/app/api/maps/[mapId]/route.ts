@@ -17,6 +17,7 @@ export async function GET(
       updatedAt: true,
       createdAt: true,
       thumbnail: true,
+      isPublished: true,
     },
   });
 
@@ -36,6 +37,7 @@ export async function PATCH(
     name?: string;
     sceneData?: unknown;
     thumbnail?: string | null;
+    isPublished?: boolean;
   };
 
   const map = await prisma.project.update({
@@ -44,8 +46,15 @@ export async function PATCH(
       ...(body.name !== undefined && { title: body.name }),
       ...(body.sceneData !== undefined && { sceneData: body.sceneData as object }),
       ...(body.thumbnail !== undefined && { thumbnail: body.thumbnail }),
+      ...(body.isPublished !== undefined && { isPublished: body.isPublished }),
     },
-    select: { id: true, title: true, updatedAt: true, thumbnail: true },
+    select: {
+      id: true,
+      title: true,
+      updatedAt: true,
+      thumbnail: true,
+      isPublished: true,
+    },
   });
 
   return NextResponse.json({ ...map, name: map.title });
