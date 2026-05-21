@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import type { FloorPlan, POI, Room } from "@klorad/api";
 import { useSceneStore } from "@klorad/core";
 import type { Entity, View, ViewProps } from "@klorad/config/workbench";
+import { FloorSwitcher } from "@klorad/design-system";
 import type { Map as MapboxMap } from "mapbox-gl";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxDrawnBuildingsLayer } from "@/app/hooks/useMapboxDrawnBuildingsLayer";
@@ -92,6 +93,43 @@ function MapViewComponent({ ctx }: ViewProps) {
     if (!selectedBuildingId) return [];
     return allRooms.filter((r) => r.buildingId === selectedBuildingId);
   }, [allRooms, selectedBuildingId]);
+
+  // Floor list for the FloorSwitcher overlay — every floor for which
+  // the building has a plan, ordered top-down (highest first) to
+  // match the visual stacking of the building.
+  const plansForBuilding = useMemo<FloorPlan[]>(() => {
+    if (!selectedBuildingId) return [];
+    return allFloorPlans.filter((p) => p.buildingId === selectedBuildingId);
+  }, [allFloorPlans, selectedBuildingId]);
+  const buildingFloors = useMemo<number[]>(() => {
+    const floors = plansForBuilding
+      .map((p) => p.floor)
+      .filter((f): f is number => typeof f === "number");
+    return Array.from(new Set(floors)).sort((a, b) => b - a);
+  }, [plansForBuilding]);
+
+  // Translate a floor pick into a selection of the matching floor
+  // plan entity — that keeps the workbench's single-source-of-truth
+  // model (everything is a selection) and means the rest of the
+  // wiring above ("if focused entity is a plan, derive activeFloor")
+  // works unchanged.
+  const onFloorChange = (floor: number | null) => {
+    if (floor === null) {
+      if (selectedBuildingId) {
+        ctx.setSelection({
+          ids: new Set([selectedBuildingId]),
+          focusedId: selectedBuildingId,
+        });
+      } else {
+        ctx.setSelection({ ids: new Set<string>(), focusedId: null });
+      }
+      return;
+    }
+    const plan = plansForBuilding.find((p) => p.floor === floor);
+    if (plan) {
+      ctx.setSelection({ ids: new Set([plan.id]), focusedId: plan.id });
+    }
+  };
 
   useMapboxPoiLayer({
     pois,
@@ -235,6 +273,14 @@ function MapViewComponent({ ctx }: ViewProps) {
     <div className="relative h-full w-full">
       <MapboxViewer />
       {placementMode ? <PlacementBanner mode={placementMode} /> : null}
+      {buildingFloors.length > 0 ? (
+        <FloorSwitcher
+          floors={buildingFloors}
+          activeFloor={activeFloor}
+          onChange={onFloorChange}
+          className="absolute right-4 top-1/2 z-10 -translate-y-1/2"
+        />
+      ) : null}
     </div>
   );
 }
