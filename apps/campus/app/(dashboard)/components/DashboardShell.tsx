@@ -79,9 +79,11 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   const { organization: currentOrganization, loadingOrganization } =
     useOrganization(orgId);
 
-  // Builder routes have their own dedicated layout — no dashboard shell.
-  const isBuilder = pathname?.includes("/builder") ?? false;
-  if (isBuilder) {
+  // Builder + Workbench routes own the full viewport — no dashboard shell.
+  const isFullScreen =
+    (pathname?.includes("/builder") ?? false) ||
+    (pathname?.includes("/workbench") ?? false);
+  if (isFullScreen) {
     return <main className="min-h-screen">{children}</main>;
   }
 

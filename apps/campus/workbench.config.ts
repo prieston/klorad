@@ -5,19 +5,21 @@ import {
   floorPlanEntity,
   tourStopEntity,
   eventEntity,
+  mapView,
 } from "@/lib/workbench";
 
 /**
  * The campus vertical's Workbench configuration.
  *
- * Phase 1.2 — entities declared. Views, operations and the default
- * layout fill in as Phase 2–5 land (see `WORKBENCH.md` §10).
+ * - Phase 1.2 — five typed entities registered
+ * - Phase 2   — one placeholder `mapView` in the centre region
+ * - Phase 3+  — real views (Map / Table / Hierarchy / Overview),
+ *                operations, populated dock layout
  *
- * Today nothing imports this file at runtime: the existing
- * `maps/[mapId]/builder/*` route keeps rendering off `Map.sceneData`.
- * The config exists so the shape compiles end-to-end, so the next
- * phase can mount the shell off `import workbenchConfig from
- * "@/workbench.config"` with no plumbing surprises.
+ * Imported by `/maps/[mapId]/workbench/page.tsx` at runtime; the old
+ * `/maps/[mapId]/builder` route stays untouched until Phase 6.
+ *
+ * See `apps/campus/WORKBENCH.md` §10 for the full migration plan.
  */
 const workbenchConfig = defineWorkbench({
   vertical: "campus",
@@ -28,11 +30,11 @@ const workbenchConfig = defineWorkbench({
     tourStopEntity,
     eventEntity,
   ],
-  views: [],
+  views: [mapView],
   operations: [],
   defaultLayout: {
     left: [],
-    center: [],
+    center: ["map"],
     right: [],
     bottom: [],
   },
