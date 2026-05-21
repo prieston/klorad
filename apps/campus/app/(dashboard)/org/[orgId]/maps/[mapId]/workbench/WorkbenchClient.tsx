@@ -14,6 +14,8 @@ import { createSceneAPI } from "@klorad/api";
 import type {
   CampusAPI,
   FloorPlan,
+  NavEdge,
+  NavNode,
   POI,
   Room,
   TourStop,
@@ -48,6 +50,8 @@ export default function WorkbenchClient({ mapId }: Props) {
   const [plans, setPlans] = useState<FloorPlan[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [tourStops] = useState<TourStop[]>([]);
+  const [navNodes, setNavNodes] = useState<NavNode[]>([]);
+  const [navEdges, setNavEdges] = useState<NavEdge[]>([]);
   const apiRef = useRef<CampusAPI | null>(null);
 
   // Save state — the version counter ticks on every op mutation; the
@@ -77,6 +81,8 @@ export default function WorkbenchClient({ mapId }: Props) {
         setPois(api.poi.getAll());
         setPlans(api.floorPlans.getAll());
         setRooms(api.rooms.getAll());
+        setNavNodes(api.navNodes.getAll());
+        setNavEdges(api.navEdges.getAll());
       } catch {
         // New or unreachable map — fall through to empty defaults.
       } finally {
@@ -97,6 +103,8 @@ export default function WorkbenchClient({ mapId }: Props) {
     setPois(apiRef.current.poi.getAll());
     setPlans(apiRef.current.floorPlans.getAll());
     setRooms(apiRef.current.rooms.getAll());
+    setNavNodes(apiRef.current.navNodes.getAll());
+    setNavEdges(apiRef.current.navEdges.getAll());
   }, [apiVersion, sceneReady]);
 
   const entities = useMemo(
@@ -107,8 +115,10 @@ export default function WorkbenchClient({ mapId }: Props) {
         floorPlans: plans,
         rooms,
         tourStops,
+        navNodes,
+        navEdges,
       }),
-    [mapId, pois, plans, rooms, tourStops],
+    [mapId, pois, plans, rooms, tourStops, navNodes, navEdges],
   );
 
   const toast = useCallback<WorkbenchToast>((msg, tone) => {

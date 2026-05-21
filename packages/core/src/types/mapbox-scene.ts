@@ -48,6 +48,74 @@ export interface MapboxRoom {
   searchKeywords?: string[];
 }
 
+/**
+ * A waypoint in the building / outdoor walking graph.
+ *
+ *   - `corridor` — intermediate point along a hallway
+ *   - `door-external` — a building entrance: connects an outdoor walk
+ *     segment to an indoor corridor on a specific floor
+ *   - `door-internal` — a door between two indoor spaces on the same
+ *     floor (e.g. corridor ↔ classroom)
+ *   - `elevator` — vertical-transit waypoint. Two elevator nodes on
+ *     different floors at the same lng/lat connected by an edge form
+ *     a single elevator shaft.
+ *   - `stair` — vertical-transit waypoint that excludes step-free routing.
+ *   - `room-anchor` — marks "navigation enters Room X here". Used so a
+ *     route to a room doesn't terminate at the room's centroid (which
+ *     may be inside furniture) but at its actual entry point.
+ *   - `outdoor` — free outdoor waypoint, e.g. a path junction between
+ *     buildings or at a campus gate.
+ */
+export type MapboxNavNodeType =
+  | "corridor"
+  | "door-external"
+  | "door-internal"
+  | "elevator"
+  | "stair"
+  | "room-anchor"
+  | "outdoor";
+
+export interface MapboxNavNode {
+  id: string;
+  type: MapboxNavNodeType;
+  /** [lng, lat]. */
+  position: MapboxLngLat;
+  /** Floor for indoor nodes; null/undefined for outdoor. */
+  floor?: number | null;
+  /** Building POI id for indoor nodes. Omit for outdoor. */
+  buildingId?: string;
+  /** Room id for type=`room-anchor`. */
+  roomId?: string;
+  /**
+   * Step-free? Defaults to true for everything except `stair`. Used
+   * by the wayfinding engine when the user toggles accessibility mode
+   * — non-accessible nodes (and edges that touch them) are excluded.
+   */
+  accessible?: boolean;
+  /** Optional human label — surfaced in the editor and search. */
+  name?: string;
+}
+
+export interface MapboxNavEdge {
+  id: string;
+  fromNodeId: string;
+  toNodeId: string;
+  /**
+   * Override the auto-computed walking cost (in metres). Useful for
+   * elevators (~3 m per floor + dwell) and stairs (~6 m per floor)
+   * where the great-circle distance between the two nodes is 0.
+   */
+  cost?: number;
+  /**
+   * Step-free? Defaults to (fromNode.accessible && toNode.accessible).
+   * Override to mark a corridor "no wheelchair" without changing the
+   * node types.
+   */
+  accessible?: boolean;
+  /** Optional human label ("Stair B", "Elevator 2"). */
+  name?: string;
+}
+
 /** Georeferenced floor plan / overlay (Mapbox image source). */
 export interface MapboxFloorPlanRaster {
   id: string;
@@ -116,6 +184,14 @@ export interface MapboxSceneData {
   layers: MapboxSceneLayer[];
   floorPlanRasters?: MapboxFloorPlanRaster[];
   rooms?: MapboxRoom[];
+  /**
+   * Walking-graph waypoints used by the wayfinding engine — corridor
+   * intersections, doors, elevator/stair landings, room anchors,
+   * outdoor path junctions.
+   */
+  navNodes?: MapboxNavNode[];
+  /** Edges between {@link navNodes} forming the wayfinding graph. */
+  navEdges?: MapboxNavEdge[];
 
   projection?: MapboxProjection;
   terrain?: MapboxTerrainSettings;
@@ -133,6 +209,8 @@ export const DEFAULT_MAPBOX_SCENE_DATA: MapboxSceneData = {
   layers: [],
   floorPlanRasters: [],
   rooms: [],
+  navNodes: [],
+  navEdges: [],
   projection: "mercator",
   terrain: {
     enabled: false,
