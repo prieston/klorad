@@ -4,27 +4,25 @@ import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { FloorPlan, POI } from "@klorad/api";
 import type { Entity, View, ViewProps } from "@klorad/config/workbench";
-import { ContextMenu } from "@klorad/design-system";
+import { ContextMenu, cn } from "@klorad/design-system";
 import type { Building } from "../entities/building";
 
 /**
- * Phase 4c — HierarchyView.
+ * Phase 4c → modernised — HierarchyView.
  *
- * A collapsible tree of Building → (FloorPlans + child POIs), with
- * a flat "Unbuilt" section underneath for POIs that don't belong to
- * a building. Lives in the left dock, stacked under TableView.
+ * Buildings as cards rather than tree-rows. Each building is a
+ * rounded card with:
+ *   - a building icon + name as the header
+ *   - a compact metadata strip (floors · POIs · accessibility)
+ *   - chevron to expand / collapse
+ *   - when expanded, nested floor + POI rows in a tighter style
  *
- * - Buildings come from `ctx.entities.byType("campus.building")`.
- * - Child POIs are matched by `payload.parentBuildingId === building.id`.
- * - Floor plans are matched by `payload.buildingId === building.id`.
- * - Standalone POIs are POIs without a `parentBuildingId` that aren't
- *   themselves Building-entities.
+ * "Unbuilt" POIs (no parent building) live in a separate section
+ * at the bottom, also card-styled for consistency.
  *
- * Clicking any leaf or building name fires `ctx.setSelection(...)`.
- * The 3D scene + table + overview all react via the shared selection.
- *
- * Local UI state: which buildings are expanded. Selection state
- * lives in the shell.
+ * Selection: full accent-soft background on the active row, accent
+ * ring on the active card. Right-click works on every row, surfacing
+ * `ctx.operationsForEntity(...)` via the DS ContextMenu.
  */
 function HierarchyViewComponent({ ctx }: ViewProps) {
   const buildings = ctx.entities.byType(
@@ -63,7 +61,6 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
         else map.set(bid, [fp]);
       }
     }
-    // Sort floor plans by floor number where available.
     for (const list of map.values()) {
       list.sort((a, b) => (a.payload.floor ?? 0) - (b.payload.floor ?? 0));
     }
@@ -97,9 +94,6 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
     });
   };
 
-  // Right-click context menu. Pulls `operationsForEntity` so the menu
-  // shows ops for the *right-clicked* row, not necessarily the
-  // currently-selected one.
   const [menu, setMenu] = useState<{
     x: number;
     y: number;
@@ -115,19 +109,23 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
   return (
     <div className="flex h-full flex-col">
       <header className="space-y-1 px-4 pb-3">
-        <h2 className="text-base font-semibold text-text-primary">Hierarchy</h2>
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-base font-semibold text-text-primary">
+            Hierarchy
+          </h2>
+          <span className="text-[0.7rem] tabular-nums text-text-tertiary">
+            {buildings.length} building{buildings.length === 1 ? "" : "s"}
+          </span>
+        </div>
         <p className="text-[0.7rem] text-text-tertiary">
-          {buildings.length} building{buildings.length === 1 ? "" : "s"} ·{" "}
-          {standalonePois.length} unbuilt
+          {standalonePois.length} unbuilt POI
+          {standalonePois.length === 1 ? "" : "s"}
         </p>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto pb-3">
+      <div className="min-h-0 flex-1 space-y-2 overflow-auto px-3 pb-3">
         {isEmpty ? (
-          <div className="px-4 py-8 text-center text-xs text-text-tertiary">
-            Nothing in this world yet. Draw a building or place a POI on
-            the map to start filling the tree.
-          </div>
+          <EmptyHierarchy />
         ) : (
           <>
             {buildings.map((b) => {
@@ -135,66 +133,39 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
               const children = childPoisByBuilding.get(b.id) ?? [];
               const floors = floorsByBuilding.get(b.id) ?? [];
               const isSelected = focusedId === b.id;
+              const hasContents = floors.length + children.length > 0;
               return (
-                <div key={b.id}>
-                  <div className="flex items-stretch">
-                    <button
-                      type="button"
-                      onClick={() => toggleExpanded(b.id)}
-                      className="flex w-7 shrink-0 items-center justify-center text-text-tertiary hover:text-text-primary"
-                      aria-label={open ? "Collapse" : "Expand"}
-                      aria-expanded={open}
-                    >
-                      <Chevron open={open} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => select(b.id)}
-                      onContextMenu={(e) => openMenu(e, b.id)}
-                      aria-pressed={isSelected}
-                      className={
-                        "flex flex-1 items-center gap-1.5 truncate py-1.5 pr-3 text-left text-sm transition-colors " +
-                        (isSelected
-                          ? "font-medium text-accent"
-                          : "text-text-primary hover:text-accent")
-                      }
-                    >
-                      <BuildingIcon />
-                      <span className="truncate">
-                        {b.payload.name || "Unnamed building"}
-                      </span>
-                    </button>
-                  </div>
-
+                <BuildingCard
+                  key={b.id}
+                  open={open}
+                  selected={isSelected}
+                  onToggle={() => toggleExpanded(b.id)}
+                  onSelect={() => select(b.id)}
+                  onContextMenu={(e) => openMenu(e, b.id)}
+                  name={b.payload.name || "Unnamed building"}
+                  floorCount={floors.length}
+                  poiCount={children.length}
+                >
                   {open ? (
-                    <div className="ml-3.5 border-l border-line-soft pl-1.5 pb-1">
-                      {floors.length === 0 && children.length === 0 ? (
-                        <Leaf>
-                          <span className="italic">
-                            No floors or child POIs
-                          </span>
-                        </Leaf>
+                    <div className="space-y-1 px-3 pb-3">
+                      {!hasContents ? (
+                        <p className="text-[0.7rem] italic text-text-tertiary">
+                          No floors or POIs in here yet.
+                        </p>
                       ) : null}
                       {floors.map((f) => (
-                        <Leaf
+                        <FloorRow
                           key={f.id}
-                          icon={<FloorIcon />}
-                          label={
-                            f.payload.name ??
-                            (f.payload.floor !== undefined
-                              ? `Floor ${f.payload.floor}`
-                              : "Floor")
-                          }
+                          floor={f.payload}
                           selected={focusedId === f.id}
                           onSelect={() => select(f.id)}
                           onContextMenu={(e) => openMenu(e, f.id)}
                         />
                       ))}
                       {children.map((p) => (
-                        <Leaf
+                        <PoiRow
                           key={p.id}
-                          icon={<PoiIcon />}
-                          label={p.payload.name || "Unnamed POI"}
+                          poi={p.payload}
                           selected={focusedId === p.id}
                           onSelect={() => select(p.id)}
                           onContextMenu={(e) => openMenu(e, p.id)}
@@ -202,36 +173,25 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
                       ))}
                     </div>
                   ) : null}
-                </div>
+                </BuildingCard>
               );
             })}
 
             {standalonePois.length > 0 ? (
-              <>
-                <div className="border-t border-line-soft px-4 pt-3 pb-1 text-[0.65rem] uppercase tracking-[0.14em] text-text-tertiary">
+              <section className="space-y-1 rounded-2xl border border-dashed border-line-soft p-3">
+                <header className="px-1 pb-1 text-[0.65rem] uppercase tracking-[0.14em] text-text-tertiary">
                   Unbuilt POIs
-                </div>
+                </header>
                 {standalonePois.map((p) => (
-                  <button
+                  <PoiRow
                     key={p.id}
-                    type="button"
-                    onClick={() => select(p.id)}
+                    poi={p.payload}
+                    selected={focusedId === p.id}
+                    onSelect={() => select(p.id)}
                     onContextMenu={(e) => openMenu(e, p.id)}
-                    aria-pressed={focusedId === p.id}
-                    className={
-                      "flex w-full items-center gap-1.5 truncate px-4 py-1.5 text-left text-sm transition-colors " +
-                      (focusedId === p.id
-                        ? "bg-accent-soft font-medium text-accent"
-                        : "text-text-secondary hover:text-text-primary")
-                    }
-                  >
-                    <PoiIcon />
-                    <span className="truncate">
-                      {p.payload.name || "Unnamed POI"}
-                    </span>
-                  </button>
+                  />
                 ))}
-              </>
+              </section>
             ) : null}
           </>
         )}
@@ -256,44 +216,210 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
   );
 }
 
-function Leaf({
-  icon,
-  label,
+/**
+ * One building rendered as a rounded card. Header is clickable to
+ * select; chevron toggles expansion independently.
+ */
+function BuildingCard({
+  name,
   selected,
+  open,
+  floorCount,
+  poiCount,
+  onToggle,
   onSelect,
   onContextMenu,
   children,
 }: {
-  icon?: ReactNode;
-  label?: string;
-  selected?: boolean;
-  onSelect?: () => void;
-  onContextMenu?: (e: React.MouseEvent) => void;
+  name: string;
+  selected: boolean;
+  open: boolean;
+  floorCount: number;
+  poiCount: number;
+  onToggle: () => void;
+  onSelect: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
   children?: ReactNode;
 }) {
-  if (!onSelect) {
-    return (
-      <div className="flex items-center gap-1.5 py-1 pl-2 pr-3 text-xs text-text-tertiary">
-        {children}
+  return (
+    <article
+      className={cn(
+        "overflow-hidden rounded-2xl border bg-surface-1 transition-colors",
+        selected
+          ? "border-accent shadow-[0_0_0_1px_var(--accent)]"
+          : "border-line-soft hover:border-line-strong",
+      )}
+    >
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={open ? "Collapse" : "Expand"}
+          aria-expanded={open}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-accent-soft hover:text-text-primary"
+        >
+          <Chevron open={open} />
+        </button>
+        <button
+          type="button"
+          onClick={onSelect}
+          onContextMenu={onContextMenu}
+          aria-pressed={selected}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        >
+          <span
+            className={cn(
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors",
+              selected
+                ? "border-accent bg-accent text-accent-contrast"
+                : "border-line-soft bg-surface-1 text-text-tertiary",
+            )}
+          >
+            <BuildingIcon className="h-3.5 w-3.5" />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span
+              className={cn(
+                "truncate text-sm font-medium",
+                selected ? "text-accent" : "text-text-primary",
+              )}
+            >
+              {name}
+            </span>
+            <span className="truncate text-[0.7rem] text-text-tertiary">
+              {floorCount} floor{floorCount === 1 ? "" : "s"} · {poiCount} POI
+              {poiCount === 1 ? "" : "s"}
+            </span>
+          </div>
+        </button>
       </div>
-    );
-  }
+      {children}
+    </article>
+  );
+}
+
+function FloorRow({
+  floor,
+  selected,
+  onSelect,
+  onContextMenu,
+}: {
+  floor: FloorPlan;
+  selected: boolean;
+  onSelect: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+}) {
+  const label =
+    floor.name ??
+    (floor.floor !== undefined ? `Floor ${floor.floor}` : "Floor");
   return (
     <button
       type="button"
       onClick={onSelect}
       onContextMenu={onContextMenu}
       aria-pressed={selected}
-      className={
-        "flex w-full items-center gap-1.5 truncate py-1 pl-2 pr-3 text-left text-[0.8125rem] transition-colors " +
-        (selected
-          ? "font-medium text-accent"
-          : "text-text-secondary hover:text-text-primary")
-      }
+      className={cn(
+        "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors",
+        selected
+          ? "bg-accent-soft text-accent"
+          : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
+      )}
     >
-      {icon}
-      <span className="truncate">{label}</span>
+      <FloorBadge floor={floor.floor} selected={selected} />
+      <span className="flex-1 truncate text-[0.8125rem]">{label}</span>
     </button>
+  );
+}
+
+function PoiRow({
+  poi,
+  selected,
+  onSelect,
+  onContextMenu,
+}: {
+  poi: POI;
+  selected: boolean;
+  onSelect: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      onContextMenu={onContextMenu}
+      aria-pressed={selected}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors",
+        selected
+          ? "bg-accent-soft text-accent"
+          : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
+      )}
+    >
+      <span
+        className={cn(
+          "inline-block h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
+          selected ? "bg-accent" : "bg-text-tertiary",
+        )}
+      />
+      <span className="flex-1 truncate text-[0.8125rem]">
+        {poi.name || "Unnamed POI"}
+      </span>
+      {poi.accessibility?.wheelchairAccessible ? (
+        <span
+          aria-hidden
+          title="Accessible"
+          className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-accent"
+        />
+      ) : null}
+    </button>
+  );
+}
+
+/** Small numeric chip showing the floor number. Negative = basement. */
+function FloorBadge({
+  floor,
+  selected,
+}: {
+  floor?: number;
+  selected: boolean;
+}) {
+  const display =
+    floor === undefined
+      ? "—"
+      : floor > 0
+        ? `${floor}F`
+        : floor === 0
+          ? "G"
+          : `${Math.abs(floor)}B`;
+  return (
+    <span
+      className={cn(
+        "inline-flex h-5 min-w-[1.5rem] shrink-0 items-center justify-center rounded-md border px-1 font-mono text-[0.65rem] tabular-nums transition-colors",
+        selected
+          ? "border-accent text-accent"
+          : "border-line-soft text-text-tertiary",
+      )}
+    >
+      {display}
+    </span>
+  );
+}
+
+function EmptyHierarchy() {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-10 text-center">
+      <div className="flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-line-soft text-text-tertiary">
+        <BuildingIcon className="h-5 w-5" />
+      </div>
+      <div className="space-y-1">
+        <p className="text-sm font-medium text-text-primary">
+          Nothing here yet
+        </p>
+        <p className="text-[0.7rem] text-text-tertiary">
+          Draw a building or place a POI and the tree fills itself.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -308,7 +434,7 @@ function Chevron({ open }: { open: boolean }) {
       strokeWidth="2.4"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={"transition-transform " + (open ? "rotate-90" : "")}
+      className={cn("transition-transform", open ? "rotate-90" : "")}
       aria-hidden
     >
       <path d="m9 6 6 6-6 6" />
@@ -316,18 +442,16 @@ function Chevron({ open }: { open: boolean }) {
   );
 }
 
-function BuildingIcon() {
+function BuildingIcon({ className }: { className?: string }) {
   return (
     <svg
-      width="12"
-      height="12"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="shrink-0"
+      className={cn("shrink-0", className)}
       aria-hidden
     >
       <rect x="4" y="3" width="16" height="18" rx="1" />
@@ -336,45 +460,6 @@ function BuildingIcon() {
       <line x1="9" y1="12" x2="9" y2="12" />
       <line x1="15" y1="12" x2="15" y2="12" />
       <line x1="9" y1="17" x2="15" y2="17" />
-    </svg>
-  );
-}
-
-function FloorIcon() {
-  return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      className="shrink-0"
-      aria-hidden
-    >
-      <line x1="3" y1="8" x2="21" y2="8" />
-      <line x1="3" y1="16" x2="21" y2="16" />
-    </svg>
-  );
-}
-
-function PoiIcon() {
-  return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="shrink-0"
-      aria-hidden
-    >
-      <path d="M12 21s-7-6.5-7-12a7 7 0 1 1 14 0c0 5.5-7 12-7 12Z" />
-      <circle cx="12" cy="9" r="2.5" />
     </svg>
   );
 }
