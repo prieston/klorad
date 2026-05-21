@@ -7,3 +7,4 @@ export { deleteBuildingOp } from "./delete-building";
 export { editPoiOp, type EditPoiArgs } from "./edit-poi";
 export { saveWorldOp } from "./save-world";
 export { captureThumbnailOp } from "./capture-thumbnail";
+export { placePoiOp } from "./place-poi";

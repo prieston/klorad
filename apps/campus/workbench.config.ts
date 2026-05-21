@@ -18,6 +18,7 @@ import {
   editPoiOp,
   saveWorldOp,
   captureThumbnailOp,
+  placePoiOp,
 } from "@/lib/workbench";
 
 /**
@@ -71,6 +72,7 @@ const workbenchConfig = defineWorkbench({
     editPoiOp,
     saveWorldOp,
     captureThumbnailOp,
+    placePoiOp,
   ],
   defaultLayout: {
     left: ["table", "hierarchy"],
