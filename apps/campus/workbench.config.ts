@@ -7,6 +7,7 @@ import {
   eventEntity,
   mapView,
   overviewView,
+  tableView,
 } from "@/lib/workbench";
 
 /**
@@ -18,8 +19,10 @@ import {
  *                bridge)
  * - Phase 4a  — `overviewView` in the right region (POI / building /
  *                floor-plan counts, accessibility coverage)
- * - Phase 4b+ — TableView (left), HierarchyView (left), operations,
- *                further layout tuning
+ * - Phase 4b  — `tableView` in the left region (POI list, click to
+ *                select, bridges to the map)
+ * - Phase 4c+ — HierarchyView (left, stacked under the table),
+ *                operations, further layout tuning
  *
  * Imported by `/maps/[mapId]/workbench/page.tsx` at runtime; the old
  * `/maps/[mapId]/builder` route stays untouched until Phase 6.
@@ -35,10 +38,10 @@ const workbenchConfig = defineWorkbench({
     tourStopEntity,
     eventEntity,
   ],
-  views: [mapView, overviewView],
+  views: [mapView, overviewView, tableView],
   operations: [],
   defaultLayout: {
-    left: [],
+    left: ["table"],
     center: ["map"],
     right: ["overview"],
     bottom: [],
