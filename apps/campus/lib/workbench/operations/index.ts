@@ -17,3 +17,6 @@ export { saveWorldOp } from "./save-world";
 export { captureThumbnailOp } from "./capture-thumbnail";
 export { placePoiOp } from "./place-poi";
 export { drawBuildingOp } from "./draw-building";
+export { deleteRoomOp } from "./delete-room";
+export { editRoomOp, type EditRoomArgs } from "./edit-room";
+export { defineRoomOp } from "./define-room";

@@ -4,7 +4,7 @@ import type {
   EntityIndex,
   EntityTypeId,
 } from "@klorad/config/workbench";
-import type { FloorPlan, POI, POIEvent, TourStop } from "@klorad/api";
+import type { FloorPlan, POI, POIEvent, Room, TourStop } from "@klorad/api";
 import type { Building } from "../entities/building";
 
 /**
@@ -26,6 +26,7 @@ export interface CampusEntitySources {
   worldId: string;
   pois: POI[];
   floorPlans: FloorPlan[];
+  rooms: Room[];
   tourStops: TourStop[];
 }
 
@@ -58,6 +59,7 @@ export function createCampusEntityIndex({
   worldId,
   pois,
   floorPlans,
+  rooms,
   tourStops,
 }: CampusEntitySources): EntityIndex {
   const poiEntities: Entity<POI>[] = pois.map((poi) => ({
@@ -99,6 +101,15 @@ export function createCampusEntityIndex({
     updatedAt: "",
   }));
 
+  const roomEntities: Entity<Room>[] = rooms.map((room) => ({
+    id: room.id,
+    typeId: "campus.room",
+    worldId,
+    payload: room,
+    createdAt: "",
+    updatedAt: "",
+  }));
+
   const tourStopEntities: Entity<TourStop>[] = tourStops.map((stop) => ({
     id: String(stop.id),
     typeId: "campus.tour-stop",
@@ -123,6 +134,7 @@ export function createCampusEntityIndex({
     ...poiEntities,
     ...buildingEntities,
     ...floorPlanEntities,
+    ...roomEntities,
     ...tourStopEntities,
     ...eventEntities,
   ];
@@ -133,6 +145,7 @@ export function createCampusEntityIndex({
     ["campus.poi", poiEntities],
     ["campus.building", buildingEntities],
     ["campus.floor-plan", floorPlanEntities],
+    ["campus.room", roomEntities],
     ["campus.tour-stop", tourStopEntities],
     ["campus.event", eventEntities],
   ]);

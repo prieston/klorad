@@ -3,6 +3,7 @@ import {
   poiEntity,
   buildingEntity,
   floorPlanEntity,
+  roomEntity,
   tourStopEntity,
   eventEntity,
   mapView,
@@ -22,6 +23,9 @@ import {
   captureThumbnailOp,
   placePoiOp,
   drawBuildingOp,
+  deleteRoomOp,
+  editRoomOp,
+  defineRoomOp,
 } from "@/lib/workbench";
 
 /**
@@ -61,6 +65,7 @@ const workbenchConfig = defineWorkbench({
     poiEntity,
     buildingEntity,
     floorPlanEntity,
+    roomEntity,
     tourStopEntity,
     eventEntity,
   ],
@@ -79,6 +84,9 @@ const workbenchConfig = defineWorkbench({
     captureThumbnailOp,
     placePoiOp,
     drawBuildingOp,
+    deleteRoomOp,
+    editRoomOp,
+    defineRoomOp,
   ],
   defaultLayout: {
     left: ["table", "hierarchy"],

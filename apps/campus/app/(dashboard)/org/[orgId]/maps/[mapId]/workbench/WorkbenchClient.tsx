@@ -4,7 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast as toastify } from "react-toastify";
 import { Workbench, type WorkbenchToast } from "@klorad/design-system";
 import { createSceneAPI } from "@klorad/api";
-import type { CampusAPI, FloorPlan, POI, TourStop } from "@klorad/api";
+import type {
+  CampusAPI,
+  FloorPlan,
+  POI,
+  Room,
+  TourStop,
+} from "@klorad/api";
 import { withCampusLabelDefaults } from "@/app/hooks/useCampusLabelDefaults";
 import workbenchConfig from "@/workbench.config";
 import { createCampusEntityIndex } from "@/lib/workbench";
@@ -36,6 +42,7 @@ export default function WorkbenchClient({ mapId }: Props) {
   const [sceneReady, setSceneReady] = useState(false);
   const [pois, setPois] = useState<POI[]>([]);
   const [plans, setPlans] = useState<FloorPlan[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [tourStops] = useState<TourStop[]>([]);
   const apiRef = useRef<CampusAPI | null>(null);
 
@@ -65,6 +72,7 @@ export default function WorkbenchClient({ mapId }: Props) {
         api.load(sceneToLoad);
         setPois(api.poi.getAll());
         setPlans(api.floorPlans.getAll());
+        setRooms(api.rooms.getAll());
       } catch {
         // New or unreachable map — fall through to empty defaults.
       } finally {
@@ -88,6 +96,7 @@ export default function WorkbenchClient({ mapId }: Props) {
     if (apiVersion === 0) return;
     setPois(apiRef.current.poi.getAll());
     setPlans(apiRef.current.floorPlans.getAll());
+    setRooms(apiRef.current.rooms.getAll());
   }, [apiVersion, sceneReady]);
 
   const entities = useMemo(
@@ -96,9 +105,10 @@ export default function WorkbenchClient({ mapId }: Props) {
         worldId: mapId,
         pois,
         floorPlans: plans,
+        rooms,
         tourStops,
       }),
-    [mapId, pois, plans, tourStops],
+    [mapId, pois, plans, rooms, tourStops],
   );
 
   // Bridge the Workbench's `ctx.toast(msg, tone)` calls — emitted from

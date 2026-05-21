@@ -21,7 +21,7 @@
  */
 import { create } from "zustand";
 
-export type PlacementMode = "place-poi" | "draw-building";
+export type PlacementMode = "place-poi" | "draw-building" | "draw-room";
 
 export type PlacementResult =
   | { kind: "point"; coords: [number, number] }
@@ -29,7 +29,8 @@ export type PlacementResult =
 
 /** Whether a mode collects a single click or a series of them. */
 export function placementKind(mode: PlacementMode): "point" | "polygon" {
-  return mode === "place-poi" ? "point" : "polygon";
+  if (mode === "place-poi") return "point";
+  return "polygon";
 }
 
 interface PlacementStore {

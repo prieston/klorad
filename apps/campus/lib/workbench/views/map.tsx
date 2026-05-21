@@ -174,7 +174,7 @@ function PlacementBanner({ mode }: { mode: string }) {
   const cancel = usePlacementStore((s) => s.cancel);
   const closePolygon = usePlacementStore((s) => s.closePolygon);
   const pendingCount = usePlacementStore((s) => s.pendingPoints.length);
-  const isPolygon = mode === "draw-building";
+  const isPolygon = mode === "draw-building" || mode === "draw-room";
   const label = isPolygon
     ? `Click to add vertices · ${pendingCount} placed · double-click or Enter to finish`
     : mode === "place-poi"
