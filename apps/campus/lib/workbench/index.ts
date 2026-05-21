@@ -10,5 +10,6 @@
  */
 
 export * from "./entities";
+export * from "./runtime";
 export * from "./views";
 export { identitySchema } from "./schema";
