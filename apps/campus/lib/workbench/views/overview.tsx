@@ -64,17 +64,70 @@ function OverviewViewComponent({ ctx }: ViewProps) {
         </div>
       </div>
 
-      <div className="rounded-lg border border-dashed border-line-soft p-3 text-xs text-text-tertiary">
+      <SelectionPanel ctx={ctx} />
+    </div>
+  );
+}
+
+/**
+ * The right-dock's "what's selected" card. Echoes the focused id and
+ * surfaces operations that apply to the current selection. v1 wires
+ * `poi.fly-to` — registered in `workbench.config.ts` and invoked via
+ * `ctx.runOperation(...)`. Future ops light up here without further
+ * shell changes.
+ */
+function SelectionPanel({ ctx }: { ctx: ViewProps["ctx"] }) {
+  const focusedId = ctx.selection.focusedId;
+  const focusedEntity = focusedId ? ctx.entities.byId(focusedId) : null;
+  const canFlyToPoi = focusedEntity?.typeId === "campus.poi";
+
+  const handleFly = () => {
+    if (!focusedId) return;
+    void ctx.runOperation("poi.fly-to", undefined, [focusedId]);
+  };
+
+  return (
+    <div className="rounded-lg border border-dashed border-line-soft p-3 text-xs text-text-tertiary">
+      <div>
         Selected:{" "}
-        {ctx.selection.focusedId ? (
+        {focusedId ? (
           <code className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[0.7rem] text-text-primary">
-            {ctx.selection.focusedId}
+            {focusedId}
           </code>
         ) : (
           <span>nothing</span>
         )}
       </div>
+      {canFlyToPoi ? (
+        <button
+          type="button"
+          onClick={handleFly}
+          className="mt-2 inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-accent px-3 text-xs font-medium text-accent-contrast transition-colors hover:bg-accent-hover"
+        >
+          <FlyToIcon />
+          Fly to in 3D
+        </button>
+      ) : null}
     </div>
+  );
+}
+
+function FlyToIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M22 2 11 13" />
+      <path d="m22 2-7 20-4-9-9-4z" />
+    </svg>
   );
 }
 
