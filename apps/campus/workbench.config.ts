@@ -21,6 +21,7 @@ import {
   saveWorldOp,
   captureThumbnailOp,
   placePoiOp,
+  drawBuildingOp,
 } from "@/lib/workbench";
 
 /**
@@ -77,6 +78,7 @@ const workbenchConfig = defineWorkbench({
     saveWorldOp,
     captureThumbnailOp,
     placePoiOp,
+    drawBuildingOp,
   ],
   defaultLayout: {
     left: ["table", "hierarchy"],

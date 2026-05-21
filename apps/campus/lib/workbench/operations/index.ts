@@ -16,3 +16,4 @@ export {
 export { saveWorldOp } from "./save-world";
 export { captureThumbnailOp } from "./capture-thumbnail";
 export { placePoiOp } from "./place-poi";
+export { drawBuildingOp } from "./draw-building";

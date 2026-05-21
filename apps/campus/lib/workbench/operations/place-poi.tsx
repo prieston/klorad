@@ -51,8 +51,8 @@ export const placePoiOp: Operation = {
   scope: [],
   applies: () => true,
   async invoke(ctx) {
-    const coords = await usePlacementStore.getState().begin("place-poi");
-    if (!coords) {
+    const result = await usePlacementStore.getState().begin("place-poi");
+    if (!result || result.kind !== "point") {
       // Esc / cancelled / superseded by a new placement. Quiet exit
       // — no toast, since the user clearly chose to back out.
       return { ok: false, reason: "Cancelled" };
@@ -63,9 +63,10 @@ export const placePoiOp: Operation = {
       return { ok: false, reason: "Campus API not ready" };
     }
 
+    const [lng, lat] = result.coords;
     const created = api.poi.add({
       name: "New POI",
-      position: [coords[0], coords[1], 0],
+      position: [lng, lat, 0],
     });
     useCampusApiStore.getState().bump();
     ctx.toast(`Placed ${created?.name ?? "POI"}`, "success");

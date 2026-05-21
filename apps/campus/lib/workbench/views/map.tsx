@@ -9,7 +9,7 @@ import type { Map as MapboxMap } from "mapbox-gl";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxDrawnBuildingsLayer } from "@/app/hooks/useMapboxDrawnBuildingsLayer";
 import { useCampusLabelDefaults } from "@/app/hooks/useCampusLabelDefaults";
-import { usePlacementStore } from "../placement-store";
+import { placementKind, usePlacementStore } from "../placement-store";
 
 const MapboxViewer = dynamic(
   () =>
@@ -74,10 +74,11 @@ function MapViewComponent({ ctx }: ViewProps) {
   // the scene store, so passing `true` unconditionally is safe.
   useCampusLabelDefaults(true);
 
-  // Placement listener — when an op activates a placement mode,
-  // attach a one-shot map click that resolves the placement promise
-  // with the clicked [lng, lat]. Esc cancels. The map's cursor flips
-  // to crosshair while active for visual feedback.
+  // Placement listener — when an op activates a placement mode, route
+  // map clicks to the placement store. Point modes capture a single
+  // click and resolve; polygon modes accumulate vertices and close on
+  // double-click / Enter. Esc always cancels. Canvas cursor flips to
+  // crosshair while active for visual feedback.
   const placementMode = usePlacementStore((s) => s.active);
   useEffect(() => {
     if (!placementMode) return;
@@ -88,19 +89,65 @@ function MapViewComponent({ ctx }: ViewProps) {
     const prevCursor = canvas.style.cursor;
     canvas.style.cursor = "crosshair";
 
-    const onClick = (e: { lngLat: { lng: number; lat: number } }) => {
-      usePlacementStore.getState().complete([e.lngLat.lng, e.lngLat.lat]);
-    };
+    const kind = placementKind(placementMode);
+    type MapClick = { lngLat: { lng: number; lat: number } };
+
+    const cleanups: Array<() => void> = [];
+
+    if (kind === "point") {
+      const onClick = (e: MapClick) => {
+        usePlacementStore
+          .getState()
+          .completePoint([e.lngLat.lng, e.lngLat.lat]);
+      };
+      map.once("click", onClick);
+      cleanups.push(() => map.off("click", onClick));
+    } else {
+      // Polygon: each click adds a vertex; double-click closes; the
+      // existing zoom-on-double-click default would interfere, so we
+      // suppress it for the duration.
+      const prevDblClickZoom = map.doubleClickZoom?.isEnabled();
+      map.doubleClickZoom?.disable();
+
+      const onClick = (e: MapClick) => {
+        usePlacementStore
+          .getState()
+          .addPoint([e.lngLat.lng, e.lngLat.lat]);
+      };
+      const onDblClick = (e: MapClick) => {
+        // Mapbox fires `click` THEN `dblclick`. The dblclick already
+        // appended one extra vertex via the click handler — drop it
+        // before closing.
+        const store = usePlacementStore.getState();
+        if (store.pendingPoints.length > 0) {
+          store.pendingPoints.pop();
+        }
+        store.closePolygon();
+        // Mark the event handled so the underlying mapbox dblclick
+        // doesn't fall through to anything else.
+        e satisfies MapClick;
+      };
+      map.on("click", onClick);
+      map.on("dblclick", onDblClick);
+      cleanups.push(() => {
+        map.off("click", onClick);
+        map.off("dblclick", onDblClick);
+        if (prevDblClickZoom) map.doubleClickZoom?.enable();
+      });
+    }
+
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") usePlacementStore.getState().cancel();
+      if (e.key === "Enter" && kind === "polygon") {
+        usePlacementStore.getState().closePolygon();
+      }
     };
-    map.once("click", onClick);
     document.addEventListener("keydown", onKey);
+    cleanups.push(() => document.removeEventListener("keydown", onKey));
 
     return () => {
       canvas.style.cursor = prevCursor;
-      map.off("click", onClick);
-      document.removeEventListener("keydown", onKey);
+      for (const fn of cleanups) fn();
     };
   }, [placementMode]);
 
@@ -118,19 +165,36 @@ function MapViewComponent({ ctx }: ViewProps) {
 }
 
 /**
- * Thin floating banner shown across the top of the map while a
- * placement is active. Calls `cancel()` on the Cancel button so the
- * op's awaiting promise resolves with null.
+ * Floating banner shown across the top of the map while a placement
+ * is active. Adapts copy + actions to the placement kind:
+ *   - point modes: instruct, offer Cancel
+ *   - polygon modes: show vertex count, offer Done + Cancel
  */
 function PlacementBanner({ mode }: { mode: string }) {
   const cancel = usePlacementStore((s) => s.cancel);
-  const label =
-    mode === "place-poi" ? "Click anywhere on the map to place the POI" : mode;
+  const closePolygon = usePlacementStore((s) => s.closePolygon);
+  const pendingCount = usePlacementStore((s) => s.pendingPoints.length);
+  const isPolygon = mode === "draw-building";
+  const label = isPolygon
+    ? `Click to add vertices · ${pendingCount} placed · double-click or Enter to finish`
+    : mode === "place-poi"
+      ? "Click anywhere on the map to place the POI"
+      : mode;
   return (
     <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2">
       <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-line-soft bg-surface-1/95 px-4 py-2 text-xs text-text-primary shadow-glass backdrop-blur">
         <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
         <span>{label}</span>
+        {isPolygon ? (
+          <button
+            type="button"
+            onClick={closePolygon}
+            disabled={pendingCount < 3}
+            className="ml-1 rounded font-medium text-accent transition-colors hover:text-accent-hover disabled:text-text-tertiary"
+          >
+            Done
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={cancel}
