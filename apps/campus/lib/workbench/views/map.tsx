@@ -1,36 +1,77 @@
 "use client";
 
-import type { View, ViewProps } from "@klorad/config/workbench";
+import dynamic from "next/dynamic";
+import type { POI } from "@klorad/api";
+import type { Entity, View, ViewProps } from "@klorad/config/workbench";
+import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
+import { useMapboxDrawnBuildingsLayer } from "@/app/hooks/useMapboxDrawnBuildingsLayer";
+import { useCampusLabelDefaults } from "@/app/hooks/useCampusLabelDefaults";
+
+const MapboxViewer = dynamic(
+  () =>
+    import("@klorad/engine-mapbox").then((m) => ({ default: m.MapboxViewer })),
+  { ssr: false, loading: () => <MapLoadingFallback /> },
+);
+
+function MapLoadingFallback() {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-bg text-sm text-text-tertiary">
+      Loading 3D scene…
+    </div>
+  );
+}
 
 /**
- * Phase 2 placeholder. Phase 3 wraps the existing builder 3D scene
- * (today: `apps/campus/maps/[mapId]/builder/BuilderClient`) as a
- * `View` that talks to the entity index rather than its own state.
+ * Phase 3b — the real Map view.
+ *
+ * Reads POIs from `ctx.entities`, mounts the campus Mapbox layer
+ * hooks for rendering (POI markers + drawn-building extrusions +
+ * basemap-label defaults), bridges 3D clicks to `ctx.setSelection`.
+ *
+ * Read-only for v1. The full editing surface (drawing tools, room
+ * panels, undo/redo, the floor-plan drawer) stays on `/builder`
+ * until Phase 5 — by which time the engine setup can be unified via
+ * a `useCampusScene` hook (see WORKBENCH-PHASE-3.md §4).
  */
 function MapViewComponent({ ctx }: ViewProps) {
+  const pois = (ctx.entities.byType("campus.poi") as Entity<POI>[]).map(
+    (e) => e.payload,
+  );
+  const selectedPoiId = ctx.selection.focusedId;
+
+  useMapboxPoiLayer({
+    pois,
+    selectedPoiId,
+    onPoiClick: (id) => {
+      const next = selectedPoiId === id ? null : id;
+      ctx.setSelection({
+        ids: next ? new Set([next]) : new Set<string>(),
+        focusedId: next,
+      });
+    },
+  });
+
+  // Render building extrusions for POIs that carry a `linkedBuilding`.
+  // Plans + rooms are passed empty for v1 — full slab / room rendering
+  // ships when the editing surface migrates over.
+  useMapboxDrawnBuildingsLayer(pois, [], [], {
+    selectedPoiId,
+    activeFloor: null,
+    onSelect: (id) => {
+      ctx.setSelection({ ids: new Set([id]), focusedId: id });
+    },
+    clickEnabled: true,
+  });
+
+  // Force basemap labels off whenever the scene is mounted (Mapbox's
+  // default street labels collide with campus content). The hook
+  // internally early-returns until the map instance is registered in
+  // the scene store, so passing `true` unconditionally is safe.
+  useCampusLabelDefaults(true);
+
   return (
-    <div className="flex h-full items-center justify-center bg-bg p-8 text-center">
-      <div className="max-w-md">
-        <span className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-text-tertiary">
-          <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-          Map view
-        </span>
-        <h2 className="mt-3 text-lg font-medium text-text-primary">
-          The Workbench shell is mounted.
-        </h2>
-        <p className="mt-2 text-sm text-text-secondary">
-          Editing world{" "}
-          <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[0.8em] text-text-primary">
-            {ctx.worldId}
-          </code>
-          . Phase 3 wraps the existing 3D scene here as a real View.
-        </p>
-        <p className="mt-4 text-xs text-text-tertiary">
-          Selection: {ctx.selection.ids.size} entit
-          {ctx.selection.ids.size === 1 ? "y" : "ies"} ·{" "}
-          {ctx.entities.all().length} loaded
-        </p>
-      </div>
+    <div className="h-full w-full">
+      <MapboxViewer />
     </div>
   );
 }

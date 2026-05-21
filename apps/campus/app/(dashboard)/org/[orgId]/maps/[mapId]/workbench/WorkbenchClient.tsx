@@ -1,25 +1,97 @@
 "use client";
 
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Workbench } from "@klorad/design-system";
+import { createSceneAPI } from "@klorad/api";
+import type { CampusAPI, FloorPlan, POI, TourStop } from "@klorad/api";
+import { withCampusLabelDefaults } from "@/app/hooks/useCampusLabelDefaults";
 import workbenchConfig from "@/workbench.config";
+import { createCampusEntityIndex } from "@/lib/workbench";
 
 interface Props {
   mapId: string;
 }
 
 /**
- * Mounts the shared Workbench shell with the campus config. v1 just
- * renders a placeholder Map view in the centre region; Phase 3 wraps
- * the real 3D scene as that view.
+ * Mounts the shared Workbench shell with the campus config.
+ *
+ * Phase 3b: this component owns its own `CampusAPI` instance and load
+ * (mirroring `BuilderClient`'s setup) and feeds the resulting POIs and
+ * floor plans through `createCampusEntityIndex` to the shell. The
+ * `MapView` view consumes those entities and mounts the Mapbox layer
+ * hooks for rendering — same engine code path as `/builder`, but
+ * with the editing surface deferred to Phase 5.
+ *
+ * Both routes call into the same layer hooks against the same scene
+ * store; engine init runs once per route until a shared
+ * `useCampusScene` hook unifies it (WORKBENCH-PHASE-3.md §4).
  *
  * The `DashboardShell` deliberately bypasses its top-bar / sidebar
  * chrome for `/workbench` routes — same as `/builder` — so the shell
  * gets the full viewport.
  */
 export default function WorkbenchClient({ mapId }: Props) {
+  const [sceneReady, setSceneReady] = useState(false);
+  const [pois, setPois] = useState<POI[]>([]);
+  const [plans, setPlans] = useState<FloorPlan[]>([]);
+  const [tourStops] = useState<TourStop[]>([]);
+  const apiRef = useRef<CampusAPI | null>(null);
+
+  useEffect(() => {
+    const api = createSceneAPI("mapbox", "campus") as CampusAPI;
+    apiRef.current = api;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/maps/${mapId}`);
+        if (!res.ok) throw new Error("Failed to load map");
+        const data = await res.json();
+        if (cancelled) return;
+        // Same default-labels-off pass the builder applies, so a
+        // brand-new map still loads with clean basemap labels.
+        const sceneToLoad = withCampusLabelDefaults(data?.sceneData ?? {});
+        api.load(sceneToLoad);
+        setPois(api.poi.getAll());
+        setPlans(api.floorPlans.getAll());
+      } catch {
+        // New or unreachable map — fall through to empty defaults.
+      } finally {
+        if (!cancelled) setSceneReady(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mapId]);
+
+  const entities = useMemo(
+    () =>
+      createCampusEntityIndex({
+        worldId: mapId,
+        pois,
+        floorPlans: plans,
+        tourStops,
+      }),
+    [mapId, pois, plans, tourStops],
+  );
+
+  if (!sceneReady) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-bg text-sm text-text-secondary">
+        Loading the scene…
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen w-screen">
-      <Workbench config={workbenchConfig} worldId={mapId} />
+      <Workbench
+        config={workbenchConfig}
+        worldId={mapId}
+        entities={entities}
+      />
     </div>
   );
 }
