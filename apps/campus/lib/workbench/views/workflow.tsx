@@ -110,7 +110,12 @@ function TabBar({
   onChange: (s: StepId) => void;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-1 px-3 pb-2">
+    // Horizontal row of three tab pills. `flex + flex-1` is more
+    // robust than `grid grid-cols-3` here — equal widths, side by
+    // side, no JIT class quirks. Each tab stacks its icon over the
+    // label (flex-col inside) so it reads as a chunky rectangular
+    // button.
+    <div className="flex gap-1 px-3 pb-2">
       {STEPS.map((s) => {
         const isActive = s.id === current;
         const Icon = s.icon;
@@ -121,14 +126,14 @@ function TabBar({
             onClick={() => onChange(s.id)}
             title={s.label}
             className={cn(
-              "flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 transition-colors",
+              "flex flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2.5 transition-colors",
               isActive
                 ? "bg-accent-soft text-accent"
                 : "text-text-tertiary hover:bg-surface-2 hover:text-text-primary",
             )}
           >
-            <Icon className="h-3.5 w-3.5 shrink-0" />
-            <span className="text-[0.65rem] font-medium uppercase tracking-[0.04em]">
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="text-[0.6rem] font-medium uppercase tracking-[0.06em]">
               {s.label}
             </span>
           </button>
