@@ -409,10 +409,10 @@ function BuildingsList({
           <div
             key={b.id}
             className={cn(
-              "group flex items-center gap-2 rounded-2xl p-4 transition-colors",
+              "group flex items-center gap-3 rounded-2xl border p-4 transition-colors",
               isSelected
-                ? "bg-accent-soft"
-                : "bg-surface-2 hover:bg-accent-soft/40",
+                ? "border-accent bg-accent-soft"
+                : "border-line-soft bg-transparent hover:border-accent",
             )}
           >
             <button
@@ -446,7 +446,7 @@ function BuildingsList({
                 "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors",
                 isSelected
                   ? "text-accent hover:bg-accent/15"
-                  : "text-text-tertiary hover:bg-bg hover:text-text-primary",
+                  : "text-text-tertiary hover:bg-surface-2 hover:text-text-primary",
               )}
             >
               <ChevronRight className="h-4 w-4" />
@@ -514,10 +514,10 @@ function BuildingDetail({
               <div
                 key={f.id}
                 className={cn(
-                  "group flex items-center gap-2 rounded-2xl p-3.5 transition-colors",
+                  "group flex items-center gap-3 rounded-2xl border p-4 transition-colors",
                   isSelected
-                    ? "bg-accent-soft"
-                    : "bg-surface-2 hover:bg-accent-soft/40",
+                    ? "border-accent bg-accent-soft"
+                    : "border-line-soft bg-transparent hover:border-accent",
                 )}
               >
                 <button
@@ -529,7 +529,7 @@ function BuildingDetail({
                     })
                   }
                   onContextMenu={(e) => onContextMenu(e, f.id)}
-                  className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                  className="flex min-w-0 flex-1 items-center gap-3 pr-2 text-left"
                 >
                   <FloorBadge code={code} selected={isSelected} />
                   <div className="flex min-w-0 flex-1 flex-col">
@@ -554,7 +554,7 @@ function BuildingDetail({
                     "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors",
                     isSelected
                       ? "text-accent hover:bg-accent/15"
-                      : "text-text-tertiary hover:bg-bg hover:text-text-primary",
+                      : "text-text-tertiary hover:bg-surface-2 hover:text-text-primary",
                   )}
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -619,10 +619,10 @@ function FloorDetail({
                 }
                 onContextMenu={(e) => onContextMenu(e, r.id)}
                 className={cn(
-                  "flex w-full items-center gap-2.5 rounded-2xl p-3 text-left transition-colors",
+                  "flex w-full items-center gap-2.5 rounded-2xl border p-3 text-left transition-colors",
                   isSelected
-                    ? "bg-accent-soft text-accent"
-                    : "bg-surface-2 text-text-secondary hover:bg-accent-soft/40 hover:text-text-primary",
+                    ? "border-accent bg-accent-soft text-accent"
+                    : "border-line-soft bg-transparent text-text-secondary hover:border-accent hover:text-text-primary",
                 )}
               >
                 <span
@@ -718,10 +718,10 @@ function PoisStep({ ctx }: { ctx: ViewProps["ctx"] }) {
                     });
                   }}
                   className={cn(
-                    "flex w-full items-center gap-2.5 rounded-2xl p-4 text-left transition-colors",
+                    "flex w-full items-center gap-2.5 rounded-2xl border p-4 text-left transition-colors",
                     isSelected
-                      ? "bg-accent-soft text-accent"
-                      : "bg-surface-2 text-text-secondary hover:bg-accent-soft/40 hover:text-text-primary",
+                      ? "border-accent bg-accent-soft text-accent"
+                      : "border-line-soft bg-transparent text-text-secondary hover:border-accent hover:text-text-primary",
                   )}
                 >
                   <span

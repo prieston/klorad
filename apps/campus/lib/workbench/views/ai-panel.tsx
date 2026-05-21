@@ -47,12 +47,14 @@ function AIPanelComponent({ ctx }: ViewProps) {
           spreadsheet, or summarise accessibility coverage. Approve
           changes before they run.
         </p>
-        <div className="mt-2 flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.14em] text-text-tertiary">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-bg px-2 py-1">
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[0.65rem] uppercase tracking-[0.14em] text-text-tertiary">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line-soft bg-bg px-2 py-1">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-text-tertiary" />
             Not connected
           </span>
-          <span>Acting as: {actorLabel}</span>
+          <span className="min-w-0 truncate normal-case tracking-normal">
+            Acting as: {actorLabel}
+          </span>
         </div>
       </div>
 
