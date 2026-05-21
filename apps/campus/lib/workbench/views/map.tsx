@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
-import type { POI } from "@klorad/api";
+import type { FloorPlan, POI, Room } from "@klorad/api";
 import { useSceneStore } from "@klorad/core";
 import type { Entity, View, ViewProps } from "@klorad/config/workbench";
 import type { Map as MapboxMap } from "mapbox-gl";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxDrawnBuildingsLayer } from "@/app/hooks/useMapboxDrawnBuildingsLayer";
+import { useMapboxFloorSlabsLayer } from "@/app/hooks/useMapboxFloorSlabsLayer";
+import { useMapboxRoomsLayer } from "@/app/hooks/useMapboxRoomsLayer";
 import { useCampusLabelDefaults } from "@/app/hooks/useCampusLabelDefaults";
 import { placementKind, usePlacementStore } from "../placement-store";
 
@@ -42,13 +44,60 @@ function MapViewComponent({ ctx }: ViewProps) {
   const pois = (ctx.entities.byType("campus.poi") as Entity<POI>[]).map(
     (e) => e.payload,
   );
-  const selectedPoiId = ctx.selection.focusedId;
+  const allFloorPlans = (
+    ctx.entities.byType("campus.floor-plan") as Entity<FloorPlan>[]
+  ).map((e) => e.payload);
+  const allRooms = (ctx.entities.byType("campus.room") as Entity<Room>[]).map(
+    (e) => e.payload,
+  );
+  const selectedId = ctx.selection.focusedId;
+
+  // Resolve the focused selection into the things the indoor layers
+  // care about — which building POI is in focus, and which floor (if
+  // a floor plan is selected). Phase 1 — drives the X-ray reveal.
+  const { selectedBuildingId, activeFloor } = useMemo(() => {
+    if (!selectedId) {
+      return { selectedBuildingId: null, activeFloor: null as number | null };
+    }
+    // Selected entity is a POI with a linkedBuilding payload → it's the
+    // building itself.
+    const poi = pois.find((p) => p.id === selectedId);
+    if (poi?.linkedBuilding) {
+      return { selectedBuildingId: selectedId, activeFloor: null };
+    }
+    // Selected entity is a floor plan → infer the building + active floor.
+    const plan = allFloorPlans.find((p) => p.id === selectedId);
+    if (plan) {
+      return {
+        selectedBuildingId: plan.buildingId ?? null,
+        activeFloor: plan.floor ?? null,
+      };
+    }
+    // Selected entity is a room → infer the building + active floor.
+    const room = allRooms.find((r) => r.id === selectedId);
+    if (room) {
+      return {
+        selectedBuildingId: room.buildingId,
+        activeFloor: room.floor,
+      };
+    }
+    return { selectedBuildingId: null, activeFloor: null as number | null };
+  }, [selectedId, pois, allFloorPlans, allRooms]);
+
+  // Rooms visible at any time = only the selected building's rooms.
+  // Phase 1 caps it here for performance; once we have a sample campus
+  // with hundreds of rooms the trade-off is worth revisiting (a
+  // viewport-based filter, or LOD culling).
+  const roomsForSelection = useMemo<Room[]>(() => {
+    if (!selectedBuildingId) return [];
+    return allRooms.filter((r) => r.buildingId === selectedBuildingId);
+  }, [allRooms, selectedBuildingId]);
 
   useMapboxPoiLayer({
     pois,
-    selectedPoiId,
+    selectedPoiId: selectedId,
     onPoiClick: (id) => {
-      const next = selectedPoiId === id ? null : id;
+      const next = selectedId === id ? null : id;
       ctx.setSelection({
         ids: next ? new Set([next]) : new Set<string>(),
         focusedId: next,
@@ -56,16 +105,42 @@ function MapViewComponent({ ctx }: ViewProps) {
     },
   });
 
-  // Render building extrusions for POIs that carry a `linkedBuilding`.
-  // Plans + rooms are passed empty for v1 — full slab / room rendering
-  // ships when the editing surface migrates over.
-  useMapboxDrawnBuildingsLayer(pois, [], [], {
-    selectedPoiId,
-    activeFloor: null,
+  // Building shells — when a building is selected and an `activeFloor`
+  // is in focus, the shell renders an X-ray cap that lets the eye see
+  // the rooms inside. Plans + rooms are now real (Phase 1) rather than
+  // the empty stubs the workbench shipped with on day one.
+  useMapboxDrawnBuildingsLayer(pois, allFloorPlans, allRooms, {
+    selectedPoiId: selectedId,
+    activeFloor,
     onSelect: (id) => {
       ctx.setSelection({ ids: new Set([id]), focusedId: id });
     },
     clickEnabled: true,
+  });
+
+  // Floor slabs — the horizontal plates between floors. Clicking one
+  // selects the matching floor plan, which becomes the new focused
+  // entity and drives `activeFloor` above.
+  useMapboxFloorSlabsLayer(pois, allFloorPlans, allRooms, {
+    activePlanId: activeFloor != null ? selectedId : null,
+    selectedBuildingPoiId: selectedBuildingId,
+    onSelect: (_buildingId, _floor, planId) => {
+      if (planId) ctx.setSelection({ ids: new Set([planId]), focusedId: planId });
+    },
+  });
+
+  // Rooms — the 3D extruded volumes inside the building, rendered with
+  // the X-ray-friendly opacity. Scoped to the selected building so we
+  // don't paint every room in every building all at once.
+  useMapboxRoomsLayer(roomsForSelection, {
+    activeFloor,
+    onSelect: (id) => {
+      ctx.setSelection({ ids: new Set([id]), focusedId: id });
+    },
+    highlightRoomId:
+      selectedId && allRooms.some((r) => r.id === selectedId)
+        ? selectedId
+        : null,
   });
 
   // Force basemap labels off whenever the scene is mounted (Mapbox's
