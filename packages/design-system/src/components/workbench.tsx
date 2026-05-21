@@ -6,6 +6,7 @@ import type {
   DockRegion,
   EntityIndex,
   OpResult,
+  ResolvedOperation,
   SelectionState,
   ToastTone,
   ViewContext,
@@ -75,6 +76,33 @@ export function Workbench({
     [config.operations],
   );
 
+  // Phase 5c1 — generic operation surfacing.
+  //
+  // For each registered op: ask its `applies` predicate against the
+  // current selection. If true, resolve the `on` list:
+  //   - world-level ops (`scope: []`) bind to no entities (`on = []`)
+  //   - entity-scoped ops bind to selected ids whose typeId falls in scope
+  //
+  // Views render this list generically instead of hardcoding per-op
+  // buttons. The command palette and right-click menu pull from the
+  // same list in 5c2 / 5c3.
+  const applicableOperations = useMemo<ResolvedOperation[]>(() => {
+    const selectedIds = [...selection.ids];
+    const resolved: ResolvedOperation[] = [];
+    for (const op of config.operations) {
+      if (!op.applies(selection, entities)) continue;
+      const on =
+        op.scope.length === 0
+          ? []
+          : selectedIds.filter((id) => {
+              const entity = entities.byId(id);
+              return entity ? op.scope.includes(entity.typeId) : false;
+            });
+      resolved.push({ operation: op, on });
+    }
+    return resolved;
+  }, [config.operations, selection, entities]);
+
   const ctx = useMemo<ViewContext>(
     () => ({
       worldId,
@@ -92,10 +120,17 @@ export function Workbench({
           on,
         );
       },
-      // Computed in a later phase once we wire `applies` per selection.
-      applicableOperations: [],
+      applicableOperations,
     }),
-    [worldId, selection, entities, actor, operationById, toast],
+    [
+      worldId,
+      selection,
+      entities,
+      actor,
+      operationById,
+      applicableOperations,
+      toast,
+    ],
   );
 
   const renderRegion = (region: DockRegion) => {
