@@ -1,29 +1,22 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { POI, POICategory } from "@klorad/api";
+import type { POI } from "@klorad/api";
 import type { Entity, View, ViewProps } from "@klorad/config/workbench";
 import { ContextMenu, cn } from "@klorad/design-system";
 
 /**
- * Phase 4b → modernised — TableView.
+ * Phase 4b → modern lite — TableView.
  *
- * A live-filtered list of POIs in the left dock. The list is the
- * primary "what's in my world" surface, so it needs to read like a
- * proper list — searchable, scannable, with a clear sense of category.
+ * The "outdated" feedback was right: too many boxes, grey rows, a
+ * rectangular input. The dashboard / website use lighter patterns —
+ * glass pill inputs, count chips, hover-only highlights, no visible
+ * borders on row containers. This pass matches that aesthetic.
  *
- * Each row carries:
- *   - a category-tinted dot (visual sort)
- *   - the POI's name (truncated if long)
- *   - a soft category label below
- *   - an accessibility chip on the right when applicable
- *
- * Selection: filled accent-soft bg + 2px accent left rail (the rail
- * is the peripheral signal that survives even at viewport scale).
- *
- * Per-entity-type column definitions land when TableView starts
- * surfacing more than one entity type — `EntityType` will gain a
- * `tableColumns: { key, label, render }` field.
+ * Rows are text-first. A tiny accent dot marks the current
+ * selection; otherwise no chrome. Hover lifts a soft bg. Selected
+ * rows take a full accent-soft fill with accent text — the same
+ * peripheral signal pill-shaped CTAs use elsewhere.
  */
 function TableViewComponent({ ctx }: ViewProps) {
   const pois = ctx.entities.byType("campus.poi") as Entity<POI>[];
@@ -54,26 +47,22 @@ function TableViewComponent({ ctx }: ViewProps) {
     });
   }, [pois, query]);
 
-  const accessibleCount = pois.filter(
-    (e) => e.payload.accessibility?.wheelchairAccessible,
-  ).length;
-
   return (
     <div className="flex h-full flex-col">
-      <header className="space-y-2 px-4 pb-3">
-        <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-base font-semibold text-text-primary">
-            Points of interest
+      <header className="space-y-3 px-4 pt-1 pb-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-semibold tracking-tight text-text-primary">
+            POIs
           </h2>
-          <span className="text-[0.7rem] tabular-nums text-text-tertiary">
-            {pois.length} total
-          </span>
+          {pois.length > 0 ? (
+            <span className="inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-[0.7rem] font-semibold tabular-nums text-accent">
+              {pois.length}
+            </span>
+          ) : null}
         </div>
-        <p className="text-[0.7rem] text-text-tertiary">
-          {accessibleCount} accessible · {pois.length - accessibleCount} without
-          info
-        </p>
-        <SearchInput value={query} onChange={setQuery} />
+        {pois.length > 0 ? (
+          <SearchPill value={query} onChange={setQuery} />
+        ) : null}
       </header>
 
       {pois.length === 0 ? (
@@ -83,10 +72,11 @@ function TableViewComponent({ ctx }: ViewProps) {
           Nothing matches “{query}”.
         </div>
       ) : (
-        <ul className="min-h-0 flex-1 space-y-0.5 overflow-auto px-2 pb-3">
+        <ul className="min-h-0 flex-1 space-y-px overflow-auto px-2 pb-3">
           {filtered.map((entity) => {
             const poi = entity.payload;
             const isSelected = entity.id === selectedId;
+            const isAccessible = !!poi.accessibility?.wheelchairAccessible;
             const handleClick = () => {
               ctx.setSelection({
                 ids: isSelected ? new Set<string>() : new Set([entity.id]),
@@ -108,36 +98,45 @@ function TableViewComponent({ ctx }: ViewProps) {
                   }}
                   aria-pressed={isSelected}
                   className={cn(
-                    "group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all",
-                    "border-l-2",
+                    "group flex w-full items-center gap-2.5 rounded-full px-3 py-1.5 text-left transition-colors",
                     isSelected
-                      ? "border-l-accent bg-accent-soft shadow-[inset_0_0_0_1px_var(--accent-soft)]"
-                      : "border-l-transparent hover:bg-surface-2",
+                      ? "bg-accent-soft text-accent"
+                      : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
                   )}
                 >
-                  <CategoryDot
-                    category={poi.category}
-                    selected={isSelected}
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "inline-block h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
+                      isSelected
+                        ? "bg-accent"
+                        : "bg-text-tertiary/40 group-hover:bg-text-tertiary",
+                    )}
                   />
-                  <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-medium">
+                    {poi.name || "Unnamed POI"}
+                  </span>
+                  {poi.category ? (
                     <span
                       className={cn(
-                        "truncate text-sm font-medium transition-colors",
-                        isSelected ? "text-text-primary" : "text-text-primary",
+                        "shrink-0 text-[0.65rem] uppercase tracking-[0.06em] transition-colors",
+                        isSelected
+                          ? "text-accent/70"
+                          : "text-text-tertiary",
                       )}
                     >
-                      {poi.name || "Unnamed POI"}
+                      {poi.category}
                     </span>
-                    {poi.category || poi.description ? (
-                      <span className="truncate text-[0.7rem] text-text-tertiary">
-                        {[poi.category, poi.description]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    ) : null}
-                  </div>
-                  {poi.accessibility?.wheelchairAccessible ? (
-                    <WheelchairBadge />
+                  ) : null}
+                  {isAccessible ? (
+                    <span
+                      aria-label="Wheelchair accessible"
+                      title="Wheelchair accessible"
+                      className={cn(
+                        "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
+                        isSelected ? "bg-accent" : "bg-accent/70",
+                      )}
+                    />
                   ) : null}
                 </button>
               </li>
@@ -165,8 +164,11 @@ function TableViewComponent({ ctx }: ViewProps) {
   );
 }
 
-/** Small live search input — matches the dashboard's input style. */
-function SearchInput({
+/**
+ * Glass pill search — same shape as the chips the website / dashboard
+ * use. No heavy border, no grey rectangle.
+ */
+function SearchPill({
   value,
   onChange,
 }: {
@@ -174,14 +176,14 @@ function SearchInput({
   onChange: (v: string) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 rounded-lg border border-line-soft bg-surface-1 px-2.5 py-1.5 focus-within:border-accent">
+    <label className="glass-panel flex items-center gap-2 rounded-full px-3 py-1.5 transition-colors focus-within:border-accent">
       <SearchIcon className="h-3.5 w-3.5 shrink-0 text-text-tertiary" />
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search…"
-        className="w-full bg-transparent text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none"
+        className="w-full bg-transparent text-[0.8125rem] text-text-primary placeholder:text-text-tertiary focus:outline-none"
       />
       {value ? (
         <button
@@ -197,85 +199,27 @@ function SearchInput({
   );
 }
 
-/**
- * Category dot — a small ring with a tinted fill. Same shape across
- * all categories so the eye scans by *position* + *colour intensity*
- * rather than by glyph. Keeps the row uncluttered.
- */
-function CategoryDot({
-  category,
-  selected,
-}: {
-  category?: POICategory;
-  selected?: boolean;
-}) {
-  // Single dot, tint stronger when the row is selected. Keeps the
-  // palette small — the brand accent does the heavy lifting. Future
-  // upgrade: per-category hue.
+function EmptyState() {
   return (
-    <span
-      aria-hidden
-      className={cn(
-        "relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors",
-        selected
-          ? "border-accent bg-accent text-accent-contrast"
-          : "border-line-soft bg-surface-1 text-text-tertiary group-hover:border-accent group-hover:text-accent",
-      )}
-    >
-      <CategoryGlyph category={category} className="h-3.5 w-3.5" />
-    </span>
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent">
+        <PoiIcon className="h-4 w-4" />
+      </span>
+      <p className="text-[0.8125rem] font-medium text-text-primary">
+        No POIs yet
+      </p>
+      <p className="text-[0.7rem] text-text-tertiary">
+        Press{" "}
+        <kbd className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[0.65rem] text-text-secondary">
+          ⌘K
+        </kbd>{" "}
+        and pick “Place POI”.
+      </p>
+    </div>
   );
 }
 
-/**
- * Tiny per-category glyph. Generic POI pin for everything that
- * doesn't have a specific shape — keeps the row visual weight
- * consistent across categories.
- */
-function CategoryGlyph({
-  category,
-  className,
-}: {
-  category?: POICategory;
-  className?: string;
-}) {
-  if (category === "building") {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-        aria-hidden
-      >
-        <rect x="4" y="3" width="16" height="18" rx="1" />
-        <line x1="9" y1="8" x2="9" y2="8" />
-        <line x1="15" y1="8" x2="15" y2="8" />
-        <line x1="9" y1="13" x2="9" y2="13" />
-        <line x1="15" y1="13" x2="15" y2="13" />
-      </svg>
-    );
-  }
-  if (category === "dining") {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-        aria-hidden
-      >
-        <path d="M18 8h1a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1" />
-        <path d="M3 21V8a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v13Z" />
-      </svg>
-    );
-  }
+function PoiIcon({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -290,49 +234,6 @@ function CategoryGlyph({
       <path d="M12 21s-7-6.5-7-12a7 7 0 1 1 14 0c0 5.5-7 12-7 12Z" />
       <circle cx="12" cy="9" r="2.5" />
     </svg>
-  );
-}
-
-/** Right-side chip when the POI carries an accessibility flag. */
-function WheelchairBadge() {
-  return (
-    <span
-      title="Wheelchair accessible"
-      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="h-3 w-3"
-        aria-hidden
-      >
-        <circle cx="12" cy="4" r="2" />
-        <path d="M19 13v-2a8 8 0 0 0-8-8" opacity={0.4} />
-        <path d="M9 6 8 10l4 2 1 5 4 1" />
-        <circle cx="11" cy="17" r="5" />
-      </svg>
-    </span>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-10 text-center">
-      <div className="flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-line-soft text-text-tertiary">
-        <CategoryGlyph className="h-5 w-5" />
-      </div>
-      <div className="space-y-1">
-        <p className="text-sm font-medium text-text-primary">No POIs yet</p>
-        <p className="text-[0.7rem] text-text-tertiary">
-          Run <kbd className="rounded bg-surface-2 px-1 font-mono">⌘K</kbd> →
-          “Place POI” to drop one.
-        </p>
-      </div>
-    </div>
   );
 }
 
