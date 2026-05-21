@@ -100,6 +100,10 @@ export function Workbench({
       <div className="flex h-full flex-col">
         {ids.map((id) => {
           const view = viewById.get(id);
+          // Each view is wrapped in `flex-1 min-h-0` so multiple views
+          // stacked in the same region split the available height evenly
+          // instead of fighting over `h-full`. A divider between siblings
+          // (except the last) gives them visual separation.
           if (!view) {
             return (
               <div
@@ -111,7 +115,14 @@ export function Workbench({
             );
           }
           const Component = view.component;
-          return <Component key={id} ctx={ctx} />;
+          return (
+            <div
+              key={id}
+              className="min-h-0 flex-1 overflow-hidden border-b border-line-soft last:border-b-0"
+            >
+              <Component ctx={ctx} />
+            </div>
+          );
         })}
       </div>
     );
