@@ -72,3 +72,18 @@ export {
   WorkbenchTopBar,
   type WorkbenchTopBarProps,
 } from "./components/workbench-top-bar";
+export {
+  WorkflowPanel,
+  WorkflowTabBar,
+  WorkflowListItem,
+  WorkflowListButton,
+  WorkflowDrillHeader,
+  useWorkflowDrill,
+  type WorkflowStep,
+  type WorkflowPanelProps,
+  type WorkflowTabBarProps,
+  type WorkflowListItemProps,
+  type WorkflowListButtonProps,
+  type WorkflowDrillHeaderProps,
+  type WorkflowDrillAPI,
+} from "./components/workflow-panel";
