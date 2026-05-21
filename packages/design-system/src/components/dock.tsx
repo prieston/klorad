@@ -51,32 +51,38 @@ function DockColumn({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(true);
-  const label = side === "left" ? "Left" : "Right";
+  const ariaLabel = side === "left" ? "Left panel" : "Right panel";
   return (
     <aside
       className={cn(
-        "flex h-full flex-col bg-surface-1 transition-[width] duration-200",
-        side === "left" ? "border-r border-line-soft" : "border-l border-line-soft",
-        open ? "w-72" : "w-10",
+        "flex h-full flex-col bg-surface-1 transition-[width] duration-300 ease-out",
+        side === "left"
+          ? "border-r border-line-soft"
+          : "border-l border-line-soft",
+        open ? "w-80" : "w-10",
       )}
     >
-      <header
+      {/*
+        Chrome is intentionally minimal — just the collapse affordance.
+        Views provide their own headers; doubling up looked utilitarian.
+        Strip is 32px tall to feel lighter than the legacy 40px caps row.
+      */}
+      <div
         className={cn(
-          "flex h-10 shrink-0 items-center border-b border-line-soft px-2 text-[0.7rem] uppercase tracking-[0.18em] text-text-tertiary",
-          open ? "justify-between" : "justify-center",
+          "flex h-8 shrink-0 items-center px-1.5",
+          open ? "justify-end" : "justify-center",
         )}
       >
-        {open ? <span>{label}</span> : null}
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          aria-label={`Toggle ${side} panel`}
+          aria-label={open ? `Collapse ${ariaLabel}` : `Expand ${ariaLabel}`}
           aria-expanded={open}
-          className="flex h-6 w-6 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent-soft hover:text-text-primary"
+          className="flex h-6 w-6 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-accent-soft hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           <Chevron direction={open === (side === "left") ? "left" : "right"} />
         </button>
-      </header>
+      </div>
       {open ? (
         <div className="min-h-0 flex-1 overflow-auto">{children}</div>
       ) : null}
@@ -89,22 +95,21 @@ function DockBottom({ children }: { children: ReactNode }) {
   return (
     <section
       className={cn(
-        "flex shrink-0 flex-col border-t border-line-soft bg-surface-1 transition-[height] duration-200",
-        open ? "h-56" : "h-10",
+        "flex shrink-0 flex-col border-t border-line-soft bg-surface-1 transition-[height] duration-300 ease-out",
+        open ? "h-64" : "h-8",
       )}
     >
-      <header className="flex h-10 shrink-0 items-center justify-between border-b border-line-soft px-2 text-[0.7rem] uppercase tracking-[0.18em] text-text-tertiary">
-        <span>{open ? "Bottom" : null}</span>
+      <div className="flex h-8 shrink-0 items-center justify-end px-1.5">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          aria-label="Toggle bottom panel"
+          aria-label={open ? "Collapse bottom panel" : "Expand bottom panel"}
           aria-expanded={open}
-          className="flex h-6 w-6 items-center justify-center rounded text-text-secondary transition-colors hover:bg-accent-soft hover:text-text-primary"
+          className="flex h-6 w-6 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-accent-soft hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           <Chevron direction={open ? "down" : "up"} />
         </button>
-      </header>
+      </div>
       {open ? (
         <div className="min-h-0 flex-1 overflow-auto">{children}</div>
       ) : null}
@@ -112,7 +117,11 @@ function DockBottom({ children }: { children: ReactNode }) {
   );
 }
 
-function Chevron({ direction }: { direction: "left" | "right" | "up" | "down" }) {
+function Chevron({
+  direction,
+}: {
+  direction: "left" | "right" | "up" | "down";
+}) {
   const rotation = {
     left: "rotate-90",
     right: "-rotate-90",
