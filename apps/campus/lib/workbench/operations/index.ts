@@ -5,6 +5,14 @@ export { deletePoiOp } from "./delete-poi";
 export { deleteFloorPlanOp } from "./delete-floor-plan";
 export { deleteBuildingOp } from "./delete-building";
 export { editPoiOp, type EditPoiArgs } from "./edit-poi";
+export {
+  editBuildingOp,
+  type EditBuildingArgs,
+} from "./edit-building";
+export {
+  editFloorPlanOp,
+  type EditFloorPlanArgs,
+} from "./edit-floor-plan";
 export { saveWorldOp } from "./save-world";
 export { captureThumbnailOp } from "./capture-thumbnail";
 export { placePoiOp } from "./place-poi";
