@@ -7,16 +7,15 @@ import { ContextMenu, cn } from "@klorad/design-system";
 import type { Building } from "../entities/building";
 
 /**
- * Modern lite — HierarchyView, restyled to platform.klorad's glass
- * accordion + hairline-grid family.
+ * Minimal file-tree HierarchyView.
  *
- * Each building is a `glass-panel rounded-xl` card (same chrome as
- * platform's vertical-link rows). Expanding the card reveals its
- * children inside a hairline-grid section (the platform's
- * `gap-px bg-line-soft` cell pattern) so floors and POIs read as
- * one calm sheet with thin dividers, not as nested boxes.
+ * Buildings are plain rows (no glass-panel wrappers, no outlines) —
+ * a chevron, an icon, a name, and a tiny right-aligned count when
+ * the building has contents. Expanding indents children under a
+ * thin `border-l` guideline, like Linear / Notion / VS Code sidebars.
  *
- * Unbuilt POIs live in their own hairline-grid section below.
+ * Idle rows have no chrome. Hover lifts a soft `bg-surface-2`.
+ * Selected rows fill with `bg-accent-soft` + accent text.
  */
 function HierarchyViewComponent({ ctx }: ViewProps) {
   const buildings = ctx.entities.byType(
@@ -102,7 +101,7 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-2 px-4 pt-1 pb-3">
+      <header className="flex items-center gap-2 px-4 pt-1 pb-2">
         <h2 className="text-base font-semibold tracking-tight text-text-primary">
           Hierarchy
         </h2>
@@ -113,7 +112,7 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
         ) : null}
       </header>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-auto px-4 pb-3">
+      <div className="min-h-0 flex-1 space-y-0.5 overflow-auto px-2 pb-3">
         {isEmpty ? (
           <EmptyHierarchy />
         ) : (
@@ -123,24 +122,25 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
               const children = childPoisByBuilding.get(b.id) ?? [];
               const floors = floorsByBuilding.get(b.id) ?? [];
               const isSelected = focusedId === b.id;
+              const itemCount = floors.length + children.length;
               return (
-                <BuildingAccordion
-                  key={b.id}
-                  name={b.payload.name || "Unnamed building"}
-                  open={open}
-                  selected={isSelected}
-                  floorCount={floors.length}
-                  poiCount={children.length}
-                  onToggle={() => toggleExpanded(b.id)}
-                  onSelect={() => select(b.id)}
-                  onContextMenu={(e) => openMenu(e, b.id)}
-                >
-                  {floors.length + children.length === 0 ? (
-                    <p className="bg-bg px-4 py-2 text-[0.7rem] italic text-text-tertiary">
-                      No floors or POIs yet.
-                    </p>
-                  ) : (
-                    <>
+                <div key={b.id}>
+                  <BuildingRow
+                    name={b.payload.name || "Unnamed building"}
+                    open={open}
+                    selected={isSelected}
+                    itemCount={itemCount}
+                    onToggle={() => toggleExpanded(b.id)}
+                    onSelect={() => select(b.id)}
+                    onContextMenu={(e) => openMenu(e, b.id)}
+                  />
+                  {open ? (
+                    <div className="ml-3.5 mt-0.5 space-y-0.5 border-l border-line-soft pl-1.5">
+                      {itemCount === 0 ? (
+                        <p className="px-2 py-1 text-[0.7rem] italic text-text-tertiary">
+                          Empty
+                        </p>
+                      ) : null}
                       {floors.map((f) => (
                         <FloorRow
                           key={f.id}
@@ -159,37 +159,31 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
                           onContextMenu={(e) => openMenu(e, p.id)}
                         />
                       ))}
-                    </>
-                  )}
-                </BuildingAccordion>
+                    </div>
+                  ) : null}
+                </div>
               );
             })}
 
             {standalonePois.length > 0 ? (
-              <section>
-                <header className="flex items-center gap-2 px-1 pb-2">
-                  <span className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
-                    Unbuilt POIs
+              <section className="mt-3 space-y-0.5">
+                <header className="flex items-center gap-2 px-2 pb-0.5 pt-1">
+                  <span className="text-[0.65rem] font-medium uppercase tracking-[0.14em] text-text-tertiary">
+                    Unbuilt
                   </span>
-                  <span className="inline-flex items-center rounded-full bg-surface-2 px-1.5 py-0.5 text-[0.65rem] font-semibold tabular-nums text-text-tertiary">
+                  <span className="text-[0.65rem] font-medium tabular-nums text-text-tertiary">
                     {standalonePois.length}
                   </span>
                 </header>
-                <ul
-                  role="list"
-                  className="grid gap-px overflow-hidden rounded-xl border border-line-soft bg-line-soft"
-                >
-                  {standalonePois.map((p) => (
-                    <li key={p.id}>
-                      <PoiRow
-                        poi={p.payload}
-                        selected={focusedId === p.id}
-                        onSelect={() => select(p.id)}
-                        onContextMenu={(e) => openMenu(e, p.id)}
-                      />
-                    </li>
-                  ))}
-                </ul>
+                {standalonePois.map((p) => (
+                  <PoiRow
+                    key={p.id}
+                    poi={p.payload}
+                    selected={focusedId === p.id}
+                    onSelect={() => select(p.id)}
+                    onContextMenu={(e) => openMenu(e, p.id)}
+                  />
+                ))}
               </section>
             ) : null}
           </>
@@ -216,93 +210,82 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
 }
 
 /**
- * One building rendered as a glass accordion. Header row mirrors
- * platform.klorad's vertical-link pattern (`glass-panel rounded-xl
- * hover:border-accent` with an arrow that shifts on hover); when
- * expanded, children appear in a hairline-grid section below.
+ * One building — a single row, no card chrome. Chevron toggles
+ * open/close, the rest of the row selects the building entity.
+ * Count appears as muted right-aligned text only when there's
+ * content to count.
  */
-function BuildingAccordion({
+function BuildingRow({
   name,
   open,
   selected,
-  floorCount,
-  poiCount,
+  itemCount,
   onToggle,
   onSelect,
   onContextMenu,
-  children,
 }: {
   name: string;
   open: boolean;
   selected: boolean;
-  floorCount: number;
-  poiCount: number;
+  itemCount: number;
   onToggle: () => void;
   onSelect: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
-  children?: React.ReactNode;
 }) {
   return (
-    <article
+    <div
       className={cn(
-        "group glass-panel overflow-hidden rounded-xl transition-colors",
-        selected ? "border-accent" : "hover:border-accent",
+        "group flex items-center gap-1 rounded-lg pr-2 transition-colors",
+        selected
+          ? "bg-accent-soft text-accent"
+          : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
       )}
     >
-      {/* Header row — chevron toggles open/close, the name button
-          selects the building entity. */}
-      <div className="flex items-center gap-2 px-3 py-2.5">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-label={open ? "Collapse" : "Expand"}
-          aria-expanded={open}
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-text-tertiary transition-colors hover:bg-accent-soft hover:text-accent"
-        >
-          <Chevron open={open} />
-        </button>
-        <button
-          type="button"
-          onClick={onSelect}
-          onContextMenu={onContextMenu}
-          aria-pressed={selected}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
-        >
-          <BuildingIcon
-            className={cn(
-              "h-3.5 w-3.5 shrink-0 transition-colors",
-              selected ? "text-accent" : "text-text-tertiary",
-            )}
-          />
-          <span
-            className={cn(
-              "truncate text-[0.8125rem] font-medium transition-colors",
-              selected ? "text-accent" : "text-text-primary",
-            )}
-          >
-            {name}
-          </span>
-        </button>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={open ? "Collapse" : "Expand"}
+        aria-expanded={open}
+        className={cn(
+          "flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors",
+          selected ? "text-accent" : "text-text-tertiary",
+        )}
+      >
+        <Chevron open={open} />
+      </button>
+      <button
+        type="button"
+        onClick={onSelect}
+        onContextMenu={onContextMenu}
+        aria-pressed={selected}
+        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left"
+      >
+        <BuildingIcon
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 transition-colors",
+            selected ? "text-accent" : "text-text-tertiary",
+          )}
+        />
         <span
           className={cn(
-            "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 font-mono text-[0.65rem] tabular-nums transition-colors",
-            selected
-              ? "bg-accent/15 text-accent"
-              : "bg-surface-2 text-text-tertiary",
+            "truncate text-[0.8125rem] font-medium transition-colors",
+            selected ? "text-accent" : "text-text-primary",
           )}
         >
-          {floorCount} · {poiCount}
+          {name}
         </span>
-      </div>
-
-      {/* Hairline-grid contents — same `gap-px bg-line-soft` pattern
-          platform uses for its capability cells. */}
-      {open ? (
-        <div className="grid gap-px border-t border-line-soft bg-line-soft">
-          {children}
-        </div>
+      </button>
+      {itemCount > 0 ? (
+        <span
+          className={cn(
+            "shrink-0 text-[0.7rem] tabular-nums transition-colors",
+            selected ? "text-accent/70" : "text-text-tertiary",
+          )}
+        >
+          {itemCount}
+        </span>
       ) : null}
-    </article>
+    </div>
   );
 }
 
@@ -327,10 +310,10 @@ function FloorRow({
       onContextMenu={onContextMenu}
       aria-pressed={selected}
       className={cn(
-        "flex w-full items-center gap-2.5 px-4 py-2 text-left transition-colors",
+        "flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors",
         selected
           ? "bg-accent-soft text-accent"
-          : "bg-bg text-text-secondary hover:bg-surface-2 hover:text-text-primary",
+          : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
       )}
     >
       <FloorBadge floor={floor.floor} selected={selected} />
@@ -358,10 +341,10 @@ function PoiRow({
       onContextMenu={onContextMenu}
       aria-pressed={selected}
       className={cn(
-        "group flex w-full items-center gap-2.5 px-4 py-2 text-left transition-colors",
+        "group flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors",
         selected
           ? "bg-accent-soft text-accent"
-          : "bg-bg text-text-secondary hover:bg-surface-2 hover:text-text-primary",
+          : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
       )}
     >
       <span
@@ -408,7 +391,7 @@ function FloorBadge({
   return (
     <span
       className={cn(
-        "inline-flex h-4 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full px-1 font-mono text-[0.6rem] tabular-nums transition-colors",
+        "inline-flex h-4 min-w-[1.25rem] shrink-0 items-center justify-center rounded px-1 font-mono text-[0.6rem] font-medium tabular-nums transition-colors",
         selected
           ? "bg-accent text-accent-contrast"
           : "bg-surface-2 text-text-tertiary",
@@ -446,7 +429,10 @@ function Chevron({ open }: { open: boolean }) {
       strokeWidth="2.4"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={cn("transition-transform duration-200", open ? "rotate-90" : "")}
+      className={cn(
+        "transition-transform duration-200",
+        open ? "rotate-90" : "",
+      )}
       aria-hidden
     >
       <path d="m9 6 6 6-6 6" />

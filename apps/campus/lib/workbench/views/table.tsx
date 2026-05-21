@@ -65,85 +65,70 @@ function TableViewComponent({ ctx }: ViewProps) {
           Nothing matches “{query}”.
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto px-4 pb-3">
-          {/*
-            Platform's `gap-px bg-line-soft` hairline-grid pattern.
-            One calm sheet with thin dividers between rows; no
-            per-row borders or bgs at idle.
-          */}
-          <ul
-            role="list"
-            className="grid gap-px overflow-hidden rounded-2xl border border-line-soft bg-line-soft"
-          >
-            {filtered.map((entity) => {
-              const poi = entity.payload;
-              const isSelected = entity.id === selectedId;
-              const isAccessible = !!poi.accessibility?.wheelchairAccessible;
-              const handleClick = () => {
-                ctx.setSelection({
-                  ids: isSelected ? new Set<string>() : new Set([entity.id]),
-                  focusedId: isSelected ? null : entity.id,
-                });
-              };
-              return (
-                <li key={entity.id}>
-                  <button
-                    type="button"
-                    onClick={handleClick}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      setMenu({
-                        x: e.clientX,
-                        y: e.clientY,
-                        entityId: entity.id,
-                      });
-                    }}
-                    aria-pressed={isSelected}
+        // Minimal list — no outer container chrome, no per-row
+        // borders. Rows are spaced with `space-y-px` so they read as
+        // a flat list; idle rows are bare, selected = accent-soft
+        // fill, hover = soft surface bump.
+        <ul role="list" className="min-h-0 flex-1 space-y-px overflow-auto px-2 pb-3">
+          {filtered.map((entity) => {
+            const poi = entity.payload;
+            const isSelected = entity.id === selectedId;
+            const isAccessible = !!poi.accessibility?.wheelchairAccessible;
+            const handleClick = () => {
+              ctx.setSelection({
+                ids: isSelected ? new Set<string>() : new Set([entity.id]),
+                focusedId: isSelected ? null : entity.id,
+              });
+            };
+            return (
+              <li key={entity.id}>
+                <button
+                  type="button"
+                  onClick={handleClick}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setMenu({
+                      x: e.clientX,
+                      y: e.clientY,
+                      entityId: entity.id,
+                    });
+                  }}
+                  aria-pressed={isSelected}
+                  title={poi.category ? `${poi.name} · ${poi.category}` : poi.name}
+                  className={cn(
+                    "group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left transition-colors",
+                    isSelected
+                      ? "bg-accent-soft text-accent"
+                      : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
+                  )}
+                >
+                  <span
+                    aria-hidden
                     className={cn(
-                      "group flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors",
+                      "inline-block h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
                       isSelected
-                        ? "bg-accent-soft text-accent"
-                        : "bg-bg text-text-secondary hover:bg-surface-2 hover:text-text-primary",
+                        ? "bg-accent"
+                        : "bg-text-tertiary/40 group-hover:bg-text-tertiary",
                     )}
-                  >
+                  />
+                  <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-medium">
+                    {poi.name || "Unnamed POI"}
+                  </span>
+                  {isAccessible ? (
                     <span
-                      aria-hidden
+                      aria-label="Wheelchair accessible"
+                      title="Wheelchair accessible"
                       className={cn(
-                        "inline-block h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
-                        isSelected
-                          ? "bg-accent"
-                          : "bg-text-tertiary/40 group-hover:bg-text-tertiary",
+                        "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
+                        isSelected ? "bg-accent" : "bg-accent/60",
                       )}
                     />
-                    <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-medium">
-                      {poi.name || "Unnamed POI"}
-                    </span>
-                    {poi.category ? (
-                      <span
-                        className={cn(
-                          "shrink-0 font-mono text-[0.65rem] uppercase tracking-[0.06em] transition-colors",
-                          isSelected ? "text-accent/70" : "text-text-tertiary",
-                        )}
-                      >
-                        {poi.category}
-                      </span>
-                    ) : null}
-                    {isAccessible ? (
-                      <span
-                        aria-label="Wheelchair accessible"
-                        title="Wheelchair accessible"
-                        className={cn(
-                          "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
-                          isSelected ? "bg-accent" : "bg-accent/60",
-                        )}
-                      />
-                    ) : null}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       {menu ? (
