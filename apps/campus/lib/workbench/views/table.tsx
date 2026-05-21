@@ -150,7 +150,12 @@ function TableViewComponent({ ctx }: ViewProps) {
   );
 }
 
-/** Glass pill search — same family as the dashboard's `LocationsHeader` chip. */
+/**
+ * Search input — matches the AI co-pilot's example prompt cards.
+ * Light glass rectangle (not a pill), `rounded-xl px-3 py-2`,
+ * `hover:border-accent` / `focus-within:border-accent` on the wrapper.
+ * Same family as the prompts so the panel reads as one product.
+ */
 function SearchPill({
   value,
   onChange,
@@ -159,14 +164,14 @@ function SearchPill({
   onChange: (v: string) => void;
 }) {
   return (
-    <label className="glass-panel flex items-center gap-2 rounded-full px-3 py-1.5 transition-colors focus-within:border-accent">
+    <label className="group glass-panel flex items-center gap-2.5 rounded-xl px-3 py-2 transition-colors hover:border-accent focus-within:border-accent">
       <SearchIcon className="h-3.5 w-3.5 shrink-0 text-text-tertiary" />
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search…"
-        className="w-full bg-transparent text-[0.8125rem] text-text-primary placeholder:text-text-tertiary focus:outline-none"
+        placeholder="Search POIs…"
+        className="w-full bg-transparent text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none"
       />
       {value ? (
         <button

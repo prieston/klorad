@@ -112,7 +112,7 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
         ) : null}
       </header>
 
-      <div className="min-h-0 flex-1 space-y-0.5 overflow-auto px-2 pb-3">
+      <div className="min-h-0 flex-1 space-y-2 overflow-auto px-3 pb-3">
         {isEmpty ? (
           <EmptyHierarchy />
         ) : (
@@ -124,49 +124,45 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
               const isSelected = focusedId === b.id;
               const itemCount = floors.length + children.length;
               return (
-                <div key={b.id}>
-                  <BuildingRow
-                    name={b.payload.name || "Unnamed building"}
-                    open={open}
-                    selected={isSelected}
-                    itemCount={itemCount}
-                    onToggle={() => toggleExpanded(b.id)}
-                    onSelect={() => select(b.id)}
-                    onContextMenu={(e) => openMenu(e, b.id)}
-                  />
-                  {open ? (
-                    <div className="ml-3.5 mt-0.5 space-y-0.5 border-l border-line-soft pl-1.5">
-                      {itemCount === 0 ? (
-                        <p className="px-2 py-1 text-[0.7rem] italic text-text-tertiary">
-                          Empty
-                        </p>
-                      ) : null}
-                      {floors.map((f) => (
-                        <FloorRow
-                          key={f.id}
-                          floor={f.payload}
-                          selected={focusedId === f.id}
-                          onSelect={() => select(f.id)}
-                          onContextMenu={(e) => openMenu(e, f.id)}
-                        />
-                      ))}
-                      {children.map((p) => (
-                        <PoiRow
-                          key={p.id}
-                          poi={p.payload}
-                          selected={focusedId === p.id}
-                          onSelect={() => select(p.id)}
-                          onContextMenu={(e) => openMenu(e, p.id)}
-                        />
-                      ))}
-                    </div>
+                <BuildingRow
+                  key={b.id}
+                  name={b.payload.name || "Unnamed building"}
+                  open={open}
+                  selected={isSelected}
+                  itemCount={itemCount}
+                  onToggle={() => toggleExpanded(b.id)}
+                  onSelect={() => select(b.id)}
+                  onContextMenu={(e) => openMenu(e, b.id)}
+                >
+                  {itemCount === 0 ? (
+                    <p className="px-2 py-1 text-[0.7rem] italic text-text-tertiary">
+                      Empty
+                    </p>
                   ) : null}
-                </div>
+                  {floors.map((f) => (
+                    <FloorRow
+                      key={f.id}
+                      floor={f.payload}
+                      selected={focusedId === f.id}
+                      onSelect={() => select(f.id)}
+                      onContextMenu={(e) => openMenu(e, f.id)}
+                    />
+                  ))}
+                  {children.map((p) => (
+                    <PoiRow
+                      key={p.id}
+                      poi={p.payload}
+                      selected={focusedId === p.id}
+                      onSelect={() => select(p.id)}
+                      onContextMenu={(e) => openMenu(e, p.id)}
+                    />
+                  ))}
+                </BuildingRow>
               );
             })}
 
             {standalonePois.length > 0 ? (
-              <section className="mt-3 space-y-0.5">
+              <section className="mt-1 space-y-1">
                 <header className="flex items-center gap-2 px-2 pb-0.5 pt-1">
                   <span className="text-[0.65rem] font-medium uppercase tracking-[0.14em] text-text-tertiary">
                     Unbuilt
@@ -210,10 +206,13 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
 }
 
 /**
- * One building — a single row, no card chrome. Chevron toggles
- * open/close, the rest of the row selects the building entity.
- * Count appears as muted right-aligned text only when there's
- * content to count.
+ * One building — a `glass-panel rounded-xl` card that matches the AI
+ * co-pilot's example-prompt aesthetic: light grey background, soft
+ * border, `hover:border-accent`, `px-3 py-2` rhythm.
+ *
+ * The header row holds the chevron / icon / name / count. When
+ * expanded, children render inside the same card under a thin top
+ * divider so the building stays one visual unit.
  */
 function BuildingRow({
   name,
@@ -223,6 +222,7 @@ function BuildingRow({
   onToggle,
   onSelect,
   onContextMenu,
+  children,
 }: {
   name: string;
   open: boolean;
@@ -231,61 +231,67 @@ function BuildingRow({
   onToggle: () => void;
   onSelect: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
+  children?: React.ReactNode;
 }) {
   return (
-    <div
+    <article
       className={cn(
-        "group flex items-center gap-1 rounded-lg pr-2 transition-colors",
-        selected
-          ? "bg-accent-soft text-accent"
-          : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
+        "group glass-panel overflow-hidden rounded-xl transition-colors",
+        selected ? "border-accent" : "hover:border-accent",
       )}
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label={open ? "Collapse" : "Expand"}
-        aria-expanded={open}
-        className={cn(
-          "flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors",
-          selected ? "text-accent" : "text-text-tertiary",
-        )}
-      >
-        <Chevron open={open} />
-      </button>
-      <button
-        type="button"
-        onClick={onSelect}
-        onContextMenu={onContextMenu}
-        aria-pressed={selected}
-        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left"
-      >
-        <BuildingIcon
+      <div className="flex items-center gap-2.5 px-3 py-2">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={open ? "Collapse" : "Expand"}
+          aria-expanded={open}
           className={cn(
-            "h-3.5 w-3.5 shrink-0 transition-colors",
+            "flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors",
             selected ? "text-accent" : "text-text-tertiary",
           )}
-        />
-        <span
-          className={cn(
-            "truncate text-[0.8125rem] font-medium transition-colors",
-            selected ? "text-accent" : "text-text-primary",
-          )}
         >
-          {name}
-        </span>
-      </button>
-      {itemCount > 0 ? (
-        <span
-          className={cn(
-            "shrink-0 text-[0.7rem] tabular-nums transition-colors",
-            selected ? "text-accent/70" : "text-text-tertiary",
-          )}
+          <Chevron open={open} />
+        </button>
+        <button
+          type="button"
+          onClick={onSelect}
+          onContextMenu={onContextMenu}
+          aria-pressed={selected}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
-          {itemCount}
-        </span>
+          <BuildingIcon
+            className={cn(
+              "h-3.5 w-3.5 shrink-0 transition-colors",
+              selected ? "text-accent" : "text-text-tertiary",
+            )}
+          />
+          <span
+            className={cn(
+              "truncate text-xs font-medium transition-colors",
+              selected ? "text-accent" : "text-text-primary",
+            )}
+          >
+            {name}
+          </span>
+        </button>
+        {itemCount > 0 ? (
+          <span
+            className={cn(
+              "shrink-0 text-[0.65rem] tabular-nums transition-colors",
+              selected ? "text-accent/70" : "text-text-tertiary",
+            )}
+          >
+            {itemCount}
+          </span>
+        ) : null}
+      </div>
+      {open ? (
+        <div className="space-y-px border-t border-line-soft px-1.5 py-1">
+          {children}
+        </div>
       ) : null}
-    </div>
+    </article>
   );
 }
 
