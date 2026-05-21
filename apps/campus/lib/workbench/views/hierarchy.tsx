@@ -206,13 +206,14 @@ function HierarchyViewComponent({ ctx }: ViewProps) {
 }
 
 /**
- * One building — a `glass-panel rounded-xl` card that matches the AI
- * co-pilot's example-prompt aesthetic: light grey background, soft
- * border, `hover:border-accent`, `px-3 py-2` rhythm.
+ * One building — borderless light-grey card. Drops the `glass-panel`
+ * treatment whose 1px outline read as "dark" against the white dock;
+ * uses solid `bg-surface-2` instead, with hover and selected states
+ * differentiated purely by background colour.
  *
- * The header row holds the chevron / icon / name / count. When
- * expanded, children render inside the same card under a thin top
- * divider so the building stays one visual unit.
+ * When expanded, children render flush inside the same card (no top
+ * divider line — the slight bg shift on a hovered child is enough
+ * peripheral signal).
  */
 function BuildingRow({
   name,
@@ -236,8 +237,10 @@ function BuildingRow({
   return (
     <article
       className={cn(
-        "group glass-panel overflow-hidden rounded-xl transition-colors",
-        selected ? "border-accent" : "hover:border-accent",
+        "group overflow-hidden rounded-xl transition-colors",
+        selected
+          ? "bg-accent-soft"
+          : "bg-surface-2 hover:bg-surface-2/70",
       )}
     >
       <div className="flex items-center gap-2.5 px-3 py-2">
@@ -287,9 +290,7 @@ function BuildingRow({
         ) : null}
       </div>
       {open ? (
-        <div className="space-y-px border-t border-line-soft px-1.5 py-1">
-          {children}
-        </div>
+        <div className="space-y-px px-1.5 pb-1.5">{children}</div>
       ) : null}
     </article>
   );

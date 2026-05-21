@@ -151,10 +151,10 @@ function TableViewComponent({ ctx }: ViewProps) {
 }
 
 /**
- * Search input — matches the AI co-pilot's example prompt cards.
- * Light glass rectangle (not a pill), `rounded-xl px-3 py-2`,
- * `hover:border-accent` / `focus-within:border-accent` on the wrapper.
- * Same family as the prompts so the panel reads as one product.
+ * Search input — borderless light-grey rounded box. No `glass-panel`
+ * because its 1px `glass-border` reads as a hard outline on the
+ * white dock; instead solid `bg-surface-2` carries the contrast and
+ * the only visible state is the ring on focus.
  */
 function SearchPill({
   value,
@@ -164,7 +164,7 @@ function SearchPill({
   onChange: (v: string) => void;
 }) {
   return (
-    <label className="group glass-panel flex items-center gap-2.5 rounded-xl px-3 py-2 transition-colors hover:border-accent focus-within:border-accent">
+    <label className="group flex items-center gap-2.5 rounded-xl bg-surface-2 px-3 py-2 transition-colors focus-within:ring-2 focus-within:ring-accent/40">
       <SearchIcon className="h-3.5 w-3.5 shrink-0 text-text-tertiary" />
       <input
         type="text"
