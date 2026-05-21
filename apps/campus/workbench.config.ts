@@ -9,6 +9,7 @@ import {
   overviewView,
   tableView,
   hierarchyView,
+  flyToPoiOp,
 } from "@/lib/workbench";
 
 /**
@@ -24,7 +25,9 @@ import {
  *                select, bridges to the map)
  * - Phase 4c  — `hierarchyView` in the left region, stacked under
  *                the table (Building → Floor + child POIs tree)
- * - Phase 5+  — operations, further layout tuning
+ * - Phase 5a  — first typed `Operation` registered (`poi.fly-to`),
+ *                invoked via `ctx.runOperation(...)` from a button in
+ *                the OverviewView when a POI is focused
  *
  * Imported by `/maps/[mapId]/workbench/page.tsx` at runtime; the old
  * `/maps/[mapId]/builder` route stays untouched until Phase 6.
@@ -41,7 +44,7 @@ const workbenchConfig = defineWorkbench({
     eventEntity,
   ],
   views: [mapView, overviewView, tableView, hierarchyView],
-  operations: [],
+  operations: [flyToPoiOp],
   defaultLayout: {
     left: ["table", "hierarchy"],
     center: ["map"],
