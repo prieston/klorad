@@ -69,8 +69,13 @@ function MapViewComponent({ ctx }: ViewProps) {
   // the scene store, so passing `true` unconditionally is safe.
   useCampusLabelDefaults(true);
 
+  // `relative` is load-bearing: MapboxViewer's container is
+  // `position: absolute; inset: 0`, so without a positioned ancestor
+  // it escapes the dock's flex layout and renders against the viewport
+  // — painting over the left and right dock columns. `/builder` wraps
+  // the viewer in `<Box position="relative">` for the same reason.
   return (
-    <div className="h-full w-full">
+    <div className="relative h-full w-full">
       <MapboxViewer />
     </div>
   );
