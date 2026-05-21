@@ -8,6 +8,7 @@ import type { CampusAPI, FloorPlan, POI, TourStop } from "@klorad/api";
 import { withCampusLabelDefaults } from "@/app/hooks/useCampusLabelDefaults";
 import workbenchConfig from "@/workbench.config";
 import { createCampusEntityIndex } from "@/lib/workbench";
+import { useCampusApiStore } from "@/lib/workbench/campus-api-store";
 
 interface Props {
   mapId: string;
@@ -38,9 +39,18 @@ export default function WorkbenchClient({ mapId }: Props) {
   const [tourStops] = useState<TourStop[]>([]);
   const apiRef = useRef<CampusAPI | null>(null);
 
+  // Phase 5d-a — ops mutate the CampusAPI and call `bump()` to
+  // invalidate. We subscribe to the version counter and re-pull
+  // entity lists when it ticks. This is the "live entity index"
+  // glue: views see fresh data after every op without each op
+  // needing to know about React state.
+  const apiVersion = useCampusApiStore((s) => s.version);
+  const setStoreApi = useCampusApiStore((s) => s.setApi);
+
   useEffect(() => {
     const api = createSceneAPI("mapbox", "campus") as CampusAPI;
     apiRef.current = api;
+    setStoreApi(api);
 
     let cancelled = false;
     (async () => {
@@ -64,8 +74,21 @@ export default function WorkbenchClient({ mapId }: Props) {
 
     return () => {
       cancelled = true;
+      setStoreApi(null);
     };
-  }, [mapId]);
+  }, [mapId, setStoreApi]);
+
+  // Re-pull entity lists whenever an op bumps the version. The first
+  // load (above) populates pois/plans on success; this effect handles
+  // every subsequent mutation. Guarded by `sceneReady` so the initial
+  // load doesn't fight with this hook.
+  useEffect(() => {
+    if (!sceneReady) return;
+    if (!apiRef.current) return;
+    if (apiVersion === 0) return;
+    setPois(apiRef.current.poi.getAll());
+    setPlans(apiRef.current.floorPlans.getAll());
+  }, [apiVersion, sceneReady]);
 
   const entities = useMemo(
     () =>

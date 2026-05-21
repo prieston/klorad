@@ -12,6 +12,9 @@ import {
   flyToPoiOp,
   openViewerOp,
   copyLinkOp,
+  deletePoiOp,
+  deleteFloorPlanOp,
+  deleteBuildingOp,
 } from "@/lib/workbench";
 
 /**
@@ -33,6 +36,12 @@ import {
  * - Phase 5b  — `ctx.toast` wired through to react-toastify; two
  *                world-level ops added (`world.open-viewer`,
  *                `world.copy-link`)
+ * - Phase 5c1 — operations surface generically from
+ *                `ctx.applicableOperations`
+ * - Phase 5c2 — command palette over the same registry (mod+k)
+ * - Phase 5c3 — right-click context menu + generic world-actions
+ * - Phase 5d-a — first wave of write ops: `poi.delete`,
+ *                `floor-plan.delete`, `building.delete` (cascading)
  *
  * Imported by `/maps/[mapId]/workbench/page.tsx` at runtime; the old
  * `/maps/[mapId]/builder` route stays untouched until Phase 6.
@@ -49,7 +58,14 @@ const workbenchConfig = defineWorkbench({
     eventEntity,
   ],
   views: [mapView, overviewView, tableView, hierarchyView],
-  operations: [flyToPoiOp, openViewerOp, copyLinkOp],
+  operations: [
+    flyToPoiOp,
+    openViewerOp,
+    copyLinkOp,
+    deletePoiOp,
+    deleteFloorPlanOp,
+    deleteBuildingOp,
+  ],
   defaultLayout: {
     left: ["table", "hierarchy"],
     center: ["map"],
