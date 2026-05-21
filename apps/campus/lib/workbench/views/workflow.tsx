@@ -66,24 +66,42 @@ function WorkflowViewComponent({ ctx }: ViewProps) {
 
 type StepId = "location" | "buildings" | "pois";
 
-const STEPS: { id: StepId; label: string; description: string }[] = [
+type Step = {
+  id: StepId;
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+};
+
+const STEPS: Step[] = [
   {
     id: "location",
     label: "Location",
-    description: "Define where your campus sits. The current map view becomes the initial camera position visitors land on.",
+    icon: LocationIcon,
+    description:
+      "Define where your campus sits. The current map view becomes the initial camera position visitors land on.",
   },
   {
     id: "buildings",
     label: "Buildings",
-    description: "Draw your campus's buildings, then drill into each one to add floors and rooms.",
+    icon: BuildingIcon,
+    description:
+      "Draw your campus's buildings, then drill into each one to add floors and rooms.",
   },
   {
     id: "pois",
     label: "POIs",
-    description: "Tag the places visitors search for — entrances, departments, cafés, accessibility info.",
+    icon: PoiIcon,
+    description:
+      "Tag the places visitors search for — entrances, departments, cafés, accessibility info.",
   },
 ];
 
+/**
+ * Horizontal tab bar — icon + tiny label, three pills in a row.
+ * Active pill fills with `bg-accent-soft text-accent`; hover lifts
+ * a soft surface-2 bg.
+ */
 function TabBar({
   current,
   onChange,
@@ -93,28 +111,89 @@ function TabBar({
 }) {
   return (
     <div className="grid grid-cols-3 gap-1 px-3 pb-2">
-      {STEPS.map((s, i) => {
+      {STEPS.map((s) => {
         const isActive = s.id === current;
+        const Icon = s.icon;
         return (
           <button
             key={s.id}
             type="button"
             onClick={() => onChange(s.id)}
+            title={s.label}
             className={cn(
-              "flex flex-col items-center justify-center gap-0.5 rounded-xl py-2 transition-colors",
+              "flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 transition-colors",
               isActive
                 ? "bg-accent-soft text-accent"
                 : "text-text-tertiary hover:bg-surface-2 hover:text-text-primary",
             )}
           >
-            <span className="font-mono text-[0.6rem] tabular-nums opacity-70">
-              {String(i + 1).padStart(2, "0")}
-            </span>
-            <span className="text-[0.75rem] font-medium">{s.label}</span>
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="text-[0.7rem] font-medium">{s.label}</span>
           </button>
         );
       })}
     </div>
+  );
+}
+
+function LocationIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v3" />
+      <path d="M12 19v3" />
+      <path d="M2 12h3" />
+      <path d="M19 12h3" />
+    </svg>
+  );
+}
+
+function BuildingIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <rect x="4" y="3" width="16" height="18" rx="1" />
+      <line x1="9" y1="7" x2="9" y2="7" />
+      <line x1="15" y1="7" x2="15" y2="7" />
+      <line x1="9" y1="12" x2="9" y2="12" />
+      <line x1="15" y1="12" x2="15" y2="12" />
+      <line x1="9" y1="17" x2="15" y2="17" />
+    </svg>
+  );
+}
+
+function PoiIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M12 21s-7-6.5-7-12a7 7 0 1 1 14 0c0 5.5-7 12-7 12Z" />
+      <circle cx="12" cy="9" r="2.5" />
+    </svg>
   );
 }
 
