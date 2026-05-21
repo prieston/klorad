@@ -1,7 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { View, ViewProps } from "@klorad/config/workbench";
+import type {
+  ResolvedOperation,
+  View,
+  ViewContext,
+  ViewProps,
+} from "@klorad/config/workbench";
 
 /**
  * Phase 4a — the Overview view.
@@ -161,20 +166,21 @@ function CopyIcon() {
 
 /**
  * The right-dock's "what's selected" card. Echoes the focused id and
- * surfaces operations that apply to the current selection. v1 wires
- * `poi.fly-to` — registered in `workbench.config.ts` and invoked via
- * `ctx.runOperation(...)`. Future ops light up here without further
- * shell changes.
+ * surfaces operations that apply to the current selection.
+ *
+ * Phase 5c1 — rendered generically from `ctx.applicableOperations`:
+ * any entity-scoped op whose `applies` predicate returns true light
+ * up here automatically. To add a new op, register it in
+ * `workbench.config.ts` — no edits to this view required.
+ *
+ * World-level ops (`scope: []`) are filtered out here; they belong
+ * in a separate "World actions" surface (5c2 lands that).
  */
 function SelectionPanel({ ctx }: { ctx: ViewProps["ctx"] }) {
   const focusedId = ctx.selection.focusedId;
-  const focusedEntity = focusedId ? ctx.entities.byId(focusedId) : null;
-  const canFlyToPoi = focusedEntity?.typeId === "campus.poi";
-
-  const handleFly = () => {
-    if (!focusedId) return;
-    void ctx.runOperation("poi.fly-to", undefined, [focusedId]);
-  };
+  const entityOps = ctx.applicableOperations.filter(
+    (r) => r.operation.scope.length > 0,
+  );
 
   // Selection-clearing is a UI affordance, not an entity-level operation
   // — `OpInvokeContext` doesn't (and shouldn't) carry `setSelection`.
@@ -206,36 +212,44 @@ function SelectionPanel({ ctx }: { ctx: ViewProps["ctx"] }) {
           </button>
         ) : null}
       </div>
-      {canFlyToPoi ? (
-        <button
-          type="button"
-          onClick={handleFly}
-          className="mt-2 inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-accent px-3 text-xs font-medium text-accent-contrast transition-colors hover:bg-accent-hover"
-        >
-          <FlyToIcon />
-          Fly to in 3D
-        </button>
+      {entityOps.length > 0 ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {entityOps.map((resolved) => (
+            <OperationButton
+              key={resolved.operation.id}
+              resolved={resolved}
+              ctx={ctx}
+            />
+          ))}
+        </div>
       ) : null}
     </div>
   );
 }
 
-function FlyToIcon() {
+/**
+ * Generic button for one `ResolvedOperation`. The view doesn't know
+ * what the op does — the shell handed it a bound `on` list and the
+ * op's own `label` / `icon`. Clicking fires `ctx.runOperation`.
+ */
+function OperationButton({
+  resolved,
+  ctx,
+}: {
+  resolved: ResolvedOperation;
+  ctx: ViewContext;
+}) {
+  const { operation, on } = resolved;
+  const Icon = operation.icon;
   return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
+    <button
+      type="button"
+      onClick={() => void ctx.runOperation(operation.id, undefined, on)}
+      className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-accent px-3 text-xs font-medium text-accent-contrast transition-colors hover:bg-accent-hover"
     >
-      <path d="M22 2 11 13" />
-      <path d="m22 2-7 20-4-9-9-4z" />
-    </svg>
+      {Icon ? <Icon className="h-3 w-3" /> : null}
+      {operation.label}
+    </button>
   );
 }
 

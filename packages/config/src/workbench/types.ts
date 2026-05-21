@@ -135,6 +135,12 @@ export interface OperationFormProps<Args = unknown> {
 export interface Operation<Args = void> {
   id: OperationId;
   label: string;
+  /**
+   * Optional icon used by generic rendering surfaces — view-authored
+   * buttons, command palette entries, right-click menu items. Falls
+   * back to label-only if absent.
+   */
+  icon?: React.ComponentType<{ className?: string }>;
   /** Entity types this operation applies to. */
   scope: EntityTypeId[];
   /** Predicate evaluated against the current selection. */
