@@ -32,6 +32,7 @@ export {
 export { Avatar, type AvatarProps } from "./components/avatar";
 export { Badge, type BadgeProps, type BadgeTone } from "./components/badge";
 export { Spinner, type SpinnerProps } from "./components/spinner";
+export { EmptyState, type EmptyStateProps } from "./components/empty-state";
 export { Select, type SelectProps } from "./components/select";
 export { Modal, type ModalProps } from "./components/modal";
 export {
