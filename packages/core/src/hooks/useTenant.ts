@@ -20,11 +20,12 @@ const tenantConfigs: Record<TenantId, TenantConfig> = {
     id: "klorad",
     name: "Klorad Studio",
     domain: "klorad.com",
-    // The Klorad brand refreshed alongside the website redesign (white
-    // wordmark + cyan accent variant authored for dark backgrounds, the
-    // only theme the editor currently supports). The canonical
-    // multi-color asset lives at `klorad-logo-new.svg`.
-    logo: "/images/logo/klorad-logo-new-dark.svg",
+    // The canonical multi-color brand asset — kept on the config so
+    // any future consumer (download, share image, exported viewer)
+    // can reach it. The editor's AppBar specifically renders the
+    // inline `KloradMark` from `@klorad/design-system` instead of
+    // this image, so its dark-on-dark rendering doesn't matter here.
+    logo: "/images/logo/klorad-logo-new.svg",
     logoAlt: "Klorad Studio",
     logoWidth: 383,
     logoHeight: 78,
