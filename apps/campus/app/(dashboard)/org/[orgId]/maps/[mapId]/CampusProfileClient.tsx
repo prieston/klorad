@@ -79,11 +79,18 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
         <span className="flex-1 text-sm text-text-secondary">
           Last updated {new Date(map.updatedAt).toLocaleDateString()}
         </span>
+        {/*
+          Phase 6 — soft swap. "Edit campus" routes to the new Workbench
+          (/workbench), not the legacy /builder. The /builder route is
+          still reachable by URL while the last write paths (floor-plan
+          upload, room define) finish migrating; Phase 6b will redirect
+          /builder → /workbench and delete the legacy component.
+        */}
         <Button
-          onClick={() => router.push(`/org/${orgId}/maps/${mapId}/builder`)}
+          onClick={() => router.push(`/org/${orgId}/maps/${mapId}/workbench`)}
         >
           <EditIcon fontSize="small" />
-          Enter Studio
+          Edit campus
         </Button>
       </div>
 
