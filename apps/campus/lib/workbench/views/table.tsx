@@ -6,17 +6,10 @@ import type { Entity, View, ViewProps } from "@klorad/config/workbench";
 import { ContextMenu, cn } from "@klorad/design-system";
 
 /**
- * Phase 4b → modern lite — TableView.
- *
- * The "outdated" feedback was right: too many boxes, grey rows, a
- * rectangular input. The dashboard / website use lighter patterns —
- * glass pill inputs, count chips, hover-only highlights, no visible
- * borders on row containers. This pass matches that aesthetic.
- *
- * Rows are text-first. A tiny accent dot marks the current
- * selection; otherwise no chrome. Hover lifts a soft bg. Selected
- * rows take a full accent-soft fill with accent text — the same
- * peripheral signal pill-shaped CTAs use elsewhere.
+ * Modern lite — TableView, redesigned to match platform.klorad's
+ * hairline-grid pattern (`grid gap-px bg-line-soft` parent +
+ * `bg-bg` children). One calm sheet with thin dividers, no
+ * per-row borders, glass-pill search input above.
  */
 function TableViewComponent({ ctx }: ViewProps) {
   const pois = ctx.entities.byType("campus.poi") as Entity<POI>[];
@@ -72,77 +65,85 @@ function TableViewComponent({ ctx }: ViewProps) {
           Nothing matches “{query}”.
         </div>
       ) : (
-        <ul className="min-h-0 flex-1 space-y-px overflow-auto px-2 pb-3">
-          {filtered.map((entity) => {
-            const poi = entity.payload;
-            const isSelected = entity.id === selectedId;
-            const isAccessible = !!poi.accessibility?.wheelchairAccessible;
-            const handleClick = () => {
-              ctx.setSelection({
-                ids: isSelected ? new Set<string>() : new Set([entity.id]),
-                focusedId: isSelected ? null : entity.id,
-              });
-            };
-            return (
-              <li key={entity.id}>
-                <button
-                  type="button"
-                  onClick={handleClick}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setMenu({
-                      x: e.clientX,
-                      y: e.clientY,
-                      entityId: entity.id,
-                    });
-                  }}
-                  aria-pressed={isSelected}
-                  className={cn(
-                    "group flex w-full items-center gap-2.5 rounded-full px-3 py-1.5 text-left transition-colors",
-                    isSelected
-                      ? "bg-accent-soft text-accent"
-                      : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
-                  )}
-                >
-                  <span
-                    aria-hidden
+        <div className="min-h-0 flex-1 overflow-auto px-4 pb-3">
+          {/*
+            Platform's `gap-px bg-line-soft` hairline-grid pattern.
+            One calm sheet with thin dividers between rows; no
+            per-row borders or bgs at idle.
+          */}
+          <ul
+            role="list"
+            className="grid gap-px overflow-hidden rounded-2xl border border-line-soft bg-line-soft"
+          >
+            {filtered.map((entity) => {
+              const poi = entity.payload;
+              const isSelected = entity.id === selectedId;
+              const isAccessible = !!poi.accessibility?.wheelchairAccessible;
+              const handleClick = () => {
+                ctx.setSelection({
+                  ids: isSelected ? new Set<string>() : new Set([entity.id]),
+                  focusedId: isSelected ? null : entity.id,
+                });
+              };
+              return (
+                <li key={entity.id}>
+                  <button
+                    type="button"
+                    onClick={handleClick}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setMenu({
+                        x: e.clientX,
+                        y: e.clientY,
+                        entityId: entity.id,
+                      });
+                    }}
+                    aria-pressed={isSelected}
                     className={cn(
-                      "inline-block h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
+                      "group flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors",
                       isSelected
-                        ? "bg-accent"
-                        : "bg-text-tertiary/40 group-hover:bg-text-tertiary",
+                        ? "bg-accent-soft text-accent"
+                        : "bg-bg text-text-secondary hover:bg-surface-2 hover:text-text-primary",
                     )}
-                  />
-                  <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-medium">
-                    {poi.name || "Unnamed POI"}
-                  </span>
-                  {poi.category ? (
+                  >
                     <span
+                      aria-hidden
                       className={cn(
-                        "shrink-0 text-[0.65rem] uppercase tracking-[0.06em] transition-colors",
+                        "inline-block h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
                         isSelected
-                          ? "text-accent/70"
-                          : "text-text-tertiary",
-                      )}
-                    >
-                      {poi.category}
-                    </span>
-                  ) : null}
-                  {isAccessible ? (
-                    <span
-                      aria-label="Wheelchair accessible"
-                      title="Wheelchair accessible"
-                      className={cn(
-                        "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
-                        isSelected ? "bg-accent" : "bg-accent/70",
+                          ? "bg-accent"
+                          : "bg-text-tertiary/40 group-hover:bg-text-tertiary",
                       )}
                     />
-                  ) : null}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                    <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-medium">
+                      {poi.name || "Unnamed POI"}
+                    </span>
+                    {poi.category ? (
+                      <span
+                        className={cn(
+                          "shrink-0 font-mono text-[0.65rem] uppercase tracking-[0.06em] transition-colors",
+                          isSelected ? "text-accent/70" : "text-text-tertiary",
+                        )}
+                      >
+                        {poi.category}
+                      </span>
+                    ) : null}
+                    {isAccessible ? (
+                      <span
+                        aria-label="Wheelchair accessible"
+                        title="Wheelchair accessible"
+                        className={cn(
+                          "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
+                          isSelected ? "bg-accent" : "bg-accent/60",
+                        )}
+                      />
+                    ) : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
 
       {menu ? (
@@ -164,10 +165,7 @@ function TableViewComponent({ ctx }: ViewProps) {
   );
 }
 
-/**
- * Glass pill search — same shape as the chips the website / dashboard
- * use. No heavy border, no grey rectangle.
- */
+/** Glass pill search — same family as the dashboard's `LocationsHeader` chip. */
 function SearchPill({
   value,
   onChange,

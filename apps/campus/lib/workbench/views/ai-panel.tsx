@@ -90,15 +90,17 @@ function AIPanelComponent({ ctx }: ViewProps) {
 function ExamplePrompt({ label, hint }: { label: string; hint: string }) {
   return (
     <div
-      className="group rounded-xl border border-dashed border-line-soft bg-surface-1 px-3 py-2 text-left transition-colors"
+      className="group glass-panel flex items-start gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:border-accent"
       role="note"
       aria-label={label}
     >
-      <div className="flex items-center gap-2 text-xs font-medium text-text-primary">
-        <span className="text-text-tertiary">›</span>
-        {label}
+      <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[0.7rem] font-semibold text-accent">
+        ›
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-medium text-text-primary">{label}</div>
+        <p className="mt-0.5 text-[0.7rem] text-text-tertiary">{hint}</p>
       </div>
-      <p className="mt-0.5 pl-3 text-[0.7rem] text-text-tertiary">{hint}</p>
     </div>
   );
 }
