@@ -179,13 +179,17 @@ const nextConfig = {
       ],
     });
 
-    // Handle other CSS files (fallback until packages are split)
+    // Handle other CSS files (fallback until packages are split).
+    // Must NOT match next/font's virtual target.css — Next handles that via
+    // its own next-font-loader, and intercepting it here makes the font
+    // module's default export resolve to undefined at runtime.
     config.module.rules.push({
       test: /\.css$/,
       exclude: [
         /node_modules\/cesium/,
         /node_modules\/mapbox-gl/,
         /styles\/vendor\/mapbox-gl\.css$/,
+        /next[\\/]font[\\/]/,
       ],
       use: [
         'style-loader',
