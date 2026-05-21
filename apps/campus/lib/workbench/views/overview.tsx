@@ -1,12 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
-import type {
-  ResolvedOperation,
-  View,
-  ViewContext,
-  ViewProps,
-} from "@klorad/config/workbench";
+import {
+  WorkbenchOperationButton,
+  WorkbenchSection,
+  WorkbenchStatTile,
+} from "@klorad/design-system";
+import type { View, ViewProps } from "@klorad/config/workbench";
 
 /**
  * Phase 4a — the Overview view.
@@ -21,6 +20,15 @@ import type {
  * dock supports more than one View consuming the shared entity
  * index, and sets the pattern that TableView and HierarchyView
  * follow in Phases 4b and 4c.
+ *
+ * Phase 5c1 — operations render generically from
+ * `ctx.applicableOperations`. Add a new op to `workbench.config.ts`
+ * and it shows up in the SelectionPanel automatically.
+ *
+ * Style pass — built on `@klorad/design-system`'s `WorkbenchSection`,
+ * `WorkbenchStatTile`, and `WorkbenchOperationButton` so the view
+ * matches the dashboard's `rounded-2xl` / Panel aesthetic. Future
+ * verticals' OverviewViews inherit the same primitives.
  */
 function OverviewViewComponent({ ctx }: ViewProps) {
   const pois = ctx.entities.byType("campus.poi");
@@ -33,41 +41,48 @@ function OverviewViewComponent({ ctx }: ViewProps) {
   // the @klorad/api `POI` shape directly; if accessibility becomes a
   // first-class concept it gets its own field on `EntityType`.
   const accessibleCount = pois.filter((p) => {
-    const payload = p.payload as { accessibility?: { wheelchairAccessible?: boolean } };
+    const payload = p.payload as {
+      accessibility?: { wheelchairAccessible?: boolean };
+    };
     return payload?.accessibility?.wheelchairAccessible;
   }).length;
   const accessibilityPct =
     pois.length > 0 ? Math.round((accessibleCount / pois.length) * 100) : 0;
 
+  // Short worldId for the subtitle — full id is preserved on hover.
+  const shortWorldId = ctx.worldId.length > 12
+    ? `${ctx.worldId.slice(0, 6)}…${ctx.worldId.slice(-4)}`
+    : ctx.worldId;
+
   return (
-    <div className="flex h-full flex-col gap-4 p-4">
+    <div className="flex h-full flex-col gap-4 px-4 pb-4">
       <header className="space-y-1">
-        <h2 className="text-sm font-semibold text-text-primary">Overview</h2>
-        <p className="font-mono text-[0.7rem] text-text-tertiary">
-          {ctx.worldId}
+        <h2 className="text-base font-semibold text-text-primary">Overview</h2>
+        <p
+          className="font-mono text-[0.7rem] text-text-tertiary"
+          title={ctx.worldId}
+        >
+          {shortWorldId}
         </p>
       </header>
 
-      <div className="grid grid-cols-2 gap-2">
-        <StatTile label="POIs" value={pois.length} />
-        <StatTile label="Buildings" value={buildings.length} />
-        <StatTile label="Floor plans" value={floorPlans.length} />
-        <StatTile label="Events" value={events.length} />
+      <div className="grid grid-cols-2 gap-3">
+        <WorkbenchStatTile label="POIs" value={pois.length} />
+        <WorkbenchStatTile label="Buildings" value={buildings.length} />
+        <WorkbenchStatTile label="Floor plans" value={floorPlans.length} />
+        <WorkbenchStatTile label="Events" value={events.length} />
       </div>
 
-      <div className="rounded-lg border border-line-soft bg-surface-1 p-3">
-        <div className="text-[0.7rem] uppercase tracking-[0.14em] text-text-tertiary">
-          Accessibility coverage
-        </div>
-        <div className="mt-1 flex items-baseline gap-2">
-          <span className="text-2xl font-light text-text-primary">
+      <WorkbenchSection title="Accessibility coverage">
+        <div className="flex items-baseline gap-2">
+          <span className="text-3xl font-light tabular-nums text-text-primary">
             {accessibilityPct}%
           </span>
           <span className="text-xs text-text-secondary">
             {accessibleCount} / {pois.length} POIs
           </span>
         </div>
-      </div>
+      </WorkbenchSection>
 
       <SelectionPanel ctx={ctx} />
       <WorldActions ctx={ctx} />
@@ -76,66 +91,51 @@ function OverviewViewComponent({ ctx }: ViewProps) {
 }
 
 /**
- * World-level operations — `world.open-viewer`, `world.copy-link`.
- * Apply regardless of selection so they live in their own panel.
+ * World-level operations (`scope: []`) — `world.open-viewer`,
+ * `world.copy-link`. Apply regardless of selection so they live in
+ * their own panel. Rendered with `secondary` variant so they read
+ * as ambient actions rather than competing with the selection ops.
+ *
+ * 5c3 will generate this panel from `ctx.applicableOperations` so
+ * any future world-level op surfaces automatically.
  */
 function WorldActions({ ctx }: { ctx: ViewProps["ctx"] }) {
   return (
-    <div className="space-y-2">
-      <div className="text-[0.7rem] uppercase tracking-[0.14em] text-text-tertiary">
-        World actions
-      </div>
+    <WorkbenchSection tone="soft" title="World actions">
       <div className="flex flex-wrap gap-1.5">
-        <ActionButton
+        <WorkbenchOperationButton
+          label="Open viewer"
+          icon={OpenViewerIcon}
+          variant="secondary"
           onClick={() =>
             void ctx.runOperation("world.open-viewer", undefined, [])
           }
-        >
-          <OpenViewerIcon />
-          Open viewer
-        </ActionButton>
-        <ActionButton
+        />
+        <WorkbenchOperationButton
+          label="Copy link"
+          icon={CopyIcon}
+          variant="secondary"
           onClick={() =>
             void ctx.runOperation("world.copy-link", undefined, [])
           }
-        >
-          <CopyIcon />
-          Copy link
-        </ActionButton>
+        />
       </div>
-    </div>
+    </WorkbenchSection>
   );
 }
 
-function ActionButton({
-  onClick,
-  children,
-}: {
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex h-7 items-center gap-1 rounded-md border border-line-strong px-2 text-[0.7rem] font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent"
-    >
-      {children}
-    </button>
-  );
-}
-
-function OpenViewerIcon() {
+function OpenViewerIcon({ className }: { className?: string }) {
   return (
     <svg
-      width="11"
-      height="11"
+      width="12"
+      height="12"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
+      className={className}
       aria-hidden
     >
       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -145,17 +145,18 @@ function OpenViewerIcon() {
   );
 }
 
-function CopyIcon() {
+function CopyIcon({ className }: { className?: string }) {
   return (
     <svg
-      width="11"
-      height="11"
+      width="12"
+      height="12"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
+      className={className}
       aria-hidden
     >
       <rect x="9" y="9" width="13" height="13" rx="2" />
@@ -165,16 +166,14 @@ function CopyIcon() {
 }
 
 /**
- * The right-dock's "what's selected" card. Echoes the focused id and
- * surfaces operations that apply to the current selection.
+ * "What's selected" — echoes the focused id and surfaces every
+ * applicable entity-scoped operation. Rendered from
+ * `ctx.applicableOperations` (Phase 5c1); world-level ops are
+ * filtered out and surface in `WorldActions` above.
  *
- * Phase 5c1 — rendered generically from `ctx.applicableOperations`:
- * any entity-scoped op whose `applies` predicate returns true light
- * up here automatically. To add a new op, register it in
- * `workbench.config.ts` — no edits to this view required.
- *
- * World-level ops (`scope: []`) are filtered out here; they belong
- * in a separate "World actions" surface (5c2 lands that).
+ * Clear button is a UI affordance, not an operation — `OpInvokeContext`
+ * deliberately doesn't carry `setSelection`. Calls `ctx.setSelection`
+ * directly.
  */
 function SelectionPanel({ ctx }: { ctx: ViewProps["ctx"] }) {
   const focusedId = ctx.selection.focusedId;
@@ -182,85 +181,56 @@ function SelectionPanel({ ctx }: { ctx: ViewProps["ctx"] }) {
     (r) => r.operation.scope.length > 0,
   );
 
-  // Selection-clearing is a UI affordance, not an entity-level operation
-  // — `OpInvokeContext` doesn't (and shouldn't) carry `setSelection`.
-  // Calls the view context directly.
+  const subtitle = focusedId ? (
+    <code className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[0.7rem] text-text-primary">
+      {focusedId}
+    </code>
+  ) : (
+    <span className="text-xs text-text-tertiary">Nothing selected</span>
+  );
+
   const handleClear = () => {
     ctx.setSelection({ ids: new Set<string>(), focusedId: null });
   };
 
   return (
-    <div className="rounded-lg border border-dashed border-line-soft p-3 text-xs text-text-tertiary">
-      <div className="flex items-center justify-between gap-2">
-        <span className="min-w-0 truncate">
-          Selected:{" "}
-          {focusedId ? (
-            <code className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[0.7rem] text-text-primary">
-              {focusedId}
-            </code>
-          ) : (
-            <span>nothing</span>
-          )}
-        </span>
-        {focusedId ? (
+    <WorkbenchSection
+      tone="dashed"
+      title="Selection"
+      subtitle={subtitle}
+      actions={
+        focusedId ? (
           <button
             type="button"
             onClick={handleClear}
-            className="shrink-0 text-[0.7rem] font-medium text-text-secondary transition-colors hover:text-accent"
+            className="text-[0.7rem] font-medium text-text-secondary transition-colors hover:text-accent"
           >
             Clear
           </button>
-        ) : null}
-      </div>
+        ) : null
+      }
+    >
       {entityOps.length > 0 ? (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {entityOps.map((resolved) => (
-            <OperationButton
-              key={resolved.operation.id}
-              resolved={resolved}
-              ctx={ctx}
+        <div className="flex flex-wrap gap-1.5">
+          {entityOps.map(({ operation, on }) => (
+            <WorkbenchOperationButton
+              key={operation.id}
+              label={operation.label}
+              icon={operation.icon}
+              onClick={() =>
+                void ctx.runOperation(operation.id, undefined, on)
+              }
             />
           ))}
         </div>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * Generic button for one `ResolvedOperation`. The view doesn't know
- * what the op does — the shell handed it a bound `on` list and the
- * op's own `label` / `icon`. Clicking fires `ctx.runOperation`.
- */
-function OperationButton({
-  resolved,
-  ctx,
-}: {
-  resolved: ResolvedOperation;
-  ctx: ViewContext;
-}) {
-  const { operation, on } = resolved;
-  const Icon = operation.icon;
-  return (
-    <button
-      type="button"
-      onClick={() => void ctx.runOperation(operation.id, undefined, on)}
-      className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-accent px-3 text-xs font-medium text-accent-contrast transition-colors hover:bg-accent-hover"
-    >
-      {Icon ? <Icon className="h-3 w-3" /> : null}
-      {operation.label}
-    </button>
-  );
-}
-
-function StatTile({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="rounded-lg border border-line-soft bg-surface-1 p-3">
-      <div className="text-[0.7rem] uppercase tracking-[0.14em] text-text-tertiary">
-        {label}
-      </div>
-      <div className="mt-1 text-2xl font-light text-text-primary">{value}</div>
-    </div>
+      ) : (
+        <p className="text-xs text-text-tertiary">
+          {focusedId
+            ? "No actions available for this selection."
+            : "Click anything on the map or in the list to see what you can do with it."}
+        </p>
+      )}
+    </WorkbenchSection>
   );
 }
 
