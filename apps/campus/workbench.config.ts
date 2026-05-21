@@ -11,6 +11,7 @@ import {
   tableView,
   hierarchyView,
   aiPanelView,
+  workflowView,
   flyToPoiOp,
   openViewerOp,
   copyLinkOp,
@@ -71,7 +72,14 @@ const workbenchConfig = defineWorkbench({
     tourStopEntity,
     eventEntity,
   ],
-  views: [mapView, overviewView, tableView, hierarchyView, aiPanelView],
+  views: [
+    mapView,
+    overviewView,
+    workflowView,
+    tableView,
+    hierarchyView,
+    aiPanelView,
+  ],
   operations: [
     flyToPoiOp,
     openViewerOp,
@@ -92,7 +100,11 @@ const workbenchConfig = defineWorkbench({
     uploadFloorPlanOp,
   ],
   defaultLayout: {
-    left: ["table", "hierarchy"],
+    // Left dock = a single guided Workflow view (Location / Buildings
+    // / POIs). The standalone `table` + `hierarchy` views stay
+    // registered for `mod+k` palette navigation but don't dock by
+    // default — the workflow is the new user-facing surface.
+    left: ["workflow"],
     center: ["map"],
     right: ["overview"],
     bottom: ["ai-panel"],

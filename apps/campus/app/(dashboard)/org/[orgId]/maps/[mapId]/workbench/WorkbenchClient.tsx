@@ -179,14 +179,30 @@ export default function WorkbenchClient({ mapId }: Props) {
         }
         actor="You"
         actions={
-          <Button
-            size="sm"
-            variant={isDirty ? "primary" : "secondary"}
-            onClick={handleSave}
-            disabled={saving || !isDirty}
-          >
-            {saving ? "Saving…" : isDirty ? "Save" : "Saved"}
-          </Button>
+          <>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                if (typeof window === "undefined") return;
+                const url = `${window.location.origin}/campus/${mapId}`;
+                navigator.clipboard
+                  ?.writeText(url)
+                  .then(() => toastify.success("Public link copied"))
+                  .catch(() => toastify.error("Couldn't copy the link"));
+              }}
+            >
+              Share
+            </Button>
+            <Button
+              size="sm"
+              variant={isDirty ? "primary" : "secondary"}
+              onClick={handleSave}
+              disabled={saving || !isDirty}
+            >
+              {saving ? "Saving…" : isDirty ? "Save" : "Saved"}
+            </Button>
+          </>
         }
       />
       <div className="min-h-0 flex-1">

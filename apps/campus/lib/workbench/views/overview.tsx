@@ -182,12 +182,13 @@ function SelectionPanel({ ctx }: { ctx: ViewProps["ctx"] }) {
           </p>
         )}
         {entityOps.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-col gap-1.5">
             {entityOps.map(({ operation, on }) => (
               <WorkbenchOperationButton
                 key={operation.id}
                 label={operation.label}
                 icon={operation.icon}
+                className="w-full justify-start"
                 onClick={() =>
                   void ctx.runOperation(operation.id, undefined, on)
                 }
@@ -211,13 +212,19 @@ function WorldActions({ ctx }: { ctx: ViewProps["ctx"] }) {
   if (worldOps.length === 0) return null;
   return (
     <Card title="World actions">
-      <div className="flex flex-wrap gap-1.5">
+      {/*
+        Vertical stack — each button takes the card's full width, so
+        long labels can never push horizontal scroll. Same pattern
+        Linear / Notion use for settings actions.
+      */}
+      <div className="flex flex-col gap-1.5">
         {worldOps.map(({ operation, on }) => (
           <WorkbenchOperationButton
             key={operation.id}
             label={operation.label}
             icon={operation.icon}
             variant="secondary"
+            className="w-full justify-start"
             onClick={() =>
               void ctx.runOperation(operation.id, undefined, on)
             }
