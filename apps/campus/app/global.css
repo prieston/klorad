@@ -45,3 +45,27 @@ body {
 .klorad-drawing-polygon * {
   cursor: crosshair !important;
 }
+
+/*
+ * Workbench-scoped element reset. Tailwind preflight is disabled at
+ * the app level (MUI coexistence), so the user-agent stylesheet leaks
+ * default `<button>` borders + grey fill into our custom-styled
+ * workbench rows. Scoping the reset to `[data-workbench]` keeps MUI
+ * dashboard pages untouched. `:where()` zeroes selector specificity
+ * so any Tailwind utility class on the element still wins.
+ */
+:where([data-workbench]) :where(button, input, textarea, select) {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: transparent;
+  background-image: none;
+  border: 0;
+  outline: 0;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  margin: 0;
+}
+:where([data-workbench]) :where(button, input, textarea, select):focus {
+  outline: 0;
+}

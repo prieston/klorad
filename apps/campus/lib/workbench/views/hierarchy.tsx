@@ -237,7 +237,7 @@ function BuildingRow({
   return (
     <article
       className={cn(
-        "group overflow-hidden rounded-xl border-0 outline-none transition-colors",
+        "group overflow-hidden rounded-xl transition-colors",
         selected
           ? "bg-accent-soft"
           : "bg-surface-2 hover:bg-accent-soft/40",

@@ -170,7 +170,7 @@ export default function WorkbenchClient({ mapId }: Props) {
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-bg">
+    <div data-workbench className="flex h-screen w-screen flex-col bg-bg">
       <WorkbenchTopBar
         product="Campus"
         worldName={mapName ?? "Untitled campus"}

@@ -96,7 +96,7 @@ function TableViewComponent({ ctx }: ViewProps) {
                   aria-pressed={isSelected}
                   title={poi.category ? `${poi.name} · ${poi.category}` : poi.name}
                   className={cn(
-                    "group flex w-full items-center gap-2.5 rounded-xl border-0 p-3.5 text-left outline-none transition-colors focus:outline-none",
+                    "group flex w-full appearance-none items-center gap-2.5 rounded-xl border-0 p-3.5 text-left outline-none transition-colors focus:outline-none",
                     isSelected
                       ? "bg-accent-soft text-accent"
                       : "bg-surface-2 text-text-secondary hover:bg-accent-soft/40 hover:text-text-primary",
@@ -164,21 +164,21 @@ function SearchPill({
   onChange: (v: string) => void;
 }) {
   return (
-    <label className="group flex items-center gap-2.5 rounded-xl border-0 bg-surface-2 p-3.5 outline-none">
+    <label className="group flex items-center gap-2.5 rounded-xl bg-surface-2 p-3.5">
       <SearchIcon className="h-3.5 w-3.5 shrink-0 text-text-tertiary" />
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search POIs…"
-        className="w-full border-0 bg-transparent text-xs text-text-primary outline-none placeholder:text-text-tertiary focus:outline-none"
+        className="w-full bg-transparent text-xs text-text-primary placeholder:text-text-tertiary"
       />
       {value ? (
         <button
           type="button"
           onClick={() => onChange("")}
           aria-label="Clear search"
-          className="border-0 text-text-tertiary outline-none transition-colors hover:text-text-primary focus:outline-none"
+          className="text-text-tertiary transition-colors hover:text-text-primary"
         >
           <ClearIcon className="h-3 w-3" />
         </button>
