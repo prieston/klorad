@@ -6,6 +6,7 @@ import type {
   DockRegion,
   EntityIndex,
   OpResult,
+  Operation,
   ResolvedOperation,
   SelectionState,
   ToastTone,
@@ -15,6 +16,7 @@ import type {
 import { emptyEntityIndex } from "@klorad/config/workbench";
 import { CommandPalette } from "./command-palette";
 import { Dock } from "./dock";
+import { Modal } from "./modal";
 
 export type WorkbenchToast = (msg: string, tone?: ToastTone) => void;
 
@@ -71,6 +73,19 @@ export function Workbench({
     focusedId: null,
   }));
   const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Phase 5d-b — Form modal state. When an op with a `Form` is invoked
+  // without explicit args, the shell opens its Form here, awaits the
+  // user, then runs `invoke(args)` once the form submits. `resolve`
+  // is the deferred promise from the `runOperation` call that
+  // triggered the form — fulfilled on submit or cancel.
+  const [activeForm, setActiveForm] = useState<{
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    op: Operation<any>;
+    on: string[];
+    initialArgs: unknown;
+    resolve: (result: OpResult) => void;
+  } | null>(null);
 
   // `mod+k` toggles the command palette globally. Accept both Cmd
   // (macOS) and Ctrl (everywhere else) so the binding feels native
@@ -134,6 +149,24 @@ export function Workbench({
       if (!op) {
         return { ok: false, reason: `Unknown operation: ${opId}` };
       }
+      // Phase 5d-b — if the op declares a Form and the caller didn't
+      // pass explicit args, gather them via a Modal first. The Modal
+      // submits with the Args; cancellation resolves with `ok: false`.
+      // Callers that already have args (programmatic / AI / replay)
+      // skip the form entirely by passing a non-`undefined` value.
+      if (op.Form && args === undefined) {
+        return new Promise<OpResult>((resolve) => {
+          const initial = op.initialArgs
+            ? op.initialArgs({ worldId, entities }, on)
+            : undefined;
+          setActiveForm({
+            op,
+            on,
+            initialArgs: initial,
+            resolve,
+          });
+        });
+      }
       return op.invoke(
         { worldId, actor, entities, toast },
         args as never,
@@ -142,6 +175,31 @@ export function Workbench({
     },
     [operationById, worldId, actor, entities, toast],
   );
+
+  // Form-modal lifecycle. `runForm` is called from inside the Modal
+  // when the Form submits; it invokes the op with the gathered args
+  // and resolves the deferred promise from `runOperation`. `closeForm`
+  // is the cancel path — resolves with a `Cancelled` failure so the
+  // caller can distinguish "user backed out" from "op failed".
+  const runForm = useCallback(
+    async (args: unknown) => {
+      if (!activeForm) return;
+      const result = await activeForm.op.invoke(
+        { worldId, actor, entities, toast },
+        args as never,
+        activeForm.on,
+      );
+      activeForm.resolve(result);
+      setActiveForm(null);
+    },
+    [activeForm, worldId, actor, entities, toast],
+  );
+
+  const closeForm = useCallback(() => {
+    if (!activeForm) return;
+    activeForm.resolve({ ok: false, reason: "Cancelled" });
+    setActiveForm(null);
+  }, [activeForm]);
 
   // Phase 5c3 — operations applicable to one specific entity,
   // independent of the current selection. The right-click menu uses
@@ -252,6 +310,33 @@ export function Workbench({
         operations={applicableOperations}
         onRun={handlePaletteRun}
       />
+      {activeForm && activeForm.op.Form ? (
+        <Modal
+          open
+          onClose={closeForm}
+          title={activeForm.op.label}
+          className="max-w-lg"
+        >
+          {(() => {
+            // Local alias so the JSX expression below sees a non-
+            // optional component type. The earlier guard ensures Form
+            // exists; TS just can't track it through a deep property.
+            const Form = activeForm.op
+              .Form as React.ComponentType<{
+              initialArgs?: unknown;
+              submit(args: unknown): void;
+              cancel(): void;
+            }>;
+            return (
+              <Form
+                initialArgs={activeForm.initialArgs}
+                submit={(args: unknown) => void runForm(args)}
+                cancel={closeForm}
+              />
+            );
+          })()}
+        </Modal>
+      ) : null}
     </>
   );
 }

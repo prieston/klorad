@@ -147,6 +147,15 @@ export interface Operation<Args = void> {
   applies(sel: SelectionState, entities: EntityIndex): boolean;
   /** Optional form for gathering `Args` from the user before `invoke`. */
   Form?: React.ComponentType<OperationFormProps<Args>>;
+  /**
+   * Optional pre-populator for the Form. Called by the shell when it
+   * opens the Form modal; the returned value is passed as
+   * `initialArgs`. Skipped if the op has no Form.
+   */
+  initialArgs?(
+    ctx: Pick<OpInvokeContext, "worldId" | "entities">,
+    on: EntityId[],
+  ): Args | undefined;
   /** The work. May call the server, mutate the entity index, etc. */
   invoke(
     ctx: OpInvokeContext,

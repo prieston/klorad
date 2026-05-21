@@ -15,6 +15,7 @@ import {
   deletePoiOp,
   deleteFloorPlanOp,
   deleteBuildingOp,
+  editPoiOp,
 } from "@/lib/workbench";
 
 /**
@@ -65,6 +66,7 @@ const workbenchConfig = defineWorkbench({
     deletePoiOp,
     deleteFloorPlanOp,
     deleteBuildingOp,
+    editPoiOp,
   ],
   defaultLayout: {
     left: ["table", "hierarchy"],

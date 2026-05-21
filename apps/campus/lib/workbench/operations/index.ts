@@ -4,3 +4,4 @@ export { copyLinkOp } from "./copy-link";
 export { deletePoiOp } from "./delete-poi";
 export { deleteFloorPlanOp } from "./delete-floor-plan";
 export { deleteBuildingOp } from "./delete-building";
+export { editPoiOp, type EditPoiArgs } from "./edit-poi";
