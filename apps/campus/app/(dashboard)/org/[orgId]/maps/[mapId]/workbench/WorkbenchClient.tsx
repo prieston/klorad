@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Workbench } from "@klorad/design-system";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast as toastify } from "react-toastify";
+import { Workbench, type WorkbenchToast } from "@klorad/design-system";
 import { createSceneAPI } from "@klorad/api";
 import type { CampusAPI, FloorPlan, POI, TourStop } from "@klorad/api";
 import { withCampusLabelDefaults } from "@/app/hooks/useCampusLabelDefaults";
@@ -77,6 +78,26 @@ export default function WorkbenchClient({ mapId }: Props) {
     [mapId, pois, plans, tourStops],
   );
 
+  // Bridge the Workbench's `ctx.toast(msg, tone)` calls — emitted from
+  // inside operation `invoke` bodies — to react-toastify, the same
+  // surface BuilderClient / SettingsTab already use elsewhere in
+  // campus. The ToastContainer is mounted at the app's providers level.
+  const toast = useCallback<WorkbenchToast>((msg, tone) => {
+    switch (tone) {
+      case "success":
+        toastify.success(msg);
+        return;
+      case "warning":
+        toastify.warning(msg);
+        return;
+      case "error":
+        toastify.error(msg);
+        return;
+      default:
+        toastify.info(msg);
+    }
+  }, []);
+
   if (!sceneReady) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-bg text-sm text-text-secondary">
@@ -91,6 +112,7 @@ export default function WorkbenchClient({ mapId }: Props) {
         config={workbenchConfig}
         worldId={mapId}
         entities={entities}
+        toast={toast}
       />
     </div>
   );

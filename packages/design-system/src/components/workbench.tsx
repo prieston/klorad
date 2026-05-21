@@ -7,11 +7,14 @@ import type {
   EntityIndex,
   OpResult,
   SelectionState,
+  ToastTone,
   ViewContext,
   WorkbenchConfig,
 } from "@klorad/config/workbench";
 import { emptyEntityIndex } from "@klorad/config/workbench";
 import { Dock } from "./dock";
+
+export type WorkbenchToast = (msg: string, tone?: ToastTone) => void;
 
 export type WorkbenchProps = {
   /** The vertical's config, produced by `defineWorkbench(...)`. */
@@ -22,9 +25,19 @@ export type WorkbenchProps = {
   actor?: Actor;
   /** Custom entity backend. Defaults to an empty in-memory index. */
   entities?: EntityIndex;
+  /**
+   * Surface for operation toasts. Operations call `ctx.toast(msg, tone)`
+   * from inside `invoke`; whatever surface the app uses (react-toastify,
+   * sonner, etc.) plugs in here. Defaults to a noop — operations stay
+   * functional, but their feedback is silent.
+   */
+  toast?: WorkbenchToast;
 };
 
 const defaultActor: Actor = { kind: "user", userId: "anonymous" };
+const noopToast: WorkbenchToast = () => {
+  /* deliberate noop default */
+};
 
 /**
  * The Workbench shell — Phase 2 v1.
@@ -45,6 +58,7 @@ export function Workbench({
   worldId,
   actor = defaultActor,
   entities = emptyEntityIndex,
+  toast = noopToast,
 }: WorkbenchProps) {
   const [selection, setSelection] = useState<SelectionState>(() => ({
     ids: new Set<string>(),
@@ -73,24 +87,15 @@ export function Workbench({
           return { ok: false, reason: `Unknown operation: ${opId}` };
         }
         return op.invoke(
-          {
-            worldId,
-            actor,
-            entities,
-            // Phase 5 wires this to the app's real toast surface. For
-            // now, swallow — no operations exist yet to call it anyway.
-            toast: () => {
-              /* noop */
-            },
-          },
+          { worldId, actor, entities, toast },
           args as never,
           on,
         );
       },
-      // Computed in Phase 5 once operations exist.
+      // Computed in a later phase once we wire `applies` per selection.
       applicableOperations: [],
     }),
-    [worldId, selection, entities, actor, operationById],
+    [worldId, selection, entities, actor, operationById, toast],
   );
 
   const renderRegion = (region: DockRegion) => {

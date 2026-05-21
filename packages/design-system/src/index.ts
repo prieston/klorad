@@ -46,4 +46,8 @@ export {
   type NavItem,
 } from "./components/app-shell";
 export { Dock, type DockProps } from "./components/dock";
-export { Workbench, type WorkbenchProps } from "./components/workbench";
+export {
+  Workbench,
+  type WorkbenchProps,
+  type WorkbenchToast,
+} from "./components/workbench";

@@ -10,6 +10,8 @@ import {
   tableView,
   hierarchyView,
   flyToPoiOp,
+  openViewerOp,
+  copyLinkOp,
 } from "@/lib/workbench";
 
 /**
@@ -28,6 +30,9 @@ import {
  * - Phase 5a  — first typed `Operation` registered (`poi.fly-to`),
  *                invoked via `ctx.runOperation(...)` from a button in
  *                the OverviewView when a POI is focused
+ * - Phase 5b  — `ctx.toast` wired through to react-toastify; two
+ *                world-level ops added (`world.open-viewer`,
+ *                `world.copy-link`)
  *
  * Imported by `/maps/[mapId]/workbench/page.tsx` at runtime; the old
  * `/maps/[mapId]/builder` route stays untouched until Phase 6.
@@ -44,7 +49,7 @@ const workbenchConfig = defineWorkbench({
     eventEntity,
   ],
   views: [mapView, overviewView, tableView, hierarchyView],
-  operations: [flyToPoiOp],
+  operations: [flyToPoiOp, openViewerOp, copyLinkOp],
   defaultLayout: {
     left: ["table", "hierarchy"],
     center: ["map"],
