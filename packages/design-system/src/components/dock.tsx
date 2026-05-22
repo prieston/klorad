@@ -44,13 +44,15 @@ export function Dock({ left, center, right, bottom, className }: DockProps) {
         className,
       )}
     >
-      {/* Scene layer — fills the whole dock, sits behind the panels. */}
-      <main className="absolute inset-0 overflow-hidden">{center}</main>
+      {/* Scene layer — fills the whole dock, sits behind the panels.
+          `z-0` makes it a stacking context so the map's own controls
+          (e.g. the Mapbox attribution) can't paint above the panels. */}
+      <main className="absolute inset-0 z-0 overflow-hidden">{center}</main>
 
       {/* Panel layer — floats over the scene. `pointer-events-none`
           here + `-auto` on each panel lets clicks fall through the
           empty centre slot to the scene below. */}
-      <div className="pointer-events-none absolute inset-0 flex flex-col">
+      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col">
         <div className="flex min-h-0 flex-1">
           {left ? <DockColumn side="left">{left}</DockColumn> : null}
           {/* Centre slot — scene-anchored overlay UI portals in here
