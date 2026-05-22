@@ -55,6 +55,7 @@ function MapViewComponent({ ctx }: ViewProps) {
     (e) => e.payload,
   );
   const selectedId = ctx.selection.focusedId;
+  const placementMode = usePlacementStore((s) => s.active);
 
   // Resolve the focused selection into the things the indoor layers
   // care about — which building POI is in focus, and which floor (if
@@ -138,6 +139,9 @@ function MapViewComponent({ ctx }: ViewProps) {
     pois,
     selectedPoiId: selectedId,
     onPoiClick: (id) => {
+      // While a placement (e.g. wall drawing) is active, map clicks
+      // belong to the placement — don't also change the selection.
+      if (usePlacementStore.getState().active) return;
       const next = selectedId === id ? null : id;
       ctx.setSelection({
         ids: next ? new Set([next]) : new Set<string>(),
@@ -151,12 +155,18 @@ function MapViewComponent({ ctx }: ViewProps) {
   // the rooms inside. Plans + rooms are now real (Phase 1) rather than
   // the empty stubs the workbench shipped with on day one.
   useMapboxDrawnBuildingsLayer(pois, allFloorPlans, allRooms, {
-    selectedPoiId: selectedId,
+    // The X-ray reveal keys off the *building* — pass the resolved
+    // building id so it engages even when a floor plan or room is the
+    // focused entity (then `selectedId` is the plan/room, not the
+    // building).
+    selectedPoiId: selectedBuildingId,
     activeFloor,
     onSelect: (id) => {
+      if (usePlacementStore.getState().active) return;
       ctx.setSelection({ ids: new Set([id]), focusedId: id });
     },
-    clickEnabled: true,
+    // Suppress building clicks while a placement is in progress.
+    clickEnabled: !placementMode,
   });
 
   // Floor slabs — the horizontal plates between floors. Clicking one
@@ -166,6 +176,7 @@ function MapViewComponent({ ctx }: ViewProps) {
     activePlanId: activeFloor != null ? selectedId : null,
     selectedBuildingPoiId: selectedBuildingId,
     onSelect: (_buildingId, _floor, planId) => {
+      if (usePlacementStore.getState().active) return;
       if (planId) ctx.setSelection({ ids: new Set([planId]), focusedId: planId });
     },
   });
@@ -176,6 +187,7 @@ function MapViewComponent({ ctx }: ViewProps) {
   useMapboxRoomsLayer(roomsForSelection, {
     activeFloor,
     onSelect: (id) => {
+      if (usePlacementStore.getState().active) return;
       ctx.setSelection({ ids: new Set([id]), focusedId: id });
     },
     highlightRoomId:
@@ -201,7 +213,6 @@ function MapViewComponent({ ctx }: ViewProps) {
   // click and resolve; polygon modes accumulate vertices and close on
   // double-click / Enter. Esc always cancels. Canvas cursor flips to
   // crosshair while active for visual feedback.
-  const placementMode = usePlacementStore((s) => s.active);
 
   // Scene tools — drawing actions performed directly on the canvas.
   // "Draw building" is always available; "Define room" needs a floor
