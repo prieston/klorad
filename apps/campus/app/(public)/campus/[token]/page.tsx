@@ -140,27 +140,27 @@ export default async function CampusHomePage({
 
   return (
     <main lang={locale} className="min-h-screen bg-bg">
-      <header className="flex items-center justify-between gap-4 px-6 py-4 md:px-10">
+      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-solid border-line-soft bg-bg/85 px-6 py-3 backdrop-blur md:px-10 md:py-4">
         {branding.logo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={branding.logo}
             alt={displayName}
-            className="h-8 max-w-[200px] object-contain"
+            className="h-7 max-w-[160px] object-contain sm:h-8 sm:max-w-[200px]"
           />
         ) : (
-          <span className="text-lg font-semibold text-text-primary">
+          <span className="truncate text-base font-semibold text-text-primary sm:text-lg">
             {displayName}
           </span>
         )}
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2">
           <HomeLangToggle token={token} current={locale} />
           <Link
             href={mapHref}
-            className="text-sm font-medium transition-opacity hover:opacity-80"
-            style={{ color: accent }}
+            className="rounded-full px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: accent }}
           >
-            {translate(locale, "home.openMap")} →
+            {translate(locale, "home.openMap")}
           </Link>
         </div>
       </header>
@@ -180,7 +180,7 @@ export default async function CampusHomePage({
         }
       >
         <div className="max-w-3xl">
-          <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">
+          <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-5xl">
             {headline}
           </h1>
           {tagline ? (
@@ -190,7 +190,7 @@ export default async function CampusHomePage({
           ) : null}
           <Link
             href={mapHref}
-            className="mt-7 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02]"
+            className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-base font-semibold shadow-sm transition-transform hover:scale-[1.02] sm:w-auto"
             style={{ color: accent }}
           >
             {ctaLabel} →
