@@ -52,13 +52,19 @@ function segmentRect(
  * Each wall segment is buffered to its thickness and extruded from
  * the floor's elevation; pass the floor index the walls belong to.
  */
-export function useMapboxWallsLayer(walls: Wall[], floor: number) {
+export function useMapboxWallsLayer(
+  walls: Wall[],
+  floor: number,
+  flat = false,
+) {
   const map = useSceneStore((s) => s.mapboxMap as MapboxMap | null);
 
   useEffect(() => {
     if (!map) return;
 
-    const base = floor * FLOOR_HEIGHT_M + SLAB_OFFSET_M;
+    // In floor-plan design mode walls sit on the ground; otherwise on
+    // the floor's slab.
+    const base = flat ? 0 : floor * FLOOR_HEIGHT_M + SLAB_OFFSET_M;
     const features: GeoJSON.Feature[] = [];
     for (const wall of walls) {
       const thickness = wall.thickness ?? 0.15;
@@ -114,5 +120,5 @@ export function useMapboxWallsLayer(walls: Wall[], floor: number) {
         /* style already torn down */
       }
     };
-  }, [map, walls, floor]);
+  }, [map, walls, floor, flat]);
 }

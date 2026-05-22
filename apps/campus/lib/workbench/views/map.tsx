@@ -16,6 +16,7 @@ import { useMapboxWallsLayer } from "@/app/hooks/useMapboxWallsLayer";
 import { useCampusLabelDefaults } from "@/app/hooks/useCampusLabelDefaults";
 import { placementKind, usePlacementStore } from "../placement-store";
 import { snapWallPoint } from "../wall-snapping";
+import { useFloorDesignStore } from "../floor-design-store";
 
 const MapboxViewer = dynamic(
   () =>
@@ -56,6 +57,7 @@ function MapViewComponent({ ctx }: ViewProps) {
   );
   const selectedId = ctx.selection.focusedId;
   const placementMode = usePlacementStore((s) => s.active);
+  const designPlanId = useFloorDesignStore((s) => s.designPlanId);
 
   // Resolve the focused selection into the things the indoor layers
   // care about — which building POI is in focus, and which floor (if
@@ -166,13 +168,15 @@ function MapViewComponent({ ctx }: ViewProps) {
       ctx.setSelection({ ids: new Set([id]), focusedId: id });
     },
     // Suppress building clicks while a placement is in progress.
-    clickEnabled: !placementMode,
+    clickEnabled: !placementMode && !designPlanId,
+    // Floor-plan design mode hides every shell.
+    hidden: !!designPlanId,
   });
 
   // Floor slabs — the horizontal plates between floors. Clicking one
   // selects the matching floor plan, which becomes the new focused
   // entity and drives `activeFloor` above.
-  useMapboxFloorSlabsLayer(pois, allFloorPlans, allRooms, {
+  useMapboxFloorSlabsLayer(pois, designPlanId ? [] : allFloorPlans, allRooms, {
     activePlanId: activeFloor != null ? selectedId : null,
     selectedBuildingPoiId: selectedBuildingId,
     onSelect: (_buildingId, _floor, planId) => {
@@ -184,7 +188,7 @@ function MapViewComponent({ ctx }: ViewProps) {
   // Rooms — the 3D extruded volumes inside the building, rendered with
   // the X-ray-friendly opacity. Scoped to the selected building so we
   // don't paint every room in every building all at once.
-  useMapboxRoomsLayer(roomsForSelection, {
+  useMapboxRoomsLayer(designPlanId ? [] : roomsForSelection, {
     activeFloor,
     onSelect: (id) => {
       if (usePlacementStore.getState().active) return;
@@ -206,6 +210,7 @@ function MapViewComponent({ ctx }: ViewProps) {
   useMapboxWallsLayer(
     activeFloorPlan?.walls ?? [],
     activeFloorPlan?.floor ?? 0,
+    !!designPlanId,
   );
 
   // Force basemap labels off whenever the scene is mounted (Mapbox's
@@ -262,8 +267,23 @@ function MapViewComponent({ ctx }: ViewProps) {
           }
         },
       },
+      {
+        id: "floor.design",
+        label: designPlanId ? "Done" : "Design floor",
+        icon: DesignFloorIcon,
+        active: !!designPlanId,
+        disabled: !designPlanId && !focusedPlanId,
+        hint: "Select a floor first",
+        onSelect: () => {
+          if (designPlanId) {
+            useFloorDesignStore.getState().exit();
+          } else if (focusedPlanId) {
+            useFloorDesignStore.getState().enter(focusedPlanId);
+          }
+        },
+      },
     ];
-  }, [allFloorPlans, selectedId, placementMode, ctx]);
+  }, [allFloorPlans, selectedId, placementMode, designPlanId, ctx]);
 
   useEffect(() => {
     if (!placementMode) return;
@@ -423,6 +443,26 @@ function PlacementBanner({ mode }: { mode: string }) {
         </button>
       </div>
     </div>
+  );
+}
+
+function DesignFloorIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <rect x="3" y="3" width="18" height="18" rx="1" />
+      <path d="M3 10 L14 10 L14 21 M14 10 L14 3" />
+    </svg>
   );
 }
 

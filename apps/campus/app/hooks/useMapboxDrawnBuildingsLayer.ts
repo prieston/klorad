@@ -105,6 +105,8 @@ interface Options {
   onSelect?: (poiId: string) => void;
   /** When false, click + hover are ignored (e.g. during polygon draw). */
   clickEnabled?: boolean;
+  /** Hide every building shell — floor-plan design mode. */
+  hidden?: boolean;
 }
 
 /**
@@ -138,6 +140,16 @@ export function useMapboxDrawnBuildingsLayer(
   useEffect(() => {
     clickEnabledRef.current = clickEnabled;
   }, [clickEnabled]);
+
+  // Floor-plan design mode hides every shell so the user draws on the
+  // bare ground; visibility flips back on exit.
+  useEffect(() => {
+    if (!map) return;
+    const vis = opts.hidden ? "none" : "visible";
+    for (const id of [FILL_LAYER_ID, XRAY_LAYER_ID, OUTLINE_LAYER_ID]) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+    }
+  }, [map, opts.hidden]);
 
   // Mount layers once per map.
   useEffect(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import useSWR, { mutate } from "swr";
 import { toast } from "react-toastify";
@@ -18,7 +18,9 @@ import {
   formatPostDate,
   readPosts,
 } from "@/lib/posts";
-import { readCampusPlaces } from "@/lib/places";
+import { type PlaceOption, readCampusPlaces } from "@/lib/places";
+import { venueForIndoorMap } from "@/lib/mappedin/config";
+import { loadMappedinSpaces } from "@/lib/mappedin/spaces";
 import {
   type Localizable,
   type Locale,
@@ -74,10 +76,35 @@ export default function NewsTab({ mapId }: Props) {
     fetcher,
   );
   const posts = readPosts(serverMap?.sceneData);
-  const places = useMemo(
+  // The picker offers the campus's *real* indoor: MappedIn spaces
+  // when the campus has a MappedIn venue, the workbench buildings /
+  // floors / rooms otherwise.
+  const campusPlaces = useMemo(
     () => readCampusPlaces(serverMap?.sceneData),
     [serverMap],
   );
+  const indoorMapId = (
+    serverMap?.sceneData as { indoorMapId?: string } | undefined
+  )?.indoorMapId;
+  const [mappedinPlaces, setMappedinPlaces] = useState<PlaceOption[]>([]);
+  useEffect(() => {
+    if (!indoorMapId) {
+      setMappedinPlaces([]);
+      return;
+    }
+    let cancelled = false;
+    void loadMappedinSpaces(venueForIndoorMap(indoorMapId))
+      .then((sp) => {
+        if (!cancelled) setMappedinPlaces(sp);
+      })
+      .catch(() => {
+        if (!cancelled) setMappedinPlaces([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [indoorMapId]);
+  const places = indoorMapId ? mappedinPlaces : campusPlaces;
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [lang, setLang] = useState<Locale>("en");
@@ -123,7 +150,12 @@ export default function NewsTab({ mapId }: Props) {
       const current = readPosts(serverMap?.sceneData);
       const linked = places.find((p) => p.id === placeId);
       const place: PostPlace | undefined = linked
-        ? { id: linked.id, kind: linked.kind, name: linked.name }
+        ? {
+            id: linked.id,
+            kind: linked.kind,
+            name: linked.name,
+            source: linked.source,
+          }
         : undefined;
       const titleValue = toLocalized(title);
       const bodyValue = toLocalized(body);
