@@ -12,8 +12,10 @@ import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxDrawnBuildingsLayer } from "@/app/hooks/useMapboxDrawnBuildingsLayer";
 import { useMapboxFloorSlabsLayer } from "@/app/hooks/useMapboxFloorSlabsLayer";
 import { useMapboxRoomsLayer } from "@/app/hooks/useMapboxRoomsLayer";
+import { useMapboxWallsLayer } from "@/app/hooks/useMapboxWallsLayer";
 import { useCampusLabelDefaults } from "@/app/hooks/useCampusLabelDefaults";
 import { placementKind, usePlacementStore } from "../placement-store";
+import { snapWallPoint } from "../wall-snapping";
 
 const MapboxViewer = dynamic(
   () =>
@@ -53,6 +55,7 @@ function MapViewComponent({ ctx }: ViewProps) {
     (e) => e.payload,
   );
   const selectedId = ctx.selection.focusedId;
+  const placementMode = usePlacementStore((s) => s.active);
 
   // Resolve the focused selection into the things the indoor layers
   // care about — which building POI is in focus, and which floor (if
@@ -136,6 +139,9 @@ function MapViewComponent({ ctx }: ViewProps) {
     pois,
     selectedPoiId: selectedId,
     onPoiClick: (id) => {
+      // While a placement (e.g. wall drawing) is active, map clicks
+      // belong to the placement — don't also change the selection.
+      if (usePlacementStore.getState().active) return;
       const next = selectedId === id ? null : id;
       ctx.setSelection({
         ids: next ? new Set([next]) : new Set<string>(),
@@ -149,12 +155,18 @@ function MapViewComponent({ ctx }: ViewProps) {
   // the rooms inside. Plans + rooms are now real (Phase 1) rather than
   // the empty stubs the workbench shipped with on day one.
   useMapboxDrawnBuildingsLayer(pois, allFloorPlans, allRooms, {
-    selectedPoiId: selectedId,
+    // The X-ray reveal keys off the *building* — pass the resolved
+    // building id so it engages even when a floor plan or room is the
+    // focused entity (then `selectedId` is the plan/room, not the
+    // building).
+    selectedPoiId: selectedBuildingId,
     activeFloor,
     onSelect: (id) => {
+      if (usePlacementStore.getState().active) return;
       ctx.setSelection({ ids: new Set([id]), focusedId: id });
     },
-    clickEnabled: true,
+    // Suppress building clicks while a placement is in progress.
+    clickEnabled: !placementMode,
   });
 
   // Floor slabs — the horizontal plates between floors. Clicking one
@@ -164,6 +176,7 @@ function MapViewComponent({ ctx }: ViewProps) {
     activePlanId: activeFloor != null ? selectedId : null,
     selectedBuildingPoiId: selectedBuildingId,
     onSelect: (_buildingId, _floor, planId) => {
+      if (usePlacementStore.getState().active) return;
       if (planId) ctx.setSelection({ ids: new Set([planId]), focusedId: planId });
     },
   });
@@ -174,6 +187,7 @@ function MapViewComponent({ ctx }: ViewProps) {
   useMapboxRoomsLayer(roomsForSelection, {
     activeFloor,
     onSelect: (id) => {
+      if (usePlacementStore.getState().active) return;
       ctx.setSelection({ ids: new Set([id]), focusedId: id });
     },
     highlightRoomId:
@@ -181,6 +195,18 @@ function MapViewComponent({ ctx }: ViewProps) {
         ? selectedId
         : null,
   });
+
+  // Walls of the active floor — rendered as 3D extrusions whenever a
+  // floor is in view (its plan, or a room on it, is selected), not
+  // only while the Draw-wall tool is active.
+  const activeFloorPlan =
+    activeFloor != null
+      ? (plansForBuilding.find((p) => p.floor === activeFloor) ?? null)
+      : null;
+  useMapboxWallsLayer(
+    activeFloorPlan?.walls ?? [],
+    activeFloorPlan?.floor ?? 0,
+  );
 
   // Force basemap labels off whenever the scene is mounted (Mapbox's
   // default street labels collide with campus content). The hook
@@ -193,7 +219,6 @@ function MapViewComponent({ ctx }: ViewProps) {
   // click and resolve; polygon modes accumulate vertices and close on
   // double-click / Enter. Esc always cancels. Canvas cursor flips to
   // crosshair while active for visual feedback.
-  const placementMode = usePlacementStore((s) => s.active);
 
   // Scene tools — drawing actions performed directly on the canvas.
   // "Draw building" is always available; "Define room" needs a floor
@@ -224,6 +249,19 @@ function MapViewComponent({ ctx }: ViewProps) {
           }
         },
       },
+      {
+        id: "wall.draw",
+        label: "Draw wall",
+        icon: DrawWallIcon,
+        active: placementMode === "draw-wall",
+        disabled: !focusedPlanId,
+        hint: "Select a floor first",
+        onSelect: () => {
+          if (focusedPlanId) {
+            void ctx.runOperation("wall.draw", undefined, [focusedPlanId]);
+          }
+        },
+      },
     ];
   }, [allFloorPlans, selectedId, placementMode, ctx]);
 
@@ -250,18 +288,28 @@ function MapViewComponent({ ctx }: ViewProps) {
       map.once("click", onClick);
       cleanups.push(() => map.off("click", onClick));
     } else {
-      // Polygon: each click adds a vertex; double-click closes; the
-      // existing zoom-on-double-click default would interfere, so we
+      // Polygon / polyline: each click adds a vertex, double-click
+      // closes. Wall mode (`line`) snaps each click (endpoint /
+      // ortho). The zoom-on-double-click default would interfere, so
       // suppress it for the duration.
       const prevDblClickZoom = map.doubleClickZoom?.isEnabled();
       map.doubleClickZoom?.disable();
+      const isLine = kind === "line";
+      const closeShape = () => {
+        const store = usePlacementStore.getState();
+        if (isLine) store.closeLine();
+        else store.closePolygon();
+      };
 
       const onClick = (e: MapClick) => {
-        usePlacementStore
-          .getState()
-          .addPoint([e.lngLat.lng, e.lngLat.lat]);
+        const store = usePlacementStore.getState();
+        let coords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+        if (isLine) {
+          coords = snapWallPoint(coords, map, store.pendingPoints).point;
+        }
+        store.addPoint(coords);
       };
-      const onDblClick = (e: MapClick) => {
+      const onDblClick = () => {
         // Mapbox fires `click` THEN `dblclick`. The dblclick already
         // appended one extra vertex via the click handler — drop it
         // before closing.
@@ -269,10 +317,7 @@ function MapViewComponent({ ctx }: ViewProps) {
         if (store.pendingPoints.length > 0) {
           store.pendingPoints.pop();
         }
-        store.closePolygon();
-        // Mark the event handled so the underlying mapbox dblclick
-        // doesn't fall through to anything else.
-        e satisfies MapClick;
+        closeShape();
       };
       map.on("click", onClick);
       map.on("dblclick", onDblClick);
@@ -285,8 +330,10 @@ function MapViewComponent({ ctx }: ViewProps) {
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") usePlacementStore.getState().cancel();
-      if (e.key === "Enter" && kind === "polygon") {
-        usePlacementStore.getState().closePolygon();
+      if (e.key === "Enter" && kind !== "point") {
+        const store = usePlacementStore.getState();
+        if (kind === "line") store.closeLine();
+        else store.closePolygon();
       }
     };
     document.addEventListener("keydown", onKey);
@@ -376,6 +423,25 @@ function PlacementBanner({ mode }: { mode: string }) {
         </button>
       </div>
     </div>
+  );
+}
+
+function DrawWallIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M3 20 L9 4 L15 20 L21 8" />
+    </svg>
   );
 }
 
