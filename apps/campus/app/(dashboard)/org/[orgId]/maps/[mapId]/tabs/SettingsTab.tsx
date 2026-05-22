@@ -37,7 +37,9 @@ interface ServerMap {
 export default function SettingsTab({ orgId, mapId, map }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const publicUrl = `${origin}/campus/${mapId}`;
-  const embedCode = `<iframe src="${publicUrl}" width="100%" height="600" frameborder="0" allowfullscreen></iframe>`;
+  // Embeds point at the map (`/map`), not the home page — a campus
+  // embedded in another site wants the interactive map.
+  const embedCode = `<iframe src="${publicUrl}/map" width="100%" height="600" frameborder="0" allowfullscreen></iframe>`;
 
   const [copied, setCopied] = useState<"url" | "embed" | null>(null);
   const copy = (text: string, kind: "url" | "embed") => {
