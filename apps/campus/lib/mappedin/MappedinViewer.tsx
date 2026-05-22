@@ -27,8 +27,13 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
   // Named spaces by id — the route handlers need the real Space
   // objects, while the picker UI only needs `{ id, name }`.
   const spacesRef = useRef<Map<string, Space>>(new Map());
-  // The space last flown-to via search — recoloured back on the next.
-  const highlightRef = useRef<Space | null>(null);
+  // The space last highlighted by search, with its pre-highlight
+  // colour — `updateState` has no "reset", so reverting means
+  // re-applying the colour the space had before it was highlighted.
+  const highlightRef = useRef<{
+    space: Space;
+    originalColor: string | undefined;
+  } | null>(null);
 
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
@@ -140,19 +145,33 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
     if (!mapView || !space) return;
     try {
       if (space.floor) await mapView.setFloor(space.floor);
+
       const previous = highlightRef.current;
-      if (previous && previous !== space) {
+      if (!previous || previous.space !== space) {
+        // Revert the previously-highlighted space to the colour it
+        // had before, then highlight the new one — capturing its own
+        // colour first so it can be reverted next time.
+        if (previous) {
+          try {
+            mapView.updateState(previous.space, {
+              color: previous.originalColor,
+            });
+          } catch {
+            /* ignore */
+          }
+        }
+        let originalColor: string | undefined;
         try {
-          mapView.updateState(previous, { color: undefined });
+          originalColor = mapView.getState(space)?.color;
         } catch {
           /* ignore */
         }
-      }
-      highlightRef.current = space;
-      try {
-        mapView.updateState(space, { color: "#158ca3" });
-      } catch {
-        /* ignore */
+        highlightRef.current = { space, originalColor };
+        try {
+          mapView.updateState(space, { color: "#158ca3" });
+        } catch {
+          /* ignore */
+        }
       }
       await mapView.Camera.focusOn(space);
     } catch {
