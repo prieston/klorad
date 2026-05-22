@@ -196,11 +196,17 @@ function MapViewComponent({ ctx }: ViewProps) {
         : null,
   });
 
-  // Walls — drawn onto whichever floor plan is in focus, rendered as
-  // 3D extrusions at that floor's elevation.
-  const focusedPlan =
-    allFloorPlans.find((p) => p.id === selectedId) ?? null;
-  useMapboxWallsLayer(focusedPlan?.walls ?? [], focusedPlan?.floor ?? 0);
+  // Walls of the active floor — rendered as 3D extrusions whenever a
+  // floor is in view (its plan, or a room on it, is selected), not
+  // only while the Draw-wall tool is active.
+  const activeFloorPlan =
+    activeFloor != null
+      ? (plansForBuilding.find((p) => p.floor === activeFloor) ?? null)
+      : null;
+  useMapboxWallsLayer(
+    activeFloorPlan?.walls ?? [],
+    activeFloorPlan?.floor ?? 0,
+  );
 
   // Force basemap labels off whenever the scene is mounted (Mapbox's
   // default street labels collide with campus content). The hook
