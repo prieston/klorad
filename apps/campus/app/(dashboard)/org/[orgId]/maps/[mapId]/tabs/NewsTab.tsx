@@ -19,9 +19,22 @@ import {
   readPosts,
 } from "@/lib/posts";
 import { readCampusPlaces } from "@/lib/places";
+import {
+  type Localizable,
+  type Locale,
+  type LocalizedText,
+  pickText,
+} from "@/app/lib/i18n-core";
+import { LangToggle } from "./LangToggle";
 
 interface Props {
   mapId: string;
+}
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+interface ServerMap {
+  sceneData?: Record<string, unknown> & { posts?: CampusPost[] };
 }
 
 const GROUP_LABEL: Record<"building" | "floor" | "room", string> = {
@@ -30,18 +43,30 @@ const GROUP_LABEL: Record<"building" | "floor" | "room", string> = {
   room: "Rooms",
 };
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+type LangFields = { en: string; el: string };
+const EMPTY_FIELDS: LangFields = { en: "", el: "" };
 
-interface ServerMap {
-  sceneData?: Record<string, unknown> & { posts?: CampusPost[] };
+/** Expand a possibly-legacy {@link Localizable} into editable fields. */
+function toFields(value: Localizable | undefined): LangFields {
+  if (!value) return { ...EMPTY_FIELDS };
+  if (typeof value === "string") return { en: value, el: "" };
+  return { en: value.en ?? "", el: value.el ?? "" };
+}
+
+/** Collapse edited fields to localized text, dropping empty languages. */
+function toLocalized(fields: LangFields): LocalizedText {
+  return {
+    en: fields.en.trim() || undefined,
+    el: fields.el.trim() || undefined,
+  };
 }
 
 /**
  * Campus news authoring — the "News" tab of the campus profile.
  *
- * Posts are stored in `sceneData.posts` (see {@link readPosts}); each
- * save merges the full post list into the campus's `sceneData` via
- * the same PATCH branding uses. The public home page renders them.
+ * Posts are bilingual: the form holds English + Greek and shows one
+ * at a time via the language toggle. Stored in `sceneData.posts`; the
+ * public home page renders the visitor's language.
  */
 export default function NewsTab({ mapId }: Props) {
   const { data: serverMap } = useSWR<ServerMap>(
@@ -55,22 +80,25 @@ export default function NewsTab({ mapId }: Props) {
   );
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  const [lang, setLang] = useState<Locale>("en");
+  const [title, setTitle] = useState<LangFields>({ ...EMPTY_FIELDS });
+  const [body, setBody] = useState<LangFields>({ ...EMPTY_FIELDS });
   const [placeId, setPlaceId] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const titleFilled = title.en.trim() !== "" || title.el.trim() !== "";
+
   const resetForm = () => {
     setEditingId(null);
-    setTitle("");
-    setBody("");
+    setTitle({ ...EMPTY_FIELDS });
+    setBody({ ...EMPTY_FIELDS });
     setPlaceId("");
   };
 
   const startEdit = (post: CampusPost) => {
     setEditingId(post.id);
-    setTitle(post.title);
-    setBody(post.body);
+    setTitle(toFields(post.title));
+    setBody(toFields(post.body));
     setPlaceId(post.place?.id ?? "");
   };
 
@@ -89,8 +117,7 @@ export default function NewsTab({ mapId }: Props) {
   };
 
   const handleSave = async () => {
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) return;
+    if (!titleFilled) return;
     setSaving(true);
     try {
       const current = readPosts(serverMap?.sceneData);
@@ -98,17 +125,19 @@ export default function NewsTab({ mapId }: Props) {
       const place: PostPlace | undefined = linked
         ? { id: linked.id, kind: linked.kind, name: linked.name }
         : undefined;
+      const titleValue = toLocalized(title);
+      const bodyValue = toLocalized(body);
       const next: CampusPost[] = editingId
         ? current.map((p) =>
             p.id === editingId
-              ? { ...p, title: trimmedTitle, body: body.trim(), place }
+              ? { ...p, title: titleValue, body: bodyValue, place }
               : p,
           )
         : [
             {
               id: crypto.randomUUID(),
-              title: trimmedTitle,
-              body: body.trim(),
+              title: titleValue,
+              body: bodyValue,
               publishedAt: new Date().toISOString(),
               place,
             },
@@ -141,18 +170,28 @@ export default function NewsTab({ mapId }: Props) {
     <div className="space-y-8 pt-6">
       <Section title={editingId ? "Edit post" : "New post"}>
         <Panel className="space-y-4 rounded-2xl p-6">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs text-text-tertiary">
+              Editing the {lang === "en" ? "English" : "Greek"} version
+            </span>
+            <LangToggle value={lang} onChange={setLang} />
+          </div>
           <Field label="Title">
             <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={title[lang]}
+              onChange={(e) =>
+                setTitle((t) => ({ ...t, [lang]: e.target.value }))
+              }
               placeholder="Open day, exam schedule, campus closure…"
             />
           </Field>
           <Field label="Body">
             <Textarea
               rows={4}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
+              value={body[lang]}
+              onChange={(e) =>
+                setBody((b) => ({ ...b, [lang]: e.target.value }))
+              }
               placeholder="What's happening on campus…"
             />
           </Field>
@@ -184,7 +223,7 @@ export default function NewsTab({ mapId }: Props) {
             <Button
               size="sm"
               onClick={handleSave}
-              disabled={saving || !title.trim()}
+              disabled={saving || !titleFilled}
             >
               {saving
                 ? "Saving…"
@@ -209,47 +248,51 @@ export default function NewsTab({ mapId }: Props) {
       <Section title="Published">
         {posts.length > 0 ? (
           <ul className="space-y-2">
-            {posts.map((post) => (
-              <li
-                key={post.id}
-                className="flex items-start gap-3 rounded-2xl bg-surface-2 p-4"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs text-text-tertiary">
-                    {formatPostDate(post.publishedAt)}
-                  </div>
-                  <div className="truncate text-sm font-medium text-text-primary">
-                    {post.title}
-                  </div>
-                  {post.body ? (
-                    <p className="mt-0.5 line-clamp-2 text-xs text-text-secondary">
-                      {post.body}
-                    </p>
-                  ) : null}
-                  {post.place ? (
-                    <div className="mt-1 text-xs font-medium text-accent">
-                      {post.place.name}
+            {posts.map((post) => {
+              const postTitle = pickText(post.title, lang);
+              const postBody = pickText(post.body, lang);
+              return (
+                <li
+                  key={post.id}
+                  className="flex items-start gap-3 rounded-2xl bg-surface-2 p-4"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-text-tertiary">
+                      {formatPostDate(post.publishedAt)}
                     </div>
-                  ) : null}
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => startEdit(post)}
-                  disabled={saving}
-                >
-                  Edit
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => handleDelete(post.id)}
-                  disabled={saving}
-                >
-                  Delete
-                </Button>
-              </li>
-            ))}
+                    <div className="truncate text-sm font-medium text-text-primary">
+                      {postTitle || "Untitled"}
+                    </div>
+                    {postBody ? (
+                      <p className="mt-0.5 line-clamp-2 text-xs text-text-secondary">
+                        {postBody}
+                      </p>
+                    ) : null}
+                    {post.place ? (
+                      <div className="mt-1 text-xs font-medium text-accent">
+                        {post.place.name}
+                      </div>
+                    ) : null}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => startEdit(post)}
+                    disabled={saving}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDelete(post.id)}
+                    disabled={saving}
+                  >
+                    Delete
+                  </Button>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <Panel className="rounded-2xl p-6">

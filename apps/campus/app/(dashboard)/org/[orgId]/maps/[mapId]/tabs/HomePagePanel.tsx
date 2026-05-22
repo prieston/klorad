@@ -6,6 +6,12 @@ import { toast } from "react-toastify";
 import { uploadFile } from "@klorad/storage/client";
 import { Button, Field, Input, Panel, Textarea } from "@klorad/design-system";
 import { type HomePageConfig, readHomePage } from "@/lib/home-page";
+import {
+  type Localizable,
+  type Locale,
+  type LocalizedText,
+} from "@/app/lib/i18n-core";
+import { LangToggle } from "./LangToggle";
 
 interface Props {
   mapId: string;
@@ -17,13 +23,30 @@ interface ServerMap {
   sceneData?: Record<string, unknown> & { homePage?: HomePageConfig };
 }
 
+type LangFields = { en: string; el: string };
+const EMPTY_FIELDS: LangFields = { en: "", el: "" };
+
+/** Expand a possibly-legacy {@link Localizable} into editable fields. */
+function toFields(value: Localizable | undefined): LangFields {
+  if (!value) return { ...EMPTY_FIELDS };
+  if (typeof value === "string") return { en: value, el: "" };
+  return { en: value.en ?? "", el: value.el ?? "" };
+}
+
+/** Collapse edited fields to localized text, dropping empty languages. */
+function toLocalized(fields: LangFields): LocalizedText | undefined {
+  const en = fields.en.trim() || undefined;
+  const el = fields.el.trim() || undefined;
+  return en || el ? { en, el } : undefined;
+}
+
 /**
  * The public home page builder — a Settings section.
  *
- * Configures the campus's public landing page: a hero image, the
- * hero text, the map CTA label, and which sections show. Saved into
- * `sceneData.homePage`; the public page reads it with fallbacks, so
- * leaving a field blank keeps the sensible default.
+ * Configures the campus's public landing page. Hero text is
+ * bilingual (English + Greek), edited one language at a time via the
+ * toggle. Saved into `sceneData.homePage`; the public page reads it
+ * with fallbacks, so a blank field keeps the sensible default.
  */
 export default function HomePagePanel({ mapId }: Props) {
   const { data: serverMap } = useSWR<ServerMap>(
@@ -31,10 +54,11 @@ export default function HomePagePanel({ mapId }: Props) {
     fetcher,
   );
 
+  const [lang, setLang] = useState<Locale>("en");
   const [heroImage, setHeroImage] = useState("");
-  const [headline, setHeadline] = useState("");
-  const [tagline, setTagline] = useState("");
-  const [ctaLabel, setCtaLabel] = useState("");
+  const [headline, setHeadline] = useState<LangFields>({ ...EMPTY_FIELDS });
+  const [tagline, setTagline] = useState<LangFields>({ ...EMPTY_FIELDS });
+  const [ctaLabel, setCtaLabel] = useState<LangFields>({ ...EMPTY_FIELDS });
   const [showEvents, setShowEvents] = useState(true);
   const [showNews, setShowNews] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -43,9 +67,9 @@ export default function HomePagePanel({ mapId }: Props) {
   useEffect(() => {
     const home = readHomePage(serverMap?.sceneData);
     setHeroImage(home.heroImage ?? "");
-    setHeadline(home.headline ?? "");
-    setTagline(home.tagline ?? "");
-    setCtaLabel(home.ctaLabel ?? "");
+    setHeadline(toFields(home.headline));
+    setTagline(toFields(home.tagline));
+    setCtaLabel(toFields(home.ctaLabel));
     setShowEvents(home.showEvents !== false);
     setShowNews(home.showNews !== false);
   }, [serverMap]);
@@ -68,9 +92,9 @@ export default function HomePagePanel({ mapId }: Props) {
     try {
       const homePage: HomePageConfig = {
         heroImage: heroImage.trim() || undefined,
-        headline: headline.trim() || undefined,
-        tagline: tagline.trim() || undefined,
-        ctaLabel: ctaLabel.trim() || undefined,
+        headline: toLocalized(headline),
+        tagline: toLocalized(tagline),
+        ctaLabel: toLocalized(ctaLabel),
         showEvents,
         showNews,
       };
@@ -131,13 +155,22 @@ export default function HomePagePanel({ mapId }: Props) {
         </div>
       ) : null}
 
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs text-text-tertiary">
+          Editing the {lang === "en" ? "English" : "Greek"} text
+        </span>
+        <LangToggle value={lang} onChange={setLang} />
+      </div>
+
       <Field
         label="Headline"
         hint="Overrides the campus name in the hero. Leave blank to use the campus name."
       >
         <Input
-          value={headline}
-          onChange={(e) => setHeadline(e.target.value)}
+          value={headline[lang]}
+          onChange={(e) =>
+            setHeadline((h) => ({ ...h, [lang]: e.target.value }))
+          }
           placeholder="Welcome to our campus"
         />
       </Field>
@@ -148,16 +181,20 @@ export default function HomePagePanel({ mapId }: Props) {
       >
         <Textarea
           rows={2}
-          value={tagline}
-          onChange={(e) => setTagline(e.target.value)}
+          value={tagline[lang]}
+          onChange={(e) =>
+            setTagline((t) => ({ ...t, [lang]: e.target.value }))
+          }
           placeholder="Find your way — buildings, rooms, events and step-free routes."
         />
       </Field>
 
       <Field label="Map button label">
         <Input
-          value={ctaLabel}
-          onChange={(e) => setCtaLabel(e.target.value)}
+          value={ctaLabel[lang]}
+          onChange={(e) =>
+            setCtaLabel((c) => ({ ...c, [lang]: e.target.value }))
+          }
           placeholder="Explore the campus map"
         />
       </Field>

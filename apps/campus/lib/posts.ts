@@ -6,6 +6,8 @@
  * needs no schema migration. If news grows (pagination, scheduling,
  * per-post media) this graduates to its own Prisma model.
  */
+import type { Localizable } from "@/app/lib/i18n-core";
+
 export type PlaceKind = "building" | "floor" | "room";
 
 /**
@@ -20,8 +22,10 @@ export interface PostPlace {
 
 export interface CampusPost {
   id: string;
-  title: string;
-  body: string;
+  /** Title — bilingual; legacy posts may carry a plain string. */
+  title: Localizable;
+  /** Body — bilingual; legacy posts may carry a plain string. */
+  body: Localizable;
   /** ISO timestamp. */
   publishedAt: string;
   /** Optional building / floor / room this post is about. */
@@ -33,7 +37,7 @@ export function readPosts(sceneData: unknown): CampusPost[] {
   const raw = (sceneData as { posts?: unknown } | null | undefined)?.posts;
   if (!Array.isArray(raw)) return [];
   return (raw as CampusPost[])
-    .filter((p): p is CampusPost => Boolean(p) && typeof p.title === "string")
+    .filter((p): p is CampusPost => Boolean(p) && p.title != null)
     .slice()
     .sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
 }

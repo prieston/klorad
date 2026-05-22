@@ -7,15 +7,17 @@
  * thumbnail when a field is unset, so an unconfigured campus still
  * renders a sensible page.
  */
+import type { Localizable } from "@/app/lib/i18n-core";
+
 export interface HomePageConfig {
   /** Uploaded hero banner image URL. Falls back to the campus thumbnail. */
   heroImage?: string;
-  /** Hero headline. Falls back to the campus (branding) name. */
-  headline?: string;
-  /** Hero tagline. Falls back to the campus description. */
-  tagline?: string;
-  /** Label of the map CTA. Falls back to "Explore the campus map". */
-  ctaLabel?: string;
+  /** Hero headline (bilingual). Falls back to the campus name. */
+  headline?: Localizable;
+  /** Hero tagline (bilingual). Falls back to the campus description. */
+  tagline?: Localizable;
+  /** Map CTA label (bilingual). Falls back to "Explore the campus map". */
+  ctaLabel?: Localizable;
   /** Show the upcoming-events section. Defaults to true. */
   showEvents?: boolean;
   /** Show the news section. Defaults to true. */

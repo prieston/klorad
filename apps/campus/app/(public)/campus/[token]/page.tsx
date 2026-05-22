@@ -7,7 +7,9 @@ import { formatPostDate, readPosts } from "@/lib/posts";
 import { formatEventWhen, readEventFeeds } from "@/lib/events";
 import { fetchCampusEvents } from "@/lib/events-server";
 import { readHomePage } from "@/lib/home-page";
+import { detectLocale, pickText, translate } from "@/app/lib/i18n-core";
 import NotPublishedPlaceholder from "./NotPublishedPlaceholder";
+import { HomeLangToggle } from "./HomeLangToggle";
 
 type Params = Promise<{ token: string }>;
 
@@ -84,10 +86,14 @@ export async function generateMetadata({
  */
 export default async function CampusHomePage({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { token } = await params;
+  const sp = await searchParams;
+  const locale = detectLocale(typeof sp.lang === "string" ? sp.lang : null);
 
   const map = await prisma.project
     .findUnique({
@@ -118,18 +124,19 @@ export default async function CampusHomePage({
   const events = await fetchCampusEvents(readEventFeeds(map.sceneData));
   const mapHref = `/campus/${token}/map`;
 
-  // Home page builder config — every field falls back to a sensible
-  // default (campus name / description / thumbnail).
+  // Home page builder config — bilingual fields resolved to the
+  // visitor's locale, each falling back to a sensible default.
   const home = readHomePage(map.sceneData);
   const heroBg = home.heroImage || map.thumbnail || null;
-  const headline = home.headline || displayName;
-  const tagline = home.tagline || map.description;
-  const ctaLabel = home.ctaLabel || "Explore the campus map";
+  const headline = pickText(home.headline, locale) || displayName;
+  const tagline = pickText(home.tagline, locale) || map.description || "";
+  const ctaLabel =
+    pickText(home.ctaLabel, locale) || translate(locale, "home.exploreMap");
   const showEvents = home.showEvents !== false;
   const showNews = home.showNews !== false;
 
   return (
-    <main className="min-h-screen bg-bg">
+    <main lang={locale} className="min-h-screen bg-bg">
       <header className="flex items-center justify-between gap-4 px-6 py-4 md:px-10">
         {branding.logo ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -143,13 +150,16 @@ export default async function CampusHomePage({
             {displayName}
           </span>
         )}
-        <Link
-          href={mapHref}
-          className="text-sm font-medium transition-opacity hover:opacity-80"
-          style={{ color: accent }}
-        >
-          Open map →
-        </Link>
+        <div className="flex items-center gap-3">
+          <HomeLangToggle token={token} current={locale} />
+          <Link
+            href={mapHref}
+            className="text-sm font-medium transition-opacity hover:opacity-80"
+            style={{ color: accent }}
+          >
+            {translate(locale, "home.openMap")} →
+          </Link>
+        </div>
       </header>
 
       <section
@@ -188,7 +198,7 @@ export default async function CampusHomePage({
       {showEvents && events.length > 0 ? (
         <section className="px-6 pb-4 md:px-10">
           <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-text-tertiary">
-            Upcoming events
+            {translate(locale, "home.events")}
           </h2>
           <div className="mt-4 space-y-3">
             {events.map((event) => (
@@ -221,7 +231,7 @@ export default async function CampusHomePage({
       {showNews ? (
       <section className="px-6 pb-20 pt-8 md:px-10">
         <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-text-tertiary">
-          News
+          {translate(locale, "home.news")}
         </h2>
         {posts.length > 0 ? (
           <div className="mt-4 space-y-4">
@@ -234,11 +244,11 @@ export default async function CampusHomePage({
                   {formatPostDate(post.publishedAt)}
                 </time>
                 <h3 className="mt-1 text-lg font-semibold text-text-primary">
-                  {post.title}
+                  {pickText(post.title, locale)}
                 </h3>
-                {post.body ? (
+                {pickText(post.body, locale) ? (
                   <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-text-secondary">
-                    {post.body}
+                    {pickText(post.body, locale)}
                   </p>
                 ) : null}
                 {post.place ? (
@@ -255,7 +265,7 @@ export default async function CampusHomePage({
           </div>
         ) : (
           <p className="mt-4 text-sm text-text-tertiary">
-            No news yet — check back soon.
+            {translate(locale, "home.noNews")}
           </p>
         )}
       </section>
