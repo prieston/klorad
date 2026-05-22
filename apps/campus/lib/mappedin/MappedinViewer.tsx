@@ -6,14 +6,15 @@ import type { MapData, MapView, Space } from "@mappedin/mappedin-js";
 import type { MappedinVenue } from "./config";
 import { WayfindingControls, type SpaceOption } from "./WayfindingControls";
 import { SearchControls } from "./SearchControls";
+import { FloorControls, type FloorOption } from "./FloorControls";
 
 /**
  * The MappedIn indoor viewer.
  *
- * Renders a 3D indoor venue (multi-floor, pan / zoom / rotate) via
- * the MappedIn Web SDK, with every space labelled, a search box that
- * flies the camera to a room, and a directions panel that routes
- * between two spaces. This file is the *single* place the SDK is
+ * Renders a 3D indoor venue via the MappedIn Web SDK, with every
+ * space labelled, a search box that flies the camera to a room,
+ * directions between two spaces, and exploration controls to switch
+ * floors and buildings. This file is the *single* place the SDK is
  * imported — the swap-out seam for the future in-house engine.
  *
  * The SDK is dynamically imported inside the effect so it never
@@ -42,6 +43,28 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
   const [spaces, setSpaces] = useState<SpaceOption[]>([]);
   const [routing, setRouting] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [floors, setFloors] = useState<FloorOption[]>([]);
+  const [currentFloorId, setCurrentFloorId] = useState("");
+  const [buildings, setBuildings] = useState<FloorOption[]>([]);
+  const [currentBuildingId, setCurrentBuildingId] = useState("");
+
+  // Re-read the floor list + active floor/building from the SDK so
+  // the exploration controls reflect the venue's true state after a
+  // floor or building switch.
+  const syncFloors = useCallback(() => {
+    const mapView = mapViewRef.current;
+    const mapData = mapDataRef.current;
+    if (!mapView || !mapData) return;
+    const stack = mapView.currentFloorStack;
+    const floorList = stack?.floors ?? mapData.getByType("floor");
+    setFloors(
+      [...floorList]
+        .sort((a, b) => b.elevation - a.elevation)
+        .map((f) => ({ id: f.id, name: f.name ?? "Floor" })),
+    );
+    setCurrentFloorId(mapView.currentFloor?.id ?? "");
+    setCurrentBuildingId(stack?.id ?? "");
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,6 +113,13 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
             .map((s) => ({ id: s.id, name: s.name as string }))
             .sort((a, b) => a.name.localeCompare(b.name)),
         );
+        // Buildings (floor-stacks) for the exploration controls.
+        setBuildings(
+          mapData
+            .getByType("floor-stack")
+            .map((s) => ({ id: s.id, name: s.name ?? "Building" })),
+        );
+        syncFloors();
         setStatus("ready");
       } catch (e) {
         if (cancelled) return;
@@ -106,7 +136,7 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
       mapViewRef.current = null;
       mapDataRef.current = null;
     };
-  }, [venue.key, venue.secret, venue.mapId]);
+  }, [venue.key, venue.secret, venue.mapId, syncFloors]);
 
   const handleRoute = useCallback(async (fromId: string, toId: string) => {
     const mapData = mapDataRef.current;
@@ -179,6 +209,34 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
     }
   }, []);
 
+  const handleSelectFloor = useCallback(
+    async (floorId: string) => {
+      const mapView = mapViewRef.current;
+      if (!mapView) return;
+      try {
+        await mapView.setFloor(floorId);
+      } catch {
+        /* ignore */
+      }
+      syncFloors();
+    },
+    [syncFloors],
+  );
+
+  const handleSelectBuilding = useCallback(
+    async (buildingId: string) => {
+      const mapView = mapViewRef.current;
+      if (!mapView) return;
+      try {
+        await mapView.setFloorStack(buildingId);
+      } catch {
+        /* ignore */
+      }
+      syncFloors();
+    },
+    [syncFloors],
+  );
+
   return (
     <div className="relative h-full w-full bg-bg">
       <div ref={containerRef} className="h-full w-full" />
@@ -219,6 +277,18 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
             />
           ) : null}
         </div>
+      ) : null}
+
+      {status === "ready" ? (
+        <FloorControls
+          floors={floors}
+          currentFloorId={currentFloorId}
+          buildings={buildings}
+          currentBuildingId={currentBuildingId}
+          onSelectFloor={(id) => void handleSelectFloor(id)}
+          onSelectBuilding={(id) => void handleSelectBuilding(id)}
+          className="absolute right-4 top-1/2 z-10 -translate-y-1/2"
+        />
       ) : null}
     </div>
   );
