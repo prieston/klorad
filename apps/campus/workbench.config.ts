@@ -7,7 +7,7 @@ import {
   tourStopEntity,
   eventEntity,
   mapView,
-  overviewView,
+  campusPanelView,
   tableView,
   hierarchyView,
   aiPanelView,
@@ -75,7 +75,7 @@ const workbenchConfig = defineWorkbench({
   ],
   views: [
     mapView,
-    overviewView,
+    campusPanelView,
     workflowView,
     tableView,
     hierarchyView,
@@ -108,7 +108,7 @@ const workbenchConfig = defineWorkbench({
     // default — the workflow is the new user-facing surface.
     left: ["workflow"],
     center: ["map"],
-    right: ["overview"],
+    right: ["panel"],
     bottom: ["ai-panel"],
   },
 });
