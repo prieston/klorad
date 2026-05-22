@@ -47,6 +47,57 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
   const [currentFloorId, setCurrentFloorId] = useState("");
   const [buildings, setBuildings] = useState<FloorOption[]>([]);
   const [currentBuildingId, setCurrentBuildingId] = useState("");
+  const [selectedSpace, setSelectedSpace] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
+  // Highlight a space (accent fill), reverting any previous one — the
+  // shared mechanism behind both search and click selection.
+  const highlightSpace = useCallback((space: Space) => {
+    const mapView = mapViewRef.current;
+    if (!mapView) return;
+    const previous = highlightRef.current;
+    if (previous && previous.space === space) return;
+    if (previous) {
+      try {
+        mapView.updateState(previous.space, {
+          color: previous.originalColor,
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+    let originalColor: string | undefined;
+    try {
+      originalColor = mapView.getState(space)?.color;
+    } catch {
+      /* ignore */
+    }
+    highlightRef.current = { space, originalColor };
+    try {
+      mapView.updateState(space, { color: "#158ca3" });
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  // Drop the selection — clear the detail card and the highlight.
+  const clearSelection = useCallback(() => {
+    setSelectedSpace(null);
+    const mapView = mapViewRef.current;
+    const previous = highlightRef.current;
+    if (mapView && previous) {
+      try {
+        mapView.updateState(previous.space, {
+          color: previous.originalColor,
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+    highlightRef.current = null;
+  }, []);
 
   // Re-read the floor list + active floor/building from the SDK so
   // the exploration controls reflect the venue's true state after a
@@ -93,6 +144,21 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
         mapViewRef.current = view;
         mapDataRef.current = mapData;
 
+        // Tap a space → identify it (highlight + detail card); tap
+        // empty space → clear the selection.
+        view.on("click", (event) => {
+          const clicked = event.spaces?.find((s) => s.name);
+          if (clicked) {
+            highlightSpace(clicked);
+            setSelectedSpace({
+              id: clicked.id,
+              name: clicked.name as string,
+            });
+          } else {
+            clearSelection();
+          }
+        });
+
         // Collect named spaces for the directions pickers.
         const byId = new Map<string, Space>();
         for (const space of mapData.getByType("space")) {
@@ -136,7 +202,14 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
       mapViewRef.current = null;
       mapDataRef.current = null;
     };
-  }, [venue.key, venue.secret, venue.mapId, syncFloors]);
+  }, [
+    venue.key,
+    venue.secret,
+    venue.mapId,
+    syncFloors,
+    highlightSpace,
+    clearSelection,
+  ]);
 
   const handleRoute = useCallback(async (fromId: string, toId: string) => {
     const mapData = mapDataRef.current;
@@ -168,46 +241,26 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
     setRouteError(null);
   }, []);
 
-  // Search → switch to the space's floor, highlight it, fly there.
-  const handleSearchSelect = useCallback(async (spaceId: string) => {
-    const mapView = mapViewRef.current;
-    const space = spacesRef.current.get(spaceId);
-    if (!mapView || !space) return;
-    try {
-      if (space.floor) await mapView.setFloor(space.floor);
-
-      const previous = highlightRef.current;
-      if (!previous || previous.space !== space) {
-        // Revert the previously-highlighted space to the colour it
-        // had before, then highlight the new one — capturing its own
-        // colour first so it can be reverted next time.
-        if (previous) {
-          try {
-            mapView.updateState(previous.space, {
-              color: previous.originalColor,
-            });
-          } catch {
-            /* ignore */
-          }
+  // Search → switch to the space's floor, highlight + select it, fly there.
+  const handleSearchSelect = useCallback(
+    async (spaceId: string) => {
+      const mapView = mapViewRef.current;
+      const space = spacesRef.current.get(spaceId);
+      if (!mapView || !space) return;
+      try {
+        if (space.floor) {
+          await mapView.setFloor(space.floor);
+          syncFloors();
         }
-        let originalColor: string | undefined;
-        try {
-          originalColor = mapView.getState(space)?.color;
-        } catch {
-          /* ignore */
-        }
-        highlightRef.current = { space, originalColor };
-        try {
-          mapView.updateState(space, { color: "#158ca3" });
-        } catch {
-          /* ignore */
-        }
+        highlightSpace(space);
+        setSelectedSpace({ id: space.id, name: space.name as string });
+        await mapView.Camera.focusOn(space);
+      } catch {
+        /* best-effort — a failed focus shouldn't surface an error */
       }
-      await mapView.Camera.focusOn(space);
-    } catch {
-      /* best-effort — a failed focus shouldn't surface an error */
-    }
-  }, []);
+    },
+    [highlightSpace, syncFloors],
+  );
 
   const handleSelectFloor = useCallback(
     async (floorId: string) => {
@@ -289,6 +342,22 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
           onSelectBuilding={(id) => void handleSelectBuilding(id)}
           className="absolute right-4 top-1/2 z-10 -translate-y-1/2"
         />
+      ) : null}
+
+      {selectedSpace ? (
+        <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-line-soft bg-surface-1/95 px-4 py-2.5 shadow-glass backdrop-blur">
+          <span className="text-sm font-medium text-text-primary">
+            {selectedSpace.name}
+          </span>
+          <button
+            type="button"
+            onClick={clearSelection}
+            aria-label="Clear selection"
+            className="text-sm leading-none text-text-tertiary transition-colors hover:text-text-primary"
+          >
+            ✕
+          </button>
+        </div>
       ) : null}
     </div>
   );
