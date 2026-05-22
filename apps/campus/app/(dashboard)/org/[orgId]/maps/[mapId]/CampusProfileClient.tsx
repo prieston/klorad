@@ -15,6 +15,7 @@ import {
   cn,
 } from "@klorad/design-system";
 import OverviewTab from "./tabs/OverviewTab";
+import IndoorTab from "./tabs/IndoorTab";
 import SettingsTab from "./tabs/SettingsTab";
 import IntegrationsTab from "./tabs/IntegrationsTab";
 
@@ -35,9 +36,10 @@ interface CampusMap {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-type TabKey = "overview" | "settings" | "integrations";
+type TabKey = "overview" | "indoor" | "settings" | "integrations";
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
+  { key: "indoor", label: "Indoor" },
   { key: "settings", label: "Settings" },
   { key: "integrations", label: "Integrations" },
 ];
@@ -132,6 +134,9 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
       <div className="pt-2">
         {activeTab === "overview" && (
           <OverviewTab orgId={orgId} mapId={mapId} map={map} />
+        )}
+        {activeTab === "indoor" && (
+          <IndoorTab map={map} onConfigure={() => setTab("settings")} />
         )}
         {activeTab === "settings" && (
           <SettingsTab orgId={orgId} mapId={mapId} map={map} />

@@ -42,3 +42,14 @@ export function resolveVenue(): MappedinVenue {
   if (key && secret && mapId) return { key, secret, mapId };
   return DEMO_VENUE;
 }
+
+/**
+ * Build a venue for a specific campus's indoor map. The map id is
+ * stored per-campus (in its settings); the key/secret are account-
+ * wide and come from the env (or the demo account). This is what the
+ * campus profile's Indoor tab renders.
+ */
+export function venueForIndoorMap(indoorMapId: string): MappedinVenue {
+  const base = resolveVenue();
+  return { key: base.key, secret: base.secret, mapId: indoorMapId };
+}
