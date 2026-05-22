@@ -19,11 +19,15 @@ export interface MappedinVenue {
   mapId: string;
 }
 
-/** MappedIn's public demo venue — renders with no account needed. */
+/**
+ * MappedIn's public demo venue — renders with no account needed.
+ * These Maker (`mik_`/`mis_`) demo credentials only work with
+ * MappedIn's own demo maps; a real venue needs a Pro/Enterprise
+ * account and the `NEXT_PUBLIC_MAPPEDIN_*` env vars.
+ */
 export const DEMO_VENUE: MappedinVenue = {
-  key: "65ca6d27d53f21f234ae6395",
-  secret:
-    "0b25fc24d564c644443663d0b4d083605090d349975d0983fc96e06a5b1934dd",
+  key: "mik_yeBk0Vf0nNJtpesfu560e07e5",
+  secret: "mis_2g9ST8ZcSFb5R9fPnsvYhrX3RyRwPtDGbMGweCYKEq385431022",
   mapId: "65c0ff7430b94e3fabd5bb8c",
 };
 
