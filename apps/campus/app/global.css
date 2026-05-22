@@ -30,6 +30,21 @@ body {
   height: 100%;
 }
 
+/*
+ * Make the GL canvas always fill its container via CSS. Mapbox sizes
+ * the canvas in fixed pixels and only updates it on `map.resize()` —
+ * which clears the drawing buffer. By stretching the canvas with CSS,
+ * a container resize (an animated panel collapse, a window drag)
+ * scales the existing frame smoothly instead of leaving a gap, so
+ * `resize()` can be debounced to fire once when motion settles
+ * without the scene ever flashing. See useMapboxInitialization.ts.
+ */
+.mapboxgl-canvas-container,
+.mapboxgl-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 .mapboxgl-ctrl-logo {
   display: block;
 }
@@ -68,4 +83,26 @@ body {
 }
 :where([data-workbench]) :where(button, input, textarea, select):focus {
   outline: 0;
+}
+
+/*
+ * Tailwind preflight is disabled app-wide (see tailwind.config.ts), so
+ * the `border` utility — which only sets `border-width` — renders
+ * nothing: `border-style` stays at the UA default of `none`. Restore
+ * the two preflight border defaults inside the workbench so every DS
+ * component's `border` class actually paints. `:where()` keeps the
+ * selector at zero specificity so Tailwind's `border-*` utilities
+ * still win.
+ */
+:where([data-workbench]) *,
+:where([data-workbench]) *::before,
+:where([data-workbench]) *::after {
+  border-width: 0;
+  border-style: solid;
+  border-color: var(--line-soft);
+}
+
+/* Lists in the workbench carry no markers — rows style themselves. */
+:where([data-workbench]) :where(ul, ol) {
+  list-style: none;
 }

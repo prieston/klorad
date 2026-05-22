@@ -39,6 +39,16 @@ export {
   type FloorSwitcherProps,
 } from "./components/floor-switcher";
 export {
+  SceneToolbar,
+  type SceneTool,
+  type SceneToolbarProps,
+} from "./components/scene-toolbar";
+export {
+  EntityInspector,
+  type EntityInspectorProps,
+  type EntityInspectorAction,
+} from "./components/entity-inspector";
+export {
   WayfindingPanel,
   type WayfindingPanelProps,
   type WayfindingPoint,

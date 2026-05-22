@@ -163,6 +163,26 @@ export default function WorkbenchClient({ mapId }: Props) {
     }
   }, [mapId, apiVersion]);
 
+  // World-level actions live in the top bar — they act on the whole
+  // campus, not a selected element, so they belong with Save rather
+  // than in the right panel. Both are still registered as operations
+  // (`world.copy-link`, `world.open-viewer`) for ⌘K surfacing.
+  const handleCopyLink = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const url = `${window.location.origin}/campus/${mapId}`;
+    navigator.clipboard
+      ?.writeText(url)
+      .then(() => toastify.success("Public link copied"))
+      .catch(() => toastify.error("Couldn't copy the link"));
+  }, [mapId]);
+
+  const handleOpenViewer = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const url = `${window.location.origin}/campus/${mapId}`;
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) toastify.warning("Pop-up blocked — couldn't open the viewer");
+  }, [mapId]);
+
   // mod+s also saves — most-common keyboard expectation for editors.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -180,7 +200,10 @@ export default function WorkbenchClient({ mapId }: Props) {
   }
 
   return (
-    <div data-workbench className="flex h-screen w-screen flex-col bg-bg">
+    <div
+      data-workbench
+      className="flex h-screen w-full flex-col overflow-hidden bg-bg"
+    >
       <WorkbenchTopBar
         product="Campus"
         worldName={mapName ?? "Untitled campus"}
@@ -190,18 +213,10 @@ export default function WorkbenchClient({ mapId }: Props) {
         actor="You"
         actions={
           <>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                if (typeof window === "undefined") return;
-                const url = `${window.location.origin}/campus/${mapId}`;
-                navigator.clipboard
-                  ?.writeText(url)
-                  .then(() => toastify.success("Public link copied"))
-                  .catch(() => toastify.error("Couldn't copy the link"));
-              }}
-            >
+            <Button size="sm" variant="secondary" onClick={handleOpenViewer}>
+              Open viewer
+            </Button>
+            <Button size="sm" variant="secondary" onClick={handleCopyLink}>
               Share
             </Button>
             <Button
@@ -235,7 +250,7 @@ export default function WorkbenchClient({ mapId }: Props) {
  */
 function WorkbenchLoading() {
   return (
-    <div className="flex h-screen w-screen flex-col items-center justify-center bg-bg">
+    <div className="flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-bg">
       <div className="flex items-center gap-3 text-text-secondary">
         <Spinner />
         <div className="flex items-center gap-2">

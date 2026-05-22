@@ -9,7 +9,7 @@ import {
   navNodeEntity,
   navEdgeEntity,
   mapView,
-  overviewView,
+  campusPanelView,
   tableView,
   hierarchyView,
   aiPanelView,
@@ -31,6 +31,7 @@ import {
   deleteRoomOp,
   editRoomOp,
   defineRoomOp,
+  addFloorOp,
   uploadFloorPlanOp,
 } from "@/lib/workbench";
 
@@ -79,7 +80,7 @@ const workbenchConfig = defineWorkbench({
   ],
   views: [
     mapView,
-    overviewView,
+    campusPanelView,
     workflowView,
     tableView,
     hierarchyView,
@@ -103,6 +104,7 @@ const workbenchConfig = defineWorkbench({
     deleteRoomOp,
     editRoomOp,
     defineRoomOp,
+    addFloorOp,
     uploadFloorPlanOp,
   ],
   defaultLayout: {
@@ -112,7 +114,7 @@ const workbenchConfig = defineWorkbench({
     // default — the workflow is the new user-facing surface.
     left: ["workflow"],
     center: ["map"],
-    right: ["overview"],
+    right: ["panel"],
     bottom: ["ai-panel"],
   },
 });

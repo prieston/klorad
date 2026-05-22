@@ -7,7 +7,7 @@ import { cn } from "../utils/cn";
 export type DockProps = {
   /** Optional left panel — collapses to a 40px chrome rail. */
   left?: ReactNode;
-  /** Required center panel — always visible, always fills the remainder. */
+  /** Required center panel — the scene; always full-bleed behind the panels. */
   center: ReactNode;
   /** Optional right panel — collapses to a 40px chrome rail. */
   right?: ReactNode;
@@ -22,6 +22,17 @@ export type DockProps = {
  * optional regions only; drag-to-resize, drag-to-rearrange, and
  * layout persistence are deliberately deferred (see WORKBENCH.md §6).
  *
+ * The `center` region (the 3D scene) is rendered full-bleed *behind*
+ * the panels rather than as a flex sibling they squeeze. Collapsing a
+ * panel therefore never resizes the scene — the panel just slides
+ * over it — so an animated collapse can never flash a WebGL canvas
+ * mid-resize. The panels float in a `pointer-events-none` layer so
+ * clicks fall through the empty centre to the scene.
+ *
+ * Scene-anchored overlay UI (toolbars, switchers) should portal into
+ * the `[data-dock-center]` slot so it tracks the panels instead of
+ * hiding beneath them.
+ *
  * The dock fills its parent's height. Mount inside a container that
  * gives it a defined height (e.g. `h-screen` or `h-[calc(100vh-4rem)]`).
  */
@@ -29,16 +40,31 @@ export function Dock({ left, center, right, bottom, className }: DockProps) {
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col bg-bg text-text-primary",
+        "relative h-full min-h-0 overflow-hidden bg-bg text-text-primary",
         className,
       )}
     >
-      <div className="flex min-h-0 flex-1">
-        {left ? <DockColumn side="left">{left}</DockColumn> : null}
-        <main className="min-w-0 flex-1 overflow-hidden">{center}</main>
-        {right ? <DockColumn side="right">{right}</DockColumn> : null}
+      {/* Scene layer — fills the whole dock, sits behind the panels.
+          `z-0` makes it a stacking context so the map's own controls
+          (e.g. the Mapbox attribution) can't paint above the panels. */}
+      <main className="absolute inset-0 z-0 overflow-hidden">{center}</main>
+
+      {/* Panel layer — floats over the scene. `pointer-events-none`
+          here + `-auto` on each panel lets clicks fall through the
+          empty centre slot to the scene below. */}
+      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col">
+        <div className="flex min-h-0 flex-1">
+          {left ? <DockColumn side="left">{left}</DockColumn> : null}
+          {/* Centre slot — scene-anchored overlay UI portals in here
+              so it stays between the panels, not under them. */}
+          <div
+            data-dock-center
+            className="pointer-events-none relative min-w-0 flex-1"
+          />
+          {right ? <DockColumn side="right">{right}</DockColumn> : null}
+        </div>
+        {bottom ? <DockBottom>{bottom}</DockBottom> : null}
       </div>
-      {bottom ? <DockBottom>{bottom}</DockBottom> : null}
     </div>
   );
 }
@@ -55,7 +81,9 @@ function DockColumn({
   return (
     <aside
       className={cn(
-        "flex h-full flex-col bg-surface-1 transition-[width] duration-300 ease-out",
+        // Animates freely — the scene sits behind this panel, not
+        // beside it, so a collapse never resizes the WebGL canvas.
+        "pointer-events-auto flex h-full flex-col bg-surface-1 transition-[width] duration-300 ease-out",
         side === "left"
           ? "border-r border-line-soft"
           : "border-l border-line-soft",
@@ -95,7 +123,9 @@ function DockBottom({ children }: { children: ReactNode }) {
   return (
     <section
       className={cn(
-        "flex shrink-0 flex-col border-t border-line-soft bg-surface-1 transition-[height] duration-300 ease-out",
+        // Animates freely — see DockColumn: the scene is behind, not
+        // above, so no resize and no flash.
+        "pointer-events-auto flex shrink-0 flex-col border-t border-line-soft bg-surface-1 transition-[height] duration-300 ease-out",
         open ? "h-64" : "h-8",
       )}
     >

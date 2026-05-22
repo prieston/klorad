@@ -26,7 +26,7 @@ export function EmptyHint({
 /**
  * Search input used in workflow step content (POIs today; future
  * steps can reuse). Light grey rounded box, no border, no focus
- * ring — same family as the AI co-pilot prompt cards.
+ * ring — same family as the AI Assistant prompt cards.
  */
 export function SearchPill({
   value,
@@ -72,6 +72,26 @@ export function SearchPill({
         </button>
       ) : null}
     </label>
+  );
+}
+
+/**
+ * The leading marker shared by every workflow list row — buildings,
+ * floors' rooms, POIs. A small grey dot that brightens on row hover.
+ * Hidden on the selected row (the accent fill already marks it), but
+ * the element is kept as an invisible spacer so row text stays
+ * aligned with its neighbours. One place keeps the lists a family.
+ */
+export function RowDot({ selected }: { selected?: boolean }) {
+  return (
+    <span
+      className={cn(
+        "inline-block h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
+        selected
+          ? "bg-transparent"
+          : "bg-text-tertiary/40 group-hover:bg-text-tertiary/70",
+      )}
+    />
   );
 }
 

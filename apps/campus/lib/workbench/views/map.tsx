@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import type { FloorPlan, POI, Room } from "@klorad/api";
 import { useSceneStore } from "@klorad/core";
 import type { Entity, View, ViewProps } from "@klorad/config/workbench";
-import { FloorSwitcher } from "@klorad/design-system";
+import { FloorSwitcher, SceneToolbar, type SceneTool } from "@klorad/design-system";
 import type { Map as MapboxMap } from "mapbox-gl";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxDrawnBuildingsLayer } from "@/app/hooks/useMapboxDrawnBuildingsLayer";
@@ -193,6 +194,39 @@ function MapViewComponent({ ctx }: ViewProps) {
   // double-click / Enter. Esc always cancels. Canvas cursor flips to
   // crosshair while active for visual feedback.
   const placementMode = usePlacementStore((s) => s.active);
+
+  // Scene tools — drawing actions performed directly on the canvas.
+  // "Draw building" is always available; "Define room" needs a floor
+  // plan in focus so the new room knows which building + level it
+  // belongs to. They invoke the same placement operations the ⌘K
+  // palette does, just from a always-visible floating bar.
+  const sceneTools = useMemo<SceneTool[]>(() => {
+    const focusedPlanId =
+      allFloorPlans.find((p) => p.id === selectedId)?.id ?? null;
+    return [
+      {
+        id: "building.draw",
+        label: "Draw building",
+        icon: DrawBuildingIcon,
+        active: placementMode === "draw-building",
+        onSelect: () => void ctx.runOperation("building.draw", undefined, []),
+      },
+      {
+        id: "room.define",
+        label: "Define room",
+        icon: DefineRoomIcon,
+        active: placementMode === "draw-room",
+        disabled: !focusedPlanId,
+        hint: "Select a floor first",
+        onSelect: () => {
+          if (focusedPlanId) {
+            void ctx.runOperation("room.define", undefined, [focusedPlanId]);
+          }
+        },
+      },
+    ];
+  }, [allFloorPlans, selectedId, placementMode, ctx]);
+
   useEffect(() => {
     if (!placementMode) return;
     const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
@@ -264,23 +298,40 @@ function MapViewComponent({ ctx }: ViewProps) {
     };
   }, [placementMode]);
 
-  // `relative` is load-bearing: MapboxViewer's container is
-  // `position: absolute; inset: 0`, so without a positioned ancestor
-  // it escapes the dock's flex layout and renders against the viewport
-  // — painting over the left and right dock columns. `/builder` wraps
-  // the viewer in `<Box position="relative">` for the same reason.
-  return (
-    <div className="relative h-full w-full">
-      <MapboxViewer />
+  // The scene is full-bleed behind the dock panels. Scene-anchored
+  // controls portal into the dock's centre slot so they track the
+  // panels instead of hiding beneath them; if the slot isn't mounted
+  // yet they fall back to rendering in place.
+  const [overlayHost, setOverlayHost] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setOverlayHost(document.querySelector<HTMLElement>("[data-dock-center]"));
+  }, []);
+
+  const sceneControls = (
+    <>
+      <SceneToolbar
+        tools={sceneTools}
+        className="pointer-events-auto absolute left-4 top-4"
+      />
       {placementMode ? <PlacementBanner mode={placementMode} /> : null}
       {buildingFloors.length > 0 ? (
         <FloorSwitcher
           floors={buildingFloors}
           activeFloor={activeFloor}
           onChange={onFloorChange}
-          className="absolute right-4 top-1/2 z-10 -translate-y-1/2"
+          className="pointer-events-auto absolute right-4 top-1/2 -translate-y-1/2"
         />
       ) : null}
+    </>
+  );
+
+  // `relative` is load-bearing: MapboxViewer's container is
+  // `position: absolute; inset: 0`, so it needs a positioned ancestor
+  // to fill rather than escape to the viewport.
+  return (
+    <div className="relative h-full w-full">
+      <MapboxViewer />
+      {overlayHost ? createPortal(sceneControls, overlayHost) : sceneControls}
     </div>
   );
 }
@@ -325,6 +376,49 @@ function PlacementBanner({ mode }: { mode: string }) {
         </button>
       </div>
     </div>
+  );
+}
+
+function DrawBuildingIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M3 21h18" />
+      <path d="M6 21V8l7-4 7 4v13" />
+      <path d="M10 21v-5h6v5" />
+      <path d="M10 12h.01M14 12h.01" />
+    </svg>
+  );
+}
+
+function DefineRoomIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <rect x="3" y="3" width="18" height="18" rx="1.5" />
+      <path d="M3 14h7v7" />
+      <circle cx="14" cy="9" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
   );
 }
 

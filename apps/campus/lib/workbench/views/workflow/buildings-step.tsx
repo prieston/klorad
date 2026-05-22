@@ -12,7 +12,7 @@ import {
   useWorkflowDrill,
 } from "@klorad/design-system";
 import type { Building } from "../../entities/building";
-import { EmptyHint } from "./shared";
+import { EmptyHint, RowDot } from "./shared";
 
 /**
  * Workflow step 2 — buildings as a drill stack:
@@ -121,7 +121,7 @@ function BuildingsList({
   }
   const selectedId = ctx.selection.focusedId;
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {buildings.map((b) => {
         const isSelected = b.id === selectedId;
         const floorCount = ctx.entities
@@ -138,18 +138,21 @@ function BuildingsList({
                 })
               }
               onContextMenu={(e) => onContextMenu(e, b.id)}
-              className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left"
+              className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
             >
-              <span
-                className={cn(
-                  "truncate text-[0.8125rem] font-medium",
-                  isSelected ? "text-accent" : "text-text-primary",
-                )}
-              >
-                {b.payload.name || "Unnamed building"}
-              </span>
-              <span className="text-[0.7rem] text-text-tertiary">
-                {floorCount} floor{floorCount === 1 ? "" : "s"}
+              <RowDot selected={isSelected} />
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span
+                  className={cn(
+                    "truncate text-xs font-medium",
+                    isSelected ? "text-accent" : "text-text-primary",
+                  )}
+                >
+                  {b.payload.name || "Unnamed building"}
+                </span>
+                <span className="text-[0.7rem] text-text-tertiary">
+                  {floorCount} floor{floorCount === 1 ? "" : "s"}
+                </span>
               </span>
             </button>
             <DrillChevron
@@ -203,7 +206,7 @@ function BuildingDetail({
           body="Use ⌘K → “Upload floor plan” to add one."
         />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {floors.map((f) => {
             const plan = f.payload as FloorPlan;
             const isSelected = ctx.selection.focusedId === f.id;
@@ -229,13 +232,13 @@ function BuildingDetail({
                     })
                   }
                   onContextMenu={(e) => onContextMenu(e, f.id)}
-                  className="flex min-w-0 flex-1 items-center gap-3 pr-2 text-left"
+                  className="flex min-w-0 flex-1 items-center gap-2.5 pr-2 text-left"
                 >
                   <FloorBadge code={code} selected={isSelected} />
-                  <div className="flex min-w-0 flex-1 flex-col">
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span
                       className={cn(
-                        "truncate text-[0.8125rem] font-medium",
+                        "truncate text-xs font-medium",
                         isSelected ? "text-accent" : "text-text-primary",
                       )}
                     >
@@ -297,7 +300,7 @@ function FloorDetail({
           body="Use ⌘K → “Define room” to draw one inside this floor."
         />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {rooms.map((r) => {
             const room = r.payload as Room;
             const isSelected = ctx.selection.focusedId === r.id;
@@ -313,14 +316,9 @@ function FloorDetail({
                 }
                 onContextMenu={(e) => onContextMenu(e, r.id)}
               >
-                <span
-                  className={cn(
-                    "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
-                    isSelected ? "bg-accent" : "bg-text-tertiary/40",
-                  )}
-                />
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-[0.8125rem] font-medium">
+                <RowDot selected={isSelected} />
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="truncate text-xs font-medium">
                     {room.name || "Unnamed room"}
                   </span>
                   {room.type ? (
@@ -355,7 +353,7 @@ function DrillChevron({
       onClick={onClick}
       aria-label={ariaLabel}
       className={cn(
-        "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors",
+        "flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-colors",
         selected
           ? "text-accent hover:bg-accent/15"
           : "text-text-tertiary hover:bg-surface-2 hover:text-text-primary",
@@ -368,7 +366,7 @@ function DrillChevron({
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="h-4 w-4"
+        className="h-3.5 w-3.5"
         aria-hidden
       >
         <path d="m9 18 6-6-6-6" />

@@ -99,7 +99,6 @@ function EditPoiForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Library, Lecture Hall A, …"
-          autoFocus
         />
       </Field>
 

@@ -177,7 +177,23 @@ export function createCampusEntityIndex({
     ...navEdgeEntities,
   ];
 
-  const byIdMap = new Map<EntityId, Entity>(all.map((e) => [e.id, e]));
+  // A building is carried as a `POI.linkedBuilding`, so its building
+  // entity and POI entity share an id. `byId` must resolve that id to
+  // the **POI** entity — the campus.poi-scoped operations (edit /
+  // delete building) read `payload` as a `POI` and would otherwise
+  // see a `Building` payload with no `linkedBuilding`. Insert POI
+  // entities last so they win the shared key.
+  const byIdMap = new Map<EntityId, Entity>();
+  for (const e of [
+    ...buildingEntities,
+    ...floorPlanEntities,
+    ...roomEntities,
+    ...tourStopEntities,
+    ...eventEntities,
+    ...poiEntities,
+  ]) {
+    byIdMap.set(e.id, e);
+  }
 
   const byTypeMap = new Map<EntityTypeId, Entity[]>([
     ["campus.poi", poiEntities],

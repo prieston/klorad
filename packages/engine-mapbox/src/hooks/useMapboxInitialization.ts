@@ -96,15 +96,29 @@ export function useMapboxInitialization(
     const m = mapRef.current;
     const el = containerRef.current;
     if (!m || !el) return;
+    // `map.resize()` resets the canvas drawing buffer. Debounce it by
+    // a short 10ms so a burst of ResizeObserver ticks within the same
+    // frame collapses into one call — the map then tracks the
+    // container essentially every frame through an animated collapse.
+    // The CSS-stretched canvas (see global.css `.mapboxgl-canvas`)
+    // keeps the scene filled in between, so it stays flash-free.
+    const DEBOUNCE_MS = 10;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const ro = new ResizeObserver(() => {
-      try {
-        m.resize();
-      } catch {
-        /* ignore */
-      }
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        try {
+          m.resize();
+        } catch {
+          /* ignore */
+        }
+      }, DEBOUNCE_MS);
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      if (timer) clearTimeout(timer);
+    };
   }, [map]);
 
   useEffect(() => {
