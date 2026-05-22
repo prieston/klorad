@@ -20,7 +20,9 @@ import type { View, ViewProps } from "@klorad/config/workbench";
  *   - Stats — 2×2 hairline grid (POIs, Buildings, Floor plans, Events)
  *   - Accessibility coverage card
  *   - Selection card (entity ops)
- *   - World actions card (world-level ops)
+ *
+ * World-level actions (Save, Share, Open viewer, Publish) live in the
+ * `WorkbenchTopBar` — they act on the whole campus, not a selection.
  */
 function OverviewViewComponent({ ctx }: ViewProps) {
   const pois = ctx.entities.byType("campus.poi");
@@ -81,7 +83,6 @@ function OverviewViewComponent({ ctx }: ViewProps) {
       </Card>
 
       <SelectionPanel ctx={ctx} />
-      <WorldActions ctx={ctx} />
     </div>
   );
 }
@@ -200,36 +201,6 @@ function SelectionPanel({ ctx }: { ctx: ViewProps["ctx"] }) {
             No actions available for this selection.
           </p>
         ) : null}
-      </div>
-    </Card>
-  );
-}
-
-function WorldActions({ ctx }: { ctx: ViewProps["ctx"] }) {
-  const worldOps = ctx.applicableOperations.filter(
-    (r) => r.operation.scope.length === 0,
-  );
-  if (worldOps.length === 0) return null;
-  return (
-    <Card title="World actions">
-      {/*
-        Vertical stack — each button takes the card's full width, so
-        long labels can never push horizontal scroll. Same pattern
-        Linear / Notion use for settings actions.
-      */}
-      <div className="flex flex-col gap-1.5">
-        {worldOps.map(({ operation, on }) => (
-          <WorkbenchOperationButton
-            key={operation.id}
-            label={operation.label}
-            icon={operation.icon}
-            variant="secondary"
-            className="w-full justify-start"
-            onClick={() =>
-              void ctx.runOperation(operation.id, undefined, on)
-            }
-          />
-        ))}
       </div>
     </Card>
   );
