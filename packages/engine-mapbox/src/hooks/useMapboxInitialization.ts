@@ -96,38 +96,28 @@ export function useMapboxInitialization(
     const m = mapRef.current;
     const el = containerRef.current;
     if (!m || !el) return;
-    // `map.resize()` resets the canvas drawing buffer, so firing it on
-    // every ResizeObserver tick during an animated container change
-    // (a panel collapse, a window drag) strobes the scene. Throttle it
-    // to ~50ms: the map keeps tracking the container crisply through
-    // the animation, but reallocates a handful of times rather than
-    // every frame. The CSS-stretched canvas (see global.css
-    // `.mapboxgl-canvas`) covers the gaps between ticks, and a
-    // trailing call guarantees a crisp final frame once motion stops.
-    const THROTTLE_MS = 50;
-    let lastRun = 0;
-    let trailing: ReturnType<typeof setTimeout> | undefined;
-    const resize = () => {
-      lastRun = Date.now();
-      trailing = undefined;
-      try {
-        m.resize();
-      } catch {
-        /* ignore */
-      }
-    };
+    // `map.resize()` resets the canvas drawing buffer. Debounce it by
+    // a short 10ms so a burst of ResizeObserver ticks within the same
+    // frame collapses into one call — the map then tracks the
+    // container essentially every frame through an animated collapse.
+    // The CSS-stretched canvas (see global.css `.mapboxgl-canvas`)
+    // keeps the scene filled in between, so it stays flash-free.
+    const DEBOUNCE_MS = 10;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const ro = new ResizeObserver(() => {
-      const since = Date.now() - lastRun;
-      if (since >= THROTTLE_MS) {
-        resize();
-      } else if (!trailing) {
-        trailing = setTimeout(resize, THROTTLE_MS - since);
-      }
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        try {
+          m.resize();
+        } catch {
+          /* ignore */
+        }
+      }, DEBOUNCE_MS);
     });
     ro.observe(el);
     return () => {
       ro.disconnect();
-      if (trailing) clearTimeout(trailing);
+      if (timer) clearTimeout(timer);
     };
   }, [map]);
 
