@@ -55,7 +55,11 @@ function DockColumn({
   return (
     <aside
       className={cn(
-        "flex h-full flex-col bg-surface-1 transition-[width] duration-300 ease-out",
+        // No width transition: the centre region holds a WebGL map
+        // whose ResizeObserver fires every frame of an animated
+        // collapse, reallocating the drawing buffer ~18× and making
+        // the scene flash. Collapsing instantly = one clean resize.
+        "flex h-full flex-col bg-surface-1",
         side === "left"
           ? "border-r border-line-soft"
           : "border-l border-line-soft",
@@ -95,7 +99,9 @@ function DockBottom({ children }: { children: ReactNode }) {
   return (
     <section
       className={cn(
-        "flex shrink-0 flex-col border-t border-line-soft bg-surface-1 transition-[height] duration-300 ease-out",
+        // No height transition — see DockColumn: an animated collapse
+        // resizes the centre map every frame and flashes the scene.
+        "flex shrink-0 flex-col border-t border-line-soft bg-surface-1",
         open ? "h-64" : "h-8",
       )}
     >

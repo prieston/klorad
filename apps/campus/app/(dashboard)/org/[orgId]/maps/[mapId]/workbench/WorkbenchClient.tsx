@@ -190,7 +190,10 @@ export default function WorkbenchClient({ mapId }: Props) {
   }
 
   return (
-    <div data-workbench className="flex h-screen w-screen flex-col bg-bg">
+    <div
+      data-workbench
+      className="flex h-screen w-full flex-col overflow-hidden bg-bg"
+    >
       <WorkbenchTopBar
         product="Campus"
         worldName={mapName ?? "Untitled campus"}
@@ -237,7 +240,7 @@ export default function WorkbenchClient({ mapId }: Props) {
  */
 function WorkbenchLoading() {
   return (
-    <div className="flex h-screen w-screen flex-col items-center justify-center bg-bg">
+    <div className="flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-bg">
       <div className="flex items-center gap-3 text-text-secondary">
         <Spinner />
         <div className="flex items-center gap-2">

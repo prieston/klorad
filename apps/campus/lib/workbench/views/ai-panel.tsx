@@ -42,8 +42,8 @@ function AIPanelComponent({ ctx }: ViewProps) {
             AI Assistant
           </h2>
         </div>
-        <p className="text-[0.75rem] leading-relaxed text-text-secondary">
-          Soon, ask the Assistant to build and edit your campus — you
+        <p className="text-[0.8rem] leading-relaxed text-text-secondary">
+          Soon, ask the Assistant to build and edit your campus. You
           approve every change before it runs.
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-[0.65rem] uppercase tracking-[0.14em] text-text-tertiary">
