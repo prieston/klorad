@@ -3,11 +3,11 @@
 import type { View, ViewProps } from "@klorad/config/workbench";
 
 /**
- * Phase 7 — AI co-pilot panel placeholder.
+ * Phase 7 — AI Assistant panel placeholder.
  *
  * The actor model (`ctx.actor`, `Actor: { kind: "user" | "ai" | "system" }`)
  * is wired in the shell; this view is the visible surface where the
- * AI co-pilot will live once a model is connected.
+ * AI Assistant will live once a model is connected.
  *
  * For now: a hero state that shows what the panel will do once a
  * model is plugged in. Surfaces example prompts based on the
@@ -39,13 +39,12 @@ function AIPanelComponent({ ctx }: ViewProps) {
             <SparkleIcon className="h-4 w-4" />
           </span>
           <h2 className="text-sm font-semibold text-text-primary">
-            AI co-pilot
+            AI Assistant
           </h2>
         </div>
         <p className="text-[0.75rem] leading-relaxed text-text-secondary">
-          Soon, ask the co-pilot to draw a building, place POIs from a
-          spreadsheet, or summarise accessibility coverage. Approve
-          changes before they run.
+          Soon, ask the Assistant to build and edit your campus — you
+          approve every change before it runs.
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-[0.65rem] uppercase tracking-[0.14em] text-text-tertiary">
           <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line-soft bg-bg px-2 py-1">
@@ -58,14 +57,14 @@ function AIPanelComponent({ ctx }: ViewProps) {
         </div>
       </div>
 
-      {/* Example prompts — what the co-pilot will be able to do. */}
+      {/* Example prompts — what the Assistant will be able to do. */}
       <div className="flex min-w-0 flex-1 flex-col gap-2 overflow-auto">
         <div className="text-[0.65rem] uppercase tracking-[0.14em] text-text-tertiary">
           Example prompts
         </div>
         <ExamplePrompt
           label="Place POIs from a CSV"
-          hint="Upload a list of names + coordinates and let the co-pilot drop them on the map."
+          hint="Upload a list of names + coordinates and let the Assistant drop them on the map."
         />
         <ExamplePrompt
           label="Draw all buildings from OSM"
@@ -81,7 +80,7 @@ function AIPanelComponent({ ctx }: ViewProps) {
         />
         <p className="mt-2 text-[0.65rem] text-text-tertiary">
           {opCount} operation{opCount === 1 ? "" : "s"} currently
-          applicable to your selection — the same surface the co-pilot
+          applicable to your selection — the same surface the Assistant
           will draw from when it ships.
         </p>
       </div>
@@ -136,7 +135,7 @@ function SparkleIcon({ className }: { className?: string }) {
 
 export const aiPanelView: View = {
   id: "ai-panel",
-  label: "AI co-pilot",
+  label: "AI Assistant",
   icon: SparkleIcon,
   entityTypes: "*",
   defaultDock: "bottom",

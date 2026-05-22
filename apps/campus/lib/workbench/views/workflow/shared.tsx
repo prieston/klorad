@@ -26,7 +26,7 @@ export function EmptyHint({
 /**
  * Search input used in workflow step content (POIs today; future
  * steps can reuse). Light grey rounded box, no border, no focus
- * ring — same family as the AI co-pilot prompt cards.
+ * ring — same family as the AI Assistant prompt cards.
  */
 export function SearchPill({
   value,
