@@ -349,7 +349,17 @@ export function useMapboxThreeboxModels(map: MapboxMap | null) {
           },
 
           render: () => {
-            tbRef.current?.update();
+            // Threebox 2.2.7 predates Mapbox GL v3, whose camera /
+            // transform internals changed; its per-frame camera sync
+            // can throw on a null matrix mid-animation (e.g. during a
+            // `flyTo`). A custom layer's `render` throwing crashes the
+            // whole map — contain it so a dropped Threebox frame stays
+            // recoverable instead of taking the map down.
+            try {
+              tbRef.current?.update();
+            } catch {
+              /* threebox/mapbox-v3 frame mismatch — skip this frame */
+            }
           },
 
           onRemove: () => {
