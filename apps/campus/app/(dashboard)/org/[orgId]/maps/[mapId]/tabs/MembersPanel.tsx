@@ -89,8 +89,12 @@ export default function MembersPanel({ orgId }: { orgId: string }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Invite failed");
       setEmail("");
-      setInviteUrl(typeof json.inviteUrl === "string" ? json.inviteUrl : null);
-      toast.success("Invitation created");
+      // Show the shareable link only when email delivery didn't happen.
+      const emailed = json.emailed === true;
+      setInviteUrl(
+        emailed || typeof json.inviteUrl !== "string" ? null : json.inviteUrl,
+      );
+      toast.success(emailed ? "Invitation emailed" : "Invitation created");
       void mutate();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Invite failed");

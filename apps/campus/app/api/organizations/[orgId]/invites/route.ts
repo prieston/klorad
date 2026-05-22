@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { OrganizationRole } from "@prisma/client";
 import { randomBytes } from "crypto";
+import { sendOrgInviteEmail } from "@/lib/email";
 
 const VALID_ROLES: OrganizationRole[] = ["owner", "admin", "member", "publicViewer"];
 
@@ -102,15 +103,26 @@ export async function POST(
     update: { token, expires, invitedById: userId },
   });
 
-  // Build a shareable accept URL the owner can paste into their own channel.
+  // Build a shareable accept URL — also the email's CTA, and the
+  // fallback the owner pastes manually when email isn't configured.
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
     new URL(req.url).origin;
   const inviteUrl = `${appUrl}/orgs/invites/accept?token=${token}`;
 
-  return NextResponse.json({
-    message: "Invitation created",
+  // Best-effort email — returns { sent: false } if Resend isn't
+  // configured, in which case the owner shares `inviteUrl` manually.
+  const { sent } = await sendOrgInviteEmail({
+    to: email,
+    orgName: organization.name,
+    inviterName: session.user.name ?? session.user.email ?? "A teammate",
     inviteUrl,
+  });
+
+  return NextResponse.json({
+    message: sent ? "Invitation emailed" : "Invitation created",
+    inviteUrl,
+    emailed: sent,
   });
 }
 
