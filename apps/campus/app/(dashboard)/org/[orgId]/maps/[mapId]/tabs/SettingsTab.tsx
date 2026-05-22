@@ -8,6 +8,7 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { toast } from "react-toastify";
 import { Button, Field, IconButton, Input, Panel, Textarea } from "@klorad/design-system";
 import type { Branding, SceneData } from "@klorad/api";
+import MembersPanel from "./MembersPanel";
 
 interface Props {
   orgId: string;
@@ -33,7 +34,7 @@ interface ServerMap {
   sceneData?: CampusSceneData;
 }
 
-export default function SettingsTab({ orgId: _orgId, mapId, map }: Props) {
+export default function SettingsTab({ orgId, mapId, map }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const publicUrl = `${origin}/campus/${mapId}`;
   const embedCode = `<iframe src="${publicUrl}" width="100%" height="600" frameborder="0" allowfullscreen></iframe>`;
@@ -268,11 +269,7 @@ export default function SettingsTab({ orgId: _orgId, mapId, map }: Props) {
       </Section>
 
       <Section title="Members">
-        <Panel className="rounded-2xl p-6">
-          <p className="text-sm text-text-secondary">
-            Invite teammates as Admin, Editor, or Viewer. Coming next.
-          </p>
-        </Panel>
+        <MembersPanel orgId={orgId} />
       </Section>
     </div>
   );

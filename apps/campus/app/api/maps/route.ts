@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { requireOrgAccess } from "@/lib/authz";
 
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const { searchParams } = new URL(req.url);
   const orgId = searchParams.get("orgId");
   if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
+
+  const denied = await requireOrgAccess(orgId, "read");
+  if (denied) return denied;
 
   const maps = await prisma.project.findMany({
     where: { organizationId: orgId },
@@ -57,11 +57,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const { orgId, name } = await req.json() as { orgId: string; name: string };
   if (!orgId || !name) return NextResponse.json({ error: "orgId and name required" }, { status: 400 });
+
+  const denied = await requireOrgAccess(orgId, "write");
+  if (denied) return denied;
 
   const map = await prisma.project.create({
     data: {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { requireCampusAccess, requireOrgAccess } from "@/lib/authz";
 
 export async function GET(
   _req: Request,
@@ -18,10 +18,19 @@ export async function GET(
       createdAt: true,
       thumbnail: true,
       isPublished: true,
+      organizationId: true,
     },
   });
 
   if (!map) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Published campuses are public (the public viewer fetches this).
+  // Drafts are visible only to organization members.
+  if (!map.isPublished) {
+    const denied = await requireOrgAccess(map.organizationId, "read");
+    if (denied) return denied;
+  }
+
   return NextResponse.json({ ...map, name: map.title });
 }
 
@@ -29,10 +38,11 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ mapId: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const { mapId } = await params;
+
+  const denied = await requireCampusAccess(mapId, "write");
+  if (denied) return denied;
+
   const body = await req.json() as {
     name?: string;
     sceneData?: unknown;
@@ -64,10 +74,11 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ mapId: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const { mapId } = await params;
+
+  // Deleting a whole campus is owner/admin only.
+  const denied = await requireCampusAccess(mapId, "manage");
+  if (denied) return denied;
 
   await prisma.project.delete({ where: { id: mapId } });
 
