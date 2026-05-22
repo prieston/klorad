@@ -41,7 +41,7 @@ export function WayfindingControls({
   const canRoute = from !== "" && to !== "" && from !== to && !routing;
 
   return (
-    <div className="absolute left-4 top-4 z-10 flex w-72 flex-col gap-3 rounded-2xl border border-line-soft bg-surface-1/95 p-4 shadow-glass backdrop-blur">
+    <div className="flex w-full flex-col gap-3 rounded-2xl border border-line-soft bg-surface-1/95 p-4 shadow-glass backdrop-blur">
       <h2 className="text-sm font-semibold text-text-primary">
         Indoor directions
       </h2>
