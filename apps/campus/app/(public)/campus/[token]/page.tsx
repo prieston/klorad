@@ -6,7 +6,10 @@ import { prisma } from "@/lib/prisma";
 import { formatPostDate, readPosts } from "@/lib/posts";
 import { formatEventWhen, readEventFeeds } from "@/lib/events";
 import { fetchCampusEvents } from "@/lib/events-server";
+import { readHomePage } from "@/lib/home-page";
+import { detectLocale, pickText, translate } from "@/app/lib/i18n-core";
 import NotPublishedPlaceholder from "./NotPublishedPlaceholder";
+import { HomeLangToggle } from "./HomeLangToggle";
 
 type Params = Promise<{ token: string }>;
 
@@ -18,6 +21,20 @@ interface CampusBranding {
 
 function isValidHex(value: string | undefined): value is string {
   return !!value && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
+}
+
+/** Location-pin glyph for a post's linked place. */
+function PinIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path d="M12 2C8 2 5 5 5 9c0 5.5 7 13 7 13s7-7.5 7-13c0-4-3-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" />
+    </svg>
+  );
 }
 
 /** Dynamic metadata so shared URLs preview nicely in Slack / WhatsApp / LinkedIn. */
@@ -69,10 +86,14 @@ export async function generateMetadata({
  */
 export default async function CampusHomePage({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { token } = await params;
+  const sp = await searchParams;
+  const locale = detectLocale(typeof sp.lang === "string" ? sp.lang : null);
 
   const map = await prisma.project
     .findUnique({
@@ -84,6 +105,7 @@ export default async function CampusHomePage({
         title: true,
         description: true,
         isPublished: true,
+        thumbnail: true,
         sceneData: true,
       },
     })
@@ -102,8 +124,19 @@ export default async function CampusHomePage({
   const events = await fetchCampusEvents(readEventFeeds(map.sceneData));
   const mapHref = `/campus/${token}/map`;
 
+  // Home page builder config — bilingual fields resolved to the
+  // visitor's locale, each falling back to a sensible default.
+  const home = readHomePage(map.sceneData);
+  const heroBg = home.heroImage || map.thumbnail || null;
+  const headline = pickText(home.headline, locale) || displayName;
+  const tagline = pickText(home.tagline, locale) || map.description || "";
+  const ctaLabel =
+    pickText(home.ctaLabel, locale) || translate(locale, "home.exploreMap");
+  const showEvents = home.showEvents !== false;
+  const showNews = home.showNews !== false;
+
   return (
-    <main className="min-h-screen bg-bg">
+    <main lang={locale} className="min-h-screen bg-bg">
       <header className="flex items-center justify-between gap-4 px-6 py-4 md:px-10">
         {branding.logo ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -117,37 +150,55 @@ export default async function CampusHomePage({
             {displayName}
           </span>
         )}
-        <Link
-          href={mapHref}
-          className="text-sm font-medium transition-opacity hover:opacity-80"
-          style={{ color: accent }}
-        >
-          Open map →
-        </Link>
+        <div className="flex items-center gap-3">
+          <HomeLangToggle token={token} current={locale} />
+          <Link
+            href={mapHref}
+            className="text-sm font-medium transition-opacity hover:opacity-80"
+            style={{ color: accent }}
+          >
+            {translate(locale, "home.openMap")} →
+          </Link>
+        </div>
       </header>
 
-      <section className="px-6 py-12 md:px-10 md:py-20">
-        <h1 className="text-3xl font-semibold tracking-tight text-text-primary md:text-4xl">
-          {displayName}
-        </h1>
-        {map.description ? (
-          <p className="mt-3 max-w-2xl text-base leading-relaxed text-text-secondary">
-            {map.description}
-          </p>
-        ) : null}
-        <Link
-          href={mapHref}
-          className="mt-7 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
-          style={{ backgroundColor: accent }}
-        >
-          Explore the campus map →
-        </Link>
+      <section
+        className="relative flex min-h-[56vh] items-end overflow-hidden px-6 py-12 md:px-10 md:py-16"
+        style={
+          heroBg
+            ? {
+                backgroundImage: `linear-gradient(to top, rgba(11,17,22,0.9), rgba(11,17,22,0.35)), url("${heroBg}")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
+            : {
+                background: `linear-gradient(155deg, ${accent} 0%, #0b1116 100%)`,
+              }
+        }
+      >
+        <div className="max-w-3xl">
+          <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">
+            {headline}
+          </h1>
+          {tagline ? (
+            <p className="mt-3 max-w-2xl text-base leading-relaxed text-white/85">
+              {tagline}
+            </p>
+          ) : null}
+          <Link
+            href={mapHref}
+            className="mt-7 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02]"
+            style={{ color: accent }}
+          >
+            {ctaLabel} →
+          </Link>
+        </div>
       </section>
 
-      {events.length > 0 ? (
+      {showEvents && events.length > 0 ? (
         <section className="px-6 pb-4 md:px-10">
           <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-text-tertiary">
-            Upcoming events
+            {translate(locale, "home.events")}
           </h2>
           <div className="mt-4 space-y-3">
             {events.map((event) => (
@@ -177,9 +228,10 @@ export default async function CampusHomePage({
         </section>
       ) : null}
 
+      {showNews ? (
       <section className="px-6 pb-20 pt-8 md:px-10">
         <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-text-tertiary">
-          News
+          {translate(locale, "home.news")}
         </h2>
         {posts.length > 0 ? (
           <div className="mt-4 space-y-4">
@@ -192,22 +244,32 @@ export default async function CampusHomePage({
                   {formatPostDate(post.publishedAt)}
                 </time>
                 <h3 className="mt-1 text-lg font-semibold text-text-primary">
-                  {post.title}
+                  {pickText(post.title, locale)}
                 </h3>
-                {post.body ? (
+                {pickText(post.body, locale) ? (
                   <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-text-secondary">
-                    {post.body}
+                    {pickText(post.body, locale)}
                   </p>
+                ) : null}
+                {post.place ? (
+                  <Link
+                    href={`${mapHref}?place=${encodeURIComponent(post.place.id)}`}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent transition-opacity hover:opacity-80"
+                  >
+                    <PinIcon className="h-3 w-3" />
+                    {post.place.name}
+                  </Link>
                 ) : null}
               </article>
             ))}
           </div>
         ) : (
           <p className="mt-4 text-sm text-text-tertiary">
-            No news yet — check back soon.
+            {translate(locale, "home.noNews")}
           </p>
         )}
       </section>
+      ) : null}
 
       <footer className="border-t border-solid border-line-soft px-6 py-6 text-center md:px-10">
         <span className="inline-flex items-center gap-1.5 text-[0.7rem] uppercase tracking-[0.18em] text-text-tertiary">

@@ -368,6 +368,50 @@ function PublicViewerInner({ mapId }: Props) {
     apiRef.current?.poi.flyTo(room.buildingId);
   };
 
+  // Deep link in — focus the building / floor / room named by the
+  // `?place` URL param once the scene has loaded. A building, floor
+  // or room id is accepted; each resolves to its place + camera fly.
+  const deepLinkedRef = useRef(false);
+  useEffect(() => {
+    if (!sceneReady || deepLinkedRef.current) return;
+    const api = apiRef.current;
+    const placeId = searchParams.get("place");
+    if (!api || !placeId) return;
+    deepLinkedRef.current = true;
+
+    const poi = api.poi.getAll().find((p) => p.id === placeId);
+    if (poi) {
+      goToBuilding(poi);
+      return;
+    }
+    const room = api.rooms.getAll().find((r) => r.id === placeId);
+    if (room) {
+      goToRoom(room);
+      return;
+    }
+    const plan = api.floorPlans.getAll().find((fp) => fp.id === placeId);
+    if (plan) {
+      const building = api.poi.getAll().find((p) => p.id === plan.buildingId);
+      if (building) {
+        goToBuilding(building);
+        // Activate the floor once the fly-to settles (~1800ms).
+        window.setTimeout(() => setActivePlanId(plan.id), 1400);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneReady]);
+
+  // Deep link out — mirror the current selection into `?place` so the
+  // address bar is always a shareable link to what's on screen.
+  useEffect(() => {
+    if (!sceneReady) return;
+    const placeId = activeRoomId ?? activePlanId ?? selectedPoiId;
+    const url = new URL(window.location.href);
+    if (placeId) url.searchParams.set("place", placeId);
+    else url.searchParams.delete("place");
+    window.history.replaceState(null, "", url);
+  }, [sceneReady, selectedPoiId, activePlanId, activeRoomId]);
+
   const backFromBuilding = () => {
     setSelectedPoiId(null);
     setActivePlanId(null);

@@ -9,6 +9,7 @@ import { toast } from "react-toastify";
 import { Button, Field, IconButton, Input, Panel, Textarea } from "@klorad/design-system";
 import type { Branding, SceneData } from "@klorad/api";
 import MembersPanel from "./MembersPanel";
+import HomePagePanel from "./HomePagePanel";
 
 interface Props {
   orgId: string;
@@ -189,6 +190,10 @@ export default function SettingsTab({ orgId, mapId, map }: Props) {
             {savingBrand ? "Saving…" : "Save branding"}
           </Button>
         </Panel>
+      </Section>
+
+      <Section title="Home page">
+        <HomePagePanel mapId={mapId} />
       </Section>
 
       <Section title="Indoor map">

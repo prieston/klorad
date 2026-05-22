@@ -7,6 +7,7 @@ const ALLOWED_PREFIXES = new Set([
   "floor-plans",
   "campus-thumbnails",
   "campus-branding",
+  "campus-hero",
 ]);
 const ALLOWED_TYPES = new Set([
   "image/png",
