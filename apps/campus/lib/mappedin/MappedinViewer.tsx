@@ -5,14 +5,16 @@ import { Spinner } from "@klorad/design-system";
 import type { MapData, MapView, Space } from "@mappedin/mappedin-js";
 import type { MappedinVenue } from "./config";
 import { WayfindingControls, type SpaceOption } from "./WayfindingControls";
+import { SearchControls } from "./SearchControls";
 
 /**
  * The MappedIn indoor viewer.
  *
- * Renders a 3D indoor venue (multi-floor, pan / zoom / rotate, floor
- * switching) via the MappedIn Web SDK, plus a directions panel that
- * routes between two spaces. This file is the *single* place the SDK
- * is imported — the swap-out seam for the future in-house engine.
+ * Renders a 3D indoor venue (multi-floor, pan / zoom / rotate) via
+ * the MappedIn Web SDK, with every space labelled, a search box that
+ * flies the camera to a room, and a directions panel that routes
+ * between two spaces. This file is the *single* place the SDK is
+ * imported — the swap-out seam for the future in-house engine.
  *
  * The SDK is dynamically imported inside the effect so it never
  * touches the server bundle and stays out of the main chunk. The
@@ -25,6 +27,8 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
   // Named spaces by id — the route handlers need the real Space
   // objects, while the picker UI only needs `{ id, name }`.
   const spacesRef = useRef<Map<string, Space>>(new Map());
+  // The space last flown-to via search — recoloured back on the next.
+  const highlightRef = useRef<Space | null>(null);
 
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
@@ -67,6 +71,15 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
           if (space.name) byId.set(space.id, space);
         }
         spacesRef.current = byId;
+        // Label every named space — the venue renders as unlabelled
+        // geometry otherwise.
+        for (const space of byId.values()) {
+          try {
+            view.Labels.add(space, space.name as string);
+          } catch {
+            /* skip a label that won't anchor */
+          }
+        }
         setSpaces(
           [...byId.values()]
             .map((s) => ({ id: s.id, name: s.name as string }))
@@ -120,6 +133,33 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
     setRouteError(null);
   }, []);
 
+  // Search → switch to the space's floor, highlight it, fly there.
+  const handleSearchSelect = useCallback(async (spaceId: string) => {
+    const mapView = mapViewRef.current;
+    const space = spacesRef.current.get(spaceId);
+    if (!mapView || !space) return;
+    try {
+      if (space.floor) await mapView.setFloor(space.floor);
+      const previous = highlightRef.current;
+      if (previous && previous !== space) {
+        try {
+          mapView.updateState(previous, { color: undefined });
+        } catch {
+          /* ignore */
+        }
+      }
+      highlightRef.current = space;
+      try {
+        mapView.updateState(space, { color: "#158ca3" });
+      } catch {
+        /* ignore */
+      }
+      await mapView.Camera.focusOn(space);
+    } catch {
+      /* best-effort — a failed focus shouldn't surface an error */
+    }
+  }, []);
+
   return (
     <div className="relative h-full w-full bg-bg">
       <div ref={containerRef} className="h-full w-full" />
@@ -144,14 +184,22 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
         </div>
       ) : null}
 
-      {status === "ready" && spaces.length >= 2 ? (
-        <WayfindingControls
-          spaces={spaces}
-          routing={routing}
-          error={routeError}
-          onRoute={(from, to) => void handleRoute(from, to)}
-          onClear={handleClear}
-        />
+      {status === "ready" && spaces.length > 0 ? (
+        <div className="absolute left-4 top-4 z-10 flex w-72 flex-col gap-3">
+          <SearchControls
+            spaces={spaces}
+            onSelect={(id) => void handleSearchSelect(id)}
+          />
+          {spaces.length >= 2 ? (
+            <WayfindingControls
+              spaces={spaces}
+              routing={routing}
+              error={routeError}
+              onRoute={(from, to) => void handleRoute(from, to)}
+              onClear={handleClear}
+            />
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
