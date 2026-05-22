@@ -17,7 +17,7 @@ export const metadata = {
  */
 export default function IndoorPage() {
   return (
-    <main className="h-screen w-full">
+    <main data-mappedin className="h-screen w-full">
       <MappedinViewer venue={resolveVenue()} />
     </main>
   );
