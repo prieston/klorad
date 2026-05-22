@@ -235,7 +235,7 @@ export default async function CampusHomePage({
                   <Link
                     href={
                       post.place.source === "mappedin"
-                        ? `/campus/${token}/indoor?space=${encodeURIComponent(post.place.id)}`
+                        ? `${mapHref}?space=${encodeURIComponent(post.place.id)}`
                         : `${mapHref}?place=${encodeURIComponent(post.place.id)}`
                     }
                     className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent transition-opacity hover:opacity-80"
