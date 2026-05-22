@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useSWR, { mutate } from "swr";
 import { toast } from "react-toastify";
 import { uploadFile } from "@klorad/storage/client";
@@ -64,8 +64,15 @@ export default function HomePagePanel({ mapId }: Props) {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Initialise the form from the saved config exactly once. SWR
+  // revalidates `serverMap` (on window focus — which opening a file
+  // picker triggers); re-running this would clobber unsaved edits,
+  // including a just-uploaded hero image before it is saved.
+  const loadedRef = useRef(false);
   useEffect(() => {
-    const home = readHomePage(serverMap?.sceneData);
+    if (loadedRef.current || !serverMap) return;
+    loadedRef.current = true;
+    const home = readHomePage(serverMap.sceneData);
     setHeroImage(home.heroImage ?? "");
     setHeadline(toFields(home.headline));
     setTagline(toFields(home.tagline));
