@@ -197,10 +197,10 @@ function MapViewComponent({ ctx }: ViewProps) {
   });
 
   // Walls — drawn onto whichever floor plan is in focus, rendered as
-  // a line layer.
+  // 3D extrusions at that floor's elevation.
   const focusedPlan =
     allFloorPlans.find((p) => p.id === selectedId) ?? null;
-  useMapboxWallsLayer(focusedPlan?.walls ?? []);
+  useMapboxWallsLayer(focusedPlan?.walls ?? [], focusedPlan?.floor ?? 0);
 
   // Force basemap labels off whenever the scene is mounted (Mapbox's
   // default street labels collide with campus content). The hook
