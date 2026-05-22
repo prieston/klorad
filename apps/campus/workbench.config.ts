@@ -29,6 +29,7 @@ import {
   deleteRoomOp,
   editRoomOp,
   defineRoomOp,
+  addFloorOp,
   uploadFloorPlanOp,
 } from "@/lib/workbench";
 
@@ -99,6 +100,7 @@ const workbenchConfig = defineWorkbench({
     deleteRoomOp,
     editRoomOp,
     defineRoomOp,
+    addFloorOp,
     uploadFloorPlanOp,
   ],
   defaultLayout: {
