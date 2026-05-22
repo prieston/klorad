@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { formatPostDate, readPosts } from "@/lib/posts";
 import { formatEventWhen, readEventFeeds } from "@/lib/events";
 import { fetchCampusEvents } from "@/lib/events-server";
+import { readHomePage } from "@/lib/home-page";
 import NotPublishedPlaceholder from "./NotPublishedPlaceholder";
 
 type Params = Promise<{ token: string }>;
@@ -117,6 +118,16 @@ export default async function CampusHomePage({
   const events = await fetchCampusEvents(readEventFeeds(map.sceneData));
   const mapHref = `/campus/${token}/map`;
 
+  // Home page builder config — every field falls back to a sensible
+  // default (campus name / description / thumbnail).
+  const home = readHomePage(map.sceneData);
+  const heroBg = home.heroImage || map.thumbnail || null;
+  const headline = home.headline || displayName;
+  const tagline = home.tagline || map.description;
+  const ctaLabel = home.ctaLabel || "Explore the campus map";
+  const showEvents = home.showEvents !== false;
+  const showNews = home.showNews !== false;
+
   return (
     <main className="min-h-screen bg-bg">
       <header className="flex items-center justify-between gap-4 px-6 py-4 md:px-10">
@@ -144,9 +155,9 @@ export default async function CampusHomePage({
       <section
         className="relative flex min-h-[56vh] items-end overflow-hidden px-6 py-12 md:px-10 md:py-16"
         style={
-          map.thumbnail
+          heroBg
             ? {
-                backgroundImage: `linear-gradient(to top, rgba(11,17,22,0.9), rgba(11,17,22,0.35)), url("${map.thumbnail}")`,
+                backgroundImage: `linear-gradient(to top, rgba(11,17,22,0.9), rgba(11,17,22,0.35)), url("${heroBg}")`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
               }
@@ -157,11 +168,11 @@ export default async function CampusHomePage({
       >
         <div className="max-w-3xl">
           <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">
-            {displayName}
+            {headline}
           </h1>
-          {map.description ? (
+          {tagline ? (
             <p className="mt-3 max-w-2xl text-base leading-relaxed text-white/85">
-              {map.description}
+              {tagline}
             </p>
           ) : null}
           <Link
@@ -169,12 +180,12 @@ export default async function CampusHomePage({
             className="mt-7 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02]"
             style={{ color: accent }}
           >
-            Explore the campus map →
+            {ctaLabel} →
           </Link>
         </div>
       </section>
 
-      {events.length > 0 ? (
+      {showEvents && events.length > 0 ? (
         <section className="px-6 pb-4 md:px-10">
           <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-text-tertiary">
             Upcoming events
@@ -207,6 +218,7 @@ export default async function CampusHomePage({
         </section>
       ) : null}
 
+      {showNews ? (
       <section className="px-6 pb-20 pt-8 md:px-10">
         <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-text-tertiary">
           News
@@ -247,6 +259,7 @@ export default async function CampusHomePage({
           </p>
         )}
       </section>
+      ) : null}
 
       <footer className="border-t border-solid border-line-soft px-6 py-6 text-center md:px-10">
         <span className="inline-flex items-center gap-1.5 text-[0.7rem] uppercase tracking-[0.18em] text-text-tertiary">
