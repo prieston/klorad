@@ -340,7 +340,9 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
           currentBuildingId={currentBuildingId}
           onSelectFloor={(id) => void handleSelectFloor(id)}
           onSelectBuilding={(id) => void handleSelectBuilding(id)}
-          className="absolute right-4 top-1/2 z-10 -translate-y-1/2"
+          // Top-right — clear of MappedIn's own zoom / nav controls,
+          // which sit centred on the right edge.
+          className="absolute right-4 top-4 z-10"
         />
       ) : null}
 

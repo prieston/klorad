@@ -60,7 +60,7 @@ export function FloorControls({
       ) : null}
 
       {floors.length > 1 ? (
-        <div className="flex max-h-[60vh] flex-col gap-1 overflow-y-auto">
+        <div className="flex max-h-[40vh] flex-col gap-1 overflow-y-auto">
           {floors.map((floor) => {
             const active = floor.id === currentFloorId;
             return (
