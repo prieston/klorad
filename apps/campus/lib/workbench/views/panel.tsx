@@ -1,8 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { WorkbenchOperationButton, WorkflowTabBar } from "@klorad/design-system";
-import type { View, ViewProps } from "@klorad/config/workbench";
+import {
+  EntityInspector,
+  WorkflowTabBar,
+  type EntityInspectorAction,
+} from "@klorad/design-system";
+import type {
+  Entity,
+  ResolvedOperation,
+  View,
+  ViewProps,
+} from "@klorad/config/workbench";
 
 /**
  * The campus right-dock panel.
@@ -61,16 +70,21 @@ function CampusPanelComponent({ ctx }: ViewProps) {
 
 /* ─── Inspect tab ─────────────────────────────────────────────────── */
 
+/**
+ * Inspect tab — the selected element's editor + actions.
+ *
+ * Editing happens inline: the element's form-bearing operation (edit
+ * building / floor / room / POI) is mounted directly here, and its
+ * `submit` runs the operation with explicit args — skipping the
+ * shell's modal entirely. The modal stays only as the ⌘K / right-
+ * click fallback. Form-less operations (Fly to, Delete) become the
+ * action buttons below the editor.
+ */
 function InspectorTab({ ctx }: { ctx: ViewProps["ctx"] }) {
   const focusedId = ctx.selection.focusedId;
-  const entityOps = ctx.applicableOperations.filter(
-    (r) => r.operation.scope.length > 0,
-  );
-  const handleClear = () => {
-    ctx.setSelection({ ids: new Set<string>(), focusedId: null });
-  };
+  const entity = focusedId ? ctx.entities.byId(focusedId) : undefined;
 
-  if (!focusedId) {
+  if (!focusedId || !entity) {
     return (
       <p className="pt-4 text-xs leading-relaxed text-text-tertiary">
         Click anything on the map or in the list to inspect and edit it.
@@ -78,42 +92,117 @@ function InspectorTab({ ctx }: { ctx: ViewProps["ctx"] }) {
     );
   }
 
+  const ops = ctx
+    .operationsForEntity(focusedId)
+    .filter((r) => r.operation.scope.length > 0);
+  const editResolved = ops.find((r) => r.operation.Form);
+  const actionResolved = ops.filter((r) => !r.operation.Form);
+  const { typeLabel, icon, name } = describeEntity(entity);
+
+  const actions: EntityInspectorAction[] = actionResolved.map((r) => ({
+    id: r.operation.id,
+    label: r.operation.label,
+    icon: r.operation.icon,
+    tone: r.operation.id.endsWith(".delete") ? "danger" : "default",
+    onSelect: () => void ctx.runOperation(r.operation.id, undefined, r.on),
+  }));
+
   return (
-    <div className="space-y-3 pt-3">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
-          Selection
-        </h3>
-        <button
-          type="button"
-          onClick={handleClear}
-          className="text-[0.7rem] font-medium text-text-secondary transition-colors hover:text-accent"
-        >
-          Clear
-        </button>
-      </div>
-      <code className="block truncate rounded bg-surface-2 px-1.5 py-1 font-mono text-[0.7rem] text-text-primary">
-        {focusedId}
-      </code>
-      {entityOps.length > 0 ? (
-        <div className="flex flex-col gap-1.5">
-          {entityOps.map(({ operation, on }) => (
-            <WorkbenchOperationButton
-              key={operation.id}
-              label={operation.label}
-              icon={operation.icon}
-              className="w-full justify-start"
-              onClick={() => void ctx.runOperation(operation.id, undefined, on)}
-            />
-          ))}
-        </div>
-      ) : (
-        <p className="text-xs text-text-tertiary">
-          No actions available for this selection.
-        </p>
-      )}
-    </div>
+    <EntityInspector
+      typeLabel={typeLabel}
+      title={name}
+      icon={icon}
+      onClear={() =>
+        ctx.setSelection({ ids: new Set<string>(), focusedId: null })
+      }
+      actions={actions}
+    >
+      {editResolved ? (
+        <InlineOpForm key={focusedId} ctx={ctx} resolved={editResolved} />
+      ) : null}
+    </EntityInspector>
   );
+}
+
+/** Mounts an operation's `Form` inline and submits it without a modal. */
+function InlineOpForm({
+  ctx,
+  resolved,
+}: {
+  ctx: ViewProps["ctx"];
+  resolved: ResolvedOperation;
+}) {
+  const { operation, on } = resolved;
+  const Form = operation.Form;
+  if (!Form) return null;
+  const initialArgs = operation.initialArgs?.(
+    { worldId: ctx.worldId, entities: ctx.entities },
+    on,
+  );
+  return (
+    <Form
+      initialArgs={initialArgs}
+      submit={(args) => void ctx.runOperation(operation.id, args, on)}
+      cancel={() =>
+        ctx.setSelection({ ids: new Set<string>(), focusedId: null })
+      }
+    />
+  );
+}
+
+/** Resolve an entity to a human type label, glyph and display name. */
+function describeEntity(entity: Entity): {
+  typeLabel: string;
+  icon: React.ComponentType<{ className?: string }>;
+  name: string;
+} {
+  const payload = entity.payload as {
+    name?: string;
+    linkedBuilding?: unknown;
+    floor?: number;
+  };
+  switch (entity.typeId) {
+    case "campus.poi":
+      return payload.linkedBuilding
+        ? {
+            typeLabel: "Building",
+            icon: BuildingGlyph,
+            name: payload.name || "Unnamed building",
+          }
+        : {
+            typeLabel: "POI",
+            icon: PoiGlyph,
+            name: payload.name || "Unnamed POI",
+          };
+    case "campus.building":
+      return {
+        typeLabel: "Building",
+        icon: BuildingGlyph,
+        name: payload.name || "Unnamed building",
+      };
+    case "campus.floor-plan":
+      return {
+        typeLabel: "Floor",
+        icon: FloorGlyph,
+        name:
+          payload.name ||
+          (typeof payload.floor === "number"
+            ? `Floor ${payload.floor}`
+            : "Floor"),
+      };
+    case "campus.room":
+      return {
+        typeLabel: "Room",
+        icon: RoomGlyph,
+        name: payload.name || "Unnamed room",
+      };
+    default:
+      return {
+        typeLabel: entity.typeId.replace("campus.", ""),
+        icon: InspectIcon,
+        name: payload.name || entity.id,
+      };
+  }
 }
 
 /* ─── Tools tab ───────────────────────────────────────────────────── */
@@ -314,6 +403,79 @@ function OverviewIcon({ className }: { className?: string }) {
       <rect x="14" y="3" width="7" height="7" rx="1" />
       <rect x="3" y="14" width="7" height="7" rx="1" />
       <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function BuildingGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <rect x="4" y="3" width="16" height="18" rx="1" />
+      <path d="M9 7h.01M15 7h.01M9 12h.01M15 12h.01" />
+      <path d="M9 17h6" />
+    </svg>
+  );
+}
+
+function FloorGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M3 7l9-4 9 4-9 4-9-4Z" />
+      <path d="M3 13l9 4 9-4" />
+    </svg>
+  );
+}
+
+function RoomGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <rect x="3" y="3" width="18" height="18" rx="1.5" />
+      <path d="M3 14h7v7" />
+    </svg>
+  );
+}
+
+function PoiGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M12 21s-7-6.5-7-12a7 7 0 1 1 14 0c0 5.5-7 12-7 12Z" />
+      <circle cx="12" cy="9" r="2.5" />
     </svg>
   );
 }

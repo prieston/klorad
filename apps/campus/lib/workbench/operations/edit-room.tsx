@@ -80,7 +80,6 @@ function EditRoomForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Office 204, Lab A, …"
-          autoFocus
         />
       </Field>
       <Field label="Room number">

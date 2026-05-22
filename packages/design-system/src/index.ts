@@ -43,6 +43,11 @@ export {
   type SceneTool,
   type SceneToolbarProps,
 } from "./components/scene-toolbar";
+export {
+  EntityInspector,
+  type EntityInspectorProps,
+  type EntityInspectorAction,
+} from "./components/entity-inspector";
 export { Select, type SelectProps } from "./components/select";
 export { Modal, type ModalProps } from "./components/modal";
 export {

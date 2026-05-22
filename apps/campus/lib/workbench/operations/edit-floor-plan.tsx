@@ -70,7 +70,6 @@ function EditFloorPlanForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Ground floor, 2nd floor, …"
-          autoFocus
         />
       </Field>
       <Field label="Floor number">

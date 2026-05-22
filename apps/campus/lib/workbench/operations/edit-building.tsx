@@ -80,7 +80,6 @@ function EditBuildingForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Engineering Building, Library, …"
-          autoFocus
         />
       </Field>
       <Field label="Description">
