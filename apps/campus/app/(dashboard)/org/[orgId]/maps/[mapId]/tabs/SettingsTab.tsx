@@ -20,10 +20,17 @@ interface Props {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+/**
+ * Campus scene data plus `indoorMapId` — the id of this campus's
+ * indoor map. Kept engine-agnostic on purpose: the indoor viewer can
+ * be swapped without touching this field or its setting.
+ */
+type CampusSceneData = Partial<SceneData> & { indoorMapId?: string };
+
 interface ServerMap {
   id: string;
   name: string;
-  sceneData?: Partial<SceneData>;
+  sceneData?: CampusSceneData;
 }
 
 export default function SettingsTab({ orgId: _orgId, mapId, map }: Props) {
@@ -43,16 +50,20 @@ export default function SettingsTab({ orgId: _orgId, mapId, map }: Props) {
   const { data: serverMap } = useSWR<ServerMap>(`/api/maps/${mapId}`, fetcher);
   const [branding, setBranding] = useState<Branding>({});
   const [savingBrand, setSavingBrand] = useState(false);
+  const [indoorMapId, setIndoorMapId] = useState("");
+  const [savingIndoor, setSavingIndoor] = useState(false);
 
   useEffect(() => {
     if (serverMap?.sceneData?.branding)
       setBranding(serverMap.sceneData.branding);
+    if (serverMap?.sceneData?.indoorMapId !== undefined)
+      setIndoorMapId(serverMap.sceneData.indoorMapId);
   }, [serverMap]);
 
   const handleSaveBranding = async () => {
     setSavingBrand(true);
     try {
-      const nextSceneData: Partial<SceneData> = {
+      const nextSceneData: CampusSceneData = {
         ...(serverMap?.sceneData ?? {}),
         branding,
       };
@@ -68,6 +79,29 @@ export default function SettingsTab({ orgId: _orgId, mapId, map }: Props) {
       toast.error("Could not save branding");
     } finally {
       setSavingBrand(false);
+    }
+  };
+
+  const handleSaveIndoor = async () => {
+    setSavingIndoor(true);
+    try {
+      const trimmed = indoorMapId.trim();
+      const nextSceneData: CampusSceneData = {
+        ...(serverMap?.sceneData ?? {}),
+        indoorMapId: trimmed || undefined,
+      };
+      const res = await fetch(`/api/maps/${mapId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sceneData: nextSceneData }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      await mutate(`/api/maps/${mapId}`);
+      toast.success("Indoor map saved");
+    } catch {
+      toast.error("Could not save the indoor map");
+    } finally {
+      setSavingIndoor(false);
     }
   };
 
@@ -150,6 +184,24 @@ export default function SettingsTab({ orgId: _orgId, mapId, map }: Props) {
 
           <Button size="sm" onClick={handleSaveBranding} disabled={savingBrand}>
             {savingBrand ? "Saving…" : "Save branding"}
+          </Button>
+        </Panel>
+      </Section>
+
+      <Section title="Indoor map">
+        <Panel className="space-y-4 rounded-2xl p-6">
+          <Field
+            label="Indoor map ID"
+            hint="The identifier of this campus's indoor map. Paste it here to enable the indoor 3D viewer and wayfinding on the campus's Indoor tab. Leave blank to disable."
+          >
+            <Input
+              placeholder="e.g. 65c0ff7430b94e3fabd5bb8c"
+              value={indoorMapId}
+              onChange={(e) => setIndoorMapId(e.target.value)}
+            />
+          </Field>
+          <Button size="sm" onClick={handleSaveIndoor} disabled={savingIndoor}>
+            {savingIndoor ? "Saving…" : "Save indoor map"}
           </Button>
         </Panel>
       </Section>

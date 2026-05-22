@@ -27,6 +27,7 @@
     "@klorad/storage": "workspace:^",
     "@klorad/ui": "workspace:^",
     "@mapbox/mapbox-gl-draw": "^1.5.0",
+    "@mappedin/mappedin-js": "^6.19.0",
     "@mui/icons-material": "^6.4.2",
     "@mui/material": "^6.4.1",
     "@prisma/client": "^5.22.0",
