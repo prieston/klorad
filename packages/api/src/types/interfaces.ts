@@ -308,11 +308,104 @@ export interface RoomsAPI {
   forFloor(buildingId: string, floor: number): Room[];
 }
 
+/**
+ * A waypoint in the wayfinding graph. Mirrors `MapboxNavNode` in
+ * `@klorad/core` — the {@link RoomsAPI}/`FloorPlansAPI` already
+ * follow the same pattern of "core defines persistence, api defines
+ * the consumer-facing shape."
+ *
+ * Node types:
+ *   - `corridor` — intermediate point along a hallway
+ *   - `door-external` — building entrance (outdoor ↔ indoor bridge)
+ *   - `door-internal` — door between two indoor spaces on one floor
+ *   - `elevator` — vertical-transit waypoint (step-free)
+ *   - `stair` — vertical-transit waypoint (excluded from step-free routes)
+ *   - `room-anchor` — marks the entry point for a specific {@link Room}
+ *   - `outdoor` — outdoor path junction or campus gate
+ */
+export type NavNodeType =
+  | "corridor"
+  | "door-external"
+  | "door-internal"
+  | "elevator"
+  | "stair"
+  | "room-anchor"
+  | "outdoor";
+
+export interface NavNode {
+  id: string;
+  type: NavNodeType;
+  /** [lng, lat]. */
+  position: [number, number];
+  /** Floor for indoor nodes. `null`/undefined for outdoor. */
+  floor?: number | null;
+  /** Building POI id (omit for outdoor nodes). */
+  buildingId?: string;
+  /** Room id for `type === "room-anchor"`. */
+  roomId?: string;
+  /**
+   * Step-free? Defaults to `true` for everything except `stair`. The
+   * router excludes non-accessible nodes (and edges touching them)
+   * when the user toggles accessibility mode.
+   */
+  accessible?: boolean;
+  /** Human label — surfaced in the editor and search. */
+  name?: string;
+}
+
+export type NavNodeInput = Omit<NavNode, "id"> & { id?: string };
+
+export interface NavEdge {
+  id: string;
+  fromNodeId: string;
+  toNodeId: string;
+  /**
+   * Override the auto-computed walking cost (in metres). Set for
+   * elevators (~3m per floor + dwell) and stairs (~6m per floor)
+   * where the great-circle distance is ~0.
+   */
+  cost?: number;
+  /**
+   * Step-free? Defaults to (fromNode.accessible && toNode.accessible).
+   * Override to mark a passage non-step-free without changing the
+   * node types.
+   */
+  accessible?: boolean;
+  /** Human label ("Stair B", "Elevator 2"). */
+  name?: string;
+}
+
+export type NavEdgeInput = Omit<NavEdge, "id"> & { id?: string };
+
+export interface NavNodesAPI {
+  add(input: NavNodeInput): NavNode;
+  update(id: string, patch: Partial<NavNode>): void;
+  remove(id: string): void;
+  getAll(): NavNode[];
+  /** Nodes scoped to a building, optionally filtered by floor. */
+  forBuilding(buildingId: string, floor?: number): NavNode[];
+  /** Outdoor nodes only (no building scope). */
+  outdoor(): NavNode[];
+  /** Anchor node for a room, if defined. */
+  forRoom(roomId: string): NavNode | undefined;
+}
+
+export interface NavEdgesAPI {
+  add(input: NavEdgeInput): NavEdge;
+  update(id: string, patch: Partial<NavEdge>): void;
+  remove(id: string): void;
+  getAll(): NavEdge[];
+  /** Edges touching a given node id (either endpoint). */
+  forNode(nodeId: string): NavEdge[];
+}
+
 export interface CampusAPI extends SceneAPI {
   readonly poi: POIManagerAPI;
   readonly layers: LayersAPI;
   readonly floorPlans: FloorPlansAPI;
   readonly rooms: RoomsAPI;
+  readonly navNodes: NavNodesAPI;
+  readonly navEdges: NavEdgesAPI;
   /** Re-center the campus map on a new location (persisted on save). */
   setLocation(lng: number, lat: number, options?: { zoom?: number; pitch?: number; bearing?: number; fly?: boolean }): void;
 }

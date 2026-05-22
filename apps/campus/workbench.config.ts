@@ -6,6 +6,8 @@ import {
   roomEntity,
   tourStopEntity,
   eventEntity,
+  navNodeEntity,
+  navEdgeEntity,
   mapView,
   campusPanelView,
   tableView,
@@ -73,6 +75,8 @@ const workbenchConfig = defineWorkbench({
     roomEntity,
     tourStopEntity,
     eventEntity,
+    navNodeEntity,
+    navEdgeEntity,
   ],
   views: [
     mapView,

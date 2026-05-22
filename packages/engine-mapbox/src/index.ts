@@ -3,3 +3,4 @@ export { MapboxViewerContent } from "./MapboxViewerContent";
 export * from "./helpers";
 export * from "./utils";
 export * from "./hooks";
+export * from "./services";

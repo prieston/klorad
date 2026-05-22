@@ -8,3 +8,9 @@ export {
   type IndoorExtrusionPaint,
   type UseMapboxIndoorExtrusionOptions,
 } from "./useMapboxIndoorExtrusion";
+export {
+  useMapboxRouteLayer,
+  type IndoorRouteSegment,
+  type RouteLayerPaint,
+  type UseMapboxRouteLayerOptions,
+} from "./useMapboxRouteLayer";

@@ -48,6 +48,12 @@ export {
   type EntityInspectorProps,
   type EntityInspectorAction,
 } from "./components/entity-inspector";
+export {
+  WayfindingPanel,
+  type WayfindingPanelProps,
+  type WayfindingPoint,
+  type WayfindingSummary,
+} from "./components/wayfinding-panel";
 export { Select, type SelectProps } from "./components/select";
 export { Modal, type ModalProps } from "./components/modal";
 export {
