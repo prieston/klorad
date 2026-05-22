@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type { POI } from "@klorad/api";
 import type { Entity, ViewContext } from "@klorad/config/workbench";
 import { ContextMenu, WorkflowListButton, cn } from "@klorad/design-system";
-import { EmptyHint, SearchPill } from "./shared";
+import { EmptyHint, RowDot, SearchPill } from "./shared";
 
 /**
  * Workflow step 3 — flat, live-filtered list of POIs.
@@ -53,7 +53,7 @@ export function PoisStep({ ctx }: { ctx: ViewContext }) {
           Nothing matches “{query}”.
         </p>
       ) : (
-        <ul role="list" className="space-y-2">
+        <ul role="list" className="space-y-1.5">
           {filtered.map((entity) => {
             const poi = entity.payload;
             const isSelected = entity.id === selectedId;
@@ -79,13 +79,8 @@ export function PoisStep({ ctx }: { ctx: ViewContext }) {
                     });
                   }}
                 >
-                  <span
-                    className={cn(
-                      "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
-                      isSelected ? "bg-accent" : "bg-text-tertiary/40",
-                    )}
-                  />
-                  <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-medium">
+                  <RowDot selected={isSelected} />
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium">
                     {poi.name || "Unnamed POI"}
                   </span>
                   {isAccessible ? (

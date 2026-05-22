@@ -75,6 +75,25 @@ export function SearchPill({
   );
 }
 
+/**
+ * The leading selection marker shared by every workflow list row —
+ * buildings, floors' rooms, POIs. A small dot: accent when the row
+ * is selected, faint otherwise, brightening on row hover. Keeping it
+ * in one place is what makes the rows read as one family.
+ */
+export function RowDot({ selected }: { selected?: boolean }) {
+  return (
+    <span
+      className={cn(
+        "inline-block h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
+        selected
+          ? "bg-accent"
+          : "bg-text-tertiary/40 group-hover:bg-text-tertiary/70",
+      )}
+    />
+  );
+}
+
 function SearchIcon({ className }: { className?: string }) {
   return (
     <svg

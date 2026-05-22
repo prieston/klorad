@@ -149,10 +149,10 @@ type WorkflowListBase = {
 export type WorkflowListItemProps = ComponentProps<"div"> & WorkflowListBase;
 
 /**
- * A row container styled as: empty interior + 1px grey border at
- * rest, `border-accent` on hover, `border-accent bg-accent-soft` on
- * select. Use when the row has multiple action buttons inside (e.g.
- * a tap-to-select button plus a chevron drill button).
+ * A compact list row — hairline border at rest, a soft accent wash +
+ * accent border on hover, `border-accent bg-accent-soft` on select.
+ * Use when the row has multiple action buttons inside (e.g. a
+ * tap-to-select button plus a chevron drill button).
  */
 export function WorkflowListItem({
   selected,
@@ -163,10 +163,10 @@ export function WorkflowListItem({
   return (
     <div
       className={cn(
-        "group flex items-center gap-3 rounded-2xl border p-4 transition-colors",
+        "group flex items-center gap-2.5 rounded-xl border px-3 py-2 transition-colors",
         selected
           ? "border-accent bg-accent-soft"
-          : "border-line-soft bg-transparent hover:border-accent",
+          : "border-line-soft bg-transparent hover:border-accent/60 hover:bg-accent-soft/40",
         className,
       )}
       {...props}
@@ -195,10 +195,10 @@ export function WorkflowListButton({
     <button
       type={type}
       className={cn(
-        "group flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition-colors",
+        "group flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors",
         selected
           ? "border-accent bg-accent-soft text-accent"
-          : "border-line-soft bg-transparent text-text-secondary hover:border-accent hover:text-text-primary",
+          : "border-line-soft bg-transparent text-text-secondary hover:border-accent/60 hover:bg-accent-soft/40 hover:text-text-primary",
         className,
       )}
       {...props}
