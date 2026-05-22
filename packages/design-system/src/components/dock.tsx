@@ -57,8 +57,8 @@ function DockColumn({
       className={cn(
         // The collapse animates. The centre map stays flash-free
         // because its canvas CSS-stretches to fill while the GL
-        // buffer resize is debounced to fire once when the animation
-        // settles (see useMapboxInitialization.ts + global.css).
+        // buffer resize is throttled (~50ms) through the animation
+        // (see useMapboxInitialization.ts + global.css).
         "flex h-full flex-col bg-surface-1 transition-[width] duration-300 ease-out",
         side === "left"
           ? "border-r border-line-soft"
@@ -99,7 +99,7 @@ function DockBottom({ children }: { children: ReactNode }) {
   return (
     <section
       className={cn(
-        // Animates — see DockColumn: the centre map's debounced
+        // Animates — see DockColumn: the centre map's throttled
         // resize + CSS-stretched canvas keep the scene flash-free.
         "flex shrink-0 flex-col border-t border-line-soft bg-surface-1 transition-[height] duration-300 ease-out",
         open ? "h-64" : "h-8",
