@@ -190,6 +190,15 @@ export interface LayersAPI {
   getAll(): DataLayer[];
 }
 
+/** A wall — an open polyline of [lng, lat] vertices on a floor plan. */
+export interface Wall {
+  id: string;
+  /** Vertex chain as [lng, lat]; at least two points. */
+  points: [number, number][];
+  /** Wall thickness in metres. Defaults to 0.15. */
+  thickness?: number;
+}
+
 export interface FloorPlan {
   id: string;
   name?: string;
@@ -214,6 +223,8 @@ export interface FloorPlan {
    * coexist with regular 3 m floors above it.
    */
   heightM?: number;
+  /** Walls drawn on this floor. */
+  walls?: Wall[];
 }
 
 export type FloorPlanInput = Omit<FloorPlan, "id"> & { id?: string };

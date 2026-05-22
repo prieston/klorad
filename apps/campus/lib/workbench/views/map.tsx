@@ -12,8 +12,10 @@ import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxDrawnBuildingsLayer } from "@/app/hooks/useMapboxDrawnBuildingsLayer";
 import { useMapboxFloorSlabsLayer } from "@/app/hooks/useMapboxFloorSlabsLayer";
 import { useMapboxRoomsLayer } from "@/app/hooks/useMapboxRoomsLayer";
+import { useMapboxWallsLayer } from "@/app/hooks/useMapboxWallsLayer";
 import { useCampusLabelDefaults } from "@/app/hooks/useCampusLabelDefaults";
 import { placementKind, usePlacementStore } from "../placement-store";
+import { snapWallPoint } from "../wall-snapping";
 
 const MapboxViewer = dynamic(
   () =>
@@ -182,6 +184,12 @@ function MapViewComponent({ ctx }: ViewProps) {
         : null,
   });
 
+  // Walls — drawn onto whichever floor plan is in focus, rendered as
+  // a line layer.
+  const focusedPlan =
+    allFloorPlans.find((p) => p.id === selectedId) ?? null;
+  useMapboxWallsLayer(focusedPlan?.walls ?? []);
+
   // Force basemap labels off whenever the scene is mounted (Mapbox's
   // default street labels collide with campus content). The hook
   // internally early-returns until the map instance is registered in
@@ -224,6 +232,19 @@ function MapViewComponent({ ctx }: ViewProps) {
           }
         },
       },
+      {
+        id: "wall.draw",
+        label: "Draw wall",
+        icon: DrawWallIcon,
+        active: placementMode === "draw-wall",
+        disabled: !focusedPlanId,
+        hint: "Select a floor first",
+        onSelect: () => {
+          if (focusedPlanId) {
+            void ctx.runOperation("wall.draw", undefined, [focusedPlanId]);
+          }
+        },
+      },
     ];
   }, [allFloorPlans, selectedId, placementMode, ctx]);
 
@@ -250,18 +271,28 @@ function MapViewComponent({ ctx }: ViewProps) {
       map.once("click", onClick);
       cleanups.push(() => map.off("click", onClick));
     } else {
-      // Polygon: each click adds a vertex; double-click closes; the
-      // existing zoom-on-double-click default would interfere, so we
+      // Polygon / polyline: each click adds a vertex, double-click
+      // closes. Wall mode (`line`) snaps each click (endpoint /
+      // ortho). The zoom-on-double-click default would interfere, so
       // suppress it for the duration.
       const prevDblClickZoom = map.doubleClickZoom?.isEnabled();
       map.doubleClickZoom?.disable();
+      const isLine = kind === "line";
+      const closeShape = () => {
+        const store = usePlacementStore.getState();
+        if (isLine) store.closeLine();
+        else store.closePolygon();
+      };
 
       const onClick = (e: MapClick) => {
-        usePlacementStore
-          .getState()
-          .addPoint([e.lngLat.lng, e.lngLat.lat]);
+        const store = usePlacementStore.getState();
+        let coords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+        if (isLine) {
+          coords = snapWallPoint(coords, map, store.pendingPoints).point;
+        }
+        store.addPoint(coords);
       };
-      const onDblClick = (e: MapClick) => {
+      const onDblClick = () => {
         // Mapbox fires `click` THEN `dblclick`. The dblclick already
         // appended one extra vertex via the click handler — drop it
         // before closing.
@@ -269,10 +300,7 @@ function MapViewComponent({ ctx }: ViewProps) {
         if (store.pendingPoints.length > 0) {
           store.pendingPoints.pop();
         }
-        store.closePolygon();
-        // Mark the event handled so the underlying mapbox dblclick
-        // doesn't fall through to anything else.
-        e satisfies MapClick;
+        closeShape();
       };
       map.on("click", onClick);
       map.on("dblclick", onDblClick);
@@ -285,8 +313,10 @@ function MapViewComponent({ ctx }: ViewProps) {
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") usePlacementStore.getState().cancel();
-      if (e.key === "Enter" && kind === "polygon") {
-        usePlacementStore.getState().closePolygon();
+      if (e.key === "Enter" && kind !== "point") {
+        const store = usePlacementStore.getState();
+        if (kind === "line") store.closeLine();
+        else store.closePolygon();
       }
     };
     document.addEventListener("keydown", onKey);
@@ -376,6 +406,25 @@ function PlacementBanner({ mode }: { mode: string }) {
         </button>
       </div>
     </div>
+  );
+}
+
+function DrawWallIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M3 20 L9 4 L15 20 L21 8" />
+    </svg>
   );
 }
 

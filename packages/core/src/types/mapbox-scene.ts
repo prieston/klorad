@@ -117,6 +117,15 @@ export interface MapboxNavEdge {
 }
 
 /** Georeferenced floor plan / overlay (Mapbox image source). */
+/** A wall — an open polyline of [lng, lat] vertices on a floor. */
+export interface MapboxWall {
+  id: string;
+  /** Vertex chain as [lng, lat]; at least two points. */
+  points: MapboxLngLat[];
+  /** Wall thickness in metres. */
+  thickness?: number;
+}
+
 export interface MapboxFloorPlanRaster {
   id: string;
   name?: string;
@@ -133,6 +142,8 @@ export interface MapboxFloorPlanRaster {
   heightM?: number;
   /** Toggle visibility without removing the plan. Defaults to true. */
   visible?: boolean;
+  /** Walls drawn on this floor. */
+  walls?: MapboxWall[];
 }
 
 /**

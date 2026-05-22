@@ -21,15 +21,23 @@
  */
 import { create } from "zustand";
 
-export type PlacementMode = "place-poi" | "draw-building" | "draw-room";
+export type PlacementMode =
+  | "place-poi"
+  | "draw-building"
+  | "draw-room"
+  | "draw-wall";
 
 export type PlacementResult =
   | { kind: "point"; coords: [number, number] }
-  | { kind: "polygon"; points: Array<[number, number]> };
+  | { kind: "polygon"; points: Array<[number, number]> }
+  | { kind: "line"; points: Array<[number, number]> };
 
 /** Whether a mode collects a single click or a series of them. */
-export function placementKind(mode: PlacementMode): "point" | "polygon" {
+export function placementKind(
+  mode: PlacementMode,
+): "point" | "polygon" | "line" {
   if (mode === "place-poi") return "point";
+  if (mode === "draw-wall") return "line";
   return "polygon";
 }
 
@@ -50,6 +58,8 @@ interface PlacementStore {
   addPoint(coords: [number, number]): void;
   /** Close the polygon and resolve. Needs at least 3 vertices. */
   closePolygon(): void;
+  /** Close an open polyline (a wall chain) and resolve. Needs ≥ 2. */
+  closeLine(): void;
   /** Abort — resolves with null. */
   cancel(): void;
 }
@@ -89,6 +99,17 @@ export const usePlacementStore = create<PlacementStoreInternal>((set, get) => ({
     }
     set({ active: null, resolver: null, pendingPoints: [] });
     resolver?.({ kind: "polygon", points: pendingPoints });
+  },
+  closeLine() {
+    const { pendingPoints, resolver } = get();
+    // A wall chain needs at least one segment — two vertices.
+    if (pendingPoints.length < 2) {
+      set({ active: null, resolver: null, pendingPoints: [] });
+      resolver?.(null);
+      return;
+    }
+    set({ active: null, resolver: null, pendingPoints: [] });
+    resolver?.({ kind: "line", points: pendingPoints });
   },
   cancel() {
     const r = get().resolver;

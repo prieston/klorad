@@ -21,6 +21,7 @@ export { drawBuildingOp } from "./draw-building";
 export { deleteRoomOp } from "./delete-room";
 export { editRoomOp, type EditRoomArgs } from "./edit-room";
 export { defineRoomOp } from "./define-room";
+export { drawWallOp } from "./draw-wall";
 export { addFloorOp } from "./add-floor";
 export {
   uploadFloorPlanOp,

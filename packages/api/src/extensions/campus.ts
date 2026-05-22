@@ -168,6 +168,7 @@ export function createFloorPlansAPI(): FloorPlansAPI {
       floor: r.floor,
       heightM: r.heightM,
       visible: r.visible !== false,
+      walls: r.walls as FloorPlan["walls"],
     }));
   };
 
@@ -182,6 +183,7 @@ export function createFloorPlansAPI(): FloorPlansAPI {
         floor: p.floor,
         heightM: p.heightM,
         visible: p.visible,
+        walls: p.walls,
       })),
     });
   };
@@ -197,6 +199,7 @@ export function createFloorPlansAPI(): FloorPlansAPI {
         floor: input.floor,
         heightM: input.heightM,
         visible: input.visible !== false,
+        walls: input.walls,
       };
       writePlans([...readPlans(), plan]);
       return plan;
