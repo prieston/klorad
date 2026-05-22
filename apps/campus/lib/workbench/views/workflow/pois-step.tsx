@@ -53,7 +53,7 @@ export function PoisStep({ ctx }: { ctx: ViewContext }) {
           Nothing matches “{query}”.
         </p>
       ) : (
-        <ul role="list" className="m-0 list-none space-y-1.5 p-0">
+        <ul role="list" className="space-y-1.5">
           {filtered.map((entity) => {
             const poi = entity.payload;
             const isSelected = entity.id === selectedId;
