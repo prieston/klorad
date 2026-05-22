@@ -4,9 +4,10 @@ import { notFound } from "next/navigation";
 import { KloradMark } from "@klorad/design-system";
 import { prisma } from "@/lib/prisma";
 import { formatPostDate, readPosts } from "@/lib/posts";
-import { formatEventWhen, readEventFeeds } from "@/lib/events";
+import { readEventFeeds } from "@/lib/events";
 import { fetchCampusEvents } from "@/lib/events-server";
 import { readHomePage } from "@/lib/home-page";
+import { CampusEvents } from "./CampusEvents";
 import { detectLocale, pickText, translate } from "@/app/lib/i18n-core";
 import NotPublishedPlaceholder from "./NotPublishedPlaceholder";
 import { HomeLangToggle } from "./HomeLangToggle";
@@ -134,6 +135,8 @@ export default async function CampusHomePage({
     pickText(home.ctaLabel, locale) || translate(locale, "home.exploreMap");
   const showEvents = home.showEvents !== false;
   const showNews = home.showNews !== false;
+  const indoorMapId = (map.sceneData as { indoorMapId?: string } | null)
+    ?.indoorMapId;
 
   return (
     <main lang={locale} className="min-h-screen bg-bg">
@@ -195,37 +198,14 @@ export default async function CampusHomePage({
         </div>
       </section>
 
-      {showEvents && events.length > 0 ? (
-        <section className="px-6 pb-4 md:px-10">
-          <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-text-tertiary">
-            {translate(locale, "home.events")}
-          </h2>
-          <div className="mt-4 space-y-3">
-            {events.map((event) => (
-              <article
-                key={event.id}
-                className="flex items-baseline gap-4 rounded-2xl bg-surface-1 px-5 py-4 shadow-glass"
-              >
-                <time
-                  className="shrink-0 text-xs font-medium"
-                  style={{ color: accent }}
-                >
-                  {formatEventWhen(event.start, event.allDay)}
-                </time>
-                <div className="min-w-0">
-                  <h3 className="truncate text-sm font-semibold text-text-primary">
-                    {event.title}
-                  </h3>
-                  {event.location ? (
-                    <p className="truncate text-xs text-text-tertiary">
-                      {event.location}
-                    </p>
-                  ) : null}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+      {showEvents ? (
+        <CampusEvents
+          events={events}
+          indoorMapId={indoorMapId}
+          token={token}
+          locale={locale}
+          accent={accent}
+        />
       ) : null}
 
       {showNews ? (
