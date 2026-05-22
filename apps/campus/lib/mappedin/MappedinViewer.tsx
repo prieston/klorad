@@ -21,7 +21,14 @@ import { FloorControls, type FloorOption } from "./FloorControls";
  * touches the server bundle and stays out of the main chunk. The
  * `import type` above is erased at build, so it costs nothing.
  */
-export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
+export function MappedinViewer({
+  venue,
+  focusSpaceId,
+}: {
+  venue: MappedinVenue;
+  /** A space id to select + fly to once the venue has loaded. */
+  focusSpaceId?: string;
+}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapViewRef = useRef<MapView | null>(null);
   const mapDataRef = useRef<MapData | null>(null);
@@ -261,6 +268,15 @@ export function MappedinViewer({ venue }: { venue: MappedinVenue }) {
     },
     [highlightSpace, syncFloors],
   );
+
+  // Deep link — focus the space named by `focusSpaceId` once the
+  // venue has loaded (a news post links straight to its room).
+  const focusDoneRef = useRef(false);
+  useEffect(() => {
+    if (status !== "ready" || focusDoneRef.current || !focusSpaceId) return;
+    focusDoneRef.current = true;
+    void handleSearchSelect(focusSpaceId);
+  }, [status, focusSpaceId, handleSearchSelect]);
 
   const handleSelectFloor = useCallback(
     async (floorId: string) => {

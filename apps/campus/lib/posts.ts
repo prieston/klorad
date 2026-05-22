@@ -18,6 +18,12 @@ export interface PostPlace {
   id: string;
   kind: PlaceKind;
   name: string;
+  /**
+   * Which map the `id` belongs to — the workbench campus scene or the
+   * campus's MappedIn venue. Absent on legacy posts → treated as
+   * "campus".
+   */
+  source?: "campus" | "mappedin";
 }
 
 export interface CampusPost {

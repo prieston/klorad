@@ -253,7 +253,11 @@ export default async function CampusHomePage({
                 ) : null}
                 {post.place ? (
                   <Link
-                    href={`${mapHref}?place=${encodeURIComponent(post.place.id)}`}
+                    href={
+                      post.place.source === "mappedin"
+                        ? `/campus/${token}/indoor?space=${encodeURIComponent(post.place.id)}`
+                        : `${mapHref}?place=${encodeURIComponent(post.place.id)}`
+                    }
                     className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent transition-opacity hover:opacity-80"
                   >
                     <PinIcon className="h-3 w-3" />
