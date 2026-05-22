@@ -4,11 +4,8 @@ import { notFound } from "next/navigation";
 import { KloradMark } from "@klorad/design-system";
 import { prisma } from "@/lib/prisma";
 import { formatPostDate, readPosts } from "@/lib/posts";
-import {
-  fetchCampusEvents,
-  formatEventWhen,
-  readEventFeeds,
-} from "@/lib/events";
+import { formatEventWhen, readEventFeeds } from "@/lib/events";
+import { fetchCampusEvents } from "@/lib/events-server";
 import NotPublishedPlaceholder from "./NotPublishedPlaceholder";
 
 type Params = Promise<{ token: string }>;
