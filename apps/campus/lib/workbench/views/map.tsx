@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import type { FloorPlan, POI, Room } from "@klorad/api";
 import { useSceneStore } from "@klorad/core";
 import type { Entity, View, ViewProps } from "@klorad/config/workbench";
-import { FloorSwitcher } from "@klorad/design-system";
+import { FloorSwitcher, SceneToolbar, type SceneTool } from "@klorad/design-system";
 import type { Map as MapboxMap } from "mapbox-gl";
 import { useMapboxPoiLayer } from "@/app/hooks/useMapboxPoiLayer";
 import { useMapboxDrawnBuildingsLayer } from "@/app/hooks/useMapboxDrawnBuildingsLayer";
@@ -193,6 +193,39 @@ function MapViewComponent({ ctx }: ViewProps) {
   // double-click / Enter. Esc always cancels. Canvas cursor flips to
   // crosshair while active for visual feedback.
   const placementMode = usePlacementStore((s) => s.active);
+
+  // Scene tools — drawing actions performed directly on the canvas.
+  // "Draw building" is always available; "Define room" needs a floor
+  // plan in focus so the new room knows which building + level it
+  // belongs to. They invoke the same placement operations the ⌘K
+  // palette does, just from a always-visible floating bar.
+  const sceneTools = useMemo<SceneTool[]>(() => {
+    const focusedPlanId =
+      allFloorPlans.find((p) => p.id === selectedId)?.id ?? null;
+    return [
+      {
+        id: "building.draw",
+        label: "Draw building",
+        icon: DrawBuildingIcon,
+        active: placementMode === "draw-building",
+        onSelect: () => void ctx.runOperation("building.draw", undefined, []),
+      },
+      {
+        id: "room.define",
+        label: "Define room",
+        icon: DefineRoomIcon,
+        active: placementMode === "draw-room",
+        disabled: !focusedPlanId,
+        hint: "Select a floor first",
+        onSelect: () => {
+          if (focusedPlanId) {
+            void ctx.runOperation("room.define", undefined, [focusedPlanId]);
+          }
+        },
+      },
+    ];
+  }, [allFloorPlans, selectedId, placementMode, ctx]);
+
   useEffect(() => {
     if (!placementMode) return;
     const map = useSceneStore.getState().mapboxMap as MapboxMap | null;
@@ -272,6 +305,10 @@ function MapViewComponent({ ctx }: ViewProps) {
   return (
     <div className="relative h-full w-full">
       <MapboxViewer />
+      <SceneToolbar
+        tools={sceneTools}
+        className="absolute left-4 top-4 z-10"
+      />
       {placementMode ? <PlacementBanner mode={placementMode} /> : null}
       {buildingFloors.length > 0 ? (
         <FloorSwitcher
@@ -325,6 +362,49 @@ function PlacementBanner({ mode }: { mode: string }) {
         </button>
       </div>
     </div>
+  );
+}
+
+function DrawBuildingIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M3 21h18" />
+      <path d="M6 21V8l7-4 7 4v13" />
+      <path d="M10 21v-5h6v5" />
+      <path d="M10 12h.01M14 12h.01" />
+    </svg>
+  );
+}
+
+function DefineRoomIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <rect x="3" y="3" width="18" height="18" rx="1.5" />
+      <path d="M3 14h7v7" />
+      <circle cx="14" cy="9" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
   );
 }
 

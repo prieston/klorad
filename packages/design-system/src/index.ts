@@ -38,6 +38,11 @@ export {
   defaultFloorLabel,
   type FloorSwitcherProps,
 } from "./components/floor-switcher";
+export {
+  SceneToolbar,
+  type SceneTool,
+  type SceneToolbarProps,
+} from "./components/scene-toolbar";
 export { Select, type SelectProps } from "./components/select";
 export { Modal, type ModalProps } from "./components/modal";
 export {
