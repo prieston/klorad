@@ -4,6 +4,11 @@ import { notFound } from "next/navigation";
 import { KloradMark } from "@klorad/design-system";
 import { prisma } from "@/lib/prisma";
 import { formatPostDate, readPosts } from "@/lib/posts";
+import {
+  fetchCampusEvents,
+  formatEventWhen,
+  readEventFeeds,
+} from "@/lib/events";
 import NotPublishedPlaceholder from "./NotPublishedPlaceholder";
 
 type Params = Promise<{ token: string }>;
@@ -97,6 +102,7 @@ export default async function CampusHomePage({
     ? branding.primaryColor
     : "#158ca3";
   const posts = readPosts(map.sceneData);
+  const events = await fetchCampusEvents(readEventFeeds(map.sceneData));
   const mapHref = `/campus/${token}/map`;
 
   return (
@@ -141,7 +147,40 @@ export default async function CampusHomePage({
         </Link>
       </section>
 
-      <section className="px-6 pb-20 md:px-10">
+      {events.length > 0 ? (
+        <section className="px-6 pb-4 md:px-10">
+          <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-text-tertiary">
+            Upcoming events
+          </h2>
+          <div className="mt-4 space-y-3">
+            {events.map((event) => (
+              <article
+                key={event.id}
+                className="flex items-baseline gap-4 rounded-2xl bg-surface-1 px-5 py-4 shadow-glass"
+              >
+                <time
+                  className="shrink-0 text-xs font-medium"
+                  style={{ color: accent }}
+                >
+                  {formatEventWhen(event.start, event.allDay)}
+                </time>
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-semibold text-text-primary">
+                    {event.title}
+                  </h3>
+                  {event.location ? (
+                    <p className="truncate text-xs text-text-tertiary">
+                      {event.location}
+                    </p>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="px-6 pb-20 pt-8 md:px-10">
         <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-text-tertiary">
           News
         </h2>

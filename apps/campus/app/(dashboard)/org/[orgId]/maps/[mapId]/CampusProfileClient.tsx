@@ -144,7 +144,7 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
         {activeTab === "settings" && (
           <SettingsTab orgId={orgId} mapId={mapId} map={map} />
         )}
-        {activeTab === "integrations" && <IntegrationsTab />}
+        {activeTab === "integrations" && <IntegrationsTab mapId={mapId} />}
       </div>
     </div>
   );
