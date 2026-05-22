@@ -10,6 +10,12 @@ import type {
   Room,
   RoomInput,
   RoomsAPI,
+  NavNode,
+  NavNodeInput,
+  NavNodesAPI,
+  NavEdge,
+  NavEdgeInput,
+  NavEdgesAPI,
 } from "../types/interfaces";
 import type { POI, POIInput, DataLayer } from "../types/campus";
 
@@ -310,6 +316,106 @@ export function createRoomsAPI(): RoomsAPI {
   };
 }
 
+export function createNavNodesAPI(): NavNodesAPI {
+  const get = () => useSceneStore.getState();
+
+  const readNodes = (): NavNode[] => {
+    const raw = get().mapboxSceneData.navNodes ?? [];
+    return raw.map((n) => ({ ...n })) as NavNode[];
+  };
+  const writeNodes = (nodes: NavNode[]) => {
+    get().setMapboxSceneData({
+      navNodes: nodes.map((n) => ({ ...n })),
+    });
+  };
+
+  return {
+    add(input: NavNodeInput): NavNode {
+      const node: NavNode = {
+        id: input.id ?? uuidv4(),
+        type: input.type,
+        position: input.position,
+        floor: input.floor,
+        buildingId: input.buildingId,
+        roomId: input.roomId,
+        accessible: input.accessible ?? input.type !== "stair",
+        name: input.name,
+      };
+      writeNodes([...readNodes(), node]);
+      return node;
+    },
+    update(id, patch) {
+      writeNodes(readNodes().map((n) => (n.id === id ? { ...n, ...patch } : n)));
+    },
+    remove(id) {
+      writeNodes(readNodes().filter((n) => n.id !== id));
+    },
+    getAll(): NavNode[] {
+      return readNodes();
+    },
+    forBuilding(buildingId: string, floor?: number): NavNode[] {
+      return readNodes().filter(
+        (n) =>
+          n.buildingId === buildingId &&
+          (floor === undefined || n.floor === floor),
+      );
+    },
+    outdoor(): NavNode[] {
+      return readNodes().filter(
+        (n) => !n.buildingId || n.type === "outdoor",
+      );
+    },
+    forRoom(roomId: string): NavNode | undefined {
+      return readNodes().find(
+        (n) => n.type === "room-anchor" && n.roomId === roomId,
+      );
+    },
+  };
+}
+
+export function createNavEdgesAPI(): NavEdgesAPI {
+  const get = () => useSceneStore.getState();
+
+  const readEdges = (): NavEdge[] => {
+    const raw = get().mapboxSceneData.navEdges ?? [];
+    return raw.map((e) => ({ ...e })) as NavEdge[];
+  };
+  const writeEdges = (edges: NavEdge[]) => {
+    get().setMapboxSceneData({
+      navEdges: edges.map((e) => ({ ...e })),
+    });
+  };
+
+  return {
+    add(input: NavEdgeInput): NavEdge {
+      const edge: NavEdge = {
+        id: input.id ?? uuidv4(),
+        fromNodeId: input.fromNodeId,
+        toNodeId: input.toNodeId,
+        cost: input.cost,
+        accessible: input.accessible,
+        name: input.name,
+      };
+      writeEdges([...readEdges(), edge]);
+      return edge;
+    },
+    update(id, patch) {
+      writeEdges(readEdges().map((e) => (e.id === id ? { ...e, ...patch } : e)));
+    },
+    remove(id) {
+      writeEdges(readEdges().filter((e) => e.id !== id));
+    },
+    getAll(): NavEdge[] {
+      return readEdges();
+    },
+    forNode(nodeId: string): NavEdge[] {
+      return readEdges().filter(
+        (e) => e.fromNodeId === nodeId || e.toNodeId === nodeId,
+      );
+    },
+  };
+}
+
 export function createLayersAPI(): LayersAPI {
   const layers = new Map<string, DataLayer>();
 
@@ -334,12 +440,14 @@ export function createLayersAPI(): LayersAPI {
   };
 }
 
-export function createCampusExtension(): Pick<CampusAPI, "poi" | "layers" | "floorPlans" | "rooms" | "setLocation"> {
+export function createCampusExtension(): Pick<CampusAPI, "poi" | "layers" | "floorPlans" | "rooms" | "navNodes" | "navEdges" | "setLocation"> {
   return {
     poi: createPOIManagerAPI(),
     layers: createLayersAPI(),
     floorPlans: createFloorPlansAPI(),
     rooms: createRoomsAPI(),
+    navNodes: createNavNodesAPI(),
+    navEdges: createNavEdgesAPI(),
     setLocation(lng, lat, options = {}) {
       const { zoom, pitch, bearing, fly = true } = options;
       const s = useSceneStore.getState();

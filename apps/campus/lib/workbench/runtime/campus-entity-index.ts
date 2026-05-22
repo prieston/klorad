@@ -4,7 +4,15 @@ import type {
   EntityIndex,
   EntityTypeId,
 } from "@klorad/config/workbench";
-import type { FloorPlan, POI, POIEvent, Room, TourStop } from "@klorad/api";
+import type {
+  FloorPlan,
+  NavEdge,
+  NavNode,
+  POI,
+  POIEvent,
+  Room,
+  TourStop,
+} from "@klorad/api";
 import type { Building } from "../entities/building";
 
 /**
@@ -28,6 +36,14 @@ export interface CampusEntitySources {
   floorPlans: FloorPlan[];
   rooms: Room[];
   tourStops: TourStop[];
+  /**
+   * Wayfinding graph waypoints — corridor, door, elevator/stair,
+   * room-anchor, outdoor. Pass `[]` if the campus hasn't started
+   * authoring its nav graph yet.
+   */
+  navNodes: NavNode[];
+  /** Edges between {@link navNodes}. */
+  navEdges: NavEdge[];
 }
 
 /**
@@ -61,6 +77,8 @@ export function createCampusEntityIndex({
   floorPlans,
   rooms,
   tourStops,
+  navNodes,
+  navEdges,
 }: CampusEntitySources): EntityIndex {
   const poiEntities: Entity<POI>[] = pois.map((poi) => ({
     id: poi.id,
@@ -130,6 +148,24 @@ export function createCampusEntityIndex({
     })),
   );
 
+  const navNodeEntities: Entity<NavNode>[] = navNodes.map((node) => ({
+    id: node.id,
+    typeId: "campus.nav-node",
+    worldId,
+    payload: node,
+    createdAt: "",
+    updatedAt: "",
+  }));
+
+  const navEdgeEntities: Entity<NavEdge>[] = navEdges.map((edge) => ({
+    id: edge.id,
+    typeId: "campus.nav-edge",
+    worldId,
+    payload: edge,
+    createdAt: "",
+    updatedAt: "",
+  }));
+
   const all: Entity[] = [
     ...poiEntities,
     ...buildingEntities,
@@ -137,6 +173,8 @@ export function createCampusEntityIndex({
     ...roomEntities,
     ...tourStopEntities,
     ...eventEntities,
+    ...navNodeEntities,
+    ...navEdgeEntities,
   ];
 
   const byIdMap = new Map<EntityId, Entity>(all.map((e) => [e.id, e]));
@@ -148,6 +186,8 @@ export function createCampusEntityIndex({
     ["campus.room", roomEntities],
     ["campus.tour-stop", tourStopEntities],
     ["campus.event", eventEntities],
+    ["campus.nav-node", navNodeEntities],
+    ["campus.nav-edge", navEdgeEntities],
   ]);
 
   return {
