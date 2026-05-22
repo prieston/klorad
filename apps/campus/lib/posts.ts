@@ -6,12 +6,26 @@
  * needs no schema migration. If news grows (pagination, scheduling,
  * per-post media) this graduates to its own Prisma model.
  */
+export type PlaceKind = "building" | "floor" | "room";
+
+/**
+ * A campus place a post is connected to. The `name` is denormalised
+ * so the public page can show it without resolving the scene graph.
+ */
+export interface PostPlace {
+  id: string;
+  kind: PlaceKind;
+  name: string;
+}
+
 export interface CampusPost {
   id: string;
   title: string;
   body: string;
   /** ISO timestamp. */
   publishedAt: string;
+  /** Optional building / floor / room this post is about. */
+  place?: PostPlace;
 }
 
 /** Read a campus's news posts from its `sceneData`, newest first. */

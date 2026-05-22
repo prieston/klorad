@@ -20,6 +20,20 @@ function isValidHex(value: string | undefined): value is string {
   return !!value && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
 }
 
+/** Location-pin glyph for a post's linked place. */
+function PinIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path d="M12 2C8 2 5 5 5 9c0 5.5 7 13 7 13s7-7.5 7-13c0-4-3-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" />
+    </svg>
+  );
+}
+
 /** Dynamic metadata so shared URLs preview nicely in Slack / WhatsApp / LinkedIn. */
 export async function generateMetadata({
   params,
@@ -84,6 +98,7 @@ export default async function CampusHomePage({
         title: true,
         description: true,
         isPublished: true,
+        thumbnail: true,
         sceneData: true,
       },
     })
@@ -126,22 +141,37 @@ export default async function CampusHomePage({
         </Link>
       </header>
 
-      <section className="px-6 py-12 md:px-10 md:py-20">
-        <h1 className="text-3xl font-semibold tracking-tight text-text-primary md:text-4xl">
-          {displayName}
-        </h1>
-        {map.description ? (
-          <p className="mt-3 max-w-2xl text-base leading-relaxed text-text-secondary">
-            {map.description}
-          </p>
-        ) : null}
-        <Link
-          href={mapHref}
-          className="mt-7 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
-          style={{ backgroundColor: accent }}
-        >
-          Explore the campus map →
-        </Link>
+      <section
+        className="relative flex min-h-[56vh] items-end overflow-hidden px-6 py-12 md:px-10 md:py-16"
+        style={
+          map.thumbnail
+            ? {
+                backgroundImage: `linear-gradient(to top, rgba(11,17,22,0.9), rgba(11,17,22,0.35)), url("${map.thumbnail}")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
+            : {
+                background: `linear-gradient(155deg, ${accent} 0%, #0b1116 100%)`,
+              }
+        }
+      >
+        <div className="max-w-3xl">
+          <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">
+            {displayName}
+          </h1>
+          {map.description ? (
+            <p className="mt-3 max-w-2xl text-base leading-relaxed text-white/85">
+              {map.description}
+            </p>
+          ) : null}
+          <Link
+            href={mapHref}
+            className="mt-7 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02]"
+            style={{ color: accent }}
+          >
+            Explore the campus map →
+          </Link>
+        </div>
       </section>
 
       {events.length > 0 ? (
@@ -198,6 +228,15 @@ export default async function CampusHomePage({
                   <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-text-secondary">
                     {post.body}
                   </p>
+                ) : null}
+                {post.place ? (
+                  <Link
+                    href={mapHref}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent transition-opacity hover:opacity-80"
+                  >
+                    <PinIcon className="h-3 w-3" />
+                    {post.place.name}
+                  </Link>
                 ) : null}
               </article>
             ))}

@@ -1,15 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import useSWR, { mutate } from "swr";
 import { toast } from "react-toastify";
-import { Button, Field, Input, Panel, Textarea } from "@klorad/design-system";
-import { type CampusPost, formatPostDate, readPosts } from "@/lib/posts";
+import {
+  Button,
+  Field,
+  Input,
+  Panel,
+  Select,
+  Textarea,
+} from "@klorad/design-system";
+import {
+  type CampusPost,
+  type PostPlace,
+  formatPostDate,
+  readPosts,
+} from "@/lib/posts";
+import { readCampusPlaces } from "@/lib/places";
 
 interface Props {
   mapId: string;
 }
+
+const GROUP_LABEL: Record<"building" | "floor" | "room", string> = {
+  building: "Buildings",
+  floor: "Floors",
+  room: "Rooms",
+};
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -30,22 +49,29 @@ export default function NewsTab({ mapId }: Props) {
     fetcher,
   );
   const posts = readPosts(serverMap?.sceneData);
+  const places = useMemo(
+    () => readCampusPlaces(serverMap?.sceneData),
+    [serverMap],
+  );
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [placeId, setPlaceId] = useState("");
   const [saving, setSaving] = useState(false);
 
   const resetForm = () => {
     setEditingId(null);
     setTitle("");
     setBody("");
+    setPlaceId("");
   };
 
   const startEdit = (post: CampusPost) => {
     setEditingId(post.id);
     setTitle(post.title);
     setBody(post.body);
+    setPlaceId(post.place?.id ?? "");
   };
 
   const persist = async (nextPosts: CampusPost[]) => {
@@ -68,10 +94,14 @@ export default function NewsTab({ mapId }: Props) {
     setSaving(true);
     try {
       const current = readPosts(serverMap?.sceneData);
+      const linked = places.find((p) => p.id === placeId);
+      const place: PostPlace | undefined = linked
+        ? { id: linked.id, kind: linked.kind, name: linked.name }
+        : undefined;
       const next: CampusPost[] = editingId
         ? current.map((p) =>
             p.id === editingId
-              ? { ...p, title: trimmedTitle, body: body.trim() }
+              ? { ...p, title: trimmedTitle, body: body.trim(), place }
               : p,
           )
         : [
@@ -80,6 +110,7 @@ export default function NewsTab({ mapId }: Props) {
               title: trimmedTitle,
               body: body.trim(),
               publishedAt: new Date().toISOString(),
+              place,
             },
             ...current,
           ];
@@ -124,6 +155,30 @@ export default function NewsTab({ mapId }: Props) {
               onChange={(e) => setBody(e.target.value)}
               placeholder="What's happening on campus…"
             />
+          </Field>
+          <Field
+            label="Linked place (optional)"
+            hint="Connect this post to a building, floor or room — it shows as a location on the public page."
+          >
+            <Select
+              value={placeId}
+              onChange={(e) => setPlaceId(e.target.value)}
+            >
+              <option value="">— No place —</option>
+              {(["building", "floor", "room"] as const).map((kind) => {
+                const group = places.filter((p) => p.kind === kind);
+                if (group.length === 0) return null;
+                return (
+                  <optgroup key={kind} label={GROUP_LABEL[kind]}>
+                    {group.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
+            </Select>
           </Field>
           <div className="flex gap-2">
             <Button
@@ -170,6 +225,11 @@ export default function NewsTab({ mapId }: Props) {
                     <p className="mt-0.5 line-clamp-2 text-xs text-text-secondary">
                       {post.body}
                     </p>
+                  ) : null}
+                  {post.place ? (
+                    <div className="mt-1 text-xs font-medium text-accent">
+                      {post.place.name}
+                    </div>
                   ) : null}
                 </div>
                 <Button
