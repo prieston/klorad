@@ -55,11 +55,11 @@ function DockColumn({
   return (
     <aside
       className={cn(
-        // No width transition: the centre region holds a WebGL map
-        // whose ResizeObserver fires every frame of an animated
-        // collapse, reallocating the drawing buffer ~18× and making
-        // the scene flash. Collapsing instantly = one clean resize.
-        "flex h-full flex-col bg-surface-1",
+        // The collapse animates. The centre map stays flash-free
+        // because its canvas CSS-stretches to fill while the GL
+        // buffer resize is debounced to fire once when the animation
+        // settles (see useMapboxInitialization.ts + global.css).
+        "flex h-full flex-col bg-surface-1 transition-[width] duration-300 ease-out",
         side === "left"
           ? "border-r border-line-soft"
           : "border-l border-line-soft",
@@ -99,9 +99,9 @@ function DockBottom({ children }: { children: ReactNode }) {
   return (
     <section
       className={cn(
-        // No height transition — see DockColumn: an animated collapse
-        // resizes the centre map every frame and flashes the scene.
-        "flex shrink-0 flex-col border-t border-line-soft bg-surface-1",
+        // Animates — see DockColumn: the centre map's debounced
+        // resize + CSS-stretched canvas keep the scene flash-free.
+        "flex shrink-0 flex-col border-t border-line-soft bg-surface-1 transition-[height] duration-300 ease-out",
         open ? "h-64" : "h-8",
       )}
     >

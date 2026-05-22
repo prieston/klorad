@@ -30,6 +30,21 @@ body {
   height: 100%;
 }
 
+/*
+ * Make the GL canvas always fill its container via CSS. Mapbox sizes
+ * the canvas in fixed pixels and only updates it on `map.resize()` —
+ * which clears the drawing buffer. By stretching the canvas with CSS,
+ * a container resize (an animated panel collapse, a window drag)
+ * scales the existing frame smoothly instead of leaving a gap, so
+ * `resize()` can be debounced to fire once when motion settles
+ * without the scene ever flashing. See useMapboxInitialization.ts.
+ */
+.mapboxgl-canvas-container,
+.mapboxgl-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 .mapboxgl-ctrl-logo {
   display: block;
 }

@@ -96,15 +96,29 @@ export function useMapboxInitialization(
     const m = mapRef.current;
     const el = containerRef.current;
     if (!m || !el) return;
+    // `map.resize()` resets the canvas drawing buffer, which clears it
+    // for a frame. Calling it on every ResizeObserver tick during an
+    // animated container change (a panel collapse, a window drag)
+    // strobes the scene. The canvas is CSS-stretched to fill (see
+    // global.css `.mapboxgl-canvas`), so the existing frame scales
+    // smoothly meanwhile — which lets us debounce the real resize to
+    // fire just once, when motion settles.
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
     const ro = new ResizeObserver(() => {
-      try {
-        m.resize();
-      } catch {
-        /* ignore */
-      }
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => {
+        try {
+          m.resize();
+        } catch {
+          /* ignore */
+        }
+      }, 160);
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      if (settleTimer) clearTimeout(settleTimer);
+    };
   }, [map]);
 
   useEffect(() => {
