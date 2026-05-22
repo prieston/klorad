@@ -76,10 +76,11 @@ export function SearchPill({
 }
 
 /**
- * The leading selection marker shared by every workflow list row —
- * buildings, floors' rooms, POIs. A small dot: accent when the row
- * is selected, faint otherwise, brightening on row hover. Keeping it
- * in one place is what makes the rows read as one family.
+ * The leading marker shared by every workflow list row — buildings,
+ * floors' rooms, POIs. A small grey dot that brightens on row hover.
+ * Hidden on the selected row (the accent fill already marks it), but
+ * the element is kept as an invisible spacer so row text stays
+ * aligned with its neighbours. One place keeps the lists a family.
  */
 export function RowDot({ selected }: { selected?: boolean }) {
   return (
@@ -87,7 +88,7 @@ export function RowDot({ selected }: { selected?: boolean }) {
       className={cn(
         "inline-block h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
         selected
-          ? "bg-accent"
+          ? "bg-transparent"
           : "bg-text-tertiary/40 group-hover:bg-text-tertiary/70",
       )}
     />

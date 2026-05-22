@@ -149,10 +149,11 @@ type WorkflowListBase = {
 export type WorkflowListItemProps = ComponentProps<"div"> & WorkflowListBase;
 
 /**
- * A compact list row — hairline border at rest, a soft accent wash +
- * accent border on hover, `border-accent bg-accent-soft` on select.
- * Use when the row has multiple action buttons inside (e.g. a
- * tap-to-select button plus a chevron drill button).
+ * A compact list row — light grey border at rest, a subtle accent
+ * border lift on hover, and a full accent treatment (accent border +
+ * accent-soft fill) on select. Use when the row has multiple action
+ * buttons inside (e.g. a tap-to-select button plus a chevron drill
+ * button).
  */
 export function WorkflowListItem({
   selected,
@@ -166,7 +167,7 @@ export function WorkflowListItem({
         "group flex items-center gap-2.5 rounded-xl border px-3 py-2 transition-colors",
         selected
           ? "border-accent bg-accent-soft"
-          : "border-line-soft bg-transparent hover:border-accent/60 hover:bg-accent-soft/40",
+          : "border-line-soft bg-transparent hover:border-accent/40",
         className,
       )}
       {...props}
@@ -198,7 +199,7 @@ export function WorkflowListButton({
         "group flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors",
         selected
           ? "border-accent bg-accent-soft text-accent"
-          : "border-line-soft bg-transparent text-text-secondary hover:border-accent/60 hover:bg-accent-soft/40 hover:text-text-primary",
+          : "border-line-soft bg-transparent text-text-secondary hover:border-accent/40 hover:text-text-primary",
         className,
       )}
       {...props}
