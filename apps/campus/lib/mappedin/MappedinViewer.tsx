@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { Spinner } from "@klorad/design-system";
 import type { MapData, MapView, Space } from "@mappedin/mappedin-js";
 import type { MappedinVenue } from "./config";
@@ -21,14 +28,25 @@ import { FloorControls, type FloorOption } from "./FloorControls";
  * touches the server bundle and stays out of the main chunk. The
  * `import type` above is erased at build, so it costs nothing.
  */
-export function MappedinViewer({
-  venue,
-  focusSpaceId,
-}: {
+/**
+ * Imperative handle exposed via `ref` — the parent can take a
+ * screenshot of the current view to use as the campus thumbnail.
+ */
+export interface MappedinViewerHandle {
+  /** Take a screenshot of the current scene; returns a PNG data URL. */
+  capture(): Promise<string | null>;
+}
+
+interface MappedinViewerProps {
   venue: MappedinVenue;
   /** A space id to select + fly to once the venue has loaded. */
   focusSpaceId?: string;
-}) {
+}
+
+export const MappedinViewer = forwardRef<
+  MappedinViewerHandle,
+  MappedinViewerProps
+>(function MappedinViewer({ venue, focusSpaceId }, ref) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapViewRef = useRef<MapView | null>(null);
   const mapDataRef = useRef<MapData | null>(null);
@@ -306,6 +324,34 @@ export function MappedinViewer({
     [syncFloors],
   );
 
+  // Imperative handle — capture the current view as a PNG data URL.
+  // Used by the dashboard's Indoor tab to set the campus thumbnail.
+  useImperativeHandle(
+    ref,
+    () => ({
+      async capture(): Promise<string | null> {
+        const mv = mapViewRef.current as
+          | (MapView & {
+              takeScreenshot?: (opts?: {
+                withOutdoorContext?: boolean;
+                withLabels?: boolean;
+              }) => Promise<string>;
+            })
+          | null;
+        if (!mv?.takeScreenshot) return null;
+        try {
+          return await mv.takeScreenshot({
+            withOutdoorContext: true,
+            withLabels: true,
+          });
+        } catch {
+          return null;
+        }
+      },
+    }),
+    [],
+  );
+
   return (
     <div className="relative h-full w-full bg-bg">
       <div ref={containerRef} className="h-full w-full" />
@@ -379,4 +425,4 @@ export function MappedinViewer({
       ) : null}
     </div>
   );
-}
+});
