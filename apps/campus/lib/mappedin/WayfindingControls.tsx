@@ -16,8 +16,11 @@ export interface WayfindingControlsProps {
   routing: boolean;
   /** Inline error (no route, routing failed). */
   error: string | null;
-  /** Compute + draw a route between two spaces. */
-  onRoute: (fromId: string, toId: string) => void;
+  /**
+   * Compute + draw a route between two spaces. `accessible` requests
+   * MappedIn's step-free route — stairs avoided where alternatives exist.
+   */
+  onRoute: (fromId: string, toId: string, accessible: boolean) => void;
   /** Clear the drawn route. */
   onClear: () => void;
 }
@@ -38,6 +41,7 @@ export function WayfindingControls({
 }: WayfindingControlsProps) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [accessible, setAccessible] = useState(false);
   const canRoute = from !== "" && to !== "" && from !== to && !routing;
 
   return (
@@ -70,6 +74,16 @@ export function WayfindingControls({
         </Select>
       </label>
 
+      <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-text-secondary">
+        <input
+          type="checkbox"
+          checked={accessible}
+          onChange={(e) => setAccessible(e.target.checked)}
+          className="h-4 w-4 rounded accent-accent"
+        />
+        Step-free route
+      </label>
+
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
 
       <div className="flex justify-end gap-2">
@@ -79,7 +93,7 @@ export function WayfindingControls({
         <Button
           size="sm"
           disabled={!canRoute}
-          onClick={() => onRoute(from, to)}
+          onClick={() => onRoute(from, to, accessible)}
         >
           {routing ? "Routing…" : "Get directions"}
         </Button>

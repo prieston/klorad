@@ -236,30 +236,41 @@ export const MappedinViewer = forwardRef<
     clearSelection,
   ]);
 
-  const handleRoute = useCallback(async (fromId: string, toId: string) => {
-    const mapData = mapDataRef.current;
-    const mapView = mapViewRef.current;
-    if (!mapData || !mapView) return;
-    const from = spacesRef.current.get(fromId);
-    const to = spacesRef.current.get(toId);
-    if (!from || !to) return;
+  const handleRoute = useCallback(
+    async (fromId: string, toId: string, accessible: boolean) => {
+      const mapData = mapDataRef.current;
+      const mapView = mapViewRef.current;
+      if (!mapData || !mapView) return;
+      const from = spacesRef.current.get(fromId);
+      const to = spacesRef.current.get(toId);
+      if (!from || !to) return;
 
-    setRouting(true);
-    setRouteError(null);
-    try {
-      mapView.Navigation.clear();
-      const directions = await mapData.getDirections(from, to);
-      if (!directions) {
-        setRouteError("No route between those spaces.");
-        return;
+      setRouting(true);
+      setRouteError(null);
+      try {
+        mapView.Navigation.clear();
+        const directions = await mapData.getDirections(
+          from,
+          to,
+          accessible ? { accessible: true } : undefined,
+        );
+        if (!directions) {
+          setRouteError(
+            accessible
+              ? "No step-free route between those spaces."
+              : "No route between those spaces.",
+          );
+          return;
+        }
+        await mapView.Navigation.draw(directions);
+      } catch (e) {
+        setRouteError(e instanceof Error ? e.message : "Routing failed");
+      } finally {
+        setRouting(false);
       }
-      await mapView.Navigation.draw(directions);
-    } catch (e) {
-      setRouteError(e instanceof Error ? e.message : "Routing failed");
-    } finally {
-      setRouting(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const handleClear = useCallback(() => {
     mapViewRef.current?.Navigation.clear();
@@ -367,11 +378,18 @@ export const MappedinViewer = forwardRef<
 
       {status === "error" ? (
         <div className="absolute inset-0 flex items-center justify-center p-8">
-          <div className="max-w-sm rounded-2xl border border-line-soft bg-surface-1 p-5 text-center shadow-glass">
+          <div className="max-w-sm rounded-2xl border border-solid border-line-soft bg-surface-1 p-5 text-center shadow-glass">
             <p className="text-sm font-medium text-text-primary">
-              Indoor map unavailable
+              We couldn’t load the campus map
             </p>
-            <p className="mt-1 text-xs text-text-tertiary">{error}</p>
+            <p className="mt-1 text-xs text-text-tertiary">
+              Please refresh the page or try again later.
+            </p>
+            {error ? (
+              <p className="mt-2 text-[0.65rem] text-text-tertiary opacity-60">
+                {error}
+              </p>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -387,7 +405,9 @@ export const MappedinViewer = forwardRef<
               spaces={spaces}
               routing={routing}
               error={routeError}
-              onRoute={(from, to) => void handleRoute(from, to)}
+              onRoute={(from, to, accessible) =>
+                void handleRoute(from, to, accessible)
+              }
               onClear={handleClear}
             />
           ) : null}
