@@ -24,7 +24,7 @@ export function HomeLangToggle({
           href={`/campus/${token}?lang=${l}`}
           aria-current={l === current ? "true" : undefined}
           className={cn(
-            "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+            "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
             l === current
               ? "bg-accent text-accent-contrast"
               : "text-text-secondary hover:text-text-primary",

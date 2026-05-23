@@ -4,9 +4,10 @@ import { notFound } from "next/navigation";
 import { KloradMark } from "@klorad/design-system";
 import { prisma } from "@/lib/prisma";
 import { formatPostDate, readPosts } from "@/lib/posts";
-import { formatEventWhen, readEventFeeds } from "@/lib/events";
+import { readEventFeeds } from "@/lib/events";
 import { fetchCampusEvents } from "@/lib/events-server";
 import { readHomePage } from "@/lib/home-page";
+import { CampusEvents } from "./CampusEvents";
 import { detectLocale, pickText, translate } from "@/app/lib/i18n-core";
 import NotPublishedPlaceholder from "./NotPublishedPlaceholder";
 import { HomeLangToggle } from "./HomeLangToggle";
@@ -134,30 +135,32 @@ export default async function CampusHomePage({
     pickText(home.ctaLabel, locale) || translate(locale, "home.exploreMap");
   const showEvents = home.showEvents !== false;
   const showNews = home.showNews !== false;
+  const indoorMapId = (map.sceneData as { indoorMapId?: string } | null)
+    ?.indoorMapId;
 
   return (
     <main lang={locale} className="min-h-screen bg-bg">
-      <header className="flex items-center justify-between gap-4 px-6 py-4 md:px-10">
+      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-solid border-line-soft bg-bg/85 px-6 py-3 backdrop-blur md:px-10 md:py-4">
         {branding.logo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={branding.logo}
             alt={displayName}
-            className="h-8 max-w-[200px] object-contain"
+            className="h-7 max-w-[160px] object-contain sm:h-8 sm:max-w-[200px]"
           />
         ) : (
-          <span className="text-lg font-semibold text-text-primary">
+          <span className="truncate text-base font-semibold text-text-primary sm:text-lg">
             {displayName}
           </span>
         )}
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2">
           <HomeLangToggle token={token} current={locale} />
           <Link
             href={mapHref}
-            className="text-sm font-medium transition-opacity hover:opacity-80"
-            style={{ color: accent }}
+            className="rounded-full px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: accent }}
           >
-            {translate(locale, "home.openMap")} →
+            {translate(locale, "home.openMap")}
           </Link>
         </div>
       </header>
@@ -177,7 +180,7 @@ export default async function CampusHomePage({
         }
       >
         <div className="max-w-3xl">
-          <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">
+          <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-5xl">
             {headline}
           </h1>
           {tagline ? (
@@ -187,7 +190,7 @@ export default async function CampusHomePage({
           ) : null}
           <Link
             href={mapHref}
-            className="mt-7 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02]"
+            className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-base font-semibold shadow-sm transition-transform hover:scale-[1.02] sm:w-auto"
             style={{ color: accent }}
           >
             {ctaLabel} →
@@ -195,37 +198,14 @@ export default async function CampusHomePage({
         </div>
       </section>
 
-      {showEvents && events.length > 0 ? (
-        <section className="px-6 pb-4 md:px-10">
-          <h2 className="text-xs font-medium uppercase tracking-[0.16em] text-text-tertiary">
-            {translate(locale, "home.events")}
-          </h2>
-          <div className="mt-4 space-y-3">
-            {events.map((event) => (
-              <article
-                key={event.id}
-                className="flex items-baseline gap-4 rounded-2xl bg-surface-1 px-5 py-4 shadow-glass"
-              >
-                <time
-                  className="shrink-0 text-xs font-medium"
-                  style={{ color: accent }}
-                >
-                  {formatEventWhen(event.start, event.allDay)}
-                </time>
-                <div className="min-w-0">
-                  <h3 className="truncate text-sm font-semibold text-text-primary">
-                    {event.title}
-                  </h3>
-                  {event.location ? (
-                    <p className="truncate text-xs text-text-tertiary">
-                      {event.location}
-                    </p>
-                  ) : null}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+      {showEvents ? (
+        <CampusEvents
+          events={events}
+          indoorMapId={indoorMapId}
+          token={token}
+          locale={locale}
+          accent={accent}
+        />
       ) : null}
 
       {showNews ? (
@@ -255,7 +235,7 @@ export default async function CampusHomePage({
                   <Link
                     href={
                       post.place.source === "mappedin"
-                        ? `/campus/${token}/indoor?space=${encodeURIComponent(post.place.id)}`
+                        ? `${mapHref}?space=${encodeURIComponent(post.place.id)}`
                         : `${mapHref}?place=${encodeURIComponent(post.place.id)}`
                     }
                     className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent transition-opacity hover:opacity-80"
