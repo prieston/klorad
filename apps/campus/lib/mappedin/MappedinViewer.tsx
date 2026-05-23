@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import Link from "next/link";
 import { Spinner } from "@klorad/design-system";
 import type { MapData, MapView, Space } from "@mappedin/mappedin-js";
 import type { MappedinVenue } from "./config";
@@ -44,12 +45,20 @@ interface MappedinViewerProps {
   focusSpaceId?: string;
   /** UI locale — defaults to English. */
   locale?: Locale;
+  /**
+   * If set, the error state renders a "Back" link to this URL so the
+   * visitor isn't stranded — e.g. the campus home for the public map.
+   */
+  homeHref?: string;
 }
 
 export const MappedinViewer = forwardRef<
   MappedinViewerHandle,
   MappedinViewerProps
->(function MappedinViewer({ venue, focusSpaceId, locale = "en" }, ref) {
+>(function MappedinViewer(
+  { venue, focusSpaceId, locale = "en", homeHref },
+  ref,
+) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapViewRef = useRef<MapView | null>(null);
@@ -393,6 +402,14 @@ export const MappedinViewer = forwardRef<
               <p className="mt-2 text-[0.65rem] text-text-tertiary opacity-60">
                 {error}
               </p>
+            ) : null}
+            {homeHref ? (
+              <Link
+                href={homeHref}
+                className="mt-4 inline-block text-xs font-medium text-accent transition-opacity hover:opacity-80"
+              >
+                ← {t("mappedin.errorBack")}
+              </Link>
             ) : null}
           </div>
         </div>

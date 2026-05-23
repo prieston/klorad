@@ -89,6 +89,14 @@ const MESSAGES = {
       "No step-free route between those spaces.",
     "mappedin.clearSelection": "Clear selection",
     "mappedin.building": "Building",
+    "mappedin.errorBack": "Back to home",
+
+    // Unpublished / not-found states
+    "published.body":
+      "This campus isn’t published yet. The author is still building it — check back soon.",
+    "notFound.title": "Campus not found",
+    "notFound.body":
+      "The link you followed may be wrong, or this campus no longer exists.",
   },
   el: {
     // Generic
@@ -169,6 +177,14 @@ const MESSAGES = {
       "Δεν υπάρχει προσβάσιμη διαδρομή ανάμεσα στους χώρους.",
     "mappedin.clearSelection": "Καθαρισμός επιλογής",
     "mappedin.building": "Κτίριο",
+    "mappedin.errorBack": "Πίσω στην αρχική",
+
+    // Unpublished / not-found states
+    "published.body":
+      "Η σελίδα της πανεπιστημιούπολης δεν έχει δημοσιευτεί ακόμη — επιστρέψτε σύντομα.",
+    "notFound.title": "Δεν βρέθηκε η πανεπιστημιούπολη",
+    "notFound.body":
+      "Ο σύνδεσμος μπορεί να είναι λανθασμένος ή η πανεπιστημιούπολη να μην υπάρχει πια.",
   },
 } as const;
 

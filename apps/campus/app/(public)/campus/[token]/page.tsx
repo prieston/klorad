@@ -113,7 +113,8 @@ export default async function CampusHomePage({
     .catch(() => null);
 
   if (!map) notFound();
-  if (!map.isPublished) return <NotPublishedPlaceholder name={map.title} />;
+  if (!map.isPublished)
+    return <NotPublishedPlaceholder name={map.title} locale={locale} />;
 
   const scene = (map.sceneData ?? {}) as { branding?: CampusBranding };
   const branding = scene.branding ?? {};

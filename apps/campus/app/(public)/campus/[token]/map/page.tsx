@@ -42,7 +42,8 @@ export default async function CampusMapPage({
     .catch(() => null);
 
   if (!map) notFound();
-  if (!map.isPublished) return <NotPublishedPlaceholder name={map.title} />;
+  if (!map.isPublished)
+    return <NotPublishedPlaceholder name={map.title} locale={locale} />;
 
   const indoorMapId = (map.sceneData as { indoorMapId?: string } | null)
     ?.indoorMapId;
@@ -54,6 +55,7 @@ export default async function CampusMapPage({
           venue={venueForIndoorMap(indoorMapId)}
           focusSpaceId={focusSpaceId}
           locale={locale}
+          homeHref={`/campus/${token}`}
         />
       </main>
     );
