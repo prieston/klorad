@@ -11,6 +11,7 @@ import {
 import { Spinner } from "@klorad/design-system";
 import type { MapData, MapView, Space } from "@mappedin/mappedin-js";
 import type { MappedinVenue } from "./config";
+import { translate, type Locale } from "@/app/lib/i18n-core";
 import { WayfindingControls, type SpaceOption } from "./WayfindingControls";
 import { SearchControls } from "./SearchControls";
 import { FloorControls, type FloorOption } from "./FloorControls";
@@ -41,12 +42,15 @@ interface MappedinViewerProps {
   venue: MappedinVenue;
   /** A space id to select + fly to once the venue has loaded. */
   focusSpaceId?: string;
+  /** UI locale — defaults to English. */
+  locale?: Locale;
 }
 
 export const MappedinViewer = forwardRef<
   MappedinViewerHandle,
   MappedinViewerProps
->(function MappedinViewer({ venue, focusSpaceId }, ref) {
+>(function MappedinViewer({ venue, focusSpaceId, locale = "en" }, ref) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapViewRef = useRef<MapView | null>(null);
   const mapDataRef = useRef<MapData | null>(null);
@@ -257,8 +261,8 @@ export const MappedinViewer = forwardRef<
         if (!directions) {
           setRouteError(
             accessible
-              ? "No step-free route between those spaces."
-              : "No route between those spaces.",
+              ? t("mappedin.wayfindNoStepFree")
+              : t("mappedin.wayfindNoRoute"),
           );
           return;
         }
@@ -371,7 +375,7 @@ export const MappedinViewer = forwardRef<
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <span className="flex items-center gap-3 text-sm text-text-secondary">
             <Spinner />
-            Loading indoor map…
+            {t("mappedin.loading")}
           </span>
         </div>
       ) : null}
@@ -380,10 +384,10 @@ export const MappedinViewer = forwardRef<
         <div className="absolute inset-0 flex items-center justify-center p-8">
           <div className="max-w-sm rounded-2xl border border-solid border-line-soft bg-surface-1 p-5 text-center shadow-glass">
             <p className="text-sm font-medium text-text-primary">
-              We couldn’t load the campus map
+              {t("mappedin.errorTitle")}
             </p>
             <p className="mt-1 text-xs text-text-tertiary">
-              Please refresh the page or try again later.
+              {t("mappedin.errorBody")}
             </p>
             {error ? (
               <p className="mt-2 text-[0.65rem] text-text-tertiary opacity-60">
@@ -399,6 +403,7 @@ export const MappedinViewer = forwardRef<
           <SearchControls
             spaces={spaces}
             onSelect={(id) => void handleSearchSelect(id)}
+            locale={locale}
           />
           {spaces.length >= 2 ? (
             <WayfindingControls
@@ -409,6 +414,7 @@ export const MappedinViewer = forwardRef<
                 void handleRoute(from, to, accessible)
               }
               onClear={handleClear}
+              locale={locale}
             />
           ) : null}
         </div>
@@ -422,6 +428,7 @@ export const MappedinViewer = forwardRef<
           currentBuildingId={currentBuildingId}
           onSelectFloor={(id) => void handleSelectFloor(id)}
           onSelectBuilding={(id) => void handleSelectBuilding(id)}
+          locale={locale}
           // Top-right — clear of MappedIn's own zoom / nav controls,
           // which sit centred on the right edge.
           className="absolute right-4 top-4 z-10"
@@ -436,7 +443,7 @@ export const MappedinViewer = forwardRef<
           <button
             type="button"
             onClick={clearSelection}
-            aria-label="Clear selection"
+            aria-label={t("mappedin.clearSelection")}
             className="text-sm leading-none text-text-tertiary transition-colors hover:text-text-primary"
           >
             ✕

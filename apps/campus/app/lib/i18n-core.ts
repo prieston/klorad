@@ -68,6 +68,27 @@ const MESSAGES = {
     "home.news": "News",
     "home.noNews": "No news yet — check back soon.",
     "home.poweredBy": "Powered by Klorad",
+
+    // MappedIn indoor / campus viewer
+    "mappedin.loading": "Loading the campus map…",
+    "mappedin.errorTitle": "We couldn’t load the campus map",
+    "mappedin.errorBody": "Please refresh the page or try again later.",
+    "mappedin.searchPlaceholder": "Find a room or space…",
+    "mappedin.searchClear": "Clear search",
+    "mappedin.searchNoMatch": "Nothing matches “{query}”.",
+    "mappedin.wayfindTitle": "Indoor directions",
+    "mappedin.wayfindFrom": "From",
+    "mappedin.wayfindTo": "To",
+    "mappedin.wayfindPick": "Choose a space…",
+    "mappedin.wayfindStepFree": "Step-free route",
+    "mappedin.wayfindGo": "Get directions",
+    "mappedin.wayfindRouting": "Routing…",
+    "mappedin.wayfindClear": "Clear",
+    "mappedin.wayfindNoRoute": "No route between those spaces.",
+    "mappedin.wayfindNoStepFree":
+      "No step-free route between those spaces.",
+    "mappedin.clearSelection": "Clear selection",
+    "mappedin.building": "Building",
   },
   el: {
     // Generic
@@ -126,6 +147,28 @@ const MESSAGES = {
     "home.news": "Νέα",
     "home.noNews": "Δεν υπάρχουν νέα ακόμη — ελάτε σύντομα ξανά.",
     "home.poweredBy": "Με την υποστήριξη του Klorad",
+
+    // MappedIn indoor / campus viewer
+    "mappedin.loading": "Φόρτωση του χάρτη…",
+    "mappedin.errorTitle": "Δεν φορτώθηκε ο χάρτης",
+    "mappedin.errorBody":
+      "Παρακαλώ ανανεώστε τη σελίδα ή δοκιμάστε ξανά αργότερα.",
+    "mappedin.searchPlaceholder": "Βρείτε αίθουσα ή χώρο…",
+    "mappedin.searchClear": "Καθαρισμός αναζήτησης",
+    "mappedin.searchNoMatch": "Δεν βρέθηκε «{query}».",
+    "mappedin.wayfindTitle": "Οδηγίες εσωτερικά",
+    "mappedin.wayfindFrom": "Από",
+    "mappedin.wayfindTo": "Προς",
+    "mappedin.wayfindPick": "Επιλέξτε χώρο…",
+    "mappedin.wayfindStepFree": "Προσβάσιμη διαδρομή",
+    "mappedin.wayfindGo": "Οδηγίες",
+    "mappedin.wayfindRouting": "Υπολογισμός…",
+    "mappedin.wayfindClear": "Καθαρισμός",
+    "mappedin.wayfindNoRoute": "Δεν υπάρχει διαδρομή ανάμεσα στους χώρους.",
+    "mappedin.wayfindNoStepFree":
+      "Δεν υπάρχει προσβάσιμη διαδρομή ανάμεσα στους χώρους.",
+    "mappedin.clearSelection": "Καθαρισμός επιλογής",
+    "mappedin.building": "Κτίριο",
   },
 } as const;
 

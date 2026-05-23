@@ -1,6 +1,7 @@
 "use client";
 
 import { Select, cn } from "@klorad/design-system";
+import { translate, type Locale } from "@/app/lib/i18n-core";
 
 /** A switchable level — a floor or a building. Just `{ id, name }`. */
 export interface FloorOption {
@@ -18,6 +19,8 @@ export interface FloorControlsProps {
   onSelectFloor: (floorId: string) => void;
   onSelectBuilding: (buildingId: string) => void;
   className?: string;
+  /** UI locale — defaults to English. */
+  locale?: Locale;
 }
 
 /**
@@ -33,6 +36,7 @@ export function FloorControls({
   onSelectFloor,
   onSelectBuilding,
   className,
+  locale = "en",
 }: FloorControlsProps) {
   const multiBuilding = buildings.length > 1;
   // Nothing to switch — don't render an empty control.
@@ -49,7 +53,7 @@ export function FloorControls({
         <Select
           value={currentBuildingId}
           onChange={(e) => onSelectBuilding(e.target.value)}
-          aria-label="Building"
+          aria-label={translate(locale, "mappedin.building")}
         >
           {buildings.map((b) => (
             <option key={b.id} value={b.id}>

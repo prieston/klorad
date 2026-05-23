@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { translate, type Locale } from "@/app/lib/i18n-core";
 import type { SpaceOption } from "./WayfindingControls";
 
 export interface SearchControlsProps {
@@ -8,6 +9,8 @@ export interface SearchControlsProps {
   spaces: SpaceOption[];
   /** Fired when a result is picked — the viewer flies there. */
   onSelect: (spaceId: string) => void;
+  /** UI locale — defaults to English. */
+  locale?: Locale;
 }
 
 const MAX_RESULTS = 8;
@@ -18,7 +21,11 @@ const MAX_RESULTS = 8;
  * floor and flies the camera to it. Presentational: it only filters
  * the space list and emits `onSelect`.
  */
-export function SearchControls({ spaces, onSelect }: SearchControlsProps) {
+export function SearchControls({
+  spaces,
+  onSelect,
+  locale = "en",
+}: SearchControlsProps) {
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const matches = q
@@ -33,14 +40,14 @@ export function SearchControls({ spaces, onSelect }: SearchControlsProps) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Find a room or space…"
+          placeholder={translate(locale, "mappedin.searchPlaceholder")}
           className="w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-tertiary"
         />
         {query ? (
           <button
             type="button"
             onClick={() => setQuery("")}
-            aria-label="Clear search"
+            aria-label={translate(locale, "mappedin.searchClear")}
             className="shrink-0 text-text-tertiary transition-colors hover:text-text-primary"
           >
             <CloseIcon className="h-3.5 w-3.5" />
@@ -67,7 +74,7 @@ export function SearchControls({ spaces, onSelect }: SearchControlsProps) {
         </ul>
       ) : q ? (
         <p className="mt-2 px-2 text-xs text-text-tertiary">
-          Nothing matches “{query}”.
+          {translate(locale, "mappedin.searchNoMatch", { query })}
         </p>
       ) : null}
     </div>

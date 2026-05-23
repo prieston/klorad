@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button, Select } from "@klorad/design-system";
+import { translate, type Locale } from "@/app/lib/i18n-core";
 
 /** A selectable destination — a named space in the venue. */
 export interface SpaceOption {
@@ -23,6 +24,8 @@ export interface WayfindingControlsProps {
   onRoute: (fromId: string, toId: string, accessible: boolean) => void;
   /** Clear the drawn route. */
   onClear: () => void;
+  /** UI locale — defaults to English. */
+  locale?: Locale;
 }
 
 /**
@@ -38,7 +41,9 @@ export function WayfindingControls({
   error,
   onRoute,
   onClear,
+  locale = "en",
 }: WayfindingControlsProps) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [accessible, setAccessible] = useState(false);
@@ -47,13 +52,13 @@ export function WayfindingControls({
   return (
     <div className="flex w-full flex-col gap-3 rounded-2xl border border-line-soft bg-surface-1/95 p-4 shadow-glass backdrop-blur">
       <h2 className="text-sm font-semibold text-text-primary">
-        Indoor directions
+        {t("mappedin.wayfindTitle")}
       </h2>
 
       <label className="flex flex-col gap-1 text-xs font-medium text-text-secondary">
-        From
+        {t("mappedin.wayfindFrom")}
         <Select value={from} onChange={(e) => setFrom(e.target.value)}>
-          <option value="">Choose a space…</option>
+          <option value="">{t("mappedin.wayfindPick")}</option>
           {spaces.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -63,9 +68,9 @@ export function WayfindingControls({
       </label>
 
       <label className="flex flex-col gap-1 text-xs font-medium text-text-secondary">
-        To
+        {t("mappedin.wayfindTo")}
         <Select value={to} onChange={(e) => setTo(e.target.value)}>
-          <option value="">Choose a space…</option>
+          <option value="">{t("mappedin.wayfindPick")}</option>
           {spaces.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -81,21 +86,23 @@ export function WayfindingControls({
           onChange={(e) => setAccessible(e.target.checked)}
           className="h-4 w-4 rounded accent-accent"
         />
-        Step-free route
+        {t("mappedin.wayfindStepFree")}
       </label>
 
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
 
       <div className="flex justify-end gap-2">
         <Button size="sm" variant="secondary" onClick={onClear}>
-          Clear
+          {t("mappedin.wayfindClear")}
         </Button>
         <Button
           size="sm"
           disabled={!canRoute}
           onClick={() => onRoute(from, to, accessible)}
         >
-          {routing ? "Routing…" : "Get directions"}
+          {routing
+            ? t("mappedin.wayfindRouting")
+            : t("mappedin.wayfindGo")}
         </Button>
       </div>
     </div>
