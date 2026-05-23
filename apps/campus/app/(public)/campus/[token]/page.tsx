@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { KloradMark } from "@klorad/design-system";
-import { prisma } from "@/lib/prisma";
+import { getPublicCampusByToken } from "@/lib/public-campus";
 import { formatPostDate, readPosts } from "@/lib/posts";
 import { readEventFeeds } from "@/lib/events";
 import { fetchCampusEvents } from "@/lib/events-server";
@@ -45,12 +45,7 @@ export async function generateMetadata({
   params: Params;
 }): Promise<Metadata> {
   const { token } = await params;
-  const map = await prisma.project
-    .findUnique({
-      where: { id: token },
-      select: { title: true, sceneData: true },
-    })
-    .catch(() => null);
+  const map = await getPublicCampusByToken(token);
 
   const scene = (map?.sceneData ?? null) as {
     branding?: { name?: string };
@@ -96,21 +91,7 @@ export default async function CampusHomePage({
   const sp = await searchParams;
   const locale = detectLocale(typeof sp.lang === "string" ? sp.lang : null);
 
-  const map = await prisma.project
-    .findUnique({
-      where: {
-        id: token,
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        isPublished: true,
-        thumbnail: true,
-        sceneData: true,
-      },
-    })
-    .catch(() => null);
+  const map = await getPublicCampusByToken(token);
 
   if (!map) notFound();
   if (!map.isPublished)

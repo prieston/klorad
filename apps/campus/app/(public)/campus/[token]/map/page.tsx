@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { getPublicCampusByToken } from "@/lib/public-campus";
 import { venueForIndoorMap } from "@/lib/mappedin/config";
 import { MappedinViewer } from "@/lib/mappedin/MappedinViewer";
 import { detectLocale } from "@/app/lib/i18n-core";
@@ -34,12 +34,7 @@ export default async function CampusMapPage({
   const focusSpaceId = typeof sp.space === "string" ? sp.space : undefined;
   const locale = detectLocale(typeof sp.lang === "string" ? sp.lang : null);
 
-  const map = await prisma.project
-    .findUnique({
-      where: { id: token },
-      select: { id: true, title: true, isPublished: true, sceneData: true },
-    })
-    .catch(() => null);
+  const map = await getPublicCampusByToken(token);
 
   if (!map) notFound();
   if (!map.isPublished)

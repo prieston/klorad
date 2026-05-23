@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireCampusAccess, requireOrgAccess } from "@/lib/authz";
+import { CAMPUS_CACHE_TAG } from "@/lib/public-campus";
 
 export async function GET(
   _req: Request,
@@ -66,6 +68,10 @@ export async function PATCH(
       isPublished: true,
     },
   });
+
+  // The public home / map cache this campus's read; invalidate it so
+  // an owner's save shows up on the public side promptly.
+  revalidateTag(CAMPUS_CACHE_TAG);
 
   return NextResponse.json({ ...map, name: map.title });
 }
