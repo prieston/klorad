@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { KloradMark } from "@klorad/design-system";
@@ -151,17 +152,33 @@ export default async function CampusHomePage({
         className="relative flex min-h-[56vh] items-end overflow-hidden px-6 py-12 md:px-10 md:py-16"
         style={
           heroBg
-            ? {
-                backgroundImage: `linear-gradient(to top, rgba(11,17,22,0.9), rgba(11,17,22,0.35)), url("${heroBg}")`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }
+            ? undefined
             : {
                 background: `linear-gradient(155deg, ${accent} 0%, #0b1116 100%)`,
               }
         }
       >
-        <div className="max-w-3xl">
+        {heroBg ? (
+          <>
+            <Image
+              src={heroBg}
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+            />
+            <div
+              aria-hidden
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to top, rgba(11,17,22,0.9), rgba(11,17,22,0.35))",
+              }}
+            />
+          </>
+        ) : null}
+        <div className="relative z-10 max-w-3xl">
           <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-5xl">
             {headline}
           </h1>
