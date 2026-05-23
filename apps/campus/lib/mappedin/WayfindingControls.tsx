@@ -21,6 +21,8 @@ export interface WayfindingControlsProps {
   error: string | null;
   /** Inline route summary — "120 m · ~2 min" — shown after a draw. */
   summary?: string | null;
+  /** Turn-by-turn instructions from the SDK, shown under the summary. */
+  instructions?: string[];
   /**
    * Compute + draw a route between two spaces. `accessible` requests
    * MappedIn's step-free route — stairs avoided where alternatives exist.
@@ -44,6 +46,7 @@ export function WayfindingControls({
   routing,
   error,
   summary,
+  instructions,
   onRoute,
   onClear,
   locale = "en",
@@ -97,6 +100,18 @@ export function WayfindingControls({
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
       {summary && !error ? (
         <p className="text-xs font-medium text-accent">{summary}</p>
+      ) : null}
+      {instructions && instructions.length > 0 && !error ? (
+        <ol className="max-h-44 space-y-1 overflow-y-auto rounded-lg bg-surface-2 p-2 text-xs text-text-secondary">
+          {instructions.map((step, i) => (
+            <li key={i} className="flex gap-2">
+              <span className="shrink-0 font-semibold text-accent">
+                {i + 1}.
+              </span>
+              <span>{step}</span>
+            </li>
+          ))}
+        </ol>
       ) : null}
 
       <div className="flex justify-end gap-2">

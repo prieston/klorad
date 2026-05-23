@@ -121,6 +121,7 @@ export const MappedinViewer = forwardRef<
   const [routing, setRouting] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [routeSummary, setRouteSummary] = useState<string | null>(null);
+  const [routeInstructions, setRouteInstructions] = useState<string[]>([]);
   const [floors, setFloors] = useState<FloorOption[]>([]);
   const [currentFloorId, setCurrentFloorId] = useState("");
   const [buildings, setBuildings] = useState<FloorOption[]>([]);
@@ -309,6 +310,7 @@ export const MappedinViewer = forwardRef<
       setRouting(true);
       setRouteError(null);
       setRouteSummary(null);
+      setRouteInstructions([]);
       try {
         mapView.Navigation.clear();
         const directions = await mapData.getDirections(
@@ -330,8 +332,14 @@ export const MappedinViewer = forwardRef<
         const d = directions as {
           distance?: number;
           duration?: number;
+          instructions?: Array<{ instruction?: string }>;
         };
         setRouteSummary(formatRouteSummary(d.distance, d.duration));
+        setRouteInstructions(
+          (d.instructions ?? [])
+            .map((i) => (i.instruction ?? "").trim())
+            .filter(Boolean),
+        );
       } catch {
         setRouteError(translate(locale, "mappedin.wayfindFailed"));
       } finally {
@@ -345,6 +353,7 @@ export const MappedinViewer = forwardRef<
     mapViewRef.current?.Navigation.clear();
     setRouteError(null);
     setRouteSummary(null);
+    setRouteInstructions([]);
   }, []);
 
   // Search → switch to the space's floor, highlight + select it, fly there.
@@ -485,6 +494,7 @@ export const MappedinViewer = forwardRef<
               routing={routing}
               error={routeError}
               summary={routeSummary}
+              instructions={routeInstructions}
               onRoute={(from, to, accessible) =>
                 void handleRoute(from, to, accessible)
               }
