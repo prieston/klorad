@@ -67,8 +67,16 @@ export default function IndoorTab({ map, onConfigure }: Props) {
       if (!res.ok) throw new Error("save");
       await mutate(`/api/maps/${mapId}`);
       toast.success("Campus thumbnail updated");
-    } catch {
-      toast.error("Couldn't save the thumbnail");
+    } catch (e) {
+      // Surface what actually failed (upload error, 4xx from the
+      // PATCH, network drop) — the generic toast made all of these
+      // look identical and left nothing in the console for support.
+      console.error("Thumbnail capture failed:", e);
+      toast.error(
+        e instanceof Error
+          ? `Couldn't save the thumbnail: ${e.message}`
+          : "Couldn't save the thumbnail",
+      );
     } finally {
       setCapturing(false);
     }
