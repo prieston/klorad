@@ -25,6 +25,16 @@ function isValidHex(value: string | undefined): value is string {
   return !!value && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
 }
 
+/** Whether `next/image` can optimise this URL — only Spaces hosts. */
+function isOptimisableImage(url: string): boolean {
+  if (url.startsWith("data:")) return false;
+  try {
+    return new URL(url).hostname.endsWith(".digitaloceanspaces.com");
+  } catch {
+    return false;
+  }
+}
+
 /** Location-pin glyph for a post's linked place. */
 function PinIcon({ className }: { className?: string }) {
   return (
@@ -106,7 +116,9 @@ export default async function CampusHomePage({
     : "#158ca3";
   const posts = readPosts(map.sceneData);
   const events = await fetchCampusEvents(readEventFeeds(map.sceneData));
-  const mapHref = `/campus/${token}/map`;
+  // Always carries `?lang=` so downstream links append with `&`
+  // (and so the locale survives navigation off the home page).
+  const mapHref = `/campus/${token}/map?lang=${locale}`;
 
   // Home page builder config — bilingual fields resolved to the
   // visitor's locale, each falling back to a sensible default.
@@ -167,6 +179,9 @@ export default async function CampusHomePage({
               priority
               sizes="100vw"
               className="object-cover"
+              // Legacy thumbnails / pasted URLs may not be on Spaces;
+              // bypass the optimiser rather than 500 the page.
+              unoptimized={!isOptimisableImage(heroBg)}
             />
             <div
               aria-hidden
@@ -234,8 +249,8 @@ export default async function CampusHomePage({
                   <Link
                     href={
                       post.place.source === "mappedin"
-                        ? `${mapHref}?space=${encodeURIComponent(post.place.id)}`
-                        : `${mapHref}?place=${encodeURIComponent(post.place.id)}`
+                        ? `${mapHref}&space=${encodeURIComponent(post.place.id)}`
+                        : `${mapHref}&place=${encodeURIComponent(post.place.id)}`
                     }
                     className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent transition-opacity hover:opacity-80"
                   >

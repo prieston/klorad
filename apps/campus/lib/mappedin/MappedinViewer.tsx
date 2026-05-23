@@ -270,19 +270,19 @@ export const MappedinViewer = forwardRef<
         if (!directions) {
           setRouteError(
             accessible
-              ? t("mappedin.wayfindNoStepFree")
-              : t("mappedin.wayfindNoRoute"),
+              ? translate(locale, "mappedin.wayfindNoStepFree")
+              : translate(locale, "mappedin.wayfindNoRoute"),
           );
           return;
         }
         await mapView.Navigation.draw(directions);
-      } catch (e) {
-        setRouteError(e instanceof Error ? e.message : "Routing failed");
+      } catch {
+        setRouteError(translate(locale, "mappedin.wayfindFailed"));
       } finally {
         setRouting(false);
       }
     },
-    [],
+    [locale],
   );
 
   const handleClear = useCallback(() => {
@@ -312,11 +312,10 @@ export const MappedinViewer = forwardRef<
   );
 
   // Deep link — focus the space named by `focusSpaceId` once the
-  // venue has loaded (a news post links straight to its room).
-  const focusDoneRef = useRef(false);
+  // venue has loaded. Re-fires when `focusSpaceId` changes so a
+  // soft-nav between rooms (news post → news post) refocuses.
   useEffect(() => {
-    if (status !== "ready" || focusDoneRef.current || !focusSpaceId) return;
-    focusDoneRef.current = true;
+    if (status !== "ready" || !focusSpaceId) return;
     void handleSearchSelect(focusSpaceId);
   }, [status, focusSpaceId, handleSearchSelect]);
 

@@ -87,6 +87,7 @@ const MESSAGES = {
     "mappedin.wayfindNoRoute": "No route between those spaces.",
     "mappedin.wayfindNoStepFree":
       "No step-free route between those spaces.",
+    "mappedin.wayfindFailed": "We couldn’t compute that route.",
     "mappedin.clearSelection": "Clear selection",
     "mappedin.building": "Building",
     "mappedin.errorBack": "Back to home",
@@ -175,6 +176,7 @@ const MESSAGES = {
     "mappedin.wayfindNoRoute": "Δεν υπάρχει διαδρομή ανάμεσα στους χώρους.",
     "mappedin.wayfindNoStepFree":
       "Δεν υπάρχει προσβάσιμη διαδρομή ανάμεσα στους χώρους.",
+    "mappedin.wayfindFailed": "Δεν υπολογίστηκε η διαδρομή.",
     "mappedin.clearSelection": "Καθαρισμός επιλογής",
     "mappedin.building": "Κτίριο",
     "mappedin.errorBack": "Πίσω στην αρχική",
@@ -209,8 +211,12 @@ export function translate(
 ): string {
   const raw = MESSAGES[locale]?.[key] ?? MESSAGES[DEFAULT_LOCALE][key] ?? key;
   if (!vars) return raw;
+  // Function form — replacement strings with `$&` / `$1` / `$$`
+  // (e.g. user-typed text in a search query) would otherwise be
+  // interpreted by String.prototype.replace as regex backreferences.
   return Object.entries(vars).reduce(
-    (acc, [k, v]) => acc.replace(new RegExp(`\\{${k}\\}`, "g"), String(v)),
+    (acc, [k, v]) =>
+      acc.replace(new RegExp(`\\{${k}\\}`, "g"), () => String(v)),
     raw,
   );
 }

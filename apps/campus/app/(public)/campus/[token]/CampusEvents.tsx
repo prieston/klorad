@@ -95,7 +95,7 @@ export function CampusEvents({
                 {event.location ? (
                   spaceId ? (
                     <Link
-                      href={`/campus/${token}/map?space=${encodeURIComponent(spaceId)}`}
+                      href={`/campus/${token}/map?lang=${locale}&space=${encodeURIComponent(spaceId)}`}
                       className="block truncate text-xs font-medium text-accent transition-opacity hover:opacity-80"
                     >
                       {event.location} →

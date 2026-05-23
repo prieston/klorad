@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireCampusAccess, requireOrgAccess } from "@/lib/authz";
-import { CAMPUS_CACHE_TAG } from "@/lib/public-campus";
+import { publicCampusTag } from "@/lib/public-campus";
 
 export async function GET(
   _req: Request,
@@ -69,9 +69,10 @@ export async function PATCH(
     },
   });
 
-  // The public home / map cache this campus's read; invalidate it so
-  // an owner's save shows up on the public side promptly.
-  revalidateTag(CAMPUS_CACHE_TAG);
+  // The public home / map cache this campus's read; invalidate just
+  // this campus's entry so an owner's save shows up promptly (and one
+  // tenant's edits don't thrash every other campus's cache).
+  revalidateTag(publicCampusTag(mapId));
 
   return NextResponse.json({ ...map, name: map.title });
 }
@@ -87,6 +88,10 @@ export async function DELETE(
   if (denied) return denied;
 
   await prisma.project.delete({ where: { id: mapId } });
+
+  // Without this the public cache would keep serving the deleted
+  // campus for up to 60s.
+  revalidateTag(publicCampusTag(mapId));
 
   return new NextResponse(null, { status: 204 });
 }

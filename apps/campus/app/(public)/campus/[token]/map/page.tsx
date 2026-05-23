@@ -50,7 +50,7 @@ export default async function CampusMapPage({
           venue={venueForIndoorMap(indoorMapId)}
           focusSpaceId={focusSpaceId}
           locale={locale}
-          homeHref={`/campus/${token}`}
+          homeHref={`/campus/${token}?lang=${locale}`}
         />
       </main>
     );
