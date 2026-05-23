@@ -36,9 +36,15 @@ export default function IndoorTab({ map, onConfigure }: Props) {
   const params = useParams<{ mapId: string }>();
   const mapId = params?.mapId ?? "";
 
-  const indoorMapId = (
-    map.sceneData as { indoorMapId?: string } | undefined
-  )?.indoorMapId;
+  const scene = map.sceneData as
+    | { indoorMapId?: string; branding?: { primaryColor?: string } }
+    | undefined;
+  const indoorMapId = scene?.indoorMapId;
+  const accentColor =
+    scene?.branding?.primaryColor &&
+    /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(scene.branding.primaryColor)
+      ? scene.branding.primaryColor
+      : undefined;
 
   const viewerRef = useRef<MappedinViewerHandle>(null);
   const [capturing, setCapturing] = useState(false);
@@ -102,6 +108,7 @@ export default function IndoorTab({ map, onConfigure }: Props) {
             <MappedinViewer
               ref={viewerRef}
               venue={venueForIndoorMap(indoorMapId)}
+              accentColor={accentColor}
             />
           </div>
         </>

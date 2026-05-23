@@ -17,6 +17,8 @@ export interface WayfindingControlsProps {
   routing: boolean;
   /** Inline error (no route, routing failed). */
   error: string | null;
+  /** Inline route summary — "120 m · ~2 min" — shown after a draw. */
+  summary?: string | null;
   /**
    * Compute + draw a route between two spaces. `accessible` requests
    * MappedIn's step-free route — stairs avoided where alternatives exist.
@@ -39,6 +41,7 @@ export function WayfindingControls({
   spaces,
   routing,
   error,
+  summary,
   onRoute,
   onClear,
   locale = "en",
@@ -90,6 +93,9 @@ export function WayfindingControls({
       </label>
 
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {summary && !error ? (
+        <p className="text-xs font-medium text-accent">{summary}</p>
+      ) : null}
 
       <div className="flex justify-end gap-2">
         <Button size="sm" variant="secondary" onClick={onClear}>

@@ -40,8 +40,16 @@ export default async function CampusMapPage({
   if (!map.isPublished)
     return <NotPublishedPlaceholder name={map.title} locale={locale} />;
 
-  const indoorMapId = (map.sceneData as { indoorMapId?: string } | null)
-    ?.indoorMapId;
+  const scene = (map.sceneData ?? null) as {
+    indoorMapId?: string;
+    branding?: { primaryColor?: string };
+  } | null;
+  const indoorMapId = scene?.indoorMapId;
+  const accentColor =
+    scene?.branding?.primaryColor &&
+    /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(scene.branding.primaryColor)
+      ? scene.branding.primaryColor
+      : undefined;
 
   if (indoorMapId) {
     return (
@@ -51,6 +59,7 @@ export default async function CampusMapPage({
           focusSpaceId={focusSpaceId}
           locale={locale}
           homeHref={`/campus/${token}?lang=${locale}`}
+          accentColor={accentColor}
         />
       </main>
     );

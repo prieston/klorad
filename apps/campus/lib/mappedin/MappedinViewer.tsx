@@ -9,7 +9,6 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import { Spinner } from "@klorad/design-system";
 import type { MapData, MapView, Space } from "@mappedin/mappedin-js";
 import type { MappedinVenue } from "./config";
 import { translate, type Locale } from "@/app/lib/i18n-core";
@@ -50,13 +49,53 @@ interface MappedinViewerProps {
    * visitor isn't stranded — e.g. the campus home for the public map.
    */
   homeHref?: string;
+  /**
+   * Campus accent colour — used for the wayfinding route and the
+   * selected-space highlight. Defaults to Klorad blue.
+   */
+  accentColor?: string;
+}
+
+/** Default accent for venues with no branding colour. */
+const DEFAULT_ACCENT = "#158ca3";
+
+/** Format a route's metric summary — "120 m · ~2 min". */
+function formatRouteSummary(
+  distanceM: number | undefined,
+  durationS: number | undefined,
+): string | null {
+  const parts: string[] = [];
+  if (typeof distanceM === "number" && Number.isFinite(distanceM)) {
+    parts.push(
+      distanceM >= 1000
+        ? `${(distanceM / 1000).toFixed(1)} km`
+        : `${Math.round(distanceM)} m`,
+    );
+  }
+  // Walking-pace fallback (~1.4 m/s) if the SDK didn't surface duration.
+  const seconds =
+    typeof durationS === "number" && Number.isFinite(durationS)
+      ? durationS
+      : typeof distanceM === "number" && Number.isFinite(distanceM)
+        ? distanceM / 1.4
+        : undefined;
+  if (seconds !== undefined) {
+    parts.push(`~${Math.max(1, Math.round(seconds / 60))} min`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 export const MappedinViewer = forwardRef<
   MappedinViewerHandle,
   MappedinViewerProps
 >(function MappedinViewer(
-  { venue, focusSpaceId, locale = "en", homeHref },
+  {
+    venue,
+    focusSpaceId,
+    locale = "en",
+    homeHref,
+    accentColor = DEFAULT_ACCENT,
+  },
   ref,
 ) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
@@ -81,6 +120,7 @@ export const MappedinViewer = forwardRef<
   const [spaces, setSpaces] = useState<SpaceOption[]>([]);
   const [routing, setRouting] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [routeSummary, setRouteSummary] = useState<string | null>(null);
   const [floors, setFloors] = useState<FloorOption[]>([]);
   const [currentFloorId, setCurrentFloorId] = useState("");
   const [buildings, setBuildings] = useState<FloorOption[]>([]);
@@ -91,34 +131,38 @@ export const MappedinViewer = forwardRef<
   } | null>(null);
 
   // Highlight a space (accent fill), reverting any previous one — the
-  // shared mechanism behind both search and click selection.
-  const highlightSpace = useCallback((space: Space) => {
-    const mapView = mapViewRef.current;
-    if (!mapView) return;
-    const previous = highlightRef.current;
-    if (previous && previous.space === space) return;
-    if (previous) {
+  // shared mechanism behind both search and click selection. The
+  // accent matches the campus's branding colour.
+  const highlightSpace = useCallback(
+    (space: Space) => {
+      const mapView = mapViewRef.current;
+      if (!mapView) return;
+      const previous = highlightRef.current;
+      if (previous && previous.space === space) return;
+      if (previous) {
+        try {
+          mapView.updateState(previous.space, {
+            color: previous.originalColor,
+          });
+        } catch {
+          /* ignore */
+        }
+      }
+      let originalColor: string | undefined;
       try {
-        mapView.updateState(previous.space, {
-          color: previous.originalColor,
-        });
+        originalColor = mapView.getState(space)?.color;
       } catch {
         /* ignore */
       }
-    }
-    let originalColor: string | undefined;
-    try {
-      originalColor = mapView.getState(space)?.color;
-    } catch {
-      /* ignore */
-    }
-    highlightRef.current = { space, originalColor };
-    try {
-      mapView.updateState(space, { color: "#158ca3" });
-    } catch {
-      /* ignore */
-    }
-  }, []);
+      highlightRef.current = { space, originalColor };
+      try {
+        mapView.updateState(space, { color: accentColor });
+      } catch {
+        /* ignore */
+      }
+    },
+    [accentColor],
+  );
 
   // Drop the selection — clear the detail card and the highlight.
   const clearSelection = useCallback(() => {
@@ -260,6 +304,7 @@ export const MappedinViewer = forwardRef<
 
       setRouting(true);
       setRouteError(null);
+      setRouteSummary(null);
       try {
         mapView.Navigation.clear();
         const directions = await mapData.getDirections(
@@ -275,19 +320,27 @@ export const MappedinViewer = forwardRef<
           );
           return;
         }
-        await mapView.Navigation.draw(directions);
+        await mapView.Navigation.draw(directions, {
+          pathOptions: { color: accentColor },
+        });
+        const d = directions as {
+          distance?: number;
+          duration?: number;
+        };
+        setRouteSummary(formatRouteSummary(d.distance, d.duration));
       } catch {
         setRouteError(translate(locale, "mappedin.wayfindFailed"));
       } finally {
         setRouting(false);
       }
     },
-    [locale],
+    [locale, accentColor],
   );
 
   const handleClear = useCallback(() => {
     mapViewRef.current?.Navigation.clear();
     setRouteError(null);
+    setRouteSummary(null);
   }, []);
 
   // Search → switch to the space's floor, highlight + select it, fly there.
@@ -380,11 +433,12 @@ export const MappedinViewer = forwardRef<
       <div ref={containerRef} className="h-full w-full" />
 
       {status === "loading" ? (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <span className="flex items-center gap-3 text-sm text-text-secondary">
-            <Spinner />
-            {t("mappedin.loading")}
-          </span>
+        <div className="pointer-events-none absolute inset-0 animate-pulse bg-surface-2/40">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-sm font-medium text-text-secondary">
+              {t("mappedin.loading")}
+            </span>
+          </div>
         </div>
       ) : null}
 
@@ -426,6 +480,7 @@ export const MappedinViewer = forwardRef<
               spaces={spaces}
               routing={routing}
               error={routeError}
+              summary={routeSummary}
               onRoute={(from, to, accessible) =>
                 void handleRoute(from, to, accessible)
               }
