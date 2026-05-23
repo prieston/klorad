@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { KloradMark } from "@klorad/design-system";
-import { prisma } from "@/lib/prisma";
+import { getPublicCampusByToken } from "@/lib/public-campus";
 import { formatPostDate, readPosts } from "@/lib/posts";
 import { readEventFeeds } from "@/lib/events";
 import { fetchCampusEvents } from "@/lib/events-server";
@@ -22,6 +23,16 @@ interface CampusBranding {
 
 function isValidHex(value: string | undefined): value is string {
   return !!value && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
+}
+
+/** Whether `next/image` can optimise this URL — only Spaces hosts. */
+function isOptimisableImage(url: string): boolean {
+  if (url.startsWith("data:")) return false;
+  try {
+    return new URL(url).hostname.endsWith(".digitaloceanspaces.com");
+  } catch {
+    return false;
+  }
 }
 
 /** Location-pin glyph for a post's linked place. */
@@ -45,12 +56,7 @@ export async function generateMetadata({
   params: Params;
 }): Promise<Metadata> {
   const { token } = await params;
-  const map = await prisma.project
-    .findUnique({
-      where: { id: token },
-      select: { title: true, sceneData: true },
-    })
-    .catch(() => null);
+  const map = await getPublicCampusByToken(token);
 
   const scene = (map?.sceneData ?? null) as {
     branding?: { name?: string };
@@ -96,24 +102,11 @@ export default async function CampusHomePage({
   const sp = await searchParams;
   const locale = detectLocale(typeof sp.lang === "string" ? sp.lang : null);
 
-  const map = await prisma.project
-    .findUnique({
-      where: {
-        id: token,
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        isPublished: true,
-        thumbnail: true,
-        sceneData: true,
-      },
-    })
-    .catch(() => null);
+  const map = await getPublicCampusByToken(token);
 
   if (!map) notFound();
-  if (!map.isPublished) return <NotPublishedPlaceholder name={map.title} />;
+  if (!map.isPublished)
+    return <NotPublishedPlaceholder name={map.title} locale={locale} />;
 
   const scene = (map.sceneData ?? {}) as { branding?: CampusBranding };
   const branding = scene.branding ?? {};
@@ -123,7 +116,9 @@ export default async function CampusHomePage({
     : "#158ca3";
   const posts = readPosts(map.sceneData);
   const events = await fetchCampusEvents(readEventFeeds(map.sceneData));
-  const mapHref = `/campus/${token}/map`;
+  // Always carries `?lang=` so downstream links append with `&`
+  // (and so the locale survives navigation off the home page).
+  const mapHref = `/campus/${token}/map?lang=${locale}`;
 
   // Home page builder config — bilingual fields resolved to the
   // visitor's locale, each falling back to a sensible default.
@@ -169,17 +164,36 @@ export default async function CampusHomePage({
         className="relative flex min-h-[56vh] items-end overflow-hidden px-6 py-12 md:px-10 md:py-16"
         style={
           heroBg
-            ? {
-                backgroundImage: `linear-gradient(to top, rgba(11,17,22,0.9), rgba(11,17,22,0.35)), url("${heroBg}")`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }
+            ? undefined
             : {
                 background: `linear-gradient(155deg, ${accent} 0%, #0b1116 100%)`,
               }
         }
       >
-        <div className="max-w-3xl">
+        {heroBg ? (
+          <>
+            <Image
+              src={heroBg}
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+              // Legacy thumbnails / pasted URLs may not be on Spaces;
+              // bypass the optimiser rather than 500 the page.
+              unoptimized={!isOptimisableImage(heroBg)}
+            />
+            <div
+              aria-hidden
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to top, rgba(11,17,22,0.9), rgba(11,17,22,0.35))",
+              }}
+            />
+          </>
+        ) : null}
+        <div className="relative z-10 max-w-3xl">
           <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-5xl">
             {headline}
           </h1>
@@ -235,8 +249,8 @@ export default async function CampusHomePage({
                   <Link
                     href={
                       post.place.source === "mappedin"
-                        ? `${mapHref}?space=${encodeURIComponent(post.place.id)}`
-                        : `${mapHref}?place=${encodeURIComponent(post.place.id)}`
+                        ? `${mapHref}&space=${encodeURIComponent(post.place.id)}`
+                        : `${mapHref}&place=${encodeURIComponent(post.place.id)}`
                     }
                     className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent transition-opacity hover:opacity-80"
                   >

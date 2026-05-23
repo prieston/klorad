@@ -68,6 +68,36 @@ const MESSAGES = {
     "home.news": "News",
     "home.noNews": "No news yet — check back soon.",
     "home.poweredBy": "Powered by Klorad",
+
+    // MappedIn indoor / campus viewer
+    "mappedin.loading": "Loading the campus map…",
+    "mappedin.errorTitle": "We couldn’t load the campus map",
+    "mappedin.errorBody": "Please refresh the page or try again later.",
+    "mappedin.searchPlaceholder": "Find a room or space…",
+    "mappedin.searchClear": "Clear search",
+    "mappedin.searchNoMatch": "Nothing matches “{query}”.",
+    "mappedin.wayfindTitle": "Indoor directions",
+    "mappedin.wayfindFrom": "From",
+    "mappedin.wayfindTo": "To",
+    "mappedin.wayfindPick": "Choose a space…",
+    "mappedin.wayfindStepFree": "Step-free route",
+    "mappedin.wayfindGo": "Get directions",
+    "mappedin.wayfindRouting": "Routing…",
+    "mappedin.wayfindClear": "Clear",
+    "mappedin.wayfindNoRoute": "No route between those spaces.",
+    "mappedin.wayfindNoStepFree":
+      "No step-free route between those spaces.",
+    "mappedin.wayfindFailed": "We couldn’t compute that route.",
+    "mappedin.clearSelection": "Clear selection",
+    "mappedin.building": "Building",
+    "mappedin.errorBack": "Back to home",
+
+    // Unpublished / not-found states
+    "published.body":
+      "This campus isn’t published yet. The author is still building it — check back soon.",
+    "notFound.title": "Campus not found",
+    "notFound.body":
+      "The link you followed may be wrong, or this campus no longer exists.",
   },
   el: {
     // Generic
@@ -126,6 +156,37 @@ const MESSAGES = {
     "home.news": "Νέα",
     "home.noNews": "Δεν υπάρχουν νέα ακόμη — ελάτε σύντομα ξανά.",
     "home.poweredBy": "Με την υποστήριξη του Klorad",
+
+    // MappedIn indoor / campus viewer
+    "mappedin.loading": "Φόρτωση του χάρτη…",
+    "mappedin.errorTitle": "Δεν φορτώθηκε ο χάρτης",
+    "mappedin.errorBody":
+      "Παρακαλώ ανανεώστε τη σελίδα ή δοκιμάστε ξανά αργότερα.",
+    "mappedin.searchPlaceholder": "Βρείτε αίθουσα ή χώρο…",
+    "mappedin.searchClear": "Καθαρισμός αναζήτησης",
+    "mappedin.searchNoMatch": "Δεν βρέθηκε «{query}».",
+    "mappedin.wayfindTitle": "Οδηγίες εσωτερικά",
+    "mappedin.wayfindFrom": "Από",
+    "mappedin.wayfindTo": "Προς",
+    "mappedin.wayfindPick": "Επιλέξτε χώρο…",
+    "mappedin.wayfindStepFree": "Προσβάσιμη διαδρομή",
+    "mappedin.wayfindGo": "Οδηγίες",
+    "mappedin.wayfindRouting": "Υπολογισμός…",
+    "mappedin.wayfindClear": "Καθαρισμός",
+    "mappedin.wayfindNoRoute": "Δεν υπάρχει διαδρομή ανάμεσα στους χώρους.",
+    "mappedin.wayfindNoStepFree":
+      "Δεν υπάρχει προσβάσιμη διαδρομή ανάμεσα στους χώρους.",
+    "mappedin.wayfindFailed": "Δεν υπολογίστηκε η διαδρομή.",
+    "mappedin.clearSelection": "Καθαρισμός επιλογής",
+    "mappedin.building": "Κτίριο",
+    "mappedin.errorBack": "Πίσω στην αρχική",
+
+    // Unpublished / not-found states
+    "published.body":
+      "Η σελίδα της πανεπιστημιούπολης δεν έχει δημοσιευτεί ακόμη — επιστρέψτε σύντομα.",
+    "notFound.title": "Δεν βρέθηκε η πανεπιστημιούπολη",
+    "notFound.body":
+      "Ο σύνδεσμος μπορεί να είναι λανθασμένος ή η πανεπιστημιούπολη να μην υπάρχει πια.",
   },
 } as const;
 
@@ -150,8 +211,12 @@ export function translate(
 ): string {
   const raw = MESSAGES[locale]?.[key] ?? MESSAGES[DEFAULT_LOCALE][key] ?? key;
   if (!vars) return raw;
+  // Function form — replacement strings with `$&` / `$1` / `$$`
+  // (e.g. user-typed text in a search query) would otherwise be
+  // interpreted by String.prototype.replace as regex backreferences.
   return Object.entries(vars).reduce(
-    (acc, [k, v]) => acc.replace(new RegExp(`\\{${k}\\}`, "g"), String(v)),
+    (acc, [k, v]) =>
+      acc.replace(new RegExp(`\\{${k}\\}`, "g"), () => String(v)),
     raw,
   );
 }

@@ -1,9 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
+import Link from "next/link";
 import { Spinner } from "@klorad/design-system";
 import type { MapData, MapView, Space } from "@mappedin/mappedin-js";
 import type { MappedinVenue } from "./config";
+import { translate, type Locale } from "@/app/lib/i18n-core";
 import { WayfindingControls, type SpaceOption } from "./WayfindingControls";
 import { SearchControls } from "./SearchControls";
 import { FloorControls, type FloorOption } from "./FloorControls";
@@ -21,14 +30,36 @@ import { FloorControls, type FloorOption } from "./FloorControls";
  * touches the server bundle and stays out of the main chunk. The
  * `import type` above is erased at build, so it costs nothing.
  */
-export function MappedinViewer({
-  venue,
-  focusSpaceId,
-}: {
+/**
+ * Imperative handle exposed via `ref` — the parent can take a
+ * screenshot of the current view to use as the campus thumbnail.
+ */
+export interface MappedinViewerHandle {
+  /** Take a screenshot of the current scene; returns a PNG data URL. */
+  capture(): Promise<string | null>;
+}
+
+interface MappedinViewerProps {
   venue: MappedinVenue;
   /** A space id to select + fly to once the venue has loaded. */
   focusSpaceId?: string;
-}) {
+  /** UI locale — defaults to English. */
+  locale?: Locale;
+  /**
+   * If set, the error state renders a "Back" link to this URL so the
+   * visitor isn't stranded — e.g. the campus home for the public map.
+   */
+  homeHref?: string;
+}
+
+export const MappedinViewer = forwardRef<
+  MappedinViewerHandle,
+  MappedinViewerProps
+>(function MappedinViewer(
+  { venue, focusSpaceId, locale = "en", homeHref },
+  ref,
+) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapViewRef = useRef<MapView | null>(null);
   const mapDataRef = useRef<MapData | null>(null);
@@ -218,30 +249,41 @@ export function MappedinViewer({
     clearSelection,
   ]);
 
-  const handleRoute = useCallback(async (fromId: string, toId: string) => {
-    const mapData = mapDataRef.current;
-    const mapView = mapViewRef.current;
-    if (!mapData || !mapView) return;
-    const from = spacesRef.current.get(fromId);
-    const to = spacesRef.current.get(toId);
-    if (!from || !to) return;
+  const handleRoute = useCallback(
+    async (fromId: string, toId: string, accessible: boolean) => {
+      const mapData = mapDataRef.current;
+      const mapView = mapViewRef.current;
+      if (!mapData || !mapView) return;
+      const from = spacesRef.current.get(fromId);
+      const to = spacesRef.current.get(toId);
+      if (!from || !to) return;
 
-    setRouting(true);
-    setRouteError(null);
-    try {
-      mapView.Navigation.clear();
-      const directions = await mapData.getDirections(from, to);
-      if (!directions) {
-        setRouteError("No route between those spaces.");
-        return;
+      setRouting(true);
+      setRouteError(null);
+      try {
+        mapView.Navigation.clear();
+        const directions = await mapData.getDirections(
+          from,
+          to,
+          accessible ? { accessible: true } : undefined,
+        );
+        if (!directions) {
+          setRouteError(
+            accessible
+              ? translate(locale, "mappedin.wayfindNoStepFree")
+              : translate(locale, "mappedin.wayfindNoRoute"),
+          );
+          return;
+        }
+        await mapView.Navigation.draw(directions);
+      } catch {
+        setRouteError(translate(locale, "mappedin.wayfindFailed"));
+      } finally {
+        setRouting(false);
       }
-      await mapView.Navigation.draw(directions);
-    } catch (e) {
-      setRouteError(e instanceof Error ? e.message : "Routing failed");
-    } finally {
-      setRouting(false);
-    }
-  }, []);
+    },
+    [locale],
+  );
 
   const handleClear = useCallback(() => {
     mapViewRef.current?.Navigation.clear();
@@ -270,11 +312,10 @@ export function MappedinViewer({
   );
 
   // Deep link — focus the space named by `focusSpaceId` once the
-  // venue has loaded (a news post links straight to its room).
-  const focusDoneRef = useRef(false);
+  // venue has loaded. Re-fires when `focusSpaceId` changes so a
+  // soft-nav between rooms (news post → news post) refocuses.
   useEffect(() => {
-    if (status !== "ready" || focusDoneRef.current || !focusSpaceId) return;
-    focusDoneRef.current = true;
+    if (status !== "ready" || !focusSpaceId) return;
     void handleSearchSelect(focusSpaceId);
   }, [status, focusSpaceId, handleSearchSelect]);
 
@@ -306,6 +347,34 @@ export function MappedinViewer({
     [syncFloors],
   );
 
+  // Imperative handle — capture the current view as a PNG data URL.
+  // Used by the dashboard's Indoor tab to set the campus thumbnail.
+  useImperativeHandle(
+    ref,
+    () => ({
+      async capture(): Promise<string | null> {
+        const mv = mapViewRef.current as
+          | (MapView & {
+              takeScreenshot?: (opts?: {
+                withOutdoorContext?: boolean;
+                withLabels?: boolean;
+              }) => Promise<string>;
+            })
+          | null;
+        if (!mv?.takeScreenshot) return null;
+        try {
+          return await mv.takeScreenshot({
+            withOutdoorContext: true,
+            withLabels: true,
+          });
+        } catch {
+          return null;
+        }
+      },
+    }),
+    [],
+  );
+
   return (
     <div className="relative h-full w-full bg-bg">
       <div ref={containerRef} className="h-full w-full" />
@@ -314,18 +383,33 @@ export function MappedinViewer({
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <span className="flex items-center gap-3 text-sm text-text-secondary">
             <Spinner />
-            Loading indoor map…
+            {t("mappedin.loading")}
           </span>
         </div>
       ) : null}
 
       {status === "error" ? (
         <div className="absolute inset-0 flex items-center justify-center p-8">
-          <div className="max-w-sm rounded-2xl border border-line-soft bg-surface-1 p-5 text-center shadow-glass">
+          <div className="max-w-sm rounded-2xl border border-solid border-line-soft bg-surface-1 p-5 text-center shadow-glass">
             <p className="text-sm font-medium text-text-primary">
-              Indoor map unavailable
+              {t("mappedin.errorTitle")}
             </p>
-            <p className="mt-1 text-xs text-text-tertiary">{error}</p>
+            <p className="mt-1 text-xs text-text-tertiary">
+              {t("mappedin.errorBody")}
+            </p>
+            {error ? (
+              <p className="mt-2 text-[0.65rem] text-text-tertiary opacity-60">
+                {error}
+              </p>
+            ) : null}
+            {homeHref ? (
+              <Link
+                href={homeHref}
+                className="mt-4 inline-block text-xs font-medium text-accent transition-opacity hover:opacity-80"
+              >
+                ← {t("mappedin.errorBack")}
+              </Link>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -335,14 +419,18 @@ export function MappedinViewer({
           <SearchControls
             spaces={spaces}
             onSelect={(id) => void handleSearchSelect(id)}
+            locale={locale}
           />
           {spaces.length >= 2 ? (
             <WayfindingControls
               spaces={spaces}
               routing={routing}
               error={routeError}
-              onRoute={(from, to) => void handleRoute(from, to)}
+              onRoute={(from, to, accessible) =>
+                void handleRoute(from, to, accessible)
+              }
               onClear={handleClear}
+              locale={locale}
             />
           ) : null}
         </div>
@@ -356,6 +444,7 @@ export function MappedinViewer({
           currentBuildingId={currentBuildingId}
           onSelectFloor={(id) => void handleSelectFloor(id)}
           onSelectBuilding={(id) => void handleSelectBuilding(id)}
+          locale={locale}
           // Top-right — clear of MappedIn's own zoom / nav controls,
           // which sit centred on the right edge.
           className="absolute right-4 top-4 z-10"
@@ -370,7 +459,7 @@ export function MappedinViewer({
           <button
             type="button"
             onClick={clearSelection}
-            aria-label="Clear selection"
+            aria-label={t("mappedin.clearSelection")}
             className="text-sm leading-none text-text-tertiary transition-colors hover:text-text-primary"
           >
             ✕
@@ -379,4 +468,4 @@ export function MappedinViewer({
       ) : null}
     </div>
   );
-}
+});

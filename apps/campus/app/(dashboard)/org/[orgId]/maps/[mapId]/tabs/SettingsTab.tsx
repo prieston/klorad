@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import useSWR, { mutate } from "swr";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -57,10 +57,16 @@ export default function SettingsTab({ orgId, mapId, map }: Props) {
   const [indoorMapId, setIndoorMapId] = useState("");
   const [savingIndoor, setSavingIndoor] = useState(false);
 
+  // Initialise from the saved config exactly once. SWR revalidates
+  // `serverMap` (on window focus etc.); re-running this would clobber
+  // unsaved edits — same bug pattern as HomePagePanel.
+  const loadedRef = useRef(false);
   useEffect(() => {
-    if (serverMap?.sceneData?.branding)
+    if (loadedRef.current || !serverMap) return;
+    loadedRef.current = true;
+    if (serverMap.sceneData?.branding)
       setBranding(serverMap.sceneData.branding);
-    if (serverMap?.sceneData?.indoorMapId !== undefined)
+    if (serverMap.sceneData?.indoorMapId !== undefined)
       setIndoorMapId(serverMap.sceneData.indoorMapId);
   }, [serverMap]);
 

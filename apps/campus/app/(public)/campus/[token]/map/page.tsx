@@ -1,12 +1,16 @@
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { getPublicCampusByToken } from "@/lib/public-campus";
 import { venueForIndoorMap } from "@/lib/mappedin/config";
 import { MappedinViewer } from "@/lib/mappedin/MappedinViewer";
+import { detectLocale } from "@/app/lib/i18n-core";
 import PublicViewerClient from "../PublicViewerClient";
 import NotPublishedPlaceholder from "../NotPublishedPlaceholder";
 
 type Params = Promise<{ token: string }>;
-type Search = Promise<{ space?: string | string[] }>;
+type Search = Promise<{
+  space?: string | string[];
+  lang?: string | string[];
+}>;
 
 /**
  * `/campus/[token]/map` — the campus map.
@@ -28,16 +32,13 @@ export default async function CampusMapPage({
   const { token } = await params;
   const sp = await searchParams;
   const focusSpaceId = typeof sp.space === "string" ? sp.space : undefined;
+  const locale = detectLocale(typeof sp.lang === "string" ? sp.lang : null);
 
-  const map = await prisma.project
-    .findUnique({
-      where: { id: token },
-      select: { id: true, title: true, isPublished: true, sceneData: true },
-    })
-    .catch(() => null);
+  const map = await getPublicCampusByToken(token);
 
   if (!map) notFound();
-  if (!map.isPublished) return <NotPublishedPlaceholder name={map.title} />;
+  if (!map.isPublished)
+    return <NotPublishedPlaceholder name={map.title} locale={locale} />;
 
   const indoorMapId = (map.sceneData as { indoorMapId?: string } | null)
     ?.indoorMapId;
@@ -48,6 +49,8 @@ export default async function CampusMapPage({
         <MappedinViewer
           venue={venueForIndoorMap(indoorMapId)}
           focusSpaceId={focusSpaceId}
+          locale={locale}
+          homeHref={`/campus/${token}?lang=${locale}`}
         />
       </main>
     );
