@@ -91,6 +91,12 @@ const MESSAGES = {
     "mappedin.clearSelection": "Clear selection",
     "mappedin.building": "Building",
     "mappedin.errorBack": "Back to home",
+    "mappedin.welcomeTitle": "Quick tips",
+    "mappedin.welcomeTipSearch":
+      "Search or pick a category to find a room.",
+    "mappedin.welcomeTipTap": "Tap a space to see its details.",
+    "mappedin.welcomeTipExplore": "Drag and pinch to look around.",
+    "mappedin.welcomeGotIt": "Got it",
 
     // Unpublished / not-found states
     "published.body":
@@ -180,6 +186,12 @@ const MESSAGES = {
     "mappedin.clearSelection": "Καθαρισμός επιλογής",
     "mappedin.building": "Κτίριο",
     "mappedin.errorBack": "Πίσω στην αρχική",
+    "mappedin.welcomeTitle": "Γρήγορες συμβουλές",
+    "mappedin.welcomeTipSearch":
+      "Αναζητήστε ή επιλέξτε κατηγορία για να βρείτε αίθουσα.",
+    "mappedin.welcomeTipTap": "Αγγίξτε έναν χώρο για λεπτομέρειες.",
+    "mappedin.welcomeTipExplore": "Σύρετε και ζουμάρετε για να εξερευνήσετε.",
+    "mappedin.welcomeGotIt": "Εντάξει",
 
     // Unpublished / not-found states
     "published.body":

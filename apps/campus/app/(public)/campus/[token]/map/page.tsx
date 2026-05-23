@@ -60,6 +60,7 @@ export default async function CampusMapPage({
           locale={locale}
           homeHref={`/campus/${token}?lang=${locale}`}
           accentColor={accentColor}
+          showWelcome
         />
       </main>
     );

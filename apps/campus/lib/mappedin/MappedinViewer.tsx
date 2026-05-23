@@ -15,6 +15,7 @@ import { translate, type Locale } from "@/app/lib/i18n-core";
 import { WayfindingControls, type SpaceOption } from "./WayfindingControls";
 import { SearchControls } from "./SearchControls";
 import { FloorControls, type FloorOption } from "./FloorControls";
+import { WelcomeOverlay } from "./WelcomeOverlay";
 
 /**
  * The MappedIn indoor viewer.
@@ -54,6 +55,8 @@ interface MappedinViewerProps {
    * selected-space highlight. Defaults to Klorad blue.
    */
   accentColor?: string;
+  /** Show the first-visit tips overlay (public map only). */
+  showWelcome?: boolean;
 }
 
 /** Default accent for venues with no branding colour. */
@@ -95,6 +98,7 @@ export const MappedinViewer = forwardRef<
     locale = "en",
     homeHref,
     accentColor = DEFAULT_ACCENT,
+    showWelcome = false,
   },
   ref,
 ) {
@@ -518,6 +522,10 @@ export const MappedinViewer = forwardRef<
           // which sit centred on the right edge.
           className="absolute right-4 top-4 z-10"
         />
+      ) : null}
+
+      {status === "ready" && showWelcome ? (
+        <WelcomeOverlay locale={locale} />
       ) : null}
 
       {selectedSpace ? (

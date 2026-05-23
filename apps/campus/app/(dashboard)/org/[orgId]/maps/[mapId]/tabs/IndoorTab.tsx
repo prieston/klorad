@@ -96,13 +96,23 @@ export default function IndoorTab({ map, onConfigure }: Props) {
             <p className="text-xs text-text-tertiary">
               Frame the view, then capture it as the campus card image.
             </p>
-            <Button
-              size="sm"
-              onClick={handleCapture}
-              disabled={capturing}
-            >
-              {capturing ? "Capturing…" : "Capture thumbnail"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <a
+                href={`/campus/${mapId}/map`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium text-accent transition-opacity hover:opacity-80"
+              >
+                Preview public view ↗
+              </a>
+              <Button
+                size="sm"
+                onClick={handleCapture}
+                disabled={capturing}
+              >
+                {capturing ? "Capturing…" : "Capture thumbnail"}
+              </Button>
+            </div>
           </div>
           <div className="h-[72vh] overflow-hidden rounded-2xl border border-line-soft">
             <MappedinViewer
