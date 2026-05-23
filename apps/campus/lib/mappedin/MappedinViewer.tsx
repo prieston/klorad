@@ -258,7 +258,11 @@ export const MappedinViewer = forwardRef<
         }
         setSpaces(
           [...byId.values()]
-            .map((s) => ({ id: s.id, name: s.name as string }))
+            .map((s) => ({
+              id: s.id,
+              name: s.name as string,
+              type: (s as { type?: string }).type,
+            }))
             .sort((a, b) => a.name.localeCompare(b.name)),
         );
         // Buildings (floor-stacks) for the exploration controls.

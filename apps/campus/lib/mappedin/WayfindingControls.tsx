@@ -8,6 +8,8 @@ import { translate, type Locale } from "@/app/lib/i18n-core";
 export interface SpaceOption {
   id: string;
   name: string;
+  /** MappedIn space type (e.g. "office", "cafe") — used by the chip filter. */
+  type?: string;
 }
 
 export interface WayfindingControlsProps {
