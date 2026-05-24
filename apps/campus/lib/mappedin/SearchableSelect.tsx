@@ -143,7 +143,7 @@ export function SearchableSelect({
             width: "var(--radix-popover-trigger-width)",
             maxHeight: "var(--radix-popover-content-available-height)",
           }}
-          className="z-50 flex flex-col overflow-hidden rounded-2xl border border-solid border-line-soft bg-surface-1/95 shadow-glass backdrop-blur"
+          className="z-50 flex flex-col overflow-hidden rounded-2xl border border-solid border-line-soft bg-surface-1 shadow-glass"
           // We focus the search input ourselves; otherwise Radix
           // would focus the Content wrapper.
           onOpenAutoFocus={(e) => {
@@ -151,7 +151,7 @@ export function SearchableSelect({
             searchRef.current?.focus();
           }}
         >
-          <div className="p-2 pb-1">
+          <div className="p-4 pb-2">
             <input
               ref={searchRef}
               type="text"
@@ -162,12 +162,12 @@ export function SearchableSelect({
                 setFocusIndex(0);
               }}
               onKeyDown={onSearchKey}
-              className="w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-text-primary outline-none transition-colors placeholder:text-text-tertiary focus:bg-surface-1 focus:ring-2 focus:ring-accent-soft"
+              className="w-full rounded-lg border border-solid border-line-soft bg-surface-1 px-3 py-2 text-sm text-text-primary outline-none transition-colors placeholder:text-text-tertiary focus:border-accent"
             />
           </div>
           <ul
             role="listbox"
-            className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2 pt-1"
+            className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-4 pt-2"
           >
             {visible.length === 0 ? (
               <li className="px-3 py-2 text-xs text-text-tertiary">
