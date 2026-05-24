@@ -92,7 +92,11 @@ const MESSAGES = {
     "mappedin.building": "Building",
     "mappedin.floor": "Floor",
     "mappedin.searchSpaces": "Search rooms…",
+    "mappedin.searchBuildings": "Search buildings…",
+    "mappedin.searchPick": "Select…",
     "mappedin.noMatches": "No matches",
+    "mappedin.moreResults":
+      "Refine to see more ({shown} of {total})",
     "mappedin.errorBack": "Back to home",
     "mappedin.welcomeTitle": "Quick tips",
     "mappedin.welcomeTipSearch":
@@ -206,7 +210,11 @@ const MESSAGES = {
     "mappedin.building": "Κτίριο",
     "mappedin.floor": "Όροφος",
     "mappedin.searchSpaces": "Αναζήτηση αιθουσών…",
+    "mappedin.searchBuildings": "Αναζήτηση κτιρίων…",
+    "mappedin.searchPick": "Επιλογή…",
     "mappedin.noMatches": "Κανένα αποτέλεσμα",
+    "mappedin.moreResults":
+      "Περιορίστε για περισσότερα ({shown} από {total})",
     "mappedin.errorBack": "Πίσω στην αρχική",
     "mappedin.welcomeTitle": "Γρήγορες συμβουλές",
     "mappedin.welcomeTipSearch":

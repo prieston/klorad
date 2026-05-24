@@ -65,7 +65,11 @@ export function FloorControls({
             value={currentBuildingId}
             onChange={onSelectBuilding}
             placeholder={translate(locale, "mappedin.building")}
+            searchPlaceholder={translate(locale, "mappedin.searchBuildings")}
             noMatchLabel={translate(locale, "mappedin.noMatches")}
+            moreResultsLabel={(shown, total) =>
+              translate(locale, "mappedin.moreResults", { shown, total })
+            }
             ariaLabel={translate(locale, "mappedin.building")}
           />
         </div>

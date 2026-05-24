@@ -100,7 +100,11 @@ export function WayfindingControls({
           value={from}
           onChange={setFrom}
           placeholder={t("mappedin.wayfindPick")}
+          searchPlaceholder={t("mappedin.searchSpaces")}
           noMatchLabel={t("mappedin.noMatches")}
+          moreResultsLabel={(shown, total) =>
+            translate(locale, "mappedin.moreResults", { shown, total })
+          }
           ariaLabel={t("mappedin.wayfindFrom")}
         />
       </div>
@@ -114,7 +118,11 @@ export function WayfindingControls({
           value={to}
           onChange={setTo}
           placeholder={t("mappedin.wayfindPick")}
+          searchPlaceholder={t("mappedin.searchSpaces")}
           noMatchLabel={t("mappedin.noMatches")}
+          moreResultsLabel={(shown, total) =>
+            translate(locale, "mappedin.moreResults", { shown, total })
+          }
           ariaLabel={t("mappedin.wayfindTo")}
         />
       </div>
