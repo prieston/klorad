@@ -32,6 +32,8 @@ export interface WayfindingControlsProps {
   onClear: () => void;
   /** UI locale — defaults to English. */
   locale?: Locale;
+  /** Drop the rounded-card chrome — for use inside the side panel. */
+  bare?: boolean;
 }
 
 /**
@@ -50,6 +52,7 @@ export function WayfindingControls({
   onRoute,
   onClear,
   locale = "en",
+  bare = false,
 }: WayfindingControlsProps) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [from, setFrom] = useState("");
@@ -58,7 +61,13 @@ export function WayfindingControls({
   const canRoute = from !== "" && to !== "" && from !== to && !routing;
 
   return (
-    <div className="flex w-full flex-col gap-3 rounded-2xl border border-line-soft bg-surface-1/95 p-4 shadow-glass backdrop-blur">
+    <div
+      className={
+        bare
+          ? "flex w-full flex-col gap-3"
+          : "flex w-full flex-col gap-3 rounded-2xl border border-line-soft bg-surface-1/95 p-4 shadow-glass backdrop-blur"
+      }
+    >
       <h2 className="text-sm font-semibold text-text-primary">
         {t("mappedin.wayfindTitle")}
       </h2>

@@ -97,6 +97,9 @@ const MESSAGES = {
     "mappedin.welcomeTipTap": "Tap a space to see its details.",
     "mappedin.welcomeTipExplore": "Drag and pinch to look around.",
     "mappedin.welcomeGotIt": "Got it",
+    "mappedin.tabExplore": "Explore",
+    "mappedin.tabNavigate": "Navigate",
+    "mappedin.pickRoom": "Pick a starting room and a destination.",
 
     // Unpublished / not-found states
     "published.body":
@@ -192,6 +195,9 @@ const MESSAGES = {
     "mappedin.welcomeTipTap": "Αγγίξτε έναν χώρο για λεπτομέρειες.",
     "mappedin.welcomeTipExplore": "Σύρετε και ζουμάρετε για να εξερευνήσετε.",
     "mappedin.welcomeGotIt": "Εντάξει",
+    "mappedin.tabExplore": "Εξερεύνηση",
+    "mappedin.tabNavigate": "Πλοήγηση",
+    "mappedin.pickRoom": "Επιλέξτε αφετηρία και προορισμό.",
 
     // Unpublished / not-found states
     "published.body":

@@ -12,9 +12,9 @@ import Link from "next/link";
 import type { MapData, MapView, Space } from "@mappedin/mappedin-js";
 import type { MappedinVenue } from "./config";
 import { translate, type Locale } from "@/app/lib/i18n-core";
-import { WayfindingControls, type SpaceOption } from "./WayfindingControls";
-import { SearchControls } from "./SearchControls";
-import { FloorControls, type FloorOption } from "./FloorControls";
+import { type SpaceOption } from "./WayfindingControls";
+import { type FloorOption } from "./FloorControls";
+import { SidePanel } from "./SidePanel";
 import { WelcomeOverlay } from "./WelcomeOverlay";
 
 /**
@@ -446,103 +446,74 @@ export const MappedinViewer = forwardRef<
   );
 
   return (
-    <div className="relative h-full w-full bg-bg">
-      <div ref={containerRef} className="h-full w-full" />
-
-      {status === "loading" ? (
-        <div className="pointer-events-none absolute inset-0 animate-pulse bg-surface-2/40">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-sm font-medium text-text-secondary">
-              {t("mappedin.loading")}
-            </span>
-          </div>
-        </div>
-      ) : null}
-
-      {status === "error" ? (
-        <div className="absolute inset-0 flex items-center justify-center p-8">
-          <div className="max-w-sm rounded-2xl border border-solid border-line-soft bg-surface-1 p-5 text-center shadow-glass">
-            <p className="text-sm font-medium text-text-primary">
-              {t("mappedin.errorTitle")}
-            </p>
-            <p className="mt-1 text-xs text-text-tertiary">
-              {t("mappedin.errorBody")}
-            </p>
-            {error ? (
-              <p className="mt-2 text-[0.65rem] text-text-tertiary opacity-60">
-                {error}
-              </p>
-            ) : null}
-            {homeHref ? (
-              <Link
-                href={homeHref}
-                className="mt-4 inline-block text-xs font-medium text-accent transition-opacity hover:opacity-80"
-              >
-                ← {t("mappedin.errorBack")}
-              </Link>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      {status === "ready" && spaces.length > 0 ? (
-        <div className="absolute left-4 top-4 z-10 flex w-72 flex-col gap-3">
-          <SearchControls
-            spaces={spaces}
-            onSelect={(id) => void handleSearchSelect(id)}
-            locale={locale}
-          />
-          {spaces.length >= 2 ? (
-            <WayfindingControls
-              spaces={spaces}
-              routing={routing}
-              error={routeError}
-              summary={routeSummary}
-              instructions={routeInstructions}
-              onRoute={(from, to, accessible) =>
-                void handleRoute(from, to, accessible)
-              }
-              onClear={handleClear}
-              locale={locale}
-            />
-          ) : null}
-        </div>
-      ) : null}
-
-      {status === "ready" ? (
-        <FloorControls
+    <div className="flex h-full w-full flex-col bg-bg md:flex-row">
+      <aside className="h-[40vh] shrink-0 border-b border-solid border-line-soft md:h-full md:w-80 md:border-b-0 md:border-r">
+        <SidePanel
+          locale={locale}
+          spaces={spaces}
+          onSearchSelect={(id) => void handleSearchSelect(id)}
+          selectedSpace={selectedSpace}
+          onClearSelection={clearSelection}
           floors={floors}
           currentFloorId={currentFloorId}
           buildings={buildings}
           currentBuildingId={currentBuildingId}
           onSelectFloor={(id) => void handleSelectFloor(id)}
           onSelectBuilding={(id) => void handleSelectBuilding(id)}
-          locale={locale}
-          // Top-right — clear of MappedIn's own zoom / nav controls,
-          // which sit centred on the right edge.
-          className="absolute right-4 top-4 z-10"
+          routing={routing}
+          routeError={routeError}
+          routeSummary={routeSummary}
+          routeInstructions={routeInstructions}
+          onRoute={(from, to, accessible) =>
+            void handleRoute(from, to, accessible)
+          }
+          onClearRoute={handleClear}
         />
-      ) : null}
+      </aside>
 
-      {status === "ready" && showWelcome ? (
-        <WelcomeOverlay locale={locale} />
-      ) : null}
+      <div className="relative min-h-0 flex-1">
+        <div ref={containerRef} className="absolute inset-0" />
 
-      {selectedSpace ? (
-        <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-line-soft bg-surface-1/95 px-4 py-2.5 shadow-glass backdrop-blur">
-          <span className="text-sm font-medium text-text-primary">
-            {selectedSpace.name}
-          </span>
-          <button
-            type="button"
-            onClick={clearSelection}
-            aria-label={t("mappedin.clearSelection")}
-            className="text-sm leading-none text-text-tertiary transition-colors hover:text-text-primary"
-          >
-            ✕
-          </button>
-        </div>
-      ) : null}
+        {status === "loading" ? (
+          <div className="pointer-events-none absolute inset-0 animate-pulse bg-surface-2/40">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-sm font-medium text-text-secondary">
+                {t("mappedin.loading")}
+              </span>
+            </div>
+          </div>
+        ) : null}
+
+        {status === "error" ? (
+          <div className="absolute inset-0 flex items-center justify-center p-8">
+            <div className="max-w-sm rounded-2xl border border-solid border-line-soft bg-surface-1 p-5 text-center shadow-glass">
+              <p className="text-sm font-medium text-text-primary">
+                {t("mappedin.errorTitle")}
+              </p>
+              <p className="mt-1 text-xs text-text-tertiary">
+                {t("mappedin.errorBody")}
+              </p>
+              {error ? (
+                <p className="mt-2 text-[0.65rem] text-text-tertiary opacity-60">
+                  {error}
+                </p>
+              ) : null}
+              {homeHref ? (
+                <Link
+                  href={homeHref}
+                  className="mt-4 inline-block text-xs font-medium text-accent transition-opacity hover:opacity-80"
+                >
+                  ← {t("mappedin.errorBack")}
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        {status === "ready" && showWelcome ? (
+          <WelcomeOverlay locale={locale} />
+        ) : null}
+      </div>
     </div>
   );
 });

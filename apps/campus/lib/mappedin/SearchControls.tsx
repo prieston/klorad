@@ -25,6 +25,8 @@ export interface SearchControlsProps {
   onSelect: (spaceId: string) => void;
   /** UI locale — defaults to English. */
   locale?: Locale;
+  /** Drop the rounded-card chrome — for use inside the side panel. */
+  bare?: boolean;
 }
 
 const MAX_RESULTS = 8;
@@ -39,6 +41,7 @@ export function SearchControls({
   spaces,
   onSelect,
   locale = "en",
+  bare = false,
 }: SearchControlsProps) {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -68,7 +71,13 @@ export function SearchControls({
   const showResults = q !== "" || activeCategory !== null;
 
   return (
-    <div className="space-y-2 rounded-2xl border border-line-soft bg-surface-1/95 p-3 shadow-glass backdrop-blur">
+    <div
+      className={cn(
+        "space-y-2",
+        !bare &&
+          "rounded-2xl border border-line-soft bg-surface-1/95 p-3 shadow-glass backdrop-blur",
+      )}
+    >
       {categories.length > 0 ? (
         <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
           {categories.map((cat) => {

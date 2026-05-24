@@ -21,6 +21,8 @@ export interface FloorControlsProps {
   className?: string;
   /** UI locale — defaults to English. */
   locale?: Locale;
+  /** Drop the rounded-card chrome — for use inside the side panel. */
+  bare?: boolean;
 }
 
 /**
@@ -37,6 +39,7 @@ export function FloorControls({
   onSelectBuilding,
   className,
   locale = "en",
+  bare = false,
 }: FloorControlsProps) {
   const multiBuilding = buildings.length > 1;
   // Nothing to switch — don't render an empty control.
@@ -45,7 +48,9 @@ export function FloorControls({
   return (
     <div
       className={cn(
-        "flex w-44 flex-col gap-2 rounded-2xl border border-line-soft bg-surface-1/95 p-2 shadow-glass backdrop-blur",
+        bare
+          ? "flex w-full flex-col gap-2"
+          : "flex w-44 flex-col gap-2 rounded-2xl border border-line-soft bg-surface-1/95 p-2 shadow-glass backdrop-blur",
         className,
       )}
     >
