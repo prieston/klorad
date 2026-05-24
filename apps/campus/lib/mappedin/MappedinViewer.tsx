@@ -9,7 +9,6 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import { cn } from "@klorad/design-system";
 import type { MapData, MapView, Space } from "@mappedin/mappedin-js";
 import type { MappedinVenue } from "./config";
 import { translate, type Locale } from "@/app/lib/i18n-core";
@@ -135,8 +134,6 @@ export const MappedinViewer = forwardRef<
     id: string;
     name: string;
   } | null>(null);
-  /** Side panel — open on desktop always; on mobile, drawer toggled by a button. */
-  const [panelOpen, setPanelOpen] = useState(false);
 
   // Highlight a space (accent fill), reverting any previous one — the
   // shared mechanism behind both search and click selection. The
@@ -449,30 +446,12 @@ export const MappedinViewer = forwardRef<
   );
 
   return (
-    <div className="relative h-full w-full bg-bg md:flex md:flex-row">
-      {panelOpen ? (
-        <button
-          type="button"
-          onClick={() => setPanelOpen(false)}
-          aria-label="Close menu"
-          className="fixed inset-0 z-30 bg-black/40 md:hidden"
-        />
-      ) : null}
-
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-40 w-[85vw] max-w-sm border-r border-solid border-line-soft shadow-2xl transition-transform duration-200",
-          "md:static md:inset-auto md:z-auto md:h-full md:w-80 md:shrink-0 md:translate-x-0 md:shadow-none",
-          panelOpen ? "translate-x-0" : "-translate-x-full",
-        )}
-      >
+    <div className="flex h-full w-full bg-bg">
+      <aside className="h-full w-64 shrink-0 border-r border-solid border-line-soft md:w-80">
         <SidePanel
           locale={locale}
           spaces={spaces}
-          onSearchSelect={(id) => {
-            setPanelOpen(false);
-            void handleSearchSelect(id);
-          }}
+          onSearchSelect={(id) => void handleSearchSelect(id)}
           selectedSpace={selectedSpace}
           onClearSelection={clearSelection}
           floors={floors}
@@ -485,39 +464,15 @@ export const MappedinViewer = forwardRef<
           routeError={routeError}
           routeSummary={routeSummary}
           routeInstructions={routeInstructions}
-          onRoute={(from, to, accessible) => {
-            setPanelOpen(false);
-            void handleRoute(from, to, accessible);
-          }}
+          onRoute={(from, to, accessible) =>
+            void handleRoute(from, to, accessible)
+          }
           onClearRoute={handleClear}
         />
       </aside>
 
-      <div className="relative h-full md:min-h-0 md:flex-1">
+      <div className="relative min-h-0 flex-1">
         <div ref={containerRef} className="absolute inset-0" />
-
-        <button
-          type="button"
-          onClick={() => setPanelOpen(true)}
-          aria-label="Open menu"
-          className="absolute left-3 top-3 z-20 flex items-center gap-2 rounded-full bg-surface-1/95 px-3 py-2 text-sm font-semibold text-text-primary shadow-glass backdrop-blur md:hidden"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            aria-hidden
-          >
-            <line x1="4" y1="6" x2="20" y2="6" />
-            <line x1="4" y1="12" x2="20" y2="12" />
-            <line x1="4" y1="18" x2="20" y2="18" />
-          </svg>
-          Menu
-        </button>
 
         {status === "loading" ? (
           <div className="pointer-events-none absolute inset-0 animate-pulse bg-surface-2/40">
