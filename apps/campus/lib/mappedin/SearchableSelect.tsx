@@ -108,7 +108,7 @@ export function SearchableSelect({
           type="button"
           aria-label={ariaLabel}
           className={cn(
-            "flex w-full items-center justify-between gap-2 rounded-md border border-solid border-line-soft bg-surface-1 px-3 py-2 text-left text-sm outline-none transition-colors hover:border-accent focus:border-accent",
+            "flex w-full items-center justify-between gap-2 rounded-lg border border-solid border-line-soft bg-surface-1 px-3 py-2 text-left text-sm outline-none transition-colors hover:border-accent focus:border-accent",
             selectedOption ? "text-text-primary" : "text-text-tertiary",
           )}
         >
@@ -143,7 +143,7 @@ export function SearchableSelect({
             width: "var(--radix-popover-trigger-width)",
             maxHeight: "var(--radix-popover-content-available-height)",
           }}
-          className="z-50 flex flex-col overflow-hidden rounded-lg border border-solid border-line-soft bg-surface-1 shadow-glass"
+          className="z-50 flex flex-col overflow-hidden rounded-2xl border border-solid border-line-soft bg-surface-1/95 shadow-glass backdrop-blur"
           // We focus the search input ourselves; otherwise Radix
           // would focus the Content wrapper.
           onOpenAutoFocus={(e) => {
@@ -151,7 +151,7 @@ export function SearchableSelect({
             searchRef.current?.focus();
           }}
         >
-          <div className="border-b border-solid border-line-soft p-2">
+          <div className="p-2 pb-1">
             <input
               ref={searchRef}
               type="text"
@@ -162,12 +162,12 @@ export function SearchableSelect({
                 setFocusIndex(0);
               }}
               onKeyDown={onSearchKey}
-              className="w-full rounded-md border border-solid border-line-soft bg-surface-1 px-2 py-1.5 text-sm text-text-primary outline-none transition-colors focus:border-accent"
+              className="w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-text-primary outline-none transition-colors placeholder:text-text-tertiary focus:bg-surface-1 focus:ring-2 focus:ring-accent-soft"
             />
           </div>
           <ul
             role="listbox"
-            className="min-h-0 flex-1 overflow-y-auto py-1"
+            className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2 pt-1"
           >
             {visible.length === 0 ? (
               <li className="px-3 py-2 text-xs text-text-tertiary">
@@ -189,7 +189,7 @@ export function SearchableSelect({
                     }}
                     onMouseEnter={() => setFocusIndex(i)}
                     className={cn(
-                      "w-full px-3 py-2 text-left text-sm transition-colors",
+                      "w-full rounded-lg px-3 py-2 text-left text-sm transition-colors",
                       o.id === value
                         ? "bg-accent-soft text-accent"
                         : i === focusIndex
@@ -203,7 +203,7 @@ export function SearchableSelect({
               ))
             )}
             {truncated ? (
-              <li className="border-t border-solid border-line-soft px-3 py-2 text-[0.7rem] italic text-text-tertiary">
+              <li className="mt-1 px-3 py-1 text-[0.7rem] italic text-text-tertiary">
                 {moreResultsLabel
                   ? moreResultsLabel(MAX_RESULTS, filtered.length)
                   : `Showing ${MAX_RESULTS} of ${filtered.length}`}
