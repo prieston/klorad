@@ -11,6 +11,8 @@ export interface SpaceOption {
   name: string;
   /** MappedIn space type (e.g. "office", "cafe") — used by the chip filter. */
   type?: string;
+  /** Floor-stack id this space belongs to — used to filter to the active building. */
+  buildingId?: string;
 }
 
 export interface WayfindingControlsProps {

@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -135,6 +136,17 @@ export const MappedinViewer = forwardRef<
     name: string;
   } | null>(null);
 
+  // Rooms shown in the selectors / search are scoped to the active
+  // building — picking a building filters the world down. Spaces
+  // whose buildingId is missing (data quirk) stay visible so we
+  // never hide everything by accident.
+  const visibleSpaces = useMemo(() => {
+    if (!currentBuildingId) return spaces;
+    return spaces.filter(
+      (s) => !s.buildingId || s.buildingId === currentBuildingId,
+    );
+  }, [spaces, currentBuildingId]);
+
   // Highlight a space (accent fill), reverting any previous one — the
   // shared mechanism behind both search and click selection. The
   // accent matches the campus's branding colour.
@@ -263,11 +275,20 @@ export const MappedinViewer = forwardRef<
         }
         setSpaces(
           [...byId.values()]
-            .map((s) => ({
-              id: s.id,
-              name: s.name as string,
-              type: (s as { type?: string }).type,
-            }))
+            .map((s) => {
+              // Reach through the SDK shape — Space.floor.floorStack.id —
+              // so we can filter the selectors to the active building.
+              const withFloor = s as {
+                type?: string;
+                floor?: { floorStack?: { id?: string } };
+              };
+              return {
+                id: s.id,
+                name: s.name as string,
+                type: withFloor.type,
+                buildingId: withFloor.floor?.floorStack?.id,
+              };
+            })
             .sort((a, b) => a.name.localeCompare(b.name)),
         );
         // Buildings (floor-stacks) for the exploration controls.
@@ -461,7 +482,7 @@ export const MappedinViewer = forwardRef<
       <aside className="h-full w-64 shrink-0 border-r border-solid border-line-soft md:w-80">
         <SidePanel
           locale={locale}
-          spaces={spaces}
+          spaces={visibleSpaces}
           onSearchSelect={(id) => void handleSearchSelect(id)}
           selectedSpace={selectedSpace}
           onClearSelection={clearSelection}
