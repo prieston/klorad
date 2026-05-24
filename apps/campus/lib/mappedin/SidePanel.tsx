@@ -54,7 +54,7 @@ export function SidePanel(props: SidePanelProps) {
   return (
     <div className="flex h-full flex-col bg-surface-1">
       {hasContext ? (
-        <div className="border-b border-solid border-line-soft p-3">
+        <div className="border-b border-solid border-line-soft px-4 py-3">
           <FloorControls
             floors={props.floors}
             currentFloorId={props.currentFloorId}
@@ -68,7 +68,7 @@ export function SidePanel(props: SidePanelProps) {
         </div>
       ) : null}
 
-      <div className="flex gap-1 border-b border-solid border-line-soft p-2">
+      <div className="flex gap-1 border-b border-solid border-line-soft px-4 py-2">
         <TabButton
           active={tab === "explore"}
           onClick={() => setTab("explore")}

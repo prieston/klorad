@@ -90,6 +90,9 @@ const MESSAGES = {
     "mappedin.wayfindFailed": "We couldn’t compute that route.",
     "mappedin.clearSelection": "Clear selection",
     "mappedin.building": "Building",
+    "mappedin.floor": "Floor",
+    "mappedin.searchSpaces": "Search rooms…",
+    "mappedin.noMatches": "No matches",
     "mappedin.errorBack": "Back to home",
     "mappedin.welcomeTitle": "Quick tips",
     "mappedin.welcomeTipSearch":
@@ -201,6 +204,9 @@ const MESSAGES = {
     "mappedin.wayfindFailed": "Δεν υπολογίστηκε η διαδρομή.",
     "mappedin.clearSelection": "Καθαρισμός επιλογής",
     "mappedin.building": "Κτίριο",
+    "mappedin.floor": "Όροφος",
+    "mappedin.searchSpaces": "Αναζήτηση αιθουσών…",
+    "mappedin.noMatches": "Κανένα αποτέλεσμα",
     "mappedin.errorBack": "Πίσω στην αρχική",
     "mappedin.welcomeTitle": "Γρήγορες συμβουλές",
     "mappedin.welcomeTipSearch":

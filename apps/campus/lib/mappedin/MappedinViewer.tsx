@@ -413,6 +413,17 @@ export const MappedinViewer = forwardRef<
         /* ignore */
       }
       syncFloors();
+      // Frame the camera on the new building so the visitor sees a
+      // jump, not just a floor-stack swap behind the scenes. The
+      // active floor is a viewable target the SDK can focus.
+      const floor = mapView.currentFloor;
+      if (floor) {
+        try {
+          await mapView.Camera.focusOn(floor);
+        } catch {
+          /* some SDK builds don't accept a Floor — silently ignore */
+        }
+      }
     },
     [syncFloors],
   );

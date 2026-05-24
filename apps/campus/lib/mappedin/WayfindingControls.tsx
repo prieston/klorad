@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Select } from "@klorad/design-system";
+import { Button } from "@klorad/design-system";
 import { translate, type Locale } from "@/app/lib/i18n-core";
+import { SearchableSelect } from "./SearchableSelect";
 
 /** A selectable destination — a named space in the venue. */
 export interface SpaceOption {
@@ -88,29 +89,33 @@ export function WayfindingControls({
         {t("mappedin.wayfindTitle")}
       </h2>
 
-      <label className="flex flex-col gap-1 text-xs font-medium text-text-secondary">
-        {t("mappedin.wayfindFrom")}
-        <Select value={from} onChange={(e) => setFrom(e.target.value)}>
-          <option value="">{t("mappedin.wayfindPick")}</option>
-          {spaces.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </Select>
-      </label>
+      <div className="flex flex-col gap-1">
+        <span className="text-xs font-medium text-text-secondary">
+          {t("mappedin.wayfindFrom")}
+        </span>
+        <SearchableSelect
+          options={spaces}
+          value={from}
+          onChange={setFrom}
+          placeholder={t("mappedin.wayfindPick")}
+          noMatchLabel={t("mappedin.noMatches")}
+          ariaLabel={t("mappedin.wayfindFrom")}
+        />
+      </div>
 
-      <label className="flex flex-col gap-1 text-xs font-medium text-text-secondary">
-        {t("mappedin.wayfindTo")}
-        <Select value={to} onChange={(e) => setTo(e.target.value)}>
-          <option value="">{t("mappedin.wayfindPick")}</option>
-          {spaces.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </Select>
-      </label>
+      <div className="flex flex-col gap-1">
+        <span className="text-xs font-medium text-text-secondary">
+          {t("mappedin.wayfindTo")}
+        </span>
+        <SearchableSelect
+          options={spaces}
+          value={to}
+          onChange={setTo}
+          placeholder={t("mappedin.wayfindPick")}
+          noMatchLabel={t("mappedin.noMatches")}
+          ariaLabel={t("mappedin.wayfindTo")}
+        />
+      </div>
 
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
       {summary && !error ? (
