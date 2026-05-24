@@ -28,6 +28,12 @@ export interface WayfindingControlsProps {
    * MappedIn's step-free route — stairs avoided where alternatives exist.
    */
   onRoute: (fromId: string, toId: string, accessible: boolean) => void;
+  /**
+   * Whether the route should be step-free. Controlled — the parent
+   * (NavigateTab) owns the routing profile (Default / Wheelchair /
+   * Visually impaired) and maps it to this flag.
+   */
+  accessible?: boolean;
   /** Clear the drawn route. */
   onClear: () => void;
   /** UI locale — defaults to English. */
@@ -53,12 +59,22 @@ export function WayfindingControls({
   onClear,
   locale = "en",
   bare = false,
+  accessible = false,
 }: WayfindingControlsProps) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [accessible, setAccessible] = useState(false);
   const canRoute = from !== "" && to !== "" && from !== to && !routing;
+
+  const swap = () => {
+    setFrom(to);
+    setTo(from);
+  };
+  const clearAll = () => {
+    setFrom("");
+    setTo("");
+    onClear();
+  };
 
   return (
     <div
@@ -96,16 +112,6 @@ export function WayfindingControls({
         </Select>
       </label>
 
-      <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-text-secondary">
-        <input
-          type="checkbox"
-          checked={accessible}
-          onChange={(e) => setAccessible(e.target.checked)}
-          className="h-4 w-4 rounded accent-accent"
-        />
-        {t("mappedin.wayfindStepFree")}
-      </label>
-
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
       {summary && !error ? (
         <p className="text-xs font-medium text-accent">{summary}</p>
@@ -123,10 +129,25 @@ export function WayfindingControls({
         </ol>
       ) : null}
 
-      <div className="flex justify-end gap-2">
-        <Button size="sm" variant="secondary" onClick={onClear}>
-          {t("mappedin.wayfindClear")}
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={swap}
+            disabled={!from && !to}
+          >
+            ↑↓ {t("mappedin.swap")}
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={clearAll}
+            disabled={!from && !to}
+          >
+            ✕ {t("mappedin.wayfindClear")}
+          </Button>
+        </div>
         <Button
           size="sm"
           disabled={!canRoute}

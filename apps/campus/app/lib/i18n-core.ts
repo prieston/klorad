@@ -100,6 +100,11 @@ const MESSAGES = {
     "mappedin.tabExplore": "Explore",
     "mappedin.tabNavigate": "Navigate",
     "mappedin.pickRoom": "Pick a starting room and a destination.",
+    "mappedin.profile": "Profile",
+    "mappedin.profileDefault": "Default",
+    "mappedin.profileWheelchair": "Wheelchair",
+    "mappedin.profileVisual": "Visually impaired",
+    "mappedin.swap": "Swap",
 
     // Unpublished / not-found states
     "published.body":
@@ -198,6 +203,11 @@ const MESSAGES = {
     "mappedin.tabExplore": "Εξερεύνηση",
     "mappedin.tabNavigate": "Πλοήγηση",
     "mappedin.pickRoom": "Επιλέξτε αφετηρία και προορισμό.",
+    "mappedin.profile": "Προφίλ",
+    "mappedin.profileDefault": "Κανονική",
+    "mappedin.profileWheelchair": "Αναπηρικό αμαξίδιο",
+    "mappedin.profileVisual": "Πρόβλημα όρασης",
+    "mappedin.swap": "Εναλλαγή",
 
     // Unpublished / not-found states
     "published.body":
