@@ -90,7 +90,36 @@ const MESSAGES = {
     "mappedin.wayfindFailed": "We couldn’t compute that route.",
     "mappedin.clearSelection": "Clear selection",
     "mappedin.building": "Building",
+    "mappedin.floor": "Floor",
+    "mappedin.searchSpaces": "Search rooms…",
+    "mappedin.searchBuildings": "Search buildings…",
+    "mappedin.searchPick": "Select…",
+    "mappedin.noMatches": "No matches",
+    "mappedin.moreResults":
+      "Refine to see more ({shown} of {total})",
     "mappedin.errorBack": "Back to home",
+    "mappedin.welcomeTitle": "Quick tips",
+    "mappedin.welcomeTipSearch":
+      "Search or pick a category to find a room.",
+    "mappedin.welcomeTipTap": "Tap a space to see its details.",
+    "mappedin.welcomeTipExplore": "Drag and pinch to look around.",
+    "mappedin.welcomeGotIt": "Got it",
+    "mappedin.tabExplore": "Explore",
+    "mappedin.tabNavigate": "Navigate",
+    "mappedin.pickRoom": "Pick a starting room and a destination.",
+    "mappedin.profile": "Profile",
+    "mappedin.profileDefault": "Default",
+    "mappedin.profileWheelchair": "Wheelchair",
+    "mappedin.profileVisual": "Visually impaired",
+    "mappedin.swap": "Swap",
+    "mappedin.askAssistant": "Ask the assistant",
+    "mappedin.askDivider": "or ask the assistant",
+    "mappedin.askPlaceholder": "Ask about a route…",
+    "mappedin.askSend": "Send",
+    "mappedin.askExamples":
+      'Try: "How do I get to room 201?" or "I use a wheelchair, how do I reach the gym?"',
+    "mappedin.askUnavailable":
+      "Sorry — the assistant is unavailable right now.",
 
     // Unpublished / not-found states
     "published.body":
@@ -179,7 +208,36 @@ const MESSAGES = {
     "mappedin.wayfindFailed": "Δεν υπολογίστηκε η διαδρομή.",
     "mappedin.clearSelection": "Καθαρισμός επιλογής",
     "mappedin.building": "Κτίριο",
+    "mappedin.floor": "Όροφος",
+    "mappedin.searchSpaces": "Αναζήτηση αιθουσών…",
+    "mappedin.searchBuildings": "Αναζήτηση κτιρίων…",
+    "mappedin.searchPick": "Επιλογή…",
+    "mappedin.noMatches": "Κανένα αποτέλεσμα",
+    "mappedin.moreResults":
+      "Περιορίστε για περισσότερα ({shown} από {total})",
     "mappedin.errorBack": "Πίσω στην αρχική",
+    "mappedin.welcomeTitle": "Γρήγορες συμβουλές",
+    "mappedin.welcomeTipSearch":
+      "Αναζητήστε ή επιλέξτε κατηγορία για να βρείτε αίθουσα.",
+    "mappedin.welcomeTipTap": "Αγγίξτε έναν χώρο για λεπτομέρειες.",
+    "mappedin.welcomeTipExplore": "Σύρετε και ζουμάρετε για να εξερευνήσετε.",
+    "mappedin.welcomeGotIt": "Εντάξει",
+    "mappedin.tabExplore": "Εξερεύνηση",
+    "mappedin.tabNavigate": "Πλοήγηση",
+    "mappedin.pickRoom": "Επιλέξτε αφετηρία και προορισμό.",
+    "mappedin.profile": "Προφίλ",
+    "mappedin.profileDefault": "Κανονική",
+    "mappedin.profileWheelchair": "Αναπηρικό αμαξίδιο",
+    "mappedin.profileVisual": "Πρόβλημα όρασης",
+    "mappedin.swap": "Εναλλαγή",
+    "mappedin.askAssistant": "Ρωτήστε τον βοηθό",
+    "mappedin.askDivider": "ή ρωτήστε τον βοηθό",
+    "mappedin.askPlaceholder": "Ρωτήστε για μια διαδρομή…",
+    "mappedin.askSend": "Αποστολή",
+    "mappedin.askExamples":
+      'Δοκιμάστε: «Πώς πάω στην αίθουσα 201;» ή «Είμαι σε αναπηρικό αμαξίδιο, πώς φτάνω στο γυμναστήριο;»',
+    "mappedin.askUnavailable":
+      "Λυπούμαστε — ο βοηθός δεν είναι διαθέσιμος αυτή τη στιγμή.",
 
     // Unpublished / not-found states
     "published.body":

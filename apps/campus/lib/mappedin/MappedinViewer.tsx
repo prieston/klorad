@@ -5,17 +5,18 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import Link from "next/link";
-import { Spinner } from "@klorad/design-system";
 import type { MapData, MapView, Space } from "@mappedin/mappedin-js";
 import type { MappedinVenue } from "./config";
 import { translate, type Locale } from "@/app/lib/i18n-core";
-import { WayfindingControls, type SpaceOption } from "./WayfindingControls";
-import { SearchControls } from "./SearchControls";
-import { FloorControls, type FloorOption } from "./FloorControls";
+import { type SpaceOption } from "./WayfindingControls";
+import { type FloorOption } from "./FloorControls";
+import { SidePanel } from "./SidePanel";
+import { WelcomeOverlay } from "./WelcomeOverlay";
 
 /**
  * The MappedIn indoor viewer.
@@ -50,13 +51,56 @@ interface MappedinViewerProps {
    * visitor isn't stranded — e.g. the campus home for the public map.
    */
   homeHref?: string;
+  /**
+   * Campus accent colour — used for the wayfinding route and the
+   * selected-space highlight. Defaults to Klorad blue.
+   */
+  accentColor?: string;
+  /** Show the first-visit tips overlay (public map only). */
+  showWelcome?: boolean;
+}
+
+/** Default accent for venues with no branding colour. */
+const DEFAULT_ACCENT = "#158ca3";
+
+/** Format a route's metric summary — "120 m · ~2 min". */
+function formatRouteSummary(
+  distanceM: number | undefined,
+  durationS: number | undefined,
+): string | null {
+  const parts: string[] = [];
+  if (typeof distanceM === "number" && Number.isFinite(distanceM)) {
+    parts.push(
+      distanceM >= 1000
+        ? `${(distanceM / 1000).toFixed(1)} km`
+        : `${Math.round(distanceM)} m`,
+    );
+  }
+  // Walking-pace fallback (~1.4 m/s) if the SDK didn't surface duration.
+  const seconds =
+    typeof durationS === "number" && Number.isFinite(durationS)
+      ? durationS
+      : typeof distanceM === "number" && Number.isFinite(distanceM)
+        ? distanceM / 1.4
+        : undefined;
+  if (seconds !== undefined) {
+    parts.push(`~${Math.max(1, Math.round(seconds / 60))} min`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 export const MappedinViewer = forwardRef<
   MappedinViewerHandle,
   MappedinViewerProps
 >(function MappedinViewer(
-  { venue, focusSpaceId, locale = "en", homeHref },
+  {
+    venue,
+    focusSpaceId,
+    locale = "en",
+    homeHref,
+    accentColor = DEFAULT_ACCENT,
+    showWelcome = false,
+  },
   ref,
 ) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
@@ -81,6 +125,8 @@ export const MappedinViewer = forwardRef<
   const [spaces, setSpaces] = useState<SpaceOption[]>([]);
   const [routing, setRouting] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [routeSummary, setRouteSummary] = useState<string | null>(null);
+  const [routeInstructions, setRouteInstructions] = useState<string[]>([]);
   const [floors, setFloors] = useState<FloorOption[]>([]);
   const [currentFloorId, setCurrentFloorId] = useState("");
   const [buildings, setBuildings] = useState<FloorOption[]>([]);
@@ -90,35 +136,50 @@ export const MappedinViewer = forwardRef<
     name: string;
   } | null>(null);
 
+  // Rooms shown in the selectors / search are scoped to the active
+  // building — picking a building filters the world down. Spaces
+  // whose buildingId is missing (data quirk) stay visible so we
+  // never hide everything by accident.
+  const visibleSpaces = useMemo(() => {
+    if (!currentBuildingId) return spaces;
+    return spaces.filter(
+      (s) => !s.buildingId || s.buildingId === currentBuildingId,
+    );
+  }, [spaces, currentBuildingId]);
+
   // Highlight a space (accent fill), reverting any previous one — the
-  // shared mechanism behind both search and click selection.
-  const highlightSpace = useCallback((space: Space) => {
-    const mapView = mapViewRef.current;
-    if (!mapView) return;
-    const previous = highlightRef.current;
-    if (previous && previous.space === space) return;
-    if (previous) {
+  // shared mechanism behind both search and click selection. The
+  // accent matches the campus's branding colour.
+  const highlightSpace = useCallback(
+    (space: Space) => {
+      const mapView = mapViewRef.current;
+      if (!mapView) return;
+      const previous = highlightRef.current;
+      if (previous && previous.space === space) return;
+      if (previous) {
+        try {
+          mapView.updateState(previous.space, {
+            color: previous.originalColor,
+          });
+        } catch {
+          /* ignore */
+        }
+      }
+      let originalColor: string | undefined;
       try {
-        mapView.updateState(previous.space, {
-          color: previous.originalColor,
-        });
+        originalColor = mapView.getState(space)?.color;
       } catch {
         /* ignore */
       }
-    }
-    let originalColor: string | undefined;
-    try {
-      originalColor = mapView.getState(space)?.color;
-    } catch {
-      /* ignore */
-    }
-    highlightRef.current = { space, originalColor };
-    try {
-      mapView.updateState(space, { color: "#158ca3" });
-    } catch {
-      /* ignore */
-    }
-  }, []);
+      highlightRef.current = { space, originalColor };
+      try {
+        mapView.updateState(space, { color: accentColor });
+      } catch {
+        /* ignore */
+      }
+    },
+    [accentColor],
+  );
 
   // Drop the selection — clear the detail card and the highlight.
   const clearSelection = useCallback(() => {
@@ -214,7 +275,20 @@ export const MappedinViewer = forwardRef<
         }
         setSpaces(
           [...byId.values()]
-            .map((s) => ({ id: s.id, name: s.name as string }))
+            .map((s) => {
+              // Reach through the SDK shape — Space.floor.floorStack.id —
+              // so we can filter the selectors to the active building.
+              const withFloor = s as {
+                type?: string;
+                floor?: { floorStack?: { id?: string } };
+              };
+              return {
+                id: s.id,
+                name: s.name as string,
+                type: withFloor.type,
+                buildingId: withFloor.floor?.floorStack?.id,
+              };
+            })
             .sort((a, b) => a.name.localeCompare(b.name)),
         );
         // Buildings (floor-stacks) for the exploration controls.
@@ -260,6 +334,8 @@ export const MappedinViewer = forwardRef<
 
       setRouting(true);
       setRouteError(null);
+      setRouteSummary(null);
+      setRouteInstructions([]);
       try {
         mapView.Navigation.clear();
         const directions = await mapData.getDirections(
@@ -275,19 +351,34 @@ export const MappedinViewer = forwardRef<
           );
           return;
         }
-        await mapView.Navigation.draw(directions);
+        await mapView.Navigation.draw(directions, {
+          pathOptions: { color: accentColor },
+        });
+        const d = directions as {
+          distance?: number;
+          duration?: number;
+          instructions?: Array<{ instruction?: string }>;
+        };
+        setRouteSummary(formatRouteSummary(d.distance, d.duration));
+        setRouteInstructions(
+          (d.instructions ?? [])
+            .map((i) => (i.instruction ?? "").trim())
+            .filter(Boolean),
+        );
       } catch {
         setRouteError(translate(locale, "mappedin.wayfindFailed"));
       } finally {
         setRouting(false);
       }
     },
-    [locale],
+    [locale, accentColor],
   );
 
   const handleClear = useCallback(() => {
     mapViewRef.current?.Navigation.clear();
     setRouteError(null);
+    setRouteSummary(null);
+    setRouteInstructions([]);
   }, []);
 
   // Search → switch to the space's floor, highlight + select it, fly there.
@@ -343,6 +434,17 @@ export const MappedinViewer = forwardRef<
         /* ignore */
       }
       syncFloors();
+      // Frame the camera on the new building so the visitor sees a
+      // jump, not just a floor-stack swap behind the scenes. The
+      // active floor is a viewable target the SDK can focus.
+      const floor = mapView.currentFloor;
+      if (floor) {
+        try {
+          await mapView.Camera.focusOn(floor);
+        } catch {
+          /* some SDK builds don't accept a Floor — silently ignore */
+        }
+      }
     },
     [syncFloors],
   );
@@ -376,96 +478,74 @@ export const MappedinViewer = forwardRef<
   );
 
   return (
-    <div className="relative h-full w-full bg-bg">
-      <div ref={containerRef} className="h-full w-full" />
-
-      {status === "loading" ? (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <span className="flex items-center gap-3 text-sm text-text-secondary">
-            <Spinner />
-            {t("mappedin.loading")}
-          </span>
-        </div>
-      ) : null}
-
-      {status === "error" ? (
-        <div className="absolute inset-0 flex items-center justify-center p-8">
-          <div className="max-w-sm rounded-2xl border border-solid border-line-soft bg-surface-1 p-5 text-center shadow-glass">
-            <p className="text-sm font-medium text-text-primary">
-              {t("mappedin.errorTitle")}
-            </p>
-            <p className="mt-1 text-xs text-text-tertiary">
-              {t("mappedin.errorBody")}
-            </p>
-            {error ? (
-              <p className="mt-2 text-[0.65rem] text-text-tertiary opacity-60">
-                {error}
-              </p>
-            ) : null}
-            {homeHref ? (
-              <Link
-                href={homeHref}
-                className="mt-4 inline-block text-xs font-medium text-accent transition-opacity hover:opacity-80"
-              >
-                ← {t("mappedin.errorBack")}
-              </Link>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      {status === "ready" && spaces.length > 0 ? (
-        <div className="absolute left-4 top-4 z-10 flex w-72 flex-col gap-3">
-          <SearchControls
-            spaces={spaces}
-            onSelect={(id) => void handleSearchSelect(id)}
-            locale={locale}
-          />
-          {spaces.length >= 2 ? (
-            <WayfindingControls
-              spaces={spaces}
-              routing={routing}
-              error={routeError}
-              onRoute={(from, to, accessible) =>
-                void handleRoute(from, to, accessible)
-              }
-              onClear={handleClear}
-              locale={locale}
-            />
-          ) : null}
-        </div>
-      ) : null}
-
-      {status === "ready" ? (
-        <FloorControls
+    <div className="flex h-full w-full bg-bg">
+      <aside className="h-full w-64 shrink-0 border-r border-solid border-line-soft md:w-80">
+        <SidePanel
+          locale={locale}
+          spaces={visibleSpaces}
+          onSearchSelect={(id) => void handleSearchSelect(id)}
+          selectedSpace={selectedSpace}
+          onClearSelection={clearSelection}
           floors={floors}
           currentFloorId={currentFloorId}
           buildings={buildings}
           currentBuildingId={currentBuildingId}
           onSelectFloor={(id) => void handleSelectFloor(id)}
           onSelectBuilding={(id) => void handleSelectBuilding(id)}
-          locale={locale}
-          // Top-right — clear of MappedIn's own zoom / nav controls,
-          // which sit centred on the right edge.
-          className="absolute right-4 top-4 z-10"
+          routing={routing}
+          routeError={routeError}
+          routeSummary={routeSummary}
+          routeInstructions={routeInstructions}
+          onRoute={(from, to, accessible) =>
+            void handleRoute(from, to, accessible)
+          }
+          onClearRoute={handleClear}
         />
-      ) : null}
+      </aside>
 
-      {selectedSpace ? (
-        <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-line-soft bg-surface-1/95 px-4 py-2.5 shadow-glass backdrop-blur">
-          <span className="text-sm font-medium text-text-primary">
-            {selectedSpace.name}
-          </span>
-          <button
-            type="button"
-            onClick={clearSelection}
-            aria-label={t("mappedin.clearSelection")}
-            className="text-sm leading-none text-text-tertiary transition-colors hover:text-text-primary"
-          >
-            ✕
-          </button>
-        </div>
-      ) : null}
+      <div className="relative min-h-0 flex-1">
+        <div ref={containerRef} className="absolute inset-0" />
+
+        {status === "loading" ? (
+          <div className="pointer-events-none absolute inset-0 animate-pulse bg-surface-2/40">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-sm font-medium text-text-secondary">
+                {t("mappedin.loading")}
+              </span>
+            </div>
+          </div>
+        ) : null}
+
+        {status === "error" ? (
+          <div className="absolute inset-0 flex items-center justify-center p-8">
+            <div className="max-w-sm rounded-2xl border border-solid border-line-soft bg-surface-1 p-5 text-center shadow-glass">
+              <p className="text-sm font-medium text-text-primary">
+                {t("mappedin.errorTitle")}
+              </p>
+              <p className="mt-1 text-xs text-text-tertiary">
+                {t("mappedin.errorBody")}
+              </p>
+              {error ? (
+                <p className="mt-2 text-[0.65rem] text-text-tertiary opacity-60">
+                  {error}
+                </p>
+              ) : null}
+              {homeHref ? (
+                <Link
+                  href={homeHref}
+                  className="mt-4 inline-block text-xs font-medium text-accent transition-opacity hover:opacity-80"
+                >
+                  ← {t("mappedin.errorBack")}
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        {status === "ready" && showWelcome ? (
+          <WelcomeOverlay locale={locale} />
+        ) : null}
+      </div>
     </div>
   );
 });

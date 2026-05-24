@@ -1,7 +1,8 @@
 "use client";
 
-import { Select, cn } from "@klorad/design-system";
+import { cn } from "@klorad/design-system";
 import { translate, type Locale } from "@/app/lib/i18n-core";
+import { SearchableSelect } from "./SearchableSelect";
 
 /** A switchable level — a floor or a building. Just `{ id, name }`. */
 export interface FloorOption {
@@ -21,6 +22,8 @@ export interface FloorControlsProps {
   className?: string;
   /** UI locale — defaults to English. */
   locale?: Locale;
+  /** Drop the rounded-card chrome — for use inside the side panel. */
+  bare?: boolean;
 }
 
 /**
@@ -37,6 +40,7 @@ export function FloorControls({
   onSelectBuilding,
   className,
   locale = "en",
+  bare = false,
 }: FloorControlsProps) {
   const multiBuilding = buildings.length > 1;
   // Nothing to switch — don't render an empty control.
@@ -45,45 +49,58 @@ export function FloorControls({
   return (
     <div
       className={cn(
-        "flex w-44 flex-col gap-2 rounded-2xl border border-line-soft bg-surface-1/95 p-2 shadow-glass backdrop-blur",
+        bare
+          ? "flex w-full flex-col gap-2"
+          : "flex w-44 flex-col gap-2 rounded-2xl border border-line-soft bg-surface-1/95 p-2 shadow-glass backdrop-blur",
         className,
       )}
     >
       {multiBuilding ? (
-        <Select
-          value={currentBuildingId}
-          onChange={(e) => onSelectBuilding(e.target.value)}
-          aria-label={translate(locale, "mappedin.building")}
-        >
-          {buildings.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </Select>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-text-secondary">
+            {translate(locale, "mappedin.building")}
+          </span>
+          <SearchableSelect
+            options={buildings}
+            value={currentBuildingId}
+            onChange={onSelectBuilding}
+            placeholder={translate(locale, "mappedin.building")}
+            searchPlaceholder={translate(locale, "mappedin.searchBuildings")}
+            noMatchLabel={translate(locale, "mappedin.noMatches")}
+            moreResultsLabel={(shown, total) =>
+              translate(locale, "mappedin.moreResults", { shown, total })
+            }
+            ariaLabel={translate(locale, "mappedin.building")}
+          />
+        </div>
       ) : null}
 
       {floors.length > 1 ? (
-        <div className="flex max-h-[40vh] flex-col gap-1 overflow-y-auto">
-          {floors.map((floor) => {
-            const active = floor.id === currentFloorId;
-            return (
-              <button
-                key={floor.id}
-                type="button"
-                onClick={() => onSelectFloor(floor.id)}
-                aria-pressed={active}
-                className={cn(
-                  "shrink-0 truncate rounded-xl px-3 py-2 text-xs font-medium transition-colors",
-                  active
-                    ? "bg-accent text-accent-contrast"
-                    : "text-text-secondary hover:bg-accent-soft hover:text-accent",
-                )}
-              >
-                {floor.name}
-              </button>
-            );
-          })}
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-text-secondary">
+            {translate(locale, "mappedin.floor")}
+          </span>
+          <div className="flex max-h-[40vh] flex-col gap-1 overflow-y-auto">
+            {floors.map((floor) => {
+              const active = floor.id === currentFloorId;
+              return (
+                <button
+                  key={floor.id}
+                  type="button"
+                  onClick={() => onSelectFloor(floor.id)}
+                  aria-pressed={active}
+                  className={cn(
+                    "shrink-0 truncate rounded-xl px-3 py-2 text-xs font-medium transition-colors",
+                    active
+                      ? "bg-accent text-accent-contrast"
+                      : "text-text-secondary hover:bg-accent-soft hover:text-accent",
+                  )}
+                >
+                  {floor.name}
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : null}
     </div>

@@ -36,9 +36,15 @@ export default function IndoorTab({ map, onConfigure }: Props) {
   const params = useParams<{ mapId: string }>();
   const mapId = params?.mapId ?? "";
 
-  const indoorMapId = (
-    map.sceneData as { indoorMapId?: string } | undefined
-  )?.indoorMapId;
+  const scene = map.sceneData as
+    | { indoorMapId?: string; branding?: { primaryColor?: string } }
+    | undefined;
+  const indoorMapId = scene?.indoorMapId;
+  const accentColor =
+    scene?.branding?.primaryColor &&
+    /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(scene.branding.primaryColor)
+      ? scene.branding.primaryColor
+      : undefined;
 
   const viewerRef = useRef<MappedinViewerHandle>(null);
   const [capturing, setCapturing] = useState(false);
@@ -90,18 +96,29 @@ export default function IndoorTab({ map, onConfigure }: Props) {
             <p className="text-xs text-text-tertiary">
               Frame the view, then capture it as the campus card image.
             </p>
-            <Button
-              size="sm"
-              onClick={handleCapture}
-              disabled={capturing}
-            >
-              {capturing ? "Capturing…" : "Capture thumbnail"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <a
+                href={`/campus/${mapId}/map`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium text-accent transition-opacity hover:opacity-80"
+              >
+                Preview public view ↗
+              </a>
+              <Button
+                size="sm"
+                onClick={handleCapture}
+                disabled={capturing}
+              >
+                {capturing ? "Capturing…" : "Capture thumbnail"}
+              </Button>
+            </div>
           </div>
           <div className="h-[72vh] overflow-hidden rounded-2xl border border-line-soft">
             <MappedinViewer
               ref={viewerRef}
               venue={venueForIndoorMap(indoorMapId)}
+              accentColor={accentColor}
             />
           </div>
         </>
