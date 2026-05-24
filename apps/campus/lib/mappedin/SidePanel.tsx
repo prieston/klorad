@@ -100,6 +100,7 @@ export function SidePanel(props: SidePanelProps) {
             routeInstructions={props.routeInstructions}
             onRoute={props.onRoute}
             onClearRoute={props.onClearRoute}
+            onFocus={props.onSearchSelect}
           />
         )}
       </div>

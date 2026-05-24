@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cn } from "@klorad/design-system";
 import { WayfindingControls, type SpaceOption } from "./WayfindingControls";
+import { AssistantChat } from "./AssistantChat";
 import { translate, type Locale } from "@/app/lib/i18n-core";
 
 type Profile = "default" | "wheelchair" | "visual";
@@ -22,6 +23,8 @@ export interface NavigateTabProps {
   routeInstructions: string[];
   onRoute: (from: string, to: string, accessible: boolean) => void;
   onClearRoute: () => void;
+  /** Focus a single space — used by the assistant for "show me X" intents. */
+  onFocus: (spaceId: string) => void;
 }
 
 /**
@@ -40,6 +43,7 @@ export function NavigateTab({
   routeInstructions,
   onRoute,
   onClearRoute,
+  onFocus,
 }: NavigateTabProps) {
   const [profile, setProfile] = useState<Profile>("default");
   const accessible = profile !== "default";
@@ -86,6 +90,24 @@ export function NavigateTab({
         locale={locale}
         accessible={accessible}
         bare
+      />
+
+      <div className="relative py-2">
+        <div className="absolute inset-0 flex items-center" aria-hidden>
+          <div className="w-full border-t border-solid border-line-soft" />
+        </div>
+        <div className="relative flex justify-center">
+          <span className="bg-surface-1 px-2 text-[0.65rem] uppercase tracking-wide text-text-tertiary">
+            {t("mappedin.askDivider")}
+          </span>
+        </div>
+      </div>
+
+      <AssistantChat
+        locale={locale}
+        spaces={spaces}
+        onFocus={onFocus}
+        onRoute={onRoute}
       />
     </div>
   );

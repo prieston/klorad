@@ -105,6 +105,14 @@ const MESSAGES = {
     "mappedin.profileWheelchair": "Wheelchair",
     "mappedin.profileVisual": "Visually impaired",
     "mappedin.swap": "Swap",
+    "mappedin.askAssistant": "Ask the assistant",
+    "mappedin.askDivider": "or ask the assistant",
+    "mappedin.askPlaceholder": "Ask about a route…",
+    "mappedin.askSend": "Send",
+    "mappedin.askExamples":
+      'Try: "How do I get to room 201?" or "I use a wheelchair, how do I reach the gym?"',
+    "mappedin.askUnavailable":
+      "Sorry — the assistant is unavailable right now.",
 
     // Unpublished / not-found states
     "published.body":
@@ -208,6 +216,14 @@ const MESSAGES = {
     "mappedin.profileWheelchair": "Αναπηρικό αμαξίδιο",
     "mappedin.profileVisual": "Πρόβλημα όρασης",
     "mappedin.swap": "Εναλλαγή",
+    "mappedin.askAssistant": "Ρωτήστε τον βοηθό",
+    "mappedin.askDivider": "ή ρωτήστε τον βοηθό",
+    "mappedin.askPlaceholder": "Ρωτήστε για μια διαδρομή…",
+    "mappedin.askSend": "Αποστολή",
+    "mappedin.askExamples":
+      'Δοκιμάστε: «Πώς πάω στην αίθουσα 201;» ή «Είμαι σε αναπηρικό αμαξίδιο, πώς φτάνω στο γυμναστήριο;»',
+    "mappedin.askUnavailable":
+      "Λυπούμαστε — ο βοηθός δεν είναι διαθέσιμος αυτή τη στιγμή.",
 
     // Unpublished / not-found states
     "published.body":
