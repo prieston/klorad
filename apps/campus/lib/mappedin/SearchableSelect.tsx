@@ -7,6 +7,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@klorad/design-system";
 
 export interface SearchableOption {
@@ -32,6 +33,12 @@ export interface SearchableSelectProps {
  * This input filters as the user types, keeps keyboard nav, and
  * stays inside the campus's existing surface / accent tokens so it
  * matches the rest of the panel without pulling in a dependency.
+ *
+ * The dropdown is rendered through a portal on `document.body` with
+ * `position: fixed`, so it escapes the side panel's
+ * `overflow-y-auto` clipping and outranks any sibling's stacking.
+ * Position is the input's `getBoundingClientRect()`, recomputed on
+ * scroll + resize so the menu tracks the input.
  */
 export function SearchableSelect({
   options,
@@ -44,8 +51,16 @@ export function SearchableSelect({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [focusIndex, setFocusIndex] = useState(0);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const [mounted, setMounted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  // SSR-safe portal — only render once the client has mounted.
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const selectedOption = useMemo(
     () => options.find((o) => o.id === value),
@@ -62,17 +77,38 @@ export function SearchableSelect({
   // when closed, it shows the selected name (or empty placeholder).
   const displayValue = open ? query : (selectedOption?.name ?? "");
 
-  // Close when the user clicks anywhere outside.
+  // Track the input's screen rect while the dropdown is open so the
+  // portaled menu stays glued to it during scroll / resize.
+  useEffect(() => {
+    if (!open) return;
+    const el = inputRef.current;
+    if (!el) return;
+    const update = () => setRect(el.getBoundingClientRect());
+    update();
+    window.addEventListener("resize", update);
+    // Capture phase catches scroll inside any ancestor (the side
+    // panel's overflow-y-auto in particular).
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [open]);
+
+  // Close when the user clicks anywhere outside both the input
+  // wrapper and the portaled list (which lives on document.body).
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
+      const target = e.target as Node;
       if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
+        containerRef.current?.contains(target) ||
+        listRef.current?.contains(target)
       ) {
-        setOpen(false);
-        setQuery("");
+        return;
       }
+      setOpen(false);
+      setQuery("");
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
@@ -104,6 +140,55 @@ export function SearchableSelect({
     }
   };
 
+  const dropdown =
+    open && rect ? (
+      <ul
+        ref={listRef}
+        role="listbox"
+        style={{
+          position: "fixed",
+          top: rect.bottom + 4,
+          left: rect.left,
+          width: rect.width,
+        }}
+        className="z-[60] max-h-64 overflow-y-auto rounded-lg border border-solid border-line-soft bg-surface-1 py-1 shadow-glass"
+      >
+        {filtered.length === 0 ? (
+          <li className="px-3 py-2 text-xs text-text-tertiary">
+            {noMatchLabel ?? "No matches"}
+          </li>
+        ) : (
+          filtered.map((o, i) => (
+            <li key={o.id}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={o.id === value}
+                // mousedown fires before input blur — so the click
+                // registers before the outside-click effect closes
+                // the dropdown.
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  choose(o.id);
+                }}
+                onMouseEnter={() => setFocusIndex(i)}
+                className={cn(
+                  "w-full px-3 py-2 text-left text-sm transition-colors",
+                  o.id === value
+                    ? "bg-accent-soft text-accent"
+                    : i === focusIndex
+                      ? "bg-surface-2 text-text-primary"
+                      : "text-text-primary hover:bg-surface-2",
+                )}
+              >
+                {o.name}
+              </button>
+            </li>
+          ))
+        )}
+      </ul>
+    ) : null;
+
   return (
     <div ref={containerRef} className="relative">
       <input
@@ -127,45 +212,7 @@ export function SearchableSelect({
         onKeyDown={onKeyDown}
         className="w-full rounded-md border border-solid border-line-soft bg-surface-1 px-3 py-2 text-sm text-text-primary outline-none transition-colors focus:border-accent"
       />
-      {open ? (
-        <ul
-          role="listbox"
-          className="absolute left-0 right-0 z-30 mt-1 max-h-64 overflow-y-auto rounded-lg border border-solid border-line-soft bg-surface-1 py-1 shadow-glass"
-        >
-          {filtered.length === 0 ? (
-            <li className="px-3 py-2 text-xs text-text-tertiary">
-              {noMatchLabel ?? "No matches"}
-            </li>
-          ) : (
-            filtered.map((o, i) => (
-              <li key={o.id}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={o.id === value}
-                  // mousedown fires before input blur — so the click registers
-                  // before the outside-click effect tries to close the dropdown.
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    choose(o.id);
-                  }}
-                  onMouseEnter={() => setFocusIndex(i)}
-                  className={cn(
-                    "w-full px-3 py-2 text-left text-sm transition-colors",
-                    o.id === value
-                      ? "bg-accent-soft text-accent"
-                      : i === focusIndex
-                        ? "bg-surface-2 text-text-primary"
-                        : "text-text-primary hover:bg-surface-2",
-                  )}
-                >
-                  {o.name}
-                </button>
-              </li>
-            ))
-          )}
-        </ul>
-      ) : null}
+      {mounted && dropdown ? createPortal(dropdown, document.body) : null}
     </div>
   );
 }
