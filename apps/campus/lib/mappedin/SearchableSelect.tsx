@@ -165,51 +165,58 @@ export function SearchableSelect({
               className="w-full rounded-lg border border-solid border-line-soft bg-surface-1 px-3 py-2 text-sm text-text-primary outline-none transition-colors placeholder:text-text-tertiary focus:border-accent"
             />
           </div>
-          <ul
+          {/*
+            div / div (not ul / li) on purpose — apps/campus has
+            Tailwind preflight off, so <ul> default bullets +
+            <button> default borders render through. The list
+            container + per-option `border: none` inline style
+            keep this clean without depending on a global reset.
+          */}
+          <div
             role="listbox"
-            className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-4 pt-2"
+            className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-4 pt-2"
           >
             {visible.length === 0 ? (
-              <li className="px-3 py-2 text-xs text-text-tertiary">
+              <div className="px-3 py-2 text-xs text-text-tertiary">
                 {noMatchLabel ?? "No matches"}
-              </li>
+              </div>
             ) : (
               visible.map((o, i) => (
-                <li key={o.id}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={o.id === value}
-                    onMouseDown={(e) => {
-                      // mousedown fires before any pending blur — so
-                      // the click registers before Radix's outside-
-                      // click logic closes the popover.
-                      e.preventDefault();
-                      choose(o.id);
-                    }}
-                    onMouseEnter={() => setFocusIndex(i)}
-                    className={cn(
-                      "w-full rounded-lg px-3 py-2 text-left text-sm transition-colors",
-                      o.id === value
-                        ? "bg-accent-soft text-accent"
-                        : i === focusIndex
-                          ? "bg-surface-2 text-text-primary"
-                          : "text-text-primary hover:bg-surface-2",
-                    )}
-                  >
-                    {o.name}
-                  </button>
-                </li>
+                <button
+                  key={o.id}
+                  type="button"
+                  role="option"
+                  aria-selected={o.id === value}
+                  onMouseDown={(e) => {
+                    // mousedown fires before any pending blur — so
+                    // the click registers before Radix's outside-
+                    // click logic closes the popover.
+                    e.preventDefault();
+                    choose(o.id);
+                  }}
+                  onMouseEnter={() => setFocusIndex(i)}
+                  style={{ border: "none" }}
+                  className={cn(
+                    "block w-full cursor-pointer rounded-lg bg-transparent px-3 py-2 text-left text-sm transition-colors",
+                    o.id === value
+                      ? "bg-accent-soft text-accent"
+                      : i === focusIndex
+                        ? "bg-surface-2 text-text-primary"
+                        : "text-text-primary hover:bg-surface-2",
+                  )}
+                >
+                  {o.name}
+                </button>
               ))
             )}
             {truncated ? (
-              <li className="mt-1 px-3 py-1 text-[0.7rem] italic text-text-tertiary">
+              <div className="mt-1 px-3 py-1 text-[0.7rem] italic text-text-tertiary">
                 {moreResultsLabel
                   ? moreResultsLabel(MAX_RESULTS, filtered.length)
                   : `Showing ${MAX_RESULTS} of ${filtered.length}`}
-              </li>
+              </div>
             ) : null}
-          </ul>
+          </div>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
