@@ -88,9 +88,20 @@ export async function listClubsForAdmin(
   return rows.map(fromPrisma);
 }
 
+/**
+ * Single club by id. Returns `null` both for "doesn't exist" and for
+ * "the runtime can't query yet" (pending migration / unregenerated
+ * client), so the detail page renders 404 instead of crashing. The
+ * error is logged so the deploy-time fix is still visible.
+ */
 export async function getClub(id: string): Promise<Club | null> {
-  const row = await prisma.club.findUnique({ where: { id } });
-  return row ? fromPrisma(row) : null;
+  try {
+    const row = await prisma.club.findUnique({ where: { id } });
+    return row ? fromPrisma(row) : null;
+  } catch (err) {
+    console.error("[clubs-db] getClub failed", err);
+    return null;
+  }
 }
 
 /** "DS" from "Data Science Society". Two letters, uppercase. */

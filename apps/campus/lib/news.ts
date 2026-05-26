@@ -99,10 +99,20 @@ export async function listNewsForAdmin(
   return rows.map(fromPrisma);
 }
 
-/** Single post by id — used by the public detail page. */
+/**
+ * Single post by id — used by the public detail page. Returns
+ * `null` both for "doesn't exist" and for a transient query failure
+ * (pending migration etc.) so the detail page can 404 instead of
+ * 500. The error is logged.
+ */
 export async function getNewsPost(id: string): Promise<NewsPost | null> {
-  const row = await prisma.newsPost.findUnique({ where: { id } });
-  return row ? fromPrisma(row) : null;
+  try {
+    const row = await prisma.newsPost.findUnique({ where: { id } });
+    return row ? fromPrisma(row) : null;
+  } catch (err) {
+    console.error("[news] getNewsPost failed", err);
+    return null;
+  }
 }
 
 /** Format a post's date for display. */
