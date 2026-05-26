@@ -7,43 +7,30 @@ const FILTER_PILLS: { label: string; active?: boolean }[] = [
   { label: "Events" },
 ];
 
-interface BuildingDot {
-  label: string;
-  x: number;
-  y: number;
-  color: string;
-}
-
-/**
- * Six representative dots placed on a soft-teal canvas — the
- * teaser only suggests there is a map; the real one is one tap
- * away on `/map`.
- */
-const BUILDINGS: BuildingDot[] = [
-  { label: "Library", x: 70, y: 50, color: "var(--brand-primary)" },
-  { label: "Sci hall", x: 290, y: 55, color: "#D85A30" },
-  { label: "Gym", x: 60, y: 145, color: "#1D9E75" },
-  { label: "Dorm A", x: 310, y: 150, color: "#D4537E" },
-  { label: "Cafeteria", x: 130, y: 200, color: "var(--brand-primary)" },
-  { label: "Quad", x: 200, y: 110, color: "#1D9E75" },
-];
-
 export interface MapTeaserProps {
   /** URL of the real MappedIn viewer for this campus. */
   mapHref: string;
+  /**
+   * MappedIn-captured thumbnail for the venue. Set in the dashboard
+   * via "Capture thumbnail." When present, used in place of the
+   * fallback illustration so the teaser reflects the real campus.
+   */
+  thumbnailUrl?: string;
 }
 
 /**
  * Right-column card on the hero — a "Campus map" panel with a
- * live indicator dot, an illustrated overview, and four filter
- * pills underneath. Tap anywhere → drops the visitor into the
- * real MappedIn viewer at `mapHref`. The illustration is decoration
- * only; the pills are visual today and gain behaviour when we ship
- * categories on the real map in a later arc.
+ * live indicator dot, the real MappedIn-captured thumbnail of the
+ * venue (when set), and four filter pills underneath. Tap anywhere
+ * → drops the visitor into the real MappedIn viewer at `mapHref`.
+ *
+ * When no thumbnail is set, falls back to a small generic gradient
+ * placeholder rather than a cartoon SVG of fake buildings — better
+ * to look unfinished than to show buildings the campus doesn't have.
  */
-export function MapTeaser({ mapHref }: MapTeaserProps) {
+export function MapTeaser({ mapHref, thumbnailUrl }: MapTeaserProps) {
   return (
-    <div className="rounded-2xl border border-[var(--brand-line)] bg-white p-5">
+    <div className="flex h-full flex-col rounded-2xl border border-[var(--brand-line)] bg-white p-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span
@@ -65,53 +52,28 @@ export function MapTeaser({ mapHref }: MapTeaserProps) {
       <Link
         href={mapHref}
         aria-label="Open campus map"
-        className="mt-4 block overflow-hidden rounded-xl"
+        className="mt-4 block aspect-[4/3] overflow-hidden rounded-xl"
+        style={
+          thumbnailUrl
+            ? undefined
+            : {
+                background:
+                  "linear-gradient(135deg, var(--brand-primary-bg) 0%, #E0F2EE 100%)",
+              }
+        }
       >
-        <svg
-          viewBox="0 0 380 250"
-          xmlns="http://www.w3.org/2000/svg"
-          className="block h-auto w-full"
-          role="img"
-          aria-label="Illustrated campus map"
-        >
-          <rect width="380" height="250" fill="#E0F2EE" />
-          {/* Cross-shaped walking paths */}
-          <line
-            x1="0"
-            y1="125"
-            x2="380"
-            y2="125"
-            stroke="#fff"
-            strokeWidth="14"
-            strokeLinecap="round"
-            opacity="0.7"
+        {thumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbnailUrl}
+            alt="Campus map preview"
+            className="h-full w-full object-cover"
           />
-          <line
-            x1="190"
-            y1="0"
-            x2="190"
-            y2="250"
-            stroke="#fff"
-            strokeWidth="14"
-            strokeLinecap="round"
-            opacity="0.7"
-          />
-          {BUILDINGS.map((b) => (
-            <g key={b.label}>
-              <circle cx={b.x} cy={b.y} r="7" fill={b.color} />
-              <text
-                x={b.x}
-                y={b.y + 22}
-                textAnchor="middle"
-                fontSize="11"
-                fontWeight="500"
-                fill="#1A1A1A"
-              >
-                {b.label}
-              </text>
-            </g>
-          ))}
-        </svg>
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-sm text-[var(--brand-text-muted)]">
+            Map coming soon
+          </span>
+        )}
       </Link>
 
       <div className="mt-4 flex flex-wrap gap-2">

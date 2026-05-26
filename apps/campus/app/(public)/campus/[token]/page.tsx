@@ -97,6 +97,7 @@ export default async function CampusHomePage({
       locale={locale}
       headline={headline}
       subheading={subheading}
+      mapThumbnailUrl={map.thumbnail ?? undefined}
     />
   );
 }

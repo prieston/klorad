@@ -23,6 +23,8 @@ export interface ConsumerHomeProps {
   /** Optional org-set hero copy; defaults to the platform marketing line. */
   headline?: string;
   subheading?: string;
+  /** Real venue thumbnail for the hero's MapTeaser. */
+  mapThumbnailUrl?: string;
 }
 
 /**
@@ -48,6 +50,7 @@ export function ConsumerHome({
   locale,
   headline,
   subheading,
+  mapThumbnailUrl,
 }: ConsumerHomeProps) {
   const lang = `?lang=${locale}`;
   const mapHref = `/campus/${token}/map${lang}`;
@@ -77,6 +80,7 @@ export function ConsumerHome({
         secondaryHref={`/campus/${token}/tour${lang}`}
         secondaryLabel="Watch the tour"
         mapHref={mapHref}
+        mapThumbnailUrl={mapThumbnailUrl}
       />
 
       <section className="mx-auto grid max-w-[1280px] grid-cols-1 gap-4 px-4 md:grid-cols-3 md:gap-6 md:px-6">
