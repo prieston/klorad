@@ -12,7 +12,7 @@ import {
   SAMPLE_EVENTS,
   SAMPLE_NEWS,
 } from "../sample-campus";
-import type { ConsumerEvent, ConsumerNews } from "./types";
+import type { ConsumerClub, ConsumerEvent, ConsumerNews } from "./types";
 
 export interface ConsumerHomeProps {
   token: string;
@@ -34,6 +34,8 @@ export interface ConsumerHomeProps {
   news?: ConsumerNews[];
   /** Events for the "Happening this week" grid. Same fallback story. */
   events?: ConsumerEvent[];
+  /** Clubs for the "Most active this week" rail. Same fallback story. */
+  clubs?: ConsumerClub[];
 }
 
 /**
@@ -62,9 +64,11 @@ export function ConsumerHome({
   mapThumbnailUrl,
   news,
   events,
+  clubs,
 }: ConsumerHomeProps) {
   const newsItems = news?.length ? news : SAMPLE_NEWS;
   const eventItems = events?.length ? events : SAMPLE_EVENTS;
+  const clubItems = clubs?.length ? clubs : SAMPLE_CLUBS;
   const lang = `?lang=${locale}`;
   const mapHref = `/campus/${token}/map${lang}`;
   // Per-org accent overrides the default purple at the wrapper, so
@@ -109,7 +113,7 @@ export function ConsumerHome({
           icon={Users}
           accent="pink"
           label="Browse clubs"
-          subtitle={`${SAMPLE_CLUBS.length}+ on campus`}
+          subtitle={`${clubItems.length}+ on campus`}
         />
         <QuickTile
           href={`/campus/${token}/events${lang}`}
@@ -144,8 +148,12 @@ export function ConsumerHome({
             Sorted by activity — no tracking
           </p>
           <div className="mt-4">
-            {SAMPLE_CLUBS.map((c) => (
-              <ClubRow key={c.id} club={c} />
+            {clubItems.slice(0, 4).map((c) => (
+              <ClubRow
+                key={c.id}
+                club={c}
+                detailHref={`/campus/${token}/clubs/${c.id}${lang}`}
+              />
             ))}
           </div>
         </div>

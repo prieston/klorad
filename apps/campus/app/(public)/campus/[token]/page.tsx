@@ -9,9 +9,14 @@ import {
   listUpcomingEventsForProject,
   type EventPost,
 } from "@/lib/events-db";
+import { listTopClubsForProject, type Club } from "@/lib/clubs-db";
 import NotPublishedPlaceholder from "./NotPublishedPlaceholder";
 import { ConsumerHome } from "@/lib/consumer/ConsumerHome";
-import type { ConsumerEvent, ConsumerNews } from "@/lib/consumer/types";
+import type {
+  ConsumerClub,
+  ConsumerEvent,
+  ConsumerNews,
+} from "@/lib/consumer/types";
 
 type Params = Promise<{ token: string }>;
 
@@ -106,13 +111,17 @@ export default async function CampusHomePage({
   // `NewsPost` or `EventPost` table is missing (operator hasn't run
   // `prisma migrate deploy` yet) the home renders with empty rails
   // + the sample-data fallback in `ConsumerHome` instead of 500ing.
-  const [dbPosts, dbEvents] = await Promise.all([
+  const [dbPosts, dbEvents, dbClubs] = await Promise.all([
     listNewsForProject(map.id).catch((err): NewsPost[] => {
       console.error("[public-home] news fetch failed", err);
       return [];
     }),
     listUpcomingEventsForProject(map.id, 12).catch((err): EventPost[] => {
       console.error("[public-home] events fetch failed", err);
+      return [];
+    }),
+    listTopClubsForProject(map.id, 6).catch((err): Club[] => {
+      console.error("[public-home] clubs fetch failed", err);
       return [];
     }),
   ]);
@@ -161,6 +170,20 @@ export default async function CampusHomePage({
     )
     .slice(0, 6);
 
+  // Club rows map 1:1 onto the consumer rail shape — `avatarColor`
+  // is the same union and the public rail honours an empty external
+  // link (View pill hides). Without externalLink, the consumer can
+  // still click through to the club's detail page in-app.
+  const clubs: ConsumerClub[] = dbClubs.map((c) => ({
+    id: c.id,
+    name: c.name,
+    initials: c.initials,
+    avatarColor: c.avatarColor,
+    memberCount: c.memberCount,
+    meetsCadence: c.meetsCadence ?? "",
+    externalLink: c.externalLink ?? "",
+  }));
+
   // EventPost rows map 1:1 onto the consumer card shape — the Prisma
   // enums (bannerColor / bannerIcon) match the ConsumerEvent unions.
   const events: ConsumerEvent[] = dbEvents.map((e) => ({
@@ -194,6 +217,7 @@ export default async function CampusHomePage({
       mapThumbnailUrl={map.thumbnail ?? undefined}
       news={news}
       events={events}
+      clubs={clubs}
     />
   );
 }

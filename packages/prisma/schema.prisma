@@ -92,6 +92,7 @@ model Organization {
   cesiumAssets          CesiumAsset[]
   newsPosts             NewsPost[]
   eventPosts            EventPost[]
+  clubs                 Club[]
   plan                  Plan                   @relation(fields: [planCode], references: [code])
 
   @@index([planCode])
@@ -169,6 +170,8 @@ model Project {
   newsPosts    NewsPost[]
   // Campus events scoped to this project — see lib/events-db.ts.
   eventPosts   EventPost[]
+  // Student clubs scoped to this project — see lib/clubs-db.ts.
+  clubs        Club[]
 
   // Showcase Relation
   showcaseWorld ShowcaseWorld?
@@ -472,4 +475,46 @@ enum EventIcon {
   trophy
   sprout
   calendar
+}
+
+/// Student club — Arc 4 of campus-consumer-pivot.
+/// Renders on the "Most active clubs this week" rail (sorted by
+/// popularityScore desc, then memberCount). Clubs are anonymous to
+/// the public site — no auth, no "join," just a View that opens an
+/// external link (Discord / Insta / group chat).
+model Club {
+  id              String     @id @default(cuid())
+  organizationId  String
+  projectId       String
+  name            String
+  description     String     @db.Text
+  /// Two-letter avatar, e.g. "DS" for Data Science Society.
+  initials        String
+  avatarColor     ClubColor  @default(purple)
+  memberCount     Int        @default(0)
+  /// Free-text frequency, "Meets Wednesdays at 6 pm."
+  meetsCadence    String?
+  /// External link the View button opens — Discord, Insta, etc.
+  externalLink    String?
+  imageUrl        String?
+  /// Admin-tunable rank for the "most active this week" sort. No
+  /// tracking; admin sets the number. Anonymous "interested" signals
+  /// in a phase-2 primitive could update this automatically.
+  popularityScore Int        @default(0)
+  anchors         Json       @default("[]")
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, popularityScore])
+  @@index([organizationId])
+}
+
+enum ClubColor {
+  purple
+  coral
+  teal
+  pink
 }

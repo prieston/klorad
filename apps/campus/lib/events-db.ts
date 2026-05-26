@@ -90,9 +90,19 @@ export async function listEventsForAdmin(
   return rows.map(fromPrisma);
 }
 
+/**
+ * Single event by id. Returns `null` for "doesn't exist" and for a
+ * transient query failure so the detail page can 404 instead of
+ * 500.
+ */
 export async function getEventPost(id: string): Promise<EventPost | null> {
-  const row = await prisma.eventPost.findUnique({ where: { id } });
-  return row ? fromPrisma(row) : null;
+  try {
+    const row = await prisma.eventPost.findUnique({ where: { id } });
+    return row ? fromPrisma(row) : null;
+  } catch (err) {
+    console.error("[events-db] getEventPost failed", err);
+    return null;
+  }
 }
 
 /** "Tue 6:00 pm" — same compact format as the consumer rail. */
