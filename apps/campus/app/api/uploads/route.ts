@@ -8,6 +8,8 @@ const ALLOWED_PREFIXES = new Set([
   "campus-thumbnails",
   "campus-branding",
   "campus-hero",
+  // Per-news-post hero image — see lib/news.ts + the admin create form.
+  "campus-news",
 ]);
 const ALLOWED_TYPES = new Set([
   "image/png",

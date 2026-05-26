@@ -3,8 +3,11 @@ import { notFound } from "next/navigation";
 import { getPublicCampusByToken } from "@/lib/public-campus";
 import { readHomePage } from "@/lib/home-page";
 import { detectLocale, pickText } from "@/app/lib/i18n-core";
+import { readPosts } from "@/lib/posts";
+import { listNewsForProject } from "@/lib/news";
 import NotPublishedPlaceholder from "./NotPublishedPlaceholder";
 import { ConsumerHome } from "@/lib/consumer/ConsumerHome";
+import type { ConsumerNews } from "@/lib/consumer/types";
 
 type Params = Promise<{ token: string }>;
 
@@ -88,6 +91,55 @@ export default async function CampusHomePage({
   const headline = pickText(home.headline, locale) || undefined;
   const subheading = pickText(home.tagline, locale) || undefined;
 
+  // News rail: combine the new `NewsPost` rows with legacy posts in
+  // `sceneData.posts` so existing tenants don't lose what's there
+  // while they migrate. Newest first, capped at 6.
+  const dbPosts = await listNewsForProject(map.id);
+  const legacyPosts = readPosts(map.sceneData);
+  const news: ConsumerNews[] = [
+    ...dbPosts.map((p) => ({
+      id: p.id,
+      title: p.title,
+      excerpt: p.body.length > 200 ? `${p.body.slice(0, 197)}…` : p.body,
+      category: p.category,
+      publishedAt: p.publishedAt,
+      anchors: p.anchors.map((a) => ({
+        kind: a.kind,
+        refId: a.refId,
+        refName: a.refName,
+      })),
+    })),
+    ...legacyPosts.map((p) => {
+      const title = pickText(p.title, locale) || "";
+      const bodyText = pickText(p.body, locale) || "";
+      return {
+        id: p.id,
+        title,
+        excerpt:
+          bodyText.length > 200 ? `${bodyText.slice(0, 197)}…` : bodyText,
+        category: "news" as const,
+        publishedAt: p.publishedAt,
+        anchors: p.place
+          ? [
+              {
+                // Legacy "floor" is collapsed to "building" — the new
+                // model doesn't carry a floor anchor kind.
+                kind: (p.place.kind === "room" ? "room" : "building") as
+                  | "room"
+                  | "building",
+                refId: p.place.id,
+                refName: p.place.name,
+              },
+            ]
+          : [],
+      };
+    }),
+  ]
+    .sort(
+      (a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt),
+    )
+    .slice(0, 6);
+
   return (
     <ConsumerHome
       token={token}
@@ -98,6 +150,7 @@ export default async function CampusHomePage({
       headline={headline}
       subheading={subheading}
       mapThumbnailUrl={map.thumbnail ?? undefined}
+      news={news}
     />
   );
 }

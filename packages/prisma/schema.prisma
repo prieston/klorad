@@ -90,6 +90,7 @@ model Organization {
   activities            Activity[]
   cesiumIonIntegrations CesiumIonIntegration[]
   cesiumAssets          CesiumAsset[]
+  newsPosts             NewsPost[]
   plan                  Plan                   @relation(fields: [planCode], references: [code])
 
   @@index([planCode])
@@ -163,6 +164,8 @@ model Project {
   assets       Asset[]
   // Activities related to this project
   activities   Activity[]
+  // Campus news posts scoped to this project — see lib/news.ts.
+  newsPosts    NewsPost[]
 
   // Showcase Relation
   showcaseWorld ShowcaseWorld?
@@ -386,4 +389,37 @@ model ShowcaseTag {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Campus news post — Arc 2 of campus-consumer-pivot.
+/// Scoped to a Project (one campus map). One post can apply to many
+/// anchors; stored as a JSON array of { kind, refId, refName } rather
+/// than a relation table because the list is short and we don't query
+/// across anchors (each post resolves its own).
+model NewsPost {
+  id             String       @id @default(cuid())
+  organizationId String
+  projectId      String
+  title          String
+  body           String       @db.Text
+  imageUrl       String?
+  category       NewsCategory @default(announcement)
+  publishedAt    DateTime     @default(now())
+  expiresAt      DateTime?
+  // [{ kind, refId, refName }] — see ConsumerAnchor in lib/consumer/types.
+  anchors        Json         @default("[]")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, publishedAt])
+  @@index([organizationId])
+}
+
+enum NewsCategory {
+  announcement
+  news
+  alert
 }
