@@ -91,6 +91,7 @@ model Organization {
   cesiumIonIntegrations CesiumIonIntegration[]
   cesiumAssets          CesiumAsset[]
   newsPosts             NewsPost[]
+  eventPosts            EventPost[]
   plan                  Plan                   @relation(fields: [planCode], references: [code])
 
   @@index([planCode])
@@ -166,6 +167,8 @@ model Project {
   activities   Activity[]
   // Campus news posts scoped to this project — see lib/news.ts.
   newsPosts    NewsPost[]
+  // Campus events scoped to this project — see lib/events-db.ts.
+  eventPosts   EventPost[]
 
   // Showcase Relation
   showcaseWorld ShowcaseWorld?
@@ -422,4 +425,51 @@ enum NewsCategory {
   announcement
   news
   alert
+}
+
+/// Campus event — Arc 3 of campus-consumer-pivot.
+/// Discrete occurrence per row. ICS-sourced recurring events keep
+/// rendering through the existing `lib/events-server.ts` expansion;
+/// EventPost is for admin-authored one-offs and (later) for ICS rows
+/// that get materialised on sync. Anchors mirror NewsPost.
+model EventPost {
+  id              String      @id @default(cuid())
+  organizationId  String
+  projectId       String
+  title           String
+  description     String      @db.Text
+  imageUrl        String?
+  startsAt        DateTime
+  endsAt          DateTime
+  registrationUrl String?
+  organizer       String?
+  /// Banner colour for the consumer card — see ConsumerEvent.
+  bannerColor     EventBanner @default(purple)
+  /// Lucide icon name for the banner.
+  bannerIcon      EventIcon   @default(calendar)
+  /// Vanity "expected attendance" — admin-set. See campus-consumer-pivot.
+  expectedAttendance Int?
+  anchors         Json        @default("[]")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, startsAt])
+  @@index([organizationId])
+}
+
+enum EventBanner {
+  purple
+  coral
+  teal
+  pink
+}
+
+enum EventIcon {
+  music
+  trophy
+  sprout
+  calendar
 }

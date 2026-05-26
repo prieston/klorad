@@ -5,9 +5,10 @@ import { readHomePage } from "@/lib/home-page";
 import { detectLocale, pickText } from "@/app/lib/i18n-core";
 import { readPosts } from "@/lib/posts";
 import { listNewsForProject } from "@/lib/news";
+import { listUpcomingEventsForProject } from "@/lib/events-db";
 import NotPublishedPlaceholder from "./NotPublishedPlaceholder";
 import { ConsumerHome } from "@/lib/consumer/ConsumerHome";
-import type { ConsumerNews } from "@/lib/consumer/types";
+import type { ConsumerEvent, ConsumerNews } from "@/lib/consumer/types";
 
 type Params = Promise<{ token: string }>;
 
@@ -94,7 +95,13 @@ export default async function CampusHomePage({
   // News rail: combine the new `NewsPost` rows with legacy posts in
   // `sceneData.posts` so existing tenants don't lose what's there
   // while they migrate. Newest first, capped at 6.
-  const dbPosts = await listNewsForProject(map.id);
+  // Events rail: DB events only for now — ICS-feed-sourced events
+  // continue to render through `events-server.ts` but are wired into
+  // the consumer surface in a follow-up commit (Arc 3 follow-up).
+  const [dbPosts, dbEvents] = await Promise.all([
+    listNewsForProject(map.id),
+    listUpcomingEventsForProject(map.id, 12),
+  ]);
   const legacyPosts = readPosts(map.sceneData);
   const news: ConsumerNews[] = [
     ...dbPosts.map((p) => ({
@@ -140,6 +147,27 @@ export default async function CampusHomePage({
     )
     .slice(0, 6);
 
+  // EventPost rows map 1:1 onto the consumer card shape — the Prisma
+  // enums (bannerColor / bannerIcon) match the ConsumerEvent unions.
+  const events: ConsumerEvent[] = dbEvents.map((e) => ({
+    id: e.id,
+    title: e.title,
+    blurb:
+      e.description.length > 200
+        ? `${e.description.slice(0, 197)}…`
+        : e.description,
+    startsAt: e.startsAt,
+    endsAt: e.endsAt,
+    bannerColor: e.bannerColor,
+    bannerIcon: e.bannerIcon,
+    anchors: e.anchors.map((a) => ({
+      kind: a.kind,
+      refId: a.refId,
+      refName: a.refName,
+    })),
+    expectedAttendance: e.expectedAttendance ?? undefined,
+  }));
+
   return (
     <ConsumerHome
       token={token}
@@ -151,6 +179,7 @@ export default async function CampusHomePage({
       subheading={subheading}
       mapThumbnailUrl={map.thumbnail ?? undefined}
       news={news}
+      events={events}
     />
   );
 }
