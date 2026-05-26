@@ -42,7 +42,7 @@ export default async function CampusMapPage({
 
   const scene = (map.sceneData ?? null) as {
     indoorMapId?: string;
-    branding?: { primaryColor?: string };
+    branding?: { primaryColor?: string; name?: string };
   } | null;
   const indoorMapId = scene?.indoorMapId;
   const accentColor =
@@ -50,6 +50,7 @@ export default async function CampusMapPage({
     /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(scene.branding.primaryColor)
       ? scene.branding.primaryColor
       : undefined;
+  const campusName = scene?.branding?.name || map.title;
 
   if (indoorMapId) {
     return (
@@ -60,6 +61,8 @@ export default async function CampusMapPage({
           locale={locale}
           homeHref={`/campus/${token}?lang=${locale}`}
           accentColor={accentColor}
+          projectId={map.id}
+          campusName={campusName}
           showWelcome
         />
       </main>

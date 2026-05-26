@@ -58,6 +58,13 @@ interface MappedinViewerProps {
   accentColor?: string;
   /** Show the first-visit tips overlay (public map only). */
   showWelcome?: boolean;
+  /**
+   * Project id — threaded down to AssistantChat in the Navigate tab
+   * so the LLM can query news / events / clubs / dining.
+   */
+  projectId?: string;
+  /** Campus display name — used in the assistant's system prompt. */
+  campusName?: string;
 }
 
 /** Default accent for venues with no branding colour. */
@@ -100,6 +107,8 @@ export const MappedinViewer = forwardRef<
     homeHref,
     accentColor = DEFAULT_ACCENT,
     showWelcome = false,
+    projectId,
+    campusName,
   },
   ref,
 ) {
@@ -496,6 +505,8 @@ export const MappedinViewer = forwardRef<
           routeError={routeError}
           routeSummary={routeSummary}
           routeInstructions={routeInstructions}
+          projectId={projectId}
+          campusName={campusName}
           onRoute={(from, to, accessible) =>
             void handleRoute(from, to, accessible)
           }

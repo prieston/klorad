@@ -15,6 +15,10 @@ export interface NavigateTabProps {
   onClearRoute: () => void;
   /** Focus a single space — used by the assistant for "show me X" intents. */
   onFocus: (spaceId: string) => void;
+  /** Project id — passed to AssistantChat for content tool calls. */
+  projectId?: string;
+  /** Campus display name — passed to AssistantChat for the system prompt. */
+  campusName?: string;
 }
 
 /**
@@ -37,6 +41,8 @@ export function NavigateTab({
   onRoute,
   onClearRoute,
   onFocus,
+  projectId,
+  campusName,
 }: NavigateTabProps) {
   const t = (key: Parameters<typeof translate>[1]) =>
     translate(locale, key);
@@ -71,6 +77,8 @@ export function NavigateTab({
         spaces={spaces}
         onFocus={onFocus}
         onRoute={onRoute}
+        projectId={projectId}
+        campusName={campusName}
       />
     </div>
   );
