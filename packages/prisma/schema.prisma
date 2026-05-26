@@ -93,6 +93,7 @@ model Organization {
   newsPosts             NewsPost[]
   eventPosts            EventPost[]
   clubs                 Club[]
+  diningLocations       DiningLocation[]
   plan                  Plan                   @relation(fields: [planCode], references: [code])
 
   @@index([planCode])
@@ -172,6 +173,8 @@ model Project {
   eventPosts   EventPost[]
   // Student clubs scoped to this project — see lib/clubs-db.ts.
   clubs        Club[]
+  // Cafeterias / cafes scoped to this project — see lib/dining-db.ts.
+  diningLocations DiningLocation[]
 
   // Showcase Relation
   showcaseWorld ShowcaseWorld?
@@ -517,4 +520,34 @@ enum ClubColor {
   coral
   teal
   pink
+}
+
+/// Cafeteria / cafe — Arc 5 of campus-consumer-pivot.
+/// Smallest of the four content arcs because dining is mostly
+/// static: name + description + hours (free text) + optional menu
+/// link + optional cuisine + anchors. No detail page per location;
+/// the public /dining route renders the whole list as cards.
+model DiningLocation {
+  id              String   @id @default(cuid())
+  organizationId  String
+  projectId       String
+  name            String
+  description     String   @db.Text
+  /// Free text — "Mon-Fri 7am-10pm · Sat 9am-3pm · Sun closed".
+  /// Structured day/time ranges + "open now" badge are a follow-up.
+  hoursText       String?
+  /// Free text — "Pizza, Salads, Coffee".
+  cuisine         String?
+  /// External link to the menu (PDF, Google Doc, restaurant site).
+  menuUrl         String?
+  imageUrl        String?
+  anchors         Json     @default("[]")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([organizationId])
 }
