@@ -4,8 +4,11 @@ import { getPublicCampusByToken } from "@/lib/public-campus";
 import { readHomePage } from "@/lib/home-page";
 import { detectLocale, pickText } from "@/app/lib/i18n-core";
 import { readPosts } from "@/lib/posts";
-import { listNewsForProject } from "@/lib/news";
-import { listUpcomingEventsForProject } from "@/lib/events-db";
+import { listNewsForProject, type NewsPost } from "@/lib/news";
+import {
+  listUpcomingEventsForProject,
+  type EventPost,
+} from "@/lib/events-db";
 import NotPublishedPlaceholder from "./NotPublishedPlaceholder";
 import { ConsumerHome } from "@/lib/consumer/ConsumerHome";
 import type { ConsumerEvent, ConsumerNews } from "@/lib/consumer/types";
@@ -98,9 +101,20 @@ export default async function CampusHomePage({
   // Events rail: DB events only for now — ICS-feed-sourced events
   // continue to render through `events-server.ts` but are wired into
   // the consumer surface in a follow-up commit (Arc 3 follow-up).
+  //
+  // Guarded against pending migrations / DB unavailability: if the
+  // `NewsPost` or `EventPost` table is missing (operator hasn't run
+  // `prisma migrate deploy` yet) the home renders with empty rails
+  // + the sample-data fallback in `ConsumerHome` instead of 500ing.
   const [dbPosts, dbEvents] = await Promise.all([
-    listNewsForProject(map.id),
-    listUpcomingEventsForProject(map.id, 12),
+    listNewsForProject(map.id).catch((err): NewsPost[] => {
+      console.error("[public-home] news fetch failed", err);
+      return [];
+    }),
+    listUpcomingEventsForProject(map.id, 12).catch((err): EventPost[] => {
+      console.error("[public-home] events fetch failed", err);
+      return [];
+    }),
   ]);
   const legacyPosts = readPosts(map.sceneData);
   const news: ConsumerNews[] = [
