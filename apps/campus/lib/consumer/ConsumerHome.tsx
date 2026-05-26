@@ -12,6 +12,7 @@ import {
   SAMPLE_EVENTS,
   SAMPLE_NEWS,
 } from "../sample-campus";
+import type { ConsumerNews } from "./types";
 
 export interface ConsumerHomeProps {
   token: string;
@@ -25,6 +26,12 @@ export interface ConsumerHomeProps {
   subheading?: string;
   /** Real venue thumbnail for the hero's MapTeaser. */
   mapThumbnailUrl?: string;
+  /**
+   * News items rendered in the News rail. Defaults to the sample seed
+   * when the page hasn't (yet) loaded real posts — keeps the layout
+   * populated for new tenants without forcing them to author first.
+   */
+  news?: ConsumerNews[];
 }
 
 /**
@@ -51,7 +58,9 @@ export function ConsumerHome({
   headline,
   subheading,
   mapThumbnailUrl,
+  news,
 }: ConsumerHomeProps) {
+  const newsItems = news?.length ? news : SAMPLE_NEWS;
   const lang = `?lang=${locale}`;
   const mapHref = `/campus/${token}/map${lang}`;
   // Per-org accent overrides the default purple at the wrapper, so
@@ -143,7 +152,7 @@ export function ConsumerHome({
             Campus news
           </h2>
           <div className="mt-4">
-            {SAMPLE_NEWS.map((n) => (
+            {newsItems.map((n) => (
               <NewsItem
                 key={n.id}
                 item={n}
