@@ -95,15 +95,46 @@ body {
  * utilities still win. Scoped to `[data-workbench]` / `[data-mappedin]`
  * so MUI dashboard pages stay untouched.
  */
-:where([data-workbench], [data-mappedin]) *,
-:where([data-workbench], [data-mappedin]) *::before,
-:where([data-workbench], [data-mappedin]) *::after {
+:where([data-workbench], [data-mappedin], [data-consumer]) *,
+:where([data-workbench], [data-mappedin], [data-consumer]) *::before,
+:where([data-workbench], [data-mappedin], [data-consumer]) *::after {
   border-width: 0;
   border-style: solid;
   border-color: var(--line-soft);
 }
 
 /* Lists in these surfaces carry no markers — rows style themselves. */
-:where([data-workbench], [data-mappedin]) :where(ul, ol) {
+:where([data-workbench], [data-mappedin], [data-consumer]) :where(ul, ol) {
   list-style: none;
+}
+
+/*
+ * Consumer surface palette ([[campus-consumer-pivot]]). Default
+ * Klorad-purple tokens applied on every `[data-consumer]` wrapper;
+ * per-org `branding.primaryColor` overrides `--brand-primary` via an
+ * inline style on the wrapper. Coral / teal / pink stay fixed —
+ * they're the accent vocabulary, not the brand colour.
+ */
+[data-consumer] {
+  --brand-primary: #534ab7;
+  --brand-primary-bg: #eeedfe;
+  --brand-coral: #d85a30;
+  --brand-teal: #1d9e75;
+  --brand-pink: #d4537e;
+  --brand-text: #1a1a1a;
+  --brand-text-muted: #6b6b6b;
+  --brand-page: #fafafa;
+  --brand-line: rgba(26, 26, 26, 0.08);
+  background-color: var(--brand-page);
+  color: var(--brand-text);
+}
+
+/*
+ * Consumer surfaces are flat — 0.5 px hairline borders by default.
+ * Override per element with explicit `border-[1px]` where needed.
+ */
+:where([data-consumer]) *,
+:where([data-consumer]) *::before,
+:where([data-consumer]) *::after {
+  border-color: var(--brand-line);
 }
