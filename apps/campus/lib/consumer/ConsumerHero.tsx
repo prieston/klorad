@@ -14,6 +14,8 @@ export interface ConsumerHeroProps {
   secondaryLabel?: string;
   /** Map link the right-column teaser opens. */
   mapHref: string;
+  /** Real venue thumbnail — preferred over a fallback illustration. */
+  mapThumbnailUrl?: string;
 }
 
 /** Four pastel avatar circles, decorative — the "joined by 8,400" social proof. */
@@ -48,6 +50,7 @@ export function ConsumerHero({
   secondaryHref,
   secondaryLabel,
   mapHref,
+  mapThumbnailUrl,
 }: ConsumerHeroProps) {
   return (
     <section className="mx-auto grid max-w-[1280px] grid-cols-1 gap-6 px-4 py-8 md:grid-cols-[1.1fr_0.9fr] md:gap-10 md:px-6 md:py-12">
@@ -105,7 +108,7 @@ export function ConsumerHero({
         </div>
       </div>
 
-      <MapTeaser mapHref={mapHref} />
+      <MapTeaser mapHref={mapHref} thumbnailUrl={mapThumbnailUrl} />
     </section>
   );
 }
