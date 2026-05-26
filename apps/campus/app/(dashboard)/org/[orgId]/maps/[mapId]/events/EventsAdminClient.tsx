@@ -1,0 +1,395 @@
+"use client";
+
+import { useState, type FormEvent } from "react";
+import Image from "next/image";
+import { toast } from "react-toastify";
+import { Plus, Trash2, X } from "lucide-react";
+import {
+  Button,
+  Field,
+  Input,
+  Panel,
+  Select,
+  Textarea,
+} from "@klorad/design-system";
+import { uploadFile } from "@klorad/storage/client";
+import {
+  formatEventWhen,
+  type EventPost,
+  type EventBanner,
+  type EventIcon,
+} from "@/lib/events-db";
+
+interface Props {
+  mapId: string;
+  initialEvents: EventPost[];
+}
+
+const BANNERS: { value: EventBanner; label: string; swatch: string }[] = [
+  { value: "purple", label: "Purple", swatch: "#534AB7" },
+  { value: "coral", label: "Coral", swatch: "#D85A30" },
+  { value: "teal", label: "Teal", swatch: "#1D9E75" },
+  { value: "pink", label: "Pink", swatch: "#D4537E" },
+];
+
+const ICONS: { value: EventIcon; label: string }[] = [
+  { value: "calendar", label: "Calendar" },
+  { value: "music", label: "Music" },
+  { value: "trophy", label: "Trophy" },
+  { value: "sprout", label: "Sprout" },
+];
+
+/** `<input type="datetime-local">` wants `YYYY-MM-DDTHH:mm` in local time. */
+function plusHoursLocal(hours: number): string {
+  const d = new Date(Date.now() + hours * 3_600_000);
+  const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off * 60_000).toISOString().slice(0, 16);
+}
+
+/**
+ * Events admin client. List + delete on the left; create form on the
+ * right (title · description · start / end · banner colour + icon ·
+ * anchor name · optional image / registration URL / organizer /
+ * expected attendance). POST goes to /api/maps/[mapId]/events; the
+ * server bumps the public cache tag so the rail updates instantly.
+ */
+export function EventsAdminClient({ mapId, initialEvents }: Props) {
+  const [events, setEvents] = useState<EventPost[]>(initialEvents);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [startsAt, setStartsAt] = useState(plusHoursLocal(24));
+  const [endsAt, setEndsAt] = useState(plusHoursLocal(26));
+  const [bannerColor, setBannerColor] = useState<EventBanner>("purple");
+  const [bannerIcon, setBannerIcon] = useState<EventIcon>("calendar");
+  const [anchorName, setAnchorName] = useState("");
+  const [registrationUrl, setRegistrationUrl] = useState("");
+  const [organizer, setOrganizer] = useState("");
+  const [expectedAttendance, setExpectedAttendance] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleImage = async (file: File) => {
+    setUploading(true);
+    try {
+      const result = await uploadFile(file, { prefix: "campus-news" });
+      setImageUrl(result.publicUrl);
+    } catch (e) {
+      console.error(e);
+      toast.error("Image upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const reset = () => {
+    setTitle("");
+    setDescription("");
+    setStartsAt(plusHoursLocal(24));
+    setEndsAt(plusHoursLocal(26));
+    setBannerColor("purple");
+    setBannerIcon("calendar");
+    setAnchorName("");
+    setRegistrationUrl("");
+    setOrganizer("");
+    setExpectedAttendance("");
+    setImageUrl(null);
+  };
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !description.trim()) {
+      toast.error("Title and description are required");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const attendance = expectedAttendance.trim()
+        ? Number.parseInt(expectedAttendance, 10)
+        : undefined;
+      const res = await fetch(`/api/maps/${mapId}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+          startsAt: new Date(startsAt).toISOString(),
+          endsAt: new Date(endsAt).toISOString(),
+          bannerColor,
+          bannerIcon,
+          imageUrl,
+          registrationUrl: registrationUrl.trim() || undefined,
+          organizer: organizer.trim() || undefined,
+          expectedAttendance:
+            attendance != null && !Number.isNaN(attendance)
+              ? attendance
+              : undefined,
+          anchors: anchorName.trim()
+            ? [
+                {
+                  kind: "building",
+                  refId: "",
+                  refName: anchorName.trim(),
+                },
+              ]
+            : [],
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Failed to publish");
+      }
+      const list = await fetch(`/api/maps/${mapId}/events`).then((r) =>
+        r.json(),
+      );
+      setEvents(list.events ?? []);
+      reset();
+      toast.success("Event published");
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Failed to publish");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onDelete = async (id: string) => {
+    if (!confirm("Delete this event?")) return;
+    try {
+      const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      setEvents((e) => e.filter((event) => event.id !== id));
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to delete");
+    }
+  };
+
+  return (
+    <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[1.2fr_1fr]">
+      <Panel className="p-5">
+        <h2 className="text-sm font-semibold text-text-primary">
+          Upcoming & past
+        </h2>
+        <p className="mt-1 text-xs text-text-tertiary">
+          {events.length} event{events.length === 1 ? "" : "s"}
+        </p>
+
+        <div className="mt-4 flex flex-col gap-3">
+          {events.length === 0 ? (
+            <p className="rounded-lg bg-surface-2 p-4 text-sm text-text-tertiary">
+              No events yet. Use the form to publish your first one.
+            </p>
+          ) : (
+            events.map((e) => (
+              <article
+                key={e.id}
+                className="flex gap-3 rounded-lg border border-solid border-line-soft p-3"
+              >
+                {e.imageUrl ? (
+                  <Image
+                    src={e.imageUrl}
+                    alt=""
+                    width={64}
+                    height={64}
+                    className="h-16 w-16 shrink-0 rounded-md object-cover"
+                  />
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-medium text-text-primary">
+                        {e.title}
+                      </h3>
+                      <p className="mt-0.5 text-[0.7rem] uppercase tracking-wide text-text-tertiary">
+                        {formatEventWhen(e.startsAt)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void onDelete(e.id)}
+                      aria-label="Delete"
+                      className="shrink-0 rounded-md p-1 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-red-600"
+                    >
+                      <Trash2 size={14} strokeWidth={1.75} />
+                    </button>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-text-secondary">
+                    {e.description}
+                  </p>
+                  {e.anchors.length > 0 ? (
+                    <p className="mt-1 text-[0.7rem] text-text-tertiary">
+                      · {e.anchors.map((a) => a.refName).join(", ")}
+                    </p>
+                  ) : null}
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </Panel>
+
+      <Panel className="p-5">
+        <h2 className="text-sm font-semibold text-text-primary">
+          New event
+        </h2>
+        <form onSubmit={(e) => void onSubmit(e)} className="mt-4 space-y-4">
+          <Field label="Title">
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Open mic at the quad cafe"
+              required
+            />
+          </Field>
+
+          <Field label="Description">
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What students need to know."
+              rows={4}
+              required
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Starts">
+              <Input
+                type="datetime-local"
+                value={startsAt}
+                onChange={(e) => setStartsAt(e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Ends">
+              <Input
+                type="datetime-local"
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+                required
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Banner colour">
+              <Select
+                value={bannerColor}
+                onChange={(e) =>
+                  setBannerColor(e.target.value as EventBanner)
+                }
+              >
+                {BANNERS.map((b) => (
+                  <option key={b.value} value={b.value}>
+                    {b.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Banner icon">
+              <Select
+                value={bannerIcon}
+                onChange={(e) =>
+                  setBannerIcon(e.target.value as EventIcon)
+                }
+              >
+                {ICONS.map((i) => (
+                  <option key={i.value} value={i.value}>
+                    {i.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+
+          <Field label="Where on campus (optional)">
+            <Input
+              value={anchorName}
+              onChange={(e) => setAnchorName(e.target.value)}
+              placeholder="Library, Cafe Pavilion, Mott Athletics…"
+            />
+          </Field>
+
+          <Field label="Registration URL (optional)">
+            <Input
+              type="url"
+              value={registrationUrl}
+              onChange={(e) => setRegistrationUrl(e.target.value)}
+              placeholder="https://…"
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Organizer (optional)">
+              <Input
+                value={organizer}
+                onChange={(e) => setOrganizer(e.target.value)}
+                placeholder="Music society"
+              />
+            </Field>
+            <Field label="Expected attendance">
+              <Input
+                type="number"
+                min="0"
+                value={expectedAttendance}
+                onChange={(e) => setExpectedAttendance(e.target.value)}
+                placeholder="84"
+              />
+            </Field>
+          </div>
+
+          <Field label="Image (optional)">
+            {imageUrl ? (
+              <div className="flex items-center gap-3 rounded-lg border border-solid border-line-soft p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageUrl}
+                  alt=""
+                  className="h-16 w-16 rounded-md object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setImageUrl(null)}
+                  className="ml-auto flex items-center gap-1 rounded-md p-1 text-text-tertiary hover:bg-surface-2 hover:text-red-600"
+                >
+                  <X size={14} strokeWidth={1.75} />
+                </button>
+              </div>
+            ) : (
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-line-soft px-3 py-2 text-sm text-text-tertiary transition-colors hover:border-accent hover:text-accent">
+                <Plus size={16} strokeWidth={1.75} />
+                {uploading ? "Uploading…" : "Add image"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  disabled={uploading}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleImage(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            )}
+          </Field>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={reset}
+              disabled={submitting}
+            >
+              Reset
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Publishing…" : "Publish"}
+            </Button>
+          </div>
+        </form>
+      </Panel>
+    </div>
+  );
+}

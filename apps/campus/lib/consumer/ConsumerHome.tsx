@@ -12,7 +12,7 @@ import {
   SAMPLE_EVENTS,
   SAMPLE_NEWS,
 } from "../sample-campus";
-import type { ConsumerNews } from "./types";
+import type { ConsumerEvent, ConsumerNews } from "./types";
 
 export interface ConsumerHomeProps {
   token: string;
@@ -32,6 +32,8 @@ export interface ConsumerHomeProps {
    * populated for new tenants without forcing them to author first.
    */
   news?: ConsumerNews[];
+  /** Events for the "Happening this week" grid. Same fallback story. */
+  events?: ConsumerEvent[];
 }
 
 /**
@@ -59,8 +61,10 @@ export function ConsumerHome({
   subheading,
   mapThumbnailUrl,
   news,
+  events,
 }: ConsumerHomeProps) {
   const newsItems = news?.length ? news : SAMPLE_NEWS;
+  const eventItems = events?.length ? events : SAMPLE_EVENTS;
   const lang = `?lang=${locale}`;
   const mapHref = `/campus/${token}/map${lang}`;
   // Per-org accent overrides the default purple at the wrapper, so
@@ -112,7 +116,7 @@ export function ConsumerHome({
           icon={Calendar}
           accent="teal"
           label="This week's events"
-          subtitle={`${SAMPLE_EVENTS.length} happening near you`}
+          subtitle={`${eventItems.length} happening near you`}
         />
       </section>
 
@@ -121,7 +125,7 @@ export function ConsumerHome({
           Happening this week
         </h2>
         <div className="mt-4 grid grid-cols-1 gap-5 md:grid-cols-3">
-          {SAMPLE_EVENTS.map((e) => (
+          {eventItems.slice(0, 3).map((e) => (
             <EventCard
               key={e.id}
               event={e}
