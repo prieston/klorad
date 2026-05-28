@@ -4,7 +4,9 @@ import { ChevronLeft } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { listEventsForAdmin } from "@/lib/events-db";
+import { readEventFeeds } from "@/lib/events";
 import { EventsAdminClient } from "./EventsAdminClient";
+import { IcsFeedsManager } from "./IcsFeedsManager";
 
 type Params = Promise<{ orgId: string; mapId: string }>;
 
@@ -45,6 +47,7 @@ export default async function EventsAdminPage({
   const indoorMapId =
     (project.sceneData as { indoorMapId?: string } | null)?.indoorMapId ??
     null;
+  const initialFeeds = readEventFeeds(project.sceneData);
   const events = await listEventsForAdmin(mapId);
 
   return (
@@ -66,6 +69,8 @@ export default async function EventsAdminPage({
           Recurring ICS feeds keep rendering separately.
         </p>
       </div>
+
+      <IcsFeedsManager mapId={mapId} initialFeeds={initialFeeds} />
 
       <EventsAdminClient
         mapId={mapId}

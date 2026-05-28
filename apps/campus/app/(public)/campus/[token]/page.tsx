@@ -10,13 +10,12 @@ import {
   type EventPost,
 } from "@/lib/events-db";
 import { listTopClubsForProject, type Club } from "@/lib/clubs-db";
+import { readEventFeeds, type CampusEvent } from "@/lib/events";
+import { fetchCampusEvents } from "@/lib/events-server";
+import { mergeEvents } from "@/lib/events-merge";
 import NotPublishedPlaceholder from "./NotPublishedPlaceholder";
 import { ConsumerHome } from "@/lib/consumer/ConsumerHome";
-import type {
-  ConsumerClub,
-  ConsumerEvent,
-  ConsumerNews,
-} from "@/lib/consumer/types";
+import type { ConsumerClub, ConsumerNews } from "@/lib/consumer/types";
 
 type Params = Promise<{ token: string }>;
 
@@ -111,7 +110,8 @@ export default async function CampusHomePage({
   // `NewsPost` or `EventPost` table is missing (operator hasn't run
   // `prisma migrate deploy` yet) the home renders with empty rails
   // + the sample-data fallback in `ConsumerHome` instead of 500ing.
-  const [dbPosts, dbEvents, dbClubs] = await Promise.all([
+  const feedUrls = readEventFeeds(map.sceneData);
+  const [dbPosts, dbEvents, dbClubs, icsEvents] = await Promise.all([
     listNewsForProject(map.id).catch((err): NewsPost[] => {
       console.error("[public-home] news fetch failed", err);
       return [];
@@ -124,6 +124,12 @@ export default async function CampusHomePage({
       console.error("[public-home] clubs fetch failed", err);
       return [];
     }),
+    feedUrls.length > 0
+      ? fetchCampusEvents(feedUrls).catch((err): CampusEvent[] => {
+          console.error("[public-home] ICS fetch failed", err);
+          return [];
+        })
+      : Promise.resolve<CampusEvent[]>([]),
   ]);
   const legacyPosts = readPosts(map.sceneData);
   const news: ConsumerNews[] = [
@@ -184,26 +190,10 @@ export default async function CampusHomePage({
     externalLink: c.externalLink ?? "",
   }));
 
-  // EventPost rows map 1:1 onto the consumer card shape — the Prisma
-  // enums (bannerColor / bannerIcon) match the ConsumerEvent unions.
-  const events: ConsumerEvent[] = dbEvents.map((e) => ({
-    id: e.id,
-    title: e.title,
-    blurb:
-      e.description.length > 200
-        ? `${e.description.slice(0, 197)}…`
-        : e.description,
-    startsAt: e.startsAt,
-    endsAt: e.endsAt,
-    bannerColor: e.bannerColor,
-    bannerIcon: e.bannerIcon,
-    anchors: e.anchors.map((a) => ({
-      kind: a.kind,
-      refId: a.refId,
-      refName: a.refName,
-    })),
-    expectedAttendance: e.expectedAttendance ?? undefined,
-  }));
+  // Merge DB events + ICS-feed events into one list — soonest first,
+  // dupes (same title + minute) collapsed. `eventPostToConsumer` and
+  // `icsToConsumer` share the mapping logic in `events-merge.ts`.
+  const events = mergeEvents(dbEvents, icsEvents, 24);
 
   return (
     <ConsumerHome

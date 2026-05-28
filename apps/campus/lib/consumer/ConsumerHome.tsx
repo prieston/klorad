@@ -140,13 +140,19 @@ export function ConsumerHome({
           Happening this week
         </h2>
         <div className="mt-4 grid grid-cols-1 gap-5 md:grid-cols-3">
-          {eventItems.slice(0, 3).map((e) => (
-            <EventCard
-              key={e.id}
-              event={e}
-              href={`/campus/${token}/events/${e.id}${lang}`}
-            />
-          ))}
+          {eventItems.slice(0, 3).map((e) => {
+            // ICS-sourced events (id contains `::`) have no detail
+            // page; link them to the map with the anchor focused
+            // when one's set, otherwise to the events list.
+            const isIcs = e.id.includes("::");
+            const firstAnchor = e.anchors[0];
+            const href = isIcs
+              ? firstAnchor?.refId
+                ? `${mapHref}&space=${encodeURIComponent(firstAnchor.refId)}`
+                : `/campus/${token}/events${lang}`
+              : `/campus/${token}/events/${e.id}${lang}`;
+            return <EventCard key={e.id} event={e} href={href} />;
+          })}
         </div>
       </section>
 
