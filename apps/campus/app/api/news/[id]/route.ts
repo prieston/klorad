@@ -85,6 +85,19 @@ export async function PATCH(req: Request, { params }: { params: Params }) {
     }
     data.body = v;
   }
+  // Bilingual fields. Send `""` to clear; omit to leave as-is.
+  if (body.titleEl !== undefined) {
+    data.titleEl =
+      typeof body.titleEl === "string" && body.titleEl.trim().length > 0
+        ? body.titleEl.trim()
+        : null;
+  }
+  if (body.bodyEl !== undefined) {
+    data.bodyEl =
+      typeof body.bodyEl === "string" && body.bodyEl.trim().length > 0
+        ? body.bodyEl.trim()
+        : null;
+  }
   if (VALID_CATEGORIES.includes(body.category as NewsCategory)) {
     data.category = body.category as NewsCategory;
   }

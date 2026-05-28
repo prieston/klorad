@@ -28,7 +28,11 @@ export interface NewsPost {
   id: string;
   projectId: string;
   title: string;
+  /** Greek translation, optional. */
+  titleEl: string | null;
   body: string;
+  /** Greek translation, optional. */
+  bodyEl: string | null;
   imageUrl: string | null;
   category: NewsCategory;
   publishedAt: string;
@@ -55,7 +59,9 @@ function fromPrisma(row: PrismaNewsPost): NewsPost {
     id: row.id,
     projectId: row.projectId,
     title: row.title,
+    titleEl: row.titleEl,
     body: row.body,
+    bodyEl: row.bodyEl,
     imageUrl: row.imageUrl,
     category: row.category,
     publishedAt: row.publishedAt.toISOString(),

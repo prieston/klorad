@@ -56,7 +56,9 @@ export function NewsAdminClient({
   /** Non-null when the form is editing an existing post. */
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
+  const [titleEl, setTitleEl] = useState("");
   const [body, setBody] = useState("");
+  const [bodyEl, setBodyEl] = useState("");
   const [category, setCategory] = useState<NewsCategory>("announcement");
   const [publishedAt, setPublishedAt] = useState(todayISODate());
   const [anchor, setAnchor] = useState<AnchorValue>(EMPTY_ANCHOR);
@@ -80,7 +82,9 @@ export function NewsAdminClient({
   const reset = () => {
     setEditingId(null);
     setTitle("");
+    setTitleEl("");
     setBody("");
+    setBodyEl("");
     setCategory("announcement");
     setPublishedAt(todayISODate());
     setAnchor(EMPTY_ANCHOR);
@@ -91,7 +95,9 @@ export function NewsAdminClient({
   const startEdit = (post: NewsPost) => {
     setEditingId(post.id);
     setTitle(post.title);
+    setTitleEl(post.titleEl ?? "");
     setBody(post.body);
+    setBodyEl(post.bodyEl ?? "");
     setCategory(post.category);
     setPublishedAt(post.publishedAt.slice(0, 10));
     setAnchor(
@@ -123,7 +129,9 @@ export function NewsAdminClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
+          titleEl: titleEl.trim() || "",
           body: body.trim(),
+          bodyEl: bodyEl.trim() || "",
           category,
           // Datetime-local input gives a local-zone string; turn it
           // into a UTC ISO so the server stores a clean instant.
@@ -270,6 +278,14 @@ export function NewsAdminClient({
             />
           </Field>
 
+          <Field label="Title (Greek, optional)">
+            <Input
+              value={titleEl}
+              onChange={(e) => setTitleEl(e.target.value)}
+              placeholder="Παρατεταμένες ώρες βιβλιοθήκης"
+            />
+          </Field>
+
           <Field label="Body">
             <Textarea
               value={body}
@@ -277,6 +293,15 @@ export function NewsAdminClient({
               placeholder="What students need to know."
               rows={5}
               required
+            />
+          </Field>
+
+          <Field label="Body (Greek, optional)">
+            <Textarea
+              value={bodyEl}
+              onChange={(e) => setBodyEl(e.target.value)}
+              placeholder="Τι πρέπει να ξέρουν οι φοιτητές."
+              rows={5}
             />
           </Field>
 

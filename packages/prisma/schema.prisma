@@ -410,7 +410,11 @@ model NewsPost {
   organizationId String
   projectId      String
   title          String
+  /// Greek translation, optional. When unset the public surface falls back to `title`.
+  titleEl        String?
   body           String       @db.Text
+  /// Greek translation of `body`, optional.
+  bodyEl         String?      @db.Text
   imageUrl       String?
   category       NewsCategory @default(announcement)
   publishedAt    DateTime     @default(now())
@@ -443,7 +447,11 @@ model EventPost {
   organizationId  String
   projectId       String
   title           String
+  /// Greek translation of `title`, optional.
+  titleEl         String?
   description     String      @db.Text
+  /// Greek translation of `description`, optional.
+  descriptionEl   String?     @db.Text
   imageUrl        String?
   startsAt        DateTime
   endsAt          DateTime
@@ -490,7 +498,11 @@ model Club {
   organizationId  String
   projectId       String
   name            String
+  /// Greek translation of `name`, optional.
+  nameEl          String?
   description     String     @db.Text
+  /// Greek translation of `description`, optional.
+  descriptionEl   String?    @db.Text
   /// Two-letter avatar, e.g. "DS" for Data Science Society.
   initials        String
   avatarColor     ClubColor  @default(purple)
@@ -532,7 +544,11 @@ model DiningLocation {
   organizationId  String
   projectId       String
   name            String
+  /// Greek translation of `name`, optional.
+  nameEl          String?
   description     String   @db.Text
+  /// Greek translation of `description`, optional.
+  descriptionEl   String?  @db.Text
   /// Free text — "Mon-Fri 7am-10pm · Sat 9am-3pm · Sun closed".
   /// Structured day/time ranges + "open now" badge are a follow-up.
   hoursText       String?

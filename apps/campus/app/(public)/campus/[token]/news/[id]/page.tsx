@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, MapPin } from "lucide-react";
 import { getPublicCampusByToken } from "@/lib/public-campus";
-import { detectLocale } from "@/app/lib/i18n-core";
+import { detectLocale, pickLocalized } from "@/app/lib/i18n-core";
 import {
   formatNewsDate,
   getNewsPost,
@@ -88,6 +88,8 @@ export default async function NewsDetailPage({
 
   const lang = `?lang=${locale}`;
   const mapHref = `/campus/${token}/map${lang}`;
+  const title = pickLocalized(post.title, post.titleEl, locale);
+  const body = pickLocalized(post.body, post.bodyEl, locale);
 
   return (
     <main data-consumer lang={locale} style={themeStyle}>
@@ -112,7 +114,7 @@ export default async function NewsDetailPage({
         </p>
 
         <h1 className="mt-2 text-3xl font-medium leading-tight text-[var(--brand-text)] md:text-4xl">
-          {post.title}
+          {title}
         </h1>
 
         {post.anchors.length > 0 ? (
@@ -152,7 +154,7 @@ export default async function NewsDetailPage({
         ) : null}
 
         <div className="mt-8 whitespace-pre-wrap text-base leading-relaxed text-[var(--brand-text)]">
-          {post.body}
+          {body}
         </div>
       </article>
 

@@ -305,3 +305,22 @@ export function pickText(
   if (typeof value === "string") return value;
   return value[locale] || value.en || value.el || "";
 }
+
+/**
+ * Two-column localised text picker.
+ *
+ * The Arc 8 bilingual columns on `NewsPost`, `EventPost`, `Club`,
+ * and `DiningLocation` store EN and EL in separate columns
+ * (e.g. `title` + `titleEl`). This helper picks the right one for
+ * the visitor's locale and falls back to EN whenever the EL
+ * translation is empty — so a post with only English still shows
+ * up to a Greek visitor.
+ */
+export function pickLocalized(
+  en: string,
+  el: string | null | undefined,
+  locale: Locale,
+): string {
+  if (locale === "el" && el && el.trim().length > 0) return el;
+  return en;
+}

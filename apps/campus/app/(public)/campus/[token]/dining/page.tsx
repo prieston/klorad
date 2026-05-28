@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Clock, ExternalLink, MapPin } from "lucide-react";
 import { getPublicCampusByToken } from "@/lib/public-campus";
-import { detectLocale } from "@/app/lib/i18n-core";
+import { detectLocale, pickLocalized } from "@/app/lib/i18n-core";
 import { listDiningForProject } from "@/lib/dining-db";
 import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
@@ -97,6 +97,12 @@ export default async function DiningPage({
           <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">
             {locations.map((l) => {
               const firstAnchor = l.anchors[0];
+              const name = pickLocalized(l.name, l.nameEl, locale);
+              const description = pickLocalized(
+                l.description,
+                l.descriptionEl,
+                locale,
+              );
               return (
                 <article
                   key={l.id}
@@ -122,7 +128,7 @@ export default async function DiningPage({
                   <div className="flex flex-1 flex-col gap-3 p-5">
                     <div>
                       <h2 className="text-lg font-medium text-[var(--brand-text)]">
-                        {l.name}
+                        {name}
                       </h2>
                       {l.cuisine ? (
                         <p className="mt-0.5 text-xs uppercase tracking-wide text-[var(--brand-text-muted)]">
@@ -132,7 +138,7 @@ export default async function DiningPage({
                     </div>
 
                     <p className="text-sm leading-relaxed text-[var(--brand-text)]">
-                      {l.description}
+                      {description}
                     </p>
 
                     {l.hoursText ? (

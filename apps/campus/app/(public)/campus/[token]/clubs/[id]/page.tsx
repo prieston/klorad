@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, ExternalLink, MapPin } from "lucide-react";
 import { getPublicCampusByToken } from "@/lib/public-campus";
-import { detectLocale } from "@/app/lib/i18n-core";
+import { detectLocale, pickLocalized } from "@/app/lib/i18n-core";
 import { getClub } from "@/lib/clubs-db";
 import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
@@ -80,6 +80,12 @@ export default async function ClubDetailPage({
   const lang = `?lang=${locale}`;
   const mapHref = `/campus/${token}/map${lang}`;
   const avatarBg = AVATAR_HEX[club.avatarColor] ?? AVATAR_HEX.purple;
+  const name = pickLocalized(club.name, club.nameEl, locale);
+  const description = pickLocalized(
+    club.description,
+    club.descriptionEl,
+    locale,
+  );
 
   return (
     <main data-consumer lang={locale} style={themeStyle}>
@@ -118,7 +124,7 @@ export default async function ClubDetailPage({
           )}
           <div>
             <h1 className="text-2xl font-medium text-[var(--brand-text)] md:text-3xl">
-              {club.name}
+              {name}
             </h1>
             <p className="mt-1 text-sm text-[var(--brand-text-muted)]">
               {club.memberCount} members
@@ -153,7 +159,7 @@ export default async function ClubDetailPage({
         ) : null}
 
         <div className="mt-8 whitespace-pre-wrap text-base leading-relaxed text-[var(--brand-text)]">
-          {club.description}
+          {description}
         </div>
 
         {club.externalLink ? (

@@ -62,6 +62,15 @@ export async function POST(req: Request, { params }: { params: Params }) {
     typeof body.title === "string" ? body.title.trim() : "";
   const description =
     typeof body.description === "string" ? body.description.trim() : "";
+  const titleEl =
+    typeof body.titleEl === "string" && body.titleEl.trim().length > 0
+      ? body.titleEl.trim()
+      : null;
+  const descriptionEl =
+    typeof body.descriptionEl === "string" &&
+    body.descriptionEl.trim().length > 0
+      ? body.descriptionEl.trim()
+      : null;
   const startsAt = parseDate(body.startsAt);
   const endsAt = parseDate(body.endsAt);
 
@@ -108,7 +117,9 @@ export async function POST(req: Request, { params }: { params: Params }) {
       organizationId: project.organizationId,
       projectId: mapId,
       title,
+      titleEl,
       description,
+      descriptionEl,
       startsAt,
       endsAt,
       bannerColor,

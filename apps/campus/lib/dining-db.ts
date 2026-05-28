@@ -19,7 +19,11 @@ export interface DiningLocation {
   id: string;
   projectId: string;
   name: string;
+  /** Greek translation, optional. */
+  nameEl: string | null;
   description: string;
+  /** Greek translation, optional. */
+  descriptionEl: string | null;
   hoursText: string | null;
   cuisine: string | null;
   menuUrl: string | null;
@@ -43,7 +47,9 @@ function fromPrisma(row: PrismaDining): DiningLocation {
     id: row.id,
     projectId: row.projectId,
     name: row.name,
+    nameEl: row.nameEl,
     description: row.description,
+    descriptionEl: row.descriptionEl,
     hoursText: row.hoursText,
     cuisine: row.cuisine,
     menuUrl: row.menuUrl,

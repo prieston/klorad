@@ -72,6 +72,19 @@ export async function PATCH(req: Request, { params }: { params: Params }) {
     }
     data.description = v;
   }
+  if (body.nameEl !== undefined) {
+    data.nameEl =
+      typeof body.nameEl === "string" && body.nameEl.trim().length > 0
+        ? body.nameEl.trim()
+        : null;
+  }
+  if (body.descriptionEl !== undefined) {
+    data.descriptionEl =
+      typeof body.descriptionEl === "string" &&
+      body.descriptionEl.trim().length > 0
+        ? body.descriptionEl.trim()
+        : null;
+  }
   if (typeof body.initials === "string" && body.initials.trim().length > 0) {
     data.initials = body.initials.trim().slice(0, 3).toUpperCase();
   }

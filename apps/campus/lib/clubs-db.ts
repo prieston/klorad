@@ -21,7 +21,11 @@ export interface Club {
   id: string;
   projectId: string;
   name: string;
+  /** Greek translation, optional. */
+  nameEl: string | null;
   description: string;
+  /** Greek translation, optional. */
+  descriptionEl: string | null;
   initials: string;
   avatarColor: ClubColor;
   memberCount: number;
@@ -48,7 +52,9 @@ function fromPrisma(row: PrismaClub): Club {
     id: row.id,
     projectId: row.projectId,
     name: row.name,
+    nameEl: row.nameEl,
     description: row.description,
+    descriptionEl: row.descriptionEl,
     initials: row.initials,
     avatarColor: row.avatarColor,
     memberCount: row.memberCount,
