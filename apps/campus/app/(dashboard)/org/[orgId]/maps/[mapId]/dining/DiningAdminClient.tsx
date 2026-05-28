@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Image from "next/image";
 import { toast } from "react-toastify";
-import { Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   Button,
   Field,
@@ -36,6 +36,7 @@ export function DiningAdminClient({
   indoorMapId,
 }: Props) {
   const [locations, setLocations] = useState<DiningLocation[]>(initialLocations);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [hoursText, setHoursText] = useState("");
@@ -60,6 +61,7 @@ export function DiningAdminClient({
   };
 
   const reset = () => {
+    setEditingId(null);
     setName("");
     setDescription("");
     setHoursText("");
@@ -67,6 +69,27 @@ export function DiningAdminClient({
     setMenuUrl("");
     setAnchor(EMPTY_ANCHOR);
     setImageUrl(null);
+  };
+
+  const startEdit = (location: DiningLocation) => {
+    setEditingId(location.id);
+    setName(location.name);
+    setDescription(location.description);
+    setHoursText(location.hoursText ?? "");
+    setCuisine(location.cuisine ?? "");
+    setMenuUrl(location.menuUrl ?? "");
+    setAnchor(
+      location.anchors[0]
+        ? {
+            refName: location.anchors[0].refName,
+            refId: location.anchors[0].refId,
+          }
+        : EMPTY_ANCHOR,
+    );
+    setImageUrl(location.imageUrl);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   const onSubmit = async (e: FormEvent) => {
@@ -77,8 +100,12 @@ export function DiningAdminClient({
     }
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/maps/${mapId}/dining`, {
-        method: "POST",
+      const url = editingId
+        ? `/api/dining/${editingId}`
+        : `/api/maps/${mapId}/dining`;
+      const method = editingId ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
@@ -107,7 +134,7 @@ export function DiningAdminClient({
       );
       setLocations(list.locations ?? []);
       reset();
-      toast.success("Location published");
+      toast.success(editingId ? "Updated" : "Location published");
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Failed to publish");
@@ -169,14 +196,24 @@ export function DiningAdminClient({
                         {l.hoursText ? ` · ${l.hoursText}` : ""}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => void onDelete(l.id)}
-                      aria-label="Delete"
-                      className="shrink-0 rounded-md p-1 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-red-600"
-                    >
-                      <Trash2 size={14} strokeWidth={1.75} />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(l)}
+                        aria-label="Edit"
+                        className="rounded-md p-1 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-accent"
+                      >
+                        <Pencil size={14} strokeWidth={1.75} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void onDelete(l.id)}
+                        aria-label="Delete"
+                        className="rounded-md p-1 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-red-600"
+                      >
+                        <Trash2 size={14} strokeWidth={1.75} />
+                      </button>
+                    </div>
                   </div>
                   <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-text-secondary">
                     {l.description}
@@ -194,9 +231,20 @@ export function DiningAdminClient({
       </Panel>
 
       <Panel className="p-5">
-        <h2 className="text-sm font-semibold text-text-primary">
-          New location
-        </h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-text-primary">
+            {editingId ? "Edit location" : "New location"}
+          </h2>
+          {editingId ? (
+            <button
+              type="button"
+              onClick={reset}
+              className="text-xs text-text-tertiary transition-colors hover:text-text-primary"
+            >
+              Cancel edit
+            </button>
+          ) : null}
+        </div>
         <form onSubmit={(e) => void onSubmit(e)} className="mt-4 space-y-4">
           <Field label="Name">
             <Input
@@ -298,7 +346,13 @@ export function DiningAdminClient({
               Reset
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? "Publishing…" : "Publish"}
+              {submitting
+                ? editingId
+                  ? "Saving…"
+                  : "Publishing…"
+                : editingId
+                  ? "Save changes"
+                  : "Publish"}
             </Button>
           </div>
         </form>
