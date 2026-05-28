@@ -38,10 +38,13 @@ export default async function EventsAdminPage({
 
   const project = await prisma.project.findFirst({
     where: { id: mapId, organizationId: orgId },
-    select: { id: true, title: true },
+    select: { id: true, title: true, sceneData: true },
   });
   if (!project) notFound();
 
+  const indoorMapId =
+    (project.sceneData as { indoorMapId?: string } | null)?.indoorMapId ??
+    null;
   const events = await listEventsForAdmin(mapId);
 
   return (
@@ -64,7 +67,11 @@ export default async function EventsAdminPage({
         </p>
       </div>
 
-      <EventsAdminClient mapId={mapId} initialEvents={events} />
+      <EventsAdminClient
+        mapId={mapId}
+        initialEvents={events}
+        indoorMapId={indoorMapId}
+      />
     </div>
   );
 }

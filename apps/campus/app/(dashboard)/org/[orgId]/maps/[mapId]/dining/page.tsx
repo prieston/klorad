@@ -37,10 +37,13 @@ export default async function DiningAdminPage({
 
   const project = await prisma.project.findFirst({
     where: { id: mapId, organizationId: orgId },
-    select: { id: true, title: true },
+    select: { id: true, title: true, sceneData: true },
   });
   if (!project) notFound();
 
+  const indoorMapId =
+    (project.sceneData as { indoorMapId?: string } | null)?.indoorMapId ??
+    null;
   const locations = await listDiningForProject(mapId);
 
   return (
@@ -63,7 +66,11 @@ export default async function DiningAdminPage({
         </p>
       </div>
 
-      <DiningAdminClient mapId={mapId} initialLocations={locations} />
+      <DiningAdminClient
+        mapId={mapId}
+        initialLocations={locations}
+        indoorMapId={indoorMapId}
+      />
     </div>
   );
 }

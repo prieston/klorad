@@ -7,6 +7,7 @@ import {
   type AssistantSpace,
   type ToolContext,
 } from "@/lib/assistant/tools";
+import { checkRateLimit, clientIp } from "@/lib/assistant/rate-limit";
 
 interface AssistantTurn {
   role: "user" | "assistant";
@@ -208,6 +209,26 @@ async function runClaude(
 }
 
 export async function POST(req: Request) {
+  // Public endpoint, paid LLM — token-bucket the caller's IP so a
+  // tab loop or a small abuse campaign can't run the bill. See
+  // lib/assistant/rate-limit.ts for the swap-out story (Upstash).
+  const ip = clientIp(req);
+  const limit = checkRateLimit(ip);
+  if (!limit.ok) {
+    return NextResponse.json(
+      {
+        error: "Too many requests — slow down for a minute.",
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil(limit.resetIn / 1000)),
+          "X-RateLimit-Remaining": "0",
+        },
+      },
+    );
+  }
+
   let body: RequestBody;
   try {
     body = (await req.json()) as RequestBody;
