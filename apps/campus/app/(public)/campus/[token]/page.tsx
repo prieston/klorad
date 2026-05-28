@@ -208,6 +208,7 @@ export default async function CampusHomePage({
   return (
     <ConsumerHome
       token={token}
+      mapId={map.id}
       campusName={campusName}
       accentColor={accentColor}
       logoUrl={branding.logo}

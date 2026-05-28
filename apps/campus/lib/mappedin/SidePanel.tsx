@@ -31,6 +31,10 @@ export interface SidePanelProps {
   routeInstructions: string[];
   onRoute: (from: string, to: string, accessible: boolean) => void;
   onClearRoute: () => void;
+  /** Project id — threaded down to AssistantChat for content queries. */
+  projectId?: string;
+  /** Campus display name — threaded down to AssistantChat. */
+  campusName?: string;
 }
 
 /**
@@ -101,6 +105,8 @@ export function SidePanel(props: SidePanelProps) {
             onRoute={props.onRoute}
             onClearRoute={props.onClearRoute}
             onFocus={props.onSearchSelect}
+            projectId={props.projectId}
+            campusName={props.campusName}
           />
         )}
       </div>

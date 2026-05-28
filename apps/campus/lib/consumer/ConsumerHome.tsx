@@ -7,6 +7,7 @@ import { EventCard } from "./EventCard";
 import { ClubRow } from "./ClubRow";
 import { NewsItem } from "./NewsItem";
 import { ConsumerFooter } from "./ConsumerFooter";
+import { AssistantInput } from "./AssistantInput";
 import {
   SAMPLE_CLUBS,
   SAMPLE_EVENTS,
@@ -16,6 +17,8 @@ import type { ConsumerClub, ConsumerEvent, ConsumerNews } from "./types";
 
 export interface ConsumerHomeProps {
   token: string;
+  /** Project id — used by the chat for DB queries (`mapId` in the API). */
+  mapId: string;
   campusName: string;
   /** Per-org accent — overrides `--brand-primary` for the whole page. */
   accentColor?: string;
@@ -55,6 +58,7 @@ export interface ConsumerHomeProps {
  */
 export function ConsumerHome({
   token,
+  mapId,
   campusName,
   accentColor,
   logoUrl,
@@ -84,6 +88,13 @@ export function ConsumerHome({
         logoUrl={logoUrl}
         token={token}
         locale={locale}
+      />
+
+      <AssistantInput
+        mapId={mapId}
+        campusName={campusName}
+        locale={locale}
+        mapHref={mapHref}
       />
 
       <ConsumerHero

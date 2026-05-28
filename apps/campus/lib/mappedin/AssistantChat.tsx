@@ -17,6 +17,13 @@ export interface AssistantChatProps {
   onFocus: (spaceId: string) => void;
   /** Draw a route (used for "from X to Y" intents). */
   onRoute: (fromId: string, toId: string, accessible: boolean) => void;
+  /**
+   * Project id — required for the assistant to query news / events /
+   * clubs / dining. Passed through from `MappedinViewer`.
+   */
+  projectId?: string;
+  /** Campus display name — fed to the LLM system prompt. */
+  campusName?: string;
 }
 
 /**
@@ -37,6 +44,8 @@ export function AssistantChat({
   spaces,
   onFocus,
   onRoute,
+  projectId,
+  campusName,
 }: AssistantChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -51,17 +60,24 @@ export function AssistantChat({
     setInput("");
     setSending(true);
     try {
+      const history = messages.map((m) => ({
+        role: m.role,
+        text: m.text,
+      }));
       const res = await fetch("/api/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: msg,
+          mapId: projectId ?? "",
+          campusName: campusName ?? "the campus",
           spaces: spaces.map((s) => ({
             id: s.id,
             name: s.name,
             type: s.type,
           })),
           locale,
+          history,
         }),
       });
       if (!res.ok) throw new Error("assistant failed");
