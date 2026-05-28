@@ -492,6 +492,7 @@ export const MappedinViewer = forwardRef<
         <SidePanel
           locale={locale}
           spaces={visibleSpaces}
+          allSpaces={spaces}
           onSearchSelect={(id) => void handleSearchSelect(id)}
           selectedSpace={selectedSpace}
           onClearSelection={clearSelection}
