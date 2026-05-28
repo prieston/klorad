@@ -7,6 +7,7 @@ import { listEventsForAdmin } from "@/lib/events-db";
 import { readEventFeeds } from "@/lib/events";
 import { EventsAdminClient } from "./EventsAdminClient";
 import { IcsFeedsManager } from "./IcsFeedsManager";
+import { NotifyForm } from "./NotifyForm";
 
 type Params = Promise<{ orgId: string; mapId: string }>;
 
@@ -71,6 +72,11 @@ export default async function EventsAdminPage({
       </div>
 
       <IcsFeedsManager mapId={mapId} initialFeeds={initialFeeds} />
+
+      <NotifyForm
+        mapId={mapId}
+        enabled={Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY)}
+      />
 
       <EventsAdminClient
         mapId={mapId}

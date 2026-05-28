@@ -175,6 +175,8 @@ model Project {
   clubs        Club[]
   // Cafeterias / cafes scoped to this project — see lib/dining-db.ts.
   diningLocations DiningLocation[]
+  // Anonymous push-notification subscribers — see lib/push.ts.
+  pushSubscriptions PushSubscription[]
 
   // Showcase Relation
   showcaseWorld ShowcaseWorld?
@@ -576,4 +578,23 @@ model DiningLocation {
 
   @@index([projectId])
   @@index([organizationId])
+}
+
+/// Anonymous web-push subscription. No PII — just the endpoint URL +
+/// the two keys the Push API hands the browser, scoped to a Project.
+/// Per Project so notifications go to the right campus's visitors.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  projectId String
+  endpoint  String
+  p256dh    String
+  auth      String
+  /// Optional user-agent hint stored for diagnostics — never displayed.
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, endpoint])
+  @@index([projectId])
 }
