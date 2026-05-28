@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Image from "next/image";
 import { toast } from "react-toastify";
-import { Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   Button,
   Field,
@@ -53,6 +53,8 @@ export function NewsAdminClient({
   indoorMapId,
 }: Props) {
   const [posts, setPosts] = useState<NewsPost[]>(initialPosts);
+  /** Non-null when the form is editing an existing post. */
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [category, setCategory] = useState<NewsCategory>("announcement");
@@ -76,12 +78,32 @@ export function NewsAdminClient({
   };
 
   const reset = () => {
+    setEditingId(null);
     setTitle("");
     setBody("");
     setCategory("announcement");
     setPublishedAt(todayISODate());
     setAnchor(EMPTY_ANCHOR);
     setImageUrl(null);
+  };
+
+  /** Populate the form with a post's current values for editing. */
+  const startEdit = (post: NewsPost) => {
+    setEditingId(post.id);
+    setTitle(post.title);
+    setBody(post.body);
+    setCategory(post.category);
+    setPublishedAt(post.publishedAt.slice(0, 10));
+    setAnchor(
+      post.anchors[0]
+        ? { refName: post.anchors[0].refName, refId: post.anchors[0].refId }
+        : EMPTY_ANCHOR,
+    );
+    setImageUrl(post.imageUrl);
+    // Send focus to the top so the form is in view.
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   const onSubmit = async (e: FormEvent) => {
@@ -92,8 +114,12 @@ export function NewsAdminClient({
     }
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/maps/${mapId}/news`, {
-        method: "POST",
+      const url = editingId
+        ? `/api/news/${editingId}`
+        : `/api/maps/${mapId}/news`;
+      const method = editingId ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
@@ -116,18 +142,18 @@ export function NewsAdminClient({
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "Failed to publish");
+        throw new Error(err.error ?? "Failed to save");
       }
-      // Optimistic refresh — re-fetch the list so the new post appears.
+      // Optimistic refresh — re-fetch the list so the post updates.
       const list = await fetch(`/api/maps/${mapId}/news`).then((r) =>
         r.json(),
       );
       setPosts(list.posts ?? []);
       reset();
-      toast.success("Published");
+      toast.success(editingId ? "Updated" : "Published");
     } catch (e) {
       console.error(e);
-      toast.error(e instanceof Error ? e.message : "Failed to publish");
+      toast.error(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSubmitting(false);
     }
@@ -185,14 +211,24 @@ export function NewsAdminClient({
                         {p.category} · {formatNewsDate(p.publishedAt)}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => void onDelete(p.id)}
-                      aria-label="Delete"
-                      className="shrink-0 rounded-md p-1 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-red-600"
-                    >
-                      <Trash2 size={14} strokeWidth={1.75} />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(p)}
+                        aria-label="Edit"
+                        className="rounded-md p-1 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-accent"
+                      >
+                        <Pencil size={14} strokeWidth={1.75} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void onDelete(p.id)}
+                        aria-label="Delete"
+                        className="rounded-md p-1 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-red-600"
+                      >
+                        <Trash2 size={14} strokeWidth={1.75} />
+                      </button>
+                    </div>
                   </div>
                   <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-text-secondary">
                     {p.body}
@@ -210,9 +246,20 @@ export function NewsAdminClient({
       </Panel>
 
       <Panel className="p-5">
-        <h2 className="text-sm font-semibold text-text-primary">
-          New post
-        </h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-text-primary">
+            {editingId ? "Edit post" : "New post"}
+          </h2>
+          {editingId ? (
+            <button
+              type="button"
+              onClick={reset}
+              className="text-xs text-text-tertiary transition-colors hover:text-text-primary"
+            >
+              Cancel edit
+            </button>
+          ) : null}
+        </div>
         <form onSubmit={(e) => void onSubmit(e)} className="mt-4 space-y-4">
           <Field label="Title">
             <Input
@@ -314,7 +361,13 @@ export function NewsAdminClient({
               Reset
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? "Publishing…" : "Publish"}
+              {submitting
+                ? editingId
+                  ? "Saving…"
+                  : "Publishing…"
+                : editingId
+                  ? "Save changes"
+                  : "Publish"}
             </Button>
           </div>
         </form>

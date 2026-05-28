@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Image from "next/image";
 import { toast } from "react-toastify";
-import { Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   Button,
   Field,
@@ -64,6 +64,7 @@ export function EventsAdminClient({
   indoorMapId,
 }: Props) {
   const [events, setEvents] = useState<EventPost[]>(initialEvents);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [startsAt, setStartsAt] = useState(plusHoursLocal(24));
@@ -92,6 +93,7 @@ export function EventsAdminClient({
   };
 
   const reset = () => {
+    setEditingId(null);
     setTitle("");
     setDescription("");
     setStartsAt(plusHoursLocal(24));
@@ -105,6 +107,38 @@ export function EventsAdminClient({
     setImageUrl(null);
   };
 
+  /** `<input type="datetime-local">` value from an ISO string in local TZ. */
+  const isoToLocal = (iso: string): string => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const off = d.getTimezoneOffset();
+    return new Date(d.getTime() - off * 60_000).toISOString().slice(0, 16);
+  };
+
+  const startEdit = (event: EventPost) => {
+    setEditingId(event.id);
+    setTitle(event.title);
+    setDescription(event.description);
+    setStartsAt(isoToLocal(event.startsAt));
+    setEndsAt(isoToLocal(event.endsAt));
+    setBannerColor(event.bannerColor);
+    setBannerIcon(event.bannerIcon);
+    setAnchor(
+      event.anchors[0]
+        ? { refName: event.anchors[0].refName, refId: event.anchors[0].refId }
+        : EMPTY_ANCHOR,
+    );
+    setRegistrationUrl(event.registrationUrl ?? "");
+    setOrganizer(event.organizer ?? "");
+    setExpectedAttendance(
+      event.expectedAttendance != null ? String(event.expectedAttendance) : "",
+    );
+    setImageUrl(event.imageUrl);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) {
@@ -116,8 +150,12 @@ export function EventsAdminClient({
       const attendance = expectedAttendance.trim()
         ? Number.parseInt(expectedAttendance, 10)
         : undefined;
-      const res = await fetch(`/api/maps/${mapId}/events`, {
-        method: "POST",
+      const url = editingId
+        ? `/api/events/${editingId}`
+        : `/api/maps/${mapId}/events`;
+      const method = editingId ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
@@ -146,17 +184,17 @@ export function EventsAdminClient({
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "Failed to publish");
+        throw new Error(err.error ?? "Failed to save");
       }
       const list = await fetch(`/api/maps/${mapId}/events`).then((r) =>
         r.json(),
       );
       setEvents(list.events ?? []);
       reset();
-      toast.success("Event published");
+      toast.success(editingId ? "Updated" : "Event published");
     } catch (e) {
       console.error(e);
-      toast.error(e instanceof Error ? e.message : "Failed to publish");
+      toast.error(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSubmitting(false);
     }
@@ -214,14 +252,24 @@ export function EventsAdminClient({
                         {formatEventWhen(e.startsAt)}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => void onDelete(e.id)}
-                      aria-label="Delete"
-                      className="shrink-0 rounded-md p-1 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-red-600"
-                    >
-                      <Trash2 size={14} strokeWidth={1.75} />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(e)}
+                        aria-label="Edit"
+                        className="rounded-md p-1 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-accent"
+                      >
+                        <Pencil size={14} strokeWidth={1.75} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void onDelete(e.id)}
+                        aria-label="Delete"
+                        className="rounded-md p-1 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-red-600"
+                      >
+                        <Trash2 size={14} strokeWidth={1.75} />
+                      </button>
+                    </div>
                   </div>
                   <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-text-secondary">
                     {e.description}
@@ -239,9 +287,20 @@ export function EventsAdminClient({
       </Panel>
 
       <Panel className="p-5">
-        <h2 className="text-sm font-semibold text-text-primary">
-          New event
-        </h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-text-primary">
+            {editingId ? "Edit event" : "New event"}
+          </h2>
+          {editingId ? (
+            <button
+              type="button"
+              onClick={reset}
+              className="text-xs text-text-tertiary transition-colors hover:text-text-primary"
+            >
+              Cancel edit
+            </button>
+          ) : null}
+        </div>
         <form onSubmit={(e) => void onSubmit(e)} className="mt-4 space-y-4">
           <Field label="Title">
             <Input
@@ -396,7 +455,13 @@ export function EventsAdminClient({
               Reset
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? "Publishing…" : "Publish"}
+              {submitting
+                ? editingId
+                  ? "Saving…"
+                  : "Publishing…"
+                : editingId
+                  ? "Save changes"
+                  : "Publish"}
             </Button>
           </div>
         </form>
