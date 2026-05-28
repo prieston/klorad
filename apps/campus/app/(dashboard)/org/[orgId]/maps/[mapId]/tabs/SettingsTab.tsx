@@ -10,6 +10,7 @@ import { Button, Field, IconButton, Input, Panel, Textarea } from "@klorad/desig
 import type { Branding, SceneData } from "@klorad/api";
 import MembersPanel from "./MembersPanel";
 import HomePagePanel from "./HomePagePanel";
+import { AiKeyPanel } from "./AiKeyPanel";
 
 interface Props {
   orgId: string;
@@ -218,6 +219,10 @@ export default function SettingsTab({ orgId, mapId, map }: Props) {
             {savingIndoor ? "Saving…" : "Save indoor map"}
           </Button>
         </Panel>
+      </Section>
+
+      <Section title="AI assistant">
+        <AiKeyPanel mapId={mapId} />
       </Section>
 
       <Section title="Sharing">

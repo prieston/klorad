@@ -158,6 +158,11 @@ model Project {
   // thumbnail URL for the project preview image
   thumbnail      String?
   thumbnailSize  BigInt? // File size in bytes (for storage calculation)
+  /// Per-campus Anthropic API key — AES-256-GCM ciphertext from
+  /// lib/secrets.ts. Server reads + decrypts on every /api/assistant
+  /// call; falls back to the platform `ANTHROPIC_API_KEY` env var
+  /// when null. Never returned to the client — see ai-settings API.
+  anthropicApiKeyEncrypted String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
