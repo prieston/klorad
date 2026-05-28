@@ -9,9 +9,12 @@
   },
   "scripts": {
     "dev": "NODE_ENV=development NEXT_TELEMETRY_DISABLED=1 next dev -p 3003",
-    "build": "next build",
+    "build": "pnpm db:deploy && next build",
     "start": "next start -p 3003",
-    "lint": "next lint --fix --dir app"
+    "lint": "next lint --fix --dir app",
+    "db:deploy": "prisma migrate deploy --schema ../../packages/prisma/schema.prisma",
+    "db:generate": "prisma generate --schema ../../packages/prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema ../../packages/prisma/schema.prisma"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",
