@@ -13,11 +13,16 @@ import {
 } from "@klorad/design-system";
 import { uploadFile } from "@klorad/storage/client";
 import { type DiningLocation } from "@/lib/dining-db";
+import { AnchorPicker, type AnchorValue } from "@/lib/admin/AnchorPicker";
 
 interface Props {
   mapId: string;
   initialLocations: DiningLocation[];
+  /** MappedIn venue id — when set, the anchor input becomes a picker. */
+  indoorMapId?: string | null;
 }
+
+const EMPTY_ANCHOR: AnchorValue = { refName: "", refId: "" };
 
 /**
  * Admin client for /dining. List on the left (delete-only for
@@ -25,14 +30,18 @@ interface Props {
  * cards are simple enough to author blind. Reuses the
  * `campus-news` Spaces prefix for images.
  */
-export function DiningAdminClient({ mapId, initialLocations }: Props) {
+export function DiningAdminClient({
+  mapId,
+  initialLocations,
+  indoorMapId,
+}: Props) {
   const [locations, setLocations] = useState<DiningLocation[]>(initialLocations);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [hoursText, setHoursText] = useState("");
   const [cuisine, setCuisine] = useState("");
   const [menuUrl, setMenuUrl] = useState("");
-  const [anchorName, setAnchorName] = useState("");
+  const [anchor, setAnchor] = useState<AnchorValue>(EMPTY_ANCHOR);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -56,7 +65,7 @@ export function DiningAdminClient({ mapId, initialLocations }: Props) {
     setHoursText("");
     setCuisine("");
     setMenuUrl("");
-    setAnchorName("");
+    setAnchor(EMPTY_ANCHOR);
     setImageUrl(null);
   };
 
@@ -78,12 +87,12 @@ export function DiningAdminClient({ mapId, initialLocations }: Props) {
           cuisine: cuisine.trim() || undefined,
           menuUrl: menuUrl.trim() || undefined,
           imageUrl,
-          anchors: anchorName.trim()
+          anchors: anchor.refName.trim()
             ? [
                 {
                   kind: "building",
-                  refId: "",
-                  refName: anchorName.trim(),
+                  refId: anchor.refId,
+                  refName: anchor.refName.trim(),
                 },
               ]
             : [],
@@ -234,10 +243,12 @@ export function DiningAdminClient({ mapId, initialLocations }: Props) {
           </Field>
 
           <Field label="Where on campus (optional)">
-            <Input
-              value={anchorName}
-              onChange={(e) => setAnchorName(e.target.value)}
+            <AnchorPicker
+              indoorMapId={indoorMapId}
+              value={anchor}
+              onChange={setAnchor}
               placeholder="Cafe Pavilion, Marketplace…"
+              ariaLabel="Anchor"
             />
           </Field>
 

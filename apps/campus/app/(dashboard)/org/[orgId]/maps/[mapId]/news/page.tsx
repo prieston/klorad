@@ -38,10 +38,13 @@ export default async function NewsAdminPage({
 
   const project = await prisma.project.findFirst({
     where: { id: mapId, organizationId: orgId },
-    select: { id: true, title: true },
+    select: { id: true, title: true, sceneData: true },
   });
   if (!project) notFound();
 
+  const indoorMapId =
+    (project.sceneData as { indoorMapId?: string } | null)?.indoorMapId ??
+    null;
   const posts = await listNewsForAdmin(mapId);
 
   return (
@@ -62,7 +65,11 @@ export default async function NewsAdminPage({
         </p>
       </div>
 
-      <NewsAdminClient mapId={mapId} initialPosts={posts} />
+      <NewsAdminClient
+        mapId={mapId}
+        initialPosts={posts}
+        indoorMapId={indoorMapId}
+      />
     </div>
   );
 }

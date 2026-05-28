@@ -19,11 +19,16 @@ import {
   type EventBanner,
   type EventIcon,
 } from "@/lib/events-db";
+import { AnchorPicker, type AnchorValue } from "@/lib/admin/AnchorPicker";
 
 interface Props {
   mapId: string;
   initialEvents: EventPost[];
+  /** MappedIn venue id — when set, the anchor input becomes a picker. */
+  indoorMapId?: string | null;
 }
+
+const EMPTY_ANCHOR: AnchorValue = { refName: "", refId: "" };
 
 const BANNERS: { value: EventBanner; label: string; swatch: string }[] = [
   { value: "purple", label: "Purple", swatch: "#534AB7" },
@@ -53,7 +58,11 @@ function plusHoursLocal(hours: number): string {
  * expected attendance). POST goes to /api/maps/[mapId]/events; the
  * server bumps the public cache tag so the rail updates instantly.
  */
-export function EventsAdminClient({ mapId, initialEvents }: Props) {
+export function EventsAdminClient({
+  mapId,
+  initialEvents,
+  indoorMapId,
+}: Props) {
   const [events, setEvents] = useState<EventPost[]>(initialEvents);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -61,7 +70,7 @@ export function EventsAdminClient({ mapId, initialEvents }: Props) {
   const [endsAt, setEndsAt] = useState(plusHoursLocal(26));
   const [bannerColor, setBannerColor] = useState<EventBanner>("purple");
   const [bannerIcon, setBannerIcon] = useState<EventIcon>("calendar");
-  const [anchorName, setAnchorName] = useState("");
+  const [anchor, setAnchor] = useState<AnchorValue>(EMPTY_ANCHOR);
   const [registrationUrl, setRegistrationUrl] = useState("");
   const [organizer, setOrganizer] = useState("");
   const [expectedAttendance, setExpectedAttendance] = useState("");
@@ -89,7 +98,7 @@ export function EventsAdminClient({ mapId, initialEvents }: Props) {
     setEndsAt(plusHoursLocal(26));
     setBannerColor("purple");
     setBannerIcon("calendar");
-    setAnchorName("");
+    setAnchor(EMPTY_ANCHOR);
     setRegistrationUrl("");
     setOrganizer("");
     setExpectedAttendance("");
@@ -124,12 +133,12 @@ export function EventsAdminClient({ mapId, initialEvents }: Props) {
             attendance != null && !Number.isNaN(attendance)
               ? attendance
               : undefined,
-          anchors: anchorName.trim()
+          anchors: anchor.refName.trim()
             ? [
                 {
                   kind: "building",
-                  refId: "",
-                  refName: anchorName.trim(),
+                  refId: anchor.refId,
+                  refName: anchor.refName.trim(),
                 },
               ]
             : [],
@@ -304,10 +313,12 @@ export function EventsAdminClient({ mapId, initialEvents }: Props) {
           </div>
 
           <Field label="Where on campus (optional)">
-            <Input
-              value={anchorName}
-              onChange={(e) => setAnchorName(e.target.value)}
+            <AnchorPicker
+              indoorMapId={indoorMapId}
+              value={anchor}
+              onChange={setAnchor}
               placeholder="Library, Cafe Pavilion, Mott Athletics…"
+              ariaLabel="Anchor"
             />
           </Field>
 

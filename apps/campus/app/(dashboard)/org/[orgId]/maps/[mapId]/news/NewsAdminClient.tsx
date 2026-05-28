@@ -18,11 +18,16 @@ import {
   type NewsPost,
   type NewsCategory,
 } from "@/lib/news";
+import { AnchorPicker, type AnchorValue } from "@/lib/admin/AnchorPicker";
 
 interface Props {
   mapId: string;
   initialPosts: NewsPost[];
+  /** MappedIn venue id — when set, the anchor input becomes a picker. */
+  indoorMapId?: string | null;
 }
+
+const EMPTY_ANCHOR: AnchorValue = { refName: "", refId: "" };
 
 const CATEGORIES: { value: NewsCategory; label: string }[] = [
   { value: "announcement", label: "Announcement" },
@@ -42,13 +47,17 @@ function todayISODate(): string {
  * `POST /api/maps/[mapId]/news` and revalidates the cached public
  * campus tag server-side so the new post shows up immediately.
  */
-export function NewsAdminClient({ mapId, initialPosts }: Props) {
+export function NewsAdminClient({
+  mapId,
+  initialPosts,
+  indoorMapId,
+}: Props) {
   const [posts, setPosts] = useState<NewsPost[]>(initialPosts);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [category, setCategory] = useState<NewsCategory>("announcement");
   const [publishedAt, setPublishedAt] = useState(todayISODate());
-  const [anchorName, setAnchorName] = useState("");
+  const [anchor, setAnchor] = useState<AnchorValue>(EMPTY_ANCHOR);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -71,7 +80,7 @@ export function NewsAdminClient({ mapId, initialPosts }: Props) {
     setBody("");
     setCategory("announcement");
     setPublishedAt(todayISODate());
-    setAnchorName("");
+    setAnchor(EMPTY_ANCHOR);
     setImageUrl(null);
   };
 
@@ -94,12 +103,12 @@ export function NewsAdminClient({ mapId, initialPosts }: Props) {
           // into a UTC ISO so the server stores a clean instant.
           publishedAt: new Date(publishedAt).toISOString(),
           imageUrl,
-          anchors: anchorName.trim()
+          anchors: anchor.refName.trim()
             ? [
                 {
                   kind: "building",
-                  refId: "",
-                  refName: anchorName.trim(),
+                  refId: anchor.refId,
+                  refName: anchor.refName.trim(),
                 },
               ]
             : [],
@@ -250,10 +259,12 @@ export function NewsAdminClient({ mapId, initialPosts }: Props) {
           </div>
 
           <Field label="Where on campus (optional)">
-            <Input
-              value={anchorName}
-              onChange={(e) => setAnchorName(e.target.value)}
+            <AnchorPicker
+              indoorMapId={indoorMapId}
+              value={anchor}
+              onChange={setAnchor}
               placeholder="Library, Cafe Pavilion, Mott Athletics…"
+              ariaLabel="Anchor"
             />
           </Field>
 
