@@ -477,13 +477,44 @@ export async function seedSampleCampus(
   };
 }
 
-/** Has this project been seeded already? "Anything in any rail" wins. */
+/**
+ * Has this project been seeded already? "Anything in any rail" wins.
+ *
+ * Each `.count()` is guarded with `.catch(() => 0)` so a pending
+ * migration (table missing) treats the project as "nothing seeded
+ * yet" instead of crashing the onboarding page. The real fix when
+ * this hits is still `pnpm prisma migrate deploy`; this is just the
+ * safety net so the dashboard stays usable in the meantime.
+ */
 export async function projectHasContent(projectId: string): Promise<boolean> {
+  const safeCount = async (
+    p: () => Promise<number>,
+    label: string,
+  ): Promise<number> => {
+    try {
+      return await p();
+    } catch (err) {
+      console.error(`[projectHasContent] ${label} count failed`, err);
+      return 0;
+    }
+  };
   const [n, e, c, d] = await Promise.all([
-    prisma.newsPost.count({ where: { projectId } }),
-    prisma.eventPost.count({ where: { projectId } }),
-    prisma.club.count({ where: { projectId } }),
-    prisma.diningLocation.count({ where: { projectId } }),
+    safeCount(
+      () => prisma.newsPost.count({ where: { projectId } }),
+      "news",
+    ),
+    safeCount(
+      () => prisma.eventPost.count({ where: { projectId } }),
+      "events",
+    ),
+    safeCount(
+      () => prisma.club.count({ where: { projectId } }),
+      "clubs",
+    ),
+    safeCount(
+      () => prisma.diningLocation.count({ where: { projectId } }),
+      "dining",
+    ),
   ]);
   return n + e + c + d > 0;
 }
