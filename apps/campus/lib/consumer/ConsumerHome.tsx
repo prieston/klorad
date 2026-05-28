@@ -8,6 +8,7 @@ import { ClubRow } from "./ClubRow";
 import { NewsItem } from "./NewsItem";
 import { ConsumerFooter } from "./ConsumerFooter";
 import { AssistantInput } from "./AssistantInput";
+import { NotificationButton } from "./NotificationButton";
 import {
   SAMPLE_CLUBS,
   SAMPLE_EVENTS,
@@ -41,6 +42,8 @@ export interface ConsumerHomeProps {
   events?: ConsumerEvent[];
   /** Clubs for the "Most active this week" rail. Same fallback story. */
   clubs?: ConsumerClub[];
+  /** VAPID public key — when set, renders the Get-notifications button. */
+  vapidPublicKey?: string;
 }
 
 /**
@@ -71,6 +74,7 @@ export function ConsumerHome({
   news,
   events,
   clubs,
+  vapidPublicKey,
 }: ConsumerHomeProps) {
   const newsItems = news?.length ? news : SAMPLE_NEWS;
   const eventItems = events?.length ? events : SAMPLE_EVENTS;
@@ -98,6 +102,11 @@ export function ConsumerHome({
         locale={locale}
         mapHref={mapHref}
       />
+
+      {/* Bell button — silent-disable when push isn't configured. */}
+      <div className="mx-auto flex max-w-[1280px] justify-end px-4 pt-2 md:px-6">
+        <NotificationButton mapId={mapId} vapidPublicKey={vapidPublicKey} />
+      </div>
 
       <ConsumerHero
         headline={headline ?? "Your whole campus, one happy little app."}
