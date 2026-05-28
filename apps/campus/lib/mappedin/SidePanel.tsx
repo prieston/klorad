@@ -19,8 +19,10 @@ export interface SidePanelProps {
   currentBuildingId: string;
   onSelectFloor: (id: string) => void;
   onSelectBuilding: (id: string) => void;
-  // Explore
+  // Explore — `spaces` is filtered to the active building.
   spaces: SpaceOption[];
+  /** Unfiltered space list — used by NavigateTab's "show all buildings" toggle. */
+  allSpaces: SpaceOption[];
   onSearchSelect: (id: string) => void;
   selectedSpace: { id: string; name: string } | null;
   onClearSelection: () => void;
@@ -98,6 +100,7 @@ export function SidePanel(props: SidePanelProps) {
           <NavigateTab
             locale={props.locale}
             spaces={props.spaces}
+            allSpaces={props.allSpaces}
             routing={props.routing}
             routeError={props.routeError}
             routeSummary={props.routeSummary}
