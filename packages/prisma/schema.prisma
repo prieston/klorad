@@ -464,11 +464,21 @@ model EventPost {
   /// Vanity "expected attendance" — admin-set. See campus-consumer-pivot.
   expectedAttendance Int?
   anchors         Json        @default("[]")
+  /// External id from the source feed — `<feedUrl>::<isoStart>` for ICS rows,
+  /// null for admin-authored ones. Used by the sync job to upsert idempotently.
+  externalId      String?
+  /// Where the row came from — "ics" / "manual" / null (legacy = manual).
+  source          String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  /// Postgres allows multiple NULLs in a unique constraint, so this
+  /// uniques the (project, externalId) pair only for non-null rows —
+  /// exactly the "no double-import" semantics the sync wants.
+  @@unique([projectId, externalId])
 
   @@index([projectId, startsAt])
   @@index([organizationId])

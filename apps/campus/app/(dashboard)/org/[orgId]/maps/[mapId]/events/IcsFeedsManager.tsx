@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "react-toastify";
-import { Trash2 } from "lucide-react";
+import { RefreshCw, Trash2 } from "lucide-react";
 import { Button, Field, Input, Panel } from "@klorad/design-system";
 
 interface Props {
@@ -27,6 +27,7 @@ export function IcsFeedsManager({ mapId, initialFeeds }: Props) {
   const [feeds, setFeeds] = useState<string[]>(initialFeeds);
   const [input, setInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const save = async (next: string[]) => {
     setSaving(true);
@@ -79,16 +80,61 @@ export function IcsFeedsManager({ mapId, initialFeeds }: Props) {
     toast.success("Feed removed");
   };
 
+  const syncNow = async () => {
+    if (syncing || feeds.length === 0) return;
+    setSyncing(true);
+    try {
+      const res = await fetch(`/api/maps/${mapId}/sync-ics`, {
+        method: "POST",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "Sync failed");
+      const r = body.result ?? {};
+      const inserted = r.inserted ?? 0;
+      const updated = r.updated ?? 0;
+      if (inserted === 0 && updated === 0) {
+        toast.info("Synced — no new occurrences.");
+      } else {
+        toast.success(
+          `Synced — ${inserted} new, ${updated} updated.`,
+        );
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <Panel className="mt-6 p-5">
-      <div>
-        <h2 className="text-sm font-semibold text-text-primary">
-          ICS feeds
-        </h2>
-        <p className="mt-1 text-xs text-text-tertiary">
-          Paste a Google / Outlook / department calendar URL. Events
-          pull every render and merge with anything you publish below.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-text-primary">
+            ICS feeds
+          </h2>
+          <p className="mt-1 text-xs text-text-tertiary">
+            Paste a Google / Outlook / department calendar URL. Sync
+            writes occurrences into the events store so the chat and
+            home rail see them alongside manual ones.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => void syncNow()}
+          disabled={syncing || feeds.length === 0}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <RefreshCw
+              size={14}
+              strokeWidth={1.75}
+              className={syncing ? "animate-spin" : ""}
+            />
+            {syncing ? "Syncing…" : "Sync now"}
+          </span>
+        </Button>
       </div>
 
       <div className="mt-4 flex flex-col gap-2">
