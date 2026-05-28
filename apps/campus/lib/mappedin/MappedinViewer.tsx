@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
+import { Menu, X } from "lucide-react";
 import type { MapData, MapView, Space } from "@mappedin/mappedin-js";
 import type { MappedinVenue } from "./config";
 import { translate, type Locale } from "@/app/lib/i18n-core";
@@ -140,6 +141,9 @@ export const MappedinViewer = forwardRef<
   const [currentFloorId, setCurrentFloorId] = useState("");
   const [buildings, setBuildings] = useState<FloorOption[]>([]);
   const [currentBuildingId, setCurrentBuildingId] = useState("");
+  // On phones the side panel is a bottom-sheet that lifts on tap.
+  // Default closed so the map gets the full screen.
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedSpace, setSelectedSpace] = useState<{
     id: string;
     name: string;
@@ -486,37 +490,59 @@ export const MappedinViewer = forwardRef<
     [],
   );
 
+  /** Shared panel content — mounted on the desktop aside and in the
+   *  mobile bottom sheet. */
+  const panelContent = (
+    <SidePanel
+      locale={locale}
+      spaces={visibleSpaces}
+      allSpaces={spaces}
+      onSearchSelect={(id) => {
+        setSheetOpen(false);
+        void handleSearchSelect(id);
+      }}
+      selectedSpace={selectedSpace}
+      onClearSelection={clearSelection}
+      floors={floors}
+      currentFloorId={currentFloorId}
+      buildings={buildings}
+      currentBuildingId={currentBuildingId}
+      onSelectFloor={(id) => void handleSelectFloor(id)}
+      onSelectBuilding={(id) => void handleSelectBuilding(id)}
+      routing={routing}
+      routeError={routeError}
+      routeSummary={routeSummary}
+      routeInstructions={routeInstructions}
+      projectId={projectId}
+      campusName={campusName}
+      onRoute={(from, to, accessible) => {
+        setSheetOpen(false);
+        void handleRoute(from, to, accessible);
+      }}
+      onClearRoute={handleClear}
+    />
+  );
+
   return (
-    <div className="flex h-full w-full bg-bg">
-      <aside className="h-full w-64 shrink-0 border-r border-solid border-line-soft md:w-80">
-        <SidePanel
-          locale={locale}
-          spaces={visibleSpaces}
-          allSpaces={spaces}
-          onSearchSelect={(id) => void handleSearchSelect(id)}
-          selectedSpace={selectedSpace}
-          onClearSelection={clearSelection}
-          floors={floors}
-          currentFloorId={currentFloorId}
-          buildings={buildings}
-          currentBuildingId={currentBuildingId}
-          onSelectFloor={(id) => void handleSelectFloor(id)}
-          onSelectBuilding={(id) => void handleSelectBuilding(id)}
-          routing={routing}
-          routeError={routeError}
-          routeSummary={routeSummary}
-          routeInstructions={routeInstructions}
-          projectId={projectId}
-          campusName={campusName}
-          onRoute={(from, to, accessible) =>
-            void handleRoute(from, to, accessible)
-          }
-          onClearRoute={handleClear}
-        />
+    <div className="relative flex h-full w-full bg-bg">
+      {/* Desktop: in-flow left aside. Hidden on mobile so the map fills the screen. */}
+      <aside className="hidden h-full w-80 shrink-0 border-r border-solid border-line-soft md:block">
+        {panelContent}
       </aside>
 
       <div className="relative min-h-0 flex-1">
         <div ref={containerRef} className="absolute inset-0" />
+
+        {/* Mobile FAB to open the bottom sheet. */}
+        <button
+          type="button"
+          onClick={() => setSheetOpen(true)}
+          className="absolute bottom-4 right-4 z-20 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-contrast shadow-glass md:hidden"
+          aria-label={t("mappedin.menu")}
+        >
+          <Menu size={16} strokeWidth={2} />
+          {t("mappedin.menu")}
+        </button>
 
         {status === "loading" ? (
           <div className="pointer-events-none absolute inset-0 animate-pulse bg-surface-2/40">
@@ -557,6 +583,44 @@ export const MappedinViewer = forwardRef<
         {status === "ready" && showWelcome ? (
           <WelcomeOverlay locale={locale} />
         ) : null}
+      </div>
+
+      {/* Mobile bottom-sheet — fixed overlay that slides up. Backdrop
+          dim closes on tap; the inner panel is a copy of the desktop
+          aside so the user has the same Explore / Navigate / chat
+          surface without re-typing anything. */}
+      {sheetOpen ? (
+        <button
+          type="button"
+          onClick={() => setSheetOpen(false)}
+          aria-label={t("mappedin.closeMenu")}
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+        />
+      ) : null}
+      <div
+        className={`fixed inset-x-0 bottom-0 z-40 flex max-h-[85vh] min-h-[60vh] flex-col rounded-t-2xl bg-surface-1 shadow-glass transition-transform duration-200 ease-out md:hidden ${
+          sheetOpen ? "translate-y-0" : "translate-y-full"
+        }`}
+        aria-hidden={!sheetOpen}
+      >
+        <div className="flex items-center justify-between border-b border-solid border-line-soft px-4 py-3">
+          <div
+            aria-hidden
+            className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-line-soft"
+          />
+          <span className="text-sm font-semibold text-text-primary">
+            {campusName ?? t("mappedin.menu")}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSheetOpen(false)}
+            aria-label={t("mappedin.closeMenu")}
+            className="rounded-md p-1 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-text-primary"
+          >
+            <X size={18} strokeWidth={2} />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">{panelContent}</div>
       </div>
     </div>
   );

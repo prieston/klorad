@@ -121,6 +121,8 @@ const MESSAGES = {
       'Try: "How do I get to room 201?" or "I use a wheelchair, how do I reach the gym?"',
     "mappedin.askUnavailable":
       "Sorry — the assistant is unavailable right now.",
+    "mappedin.menu": "Menu",
+    "mappedin.closeMenu": "Close menu",
 
     // Unpublished / not-found states
     "published.body":
@@ -240,6 +242,8 @@ const MESSAGES = {
       'Δοκιμάστε: «Πώς πάω στην αίθουσα 201;» ή «Είμαι σε αναπηρικό αμαξίδιο, πώς φτάνω στο γυμναστήριο;»',
     "mappedin.askUnavailable":
       "Λυπούμαστε — ο βοηθός δεν είναι διαθέσιμος αυτή τη στιγμή.",
+    "mappedin.menu": "Μενού",
+    "mappedin.closeMenu": "Κλείσιμο μενού",
 
     // Unpublished / not-found states
     "published.body":
