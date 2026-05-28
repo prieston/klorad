@@ -8,6 +8,9 @@ import {
   formatEventWhen,
   listUpcomingEventsForProject,
 } from "@/lib/events-db";
+import { readEventFeeds, type CampusEvent } from "@/lib/events";
+import { fetchCampusEvents } from "@/lib/events-server";
+import { eventHasDetailPage, mergeEvents } from "@/lib/events-merge";
 import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
 
@@ -81,7 +84,20 @@ export default async function EventsPage({
 
   const lang = `?lang=${locale}`;
   const mapHref = `/campus/${token}/map${lang}`;
-  const events = await listUpcomingEventsForProject(map.id, 50);
+  // DB-backed events + any ICS feeds the admin configured. Same
+  // merge the consumer home uses; defensive `.catch()` on the ICS
+  // fetch so a slow / broken feed doesn't blank the page.
+  const feedUrls = readEventFeeds(map.sceneData);
+  const [dbEvents, icsEvents] = await Promise.all([
+    listUpcomingEventsForProject(map.id, 100),
+    feedUrls.length > 0
+      ? fetchCampusEvents(feedUrls).catch((err): CampusEvent[] => {
+          console.error("[events page] ICS fetch failed", err);
+          return [];
+        })
+      : Promise.resolve<CampusEvent[]>([]),
+  ]);
+  const events = mergeEvents(dbEvents, icsEvents, 100);
 
   return (
     <main data-consumer lang={locale} style={themeStyle}>
@@ -108,10 +124,17 @@ export default async function EventsPage({
           <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
             {events.map((e) => {
               const firstAnchor = e.anchors[0];
+              // DB rows link to their detail page; ICS rows (id contains
+              // `::`) link to the map with the anchor focused.
+              const href = eventHasDetailPage(e.id)
+                ? `/campus/${token}/events/${e.id}${lang}`
+                : firstAnchor?.refId
+                  ? `${mapHref}&space=${encodeURIComponent(firstAnchor.refId)}`
+                  : mapHref;
               return (
                 <Link
                   key={e.id}
-                  href={`/campus/${token}/events/${e.id}${lang}`}
+                  href={href}
                   className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--brand-line)] bg-white transition-colors hover:border-[var(--brand-primary)]"
                 >
                   <div
@@ -135,7 +158,7 @@ export default async function EventsPage({
                       {formatEventWhen(e.startsAt)}
                     </span>
                     <p className="line-clamp-2 text-xs leading-relaxed text-[var(--brand-text-muted)]">
-                      {e.description}
+                      {e.blurb}
                     </p>
                     <div className="mt-auto flex flex-wrap items-center gap-2 pt-2 text-xs text-[var(--brand-text-muted)]">
                       {firstAnchor ? (

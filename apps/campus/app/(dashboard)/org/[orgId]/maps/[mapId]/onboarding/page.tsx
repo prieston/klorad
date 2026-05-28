@@ -4,7 +4,9 @@ import { ChevronLeft } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { projectHasContent } from "@/lib/sample-seed";
+import { readEventFeeds } from "@/lib/events";
 import { OnboardingClient } from "./OnboardingClient";
+import { CampusHealth } from "./CampusHealth";
 
 type Params = Promise<{ orgId: string; mapId: string }>;
 
@@ -67,6 +69,27 @@ export default async function OnboardingPage({
   );
   const hasIndoorMap = Boolean(scene.indoorMapId);
 
+  // Per-rail counts for the health checklist. Run in parallel — a
+  // missing model (pending migration) is the same `.catch(() => 0)`
+  // graceful path the public surface uses.
+  const [newsCount, eventsCount, clubsCount, diningCount] = await Promise.all([
+    prisma.newsPost.count({ where: { projectId: mapId } }).catch(() => 0),
+    prisma.eventPost.count({ where: { projectId: mapId } }).catch(() => 0),
+    prisma.club.count({ where: { projectId: mapId } }).catch(() => 0),
+    prisma.diningLocation.count({ where: { projectId: mapId } }).catch(() => 0),
+  ]);
+  const feedCount = readEventFeeds(project.sceneData).length;
+  // Brand-completeness is a stricter check than `hasBranding` (any
+  // one set) — we want all three for the badge to flip.
+  const brandComplete = Boolean(
+    scene.branding?.name &&
+      scene.branding?.logo &&
+      scene.branding?.primaryColor,
+  );
+  // Process-level env — only the server knows. Tells the admin
+  // whether the AI chat is on this deployment.
+  const assistantEnabled = Boolean(process.env.ANTHROPIC_API_KEY);
+
   return (
     <div className="mx-auto max-w-[960px] px-6 py-10">
       <Link
@@ -94,6 +117,18 @@ export default async function OnboardingPage({
         hasBranding={hasBranding}
         hasIndoorMap={hasIndoorMap}
         isPublished={project.isPublished}
+      />
+
+      <CampusHealth
+        brandComplete={brandComplete}
+        hasIndoorMap={hasIndoorMap}
+        isPublished={project.isPublished}
+        newsCount={newsCount}
+        eventsCount={eventsCount}
+        clubsCount={clubsCount}
+        diningCount={diningCount}
+        feedCount={feedCount}
+        assistantEnabled={assistantEnabled}
       />
     </div>
   );
