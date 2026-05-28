@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPublicCampusByToken } from "@/lib/public-campus";
 import { readHomePage } from "@/lib/home-page";
-import { detectLocale, pickText } from "@/app/lib/i18n-core";
+import { detectLocale, pickLocalized, pickText } from "@/app/lib/i18n-core";
 import { readPosts } from "@/lib/posts";
 import { listNewsForProject, type NewsPost } from "@/lib/news";
 import {
@@ -133,18 +133,25 @@ export default async function CampusHomePage({
   ]);
   const legacyPosts = readPosts(map.sceneData);
   const news: ConsumerNews[] = [
-    ...dbPosts.map((p) => ({
-      id: p.id,
-      title: p.title,
-      excerpt: p.body.length > 200 ? `${p.body.slice(0, 197)}…` : p.body,
-      category: p.category,
-      publishedAt: p.publishedAt,
-      anchors: p.anchors.map((a) => ({
-        kind: a.kind,
-        refId: a.refId,
-        refName: a.refName,
-      })),
-    })),
+    ...dbPosts.map((p) => {
+      const title = pickLocalized(p.title, p.titleEl, locale);
+      const bodyLocalised = pickLocalized(p.body, p.bodyEl, locale);
+      return {
+        id: p.id,
+        title,
+        excerpt:
+          bodyLocalised.length > 200
+            ? `${bodyLocalised.slice(0, 197)}…`
+            : bodyLocalised,
+        category: p.category,
+        publishedAt: p.publishedAt,
+        anchors: p.anchors.map((a) => ({
+          kind: a.kind,
+          refId: a.refId,
+          refName: a.refName,
+        })),
+      };
+    }),
     ...legacyPosts.map((p) => {
       const title = pickText(p.title, locale) || "";
       const bodyText = pickText(p.body, locale) || "";
@@ -182,7 +189,7 @@ export default async function CampusHomePage({
   // still click through to the club's detail page in-app.
   const clubs: ConsumerClub[] = dbClubs.map((c) => ({
     id: c.id,
-    name: c.name,
+    name: pickLocalized(c.name, c.nameEl, locale),
     initials: c.initials,
     avatarColor: c.avatarColor,
     memberCount: c.memberCount,
@@ -193,7 +200,14 @@ export default async function CampusHomePage({
   // Merge DB events + ICS-feed events into one list — soonest first,
   // dupes (same title + minute) collapsed. `eventPostToConsumer` and
   // `icsToConsumer` share the mapping logic in `events-merge.ts`.
-  const events = mergeEvents(dbEvents, icsEvents, 24);
+  // Localise titles + blurbs on the DB rows before they meet
+  // `mergeEvents`. ICS rows have no EL columns to pick from.
+  const dbEventsLocalised = dbEvents.map((e) => ({
+    ...e,
+    title: pickLocalized(e.title, e.titleEl, locale),
+    description: pickLocalized(e.description, e.descriptionEl, locale),
+  }));
+  const events = mergeEvents(dbEventsLocalised, icsEvents, 24);
 
   return (
     <ConsumerHome

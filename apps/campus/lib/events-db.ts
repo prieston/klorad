@@ -24,7 +24,11 @@ export interface EventPost {
   id: string;
   projectId: string;
   title: string;
+  /** Greek translation, optional. */
+  titleEl: string | null;
   description: string;
+  /** Greek translation, optional. */
+  descriptionEl: string | null;
   imageUrl: string | null;
   startsAt: string;
   endsAt: string;
@@ -52,7 +56,9 @@ function fromPrisma(row: PrismaEventPost): EventPost {
     id: row.id,
     projectId: row.projectId,
     title: row.title,
+    titleEl: row.titleEl,
     description: row.description,
+    descriptionEl: row.descriptionEl,
     imageUrl: row.imageUrl,
     startsAt: row.startsAt.toISOString(),
     endsAt: row.endsAt.toISOString(),

@@ -38,7 +38,9 @@ export function DiningAdminClient({
   const [locations, setLocations] = useState<DiningLocation[]>(initialLocations);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [nameEl, setNameEl] = useState("");
   const [description, setDescription] = useState("");
+  const [descriptionEl, setDescriptionEl] = useState("");
   const [hoursText, setHoursText] = useState("");
   const [cuisine, setCuisine] = useState("");
   const [menuUrl, setMenuUrl] = useState("");
@@ -63,7 +65,9 @@ export function DiningAdminClient({
   const reset = () => {
     setEditingId(null);
     setName("");
+    setNameEl("");
     setDescription("");
+    setDescriptionEl("");
     setHoursText("");
     setCuisine("");
     setMenuUrl("");
@@ -74,7 +78,9 @@ export function DiningAdminClient({
   const startEdit = (location: DiningLocation) => {
     setEditingId(location.id);
     setName(location.name);
+    setNameEl(location.nameEl ?? "");
     setDescription(location.description);
+    setDescriptionEl(location.descriptionEl ?? "");
     setHoursText(location.hoursText ?? "");
     setCuisine(location.cuisine ?? "");
     setMenuUrl(location.menuUrl ?? "");
@@ -109,7 +115,9 @@ export function DiningAdminClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
+          nameEl: nameEl.trim() || "",
           description: description.trim(),
+          descriptionEl: descriptionEl.trim() || "",
           hoursText: hoursText.trim() || undefined,
           cuisine: cuisine.trim() || undefined,
           menuUrl: menuUrl.trim() || undefined,
@@ -255,6 +263,14 @@ export function DiningAdminClient({
             />
           </Field>
 
+          <Field label="Name (Greek, optional)">
+            <Input
+              value={nameEl}
+              onChange={(e) => setNameEl(e.target.value)}
+              placeholder="Παβιγιόν καφέ"
+            />
+          </Field>
+
           <Field label="Description">
             <Textarea
               value={description}
@@ -262,6 +278,15 @@ export function DiningAdminClient({
               placeholder="Quick-service cafe with sandwiches, coffee, and bowls."
               rows={3}
               required
+            />
+          </Field>
+
+          <Field label="Description (Greek, optional)">
+            <Textarea
+              value={descriptionEl}
+              onChange={(e) => setDescriptionEl(e.target.value)}
+              placeholder="Καφετέρια με σάντουιτς, καφέ και μπολ."
+              rows={3}
             />
           </Field>
 

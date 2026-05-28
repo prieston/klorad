@@ -42,7 +42,9 @@ export function ClubsAdminClient({ mapId, initialClubs }: Props) {
   const [clubs, setClubs] = useState<Club[]>(initialClubs);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [nameEl, setNameEl] = useState("");
   const [description, setDescription] = useState("");
+  const [descriptionEl, setDescriptionEl] = useState("");
   const [initialsOverride, setInitialsOverride] = useState("");
   const [avatarColor, setAvatarColor] = useState<ClubColor>("purple");
   const [memberCount, setMemberCount] = useState("");
@@ -71,7 +73,9 @@ export function ClubsAdminClient({ mapId, initialClubs }: Props) {
   const reset = () => {
     setEditingId(null);
     setName("");
+    setNameEl("");
     setDescription("");
+    setDescriptionEl("");
     setInitialsOverride("");
     setAvatarColor("purple");
     setMemberCount("");
@@ -84,7 +88,9 @@ export function ClubsAdminClient({ mapId, initialClubs }: Props) {
   const startEdit = (club: Club) => {
     setEditingId(club.id);
     setName(club.name);
+    setNameEl(club.nameEl ?? "");
     setDescription(club.description);
+    setDescriptionEl(club.descriptionEl ?? "");
     setInitialsOverride(club.initials);
     setAvatarColor(club.avatarColor);
     setMemberCount(String(club.memberCount));
@@ -114,7 +120,9 @@ export function ClubsAdminClient({ mapId, initialClubs }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
+          nameEl: nameEl.trim() || "",
           description: description.trim(),
+          descriptionEl: descriptionEl.trim() || "",
           initials: initialsOverride.trim() || undefined,
           avatarColor,
           memberCount: memberCount.trim()
@@ -266,6 +274,14 @@ export function ClubsAdminClient({ mapId, initialClubs }: Props) {
             />
           </Field>
 
+          <Field label="Name (Greek, optional)">
+            <Input
+              value={nameEl}
+              onChange={(e) => setNameEl(e.target.value)}
+              placeholder="Όμιλος επιστήμης δεδομένων"
+            />
+          </Field>
+
           <Field label="Description">
             <Textarea
               value={description}
@@ -273,6 +289,15 @@ export function ClubsAdminClient({ mapId, initialClubs }: Props) {
               placeholder="What the club does."
               rows={4}
               required
+            />
+          </Field>
+
+          <Field label="Description (Greek, optional)">
+            <Textarea
+              value={descriptionEl}
+              onChange={(e) => setDescriptionEl(e.target.value)}
+              placeholder="Τι κάνει ο όμιλος."
+              rows={4}
             />
           </Field>
 

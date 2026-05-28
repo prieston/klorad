@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink, MapPin } from "lucide-react";
 import { getPublicCampusByToken } from "@/lib/public-campus";
-import { detectLocale } from "@/app/lib/i18n-core";
+import { detectLocale, pickLocalized } from "@/app/lib/i18n-core";
 import { listTopClubsForProject } from "@/lib/clubs-db";
 import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
@@ -102,7 +102,14 @@ export default async function ClubsPage({
           </div>
         ) : (
           <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {clubs.map((c) => (
+            {clubs.map((c) => {
+              const name = pickLocalized(c.name, c.nameEl, locale);
+              const description = pickLocalized(
+                c.description,
+                c.descriptionEl,
+                locale,
+              );
+              return (
               <article
                 key={c.id}
                 className="flex flex-col gap-3 rounded-2xl border border-[var(--brand-line)] bg-white p-5"
@@ -129,7 +136,7 @@ export default async function ClubsPage({
                       href={`/campus/${token}/clubs/${c.id}${lang}`}
                       className="block truncate text-base font-medium text-[var(--brand-text)] transition-colors hover:text-[var(--brand-primary)]"
                     >
-                      {c.name}
+                      {name}
                     </Link>
                     <p className="mt-0.5 truncate text-xs text-[var(--brand-text-muted)]">
                       {c.memberCount} members
@@ -139,7 +146,7 @@ export default async function ClubsPage({
                 </div>
 
                 <p className="line-clamp-3 text-sm leading-relaxed text-[var(--brand-text)]">
-                  {c.description}
+                  {description}
                 </p>
 
                 {c.anchors[0] ? (
@@ -170,7 +177,8 @@ export default async function ClubsPage({
                   ) : null}
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

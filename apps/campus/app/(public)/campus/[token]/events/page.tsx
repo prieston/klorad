@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Calendar, Compass, MapPin } from "lucide-react";
 import { getPublicCampusByToken } from "@/lib/public-campus";
-import { detectLocale } from "@/app/lib/i18n-core";
+import { detectLocale, pickLocalized } from "@/app/lib/i18n-core";
 import {
   formatEventWhen,
   listUpcomingEventsForProject,
@@ -97,7 +97,14 @@ export default async function EventsPage({
         })
       : Promise.resolve<CampusEvent[]>([]),
   ]);
-  const events = mergeEvents(dbEvents, icsEvents, 100);
+  // Localise the DB rows before they meet `mergeEvents`. ICS rows
+  // have no EL columns to pick from; they stay as-is.
+  const dbEventsLocalised = dbEvents.map((e) => ({
+    ...e,
+    title: pickLocalized(e.title, e.titleEl, locale),
+    description: pickLocalized(e.description, e.descriptionEl, locale),
+  }));
+  const events = mergeEvents(dbEventsLocalised, icsEvents, 100);
 
   return (
     <main data-consumer lang={locale} style={themeStyle}>

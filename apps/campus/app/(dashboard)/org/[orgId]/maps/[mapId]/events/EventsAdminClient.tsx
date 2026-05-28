@@ -66,7 +66,9 @@ export function EventsAdminClient({
   const [events, setEvents] = useState<EventPost[]>(initialEvents);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
+  const [titleEl, setTitleEl] = useState("");
   const [description, setDescription] = useState("");
+  const [descriptionEl, setDescriptionEl] = useState("");
   const [startsAt, setStartsAt] = useState(plusHoursLocal(24));
   const [endsAt, setEndsAt] = useState(plusHoursLocal(26));
   const [bannerColor, setBannerColor] = useState<EventBanner>("purple");
@@ -95,7 +97,9 @@ export function EventsAdminClient({
   const reset = () => {
     setEditingId(null);
     setTitle("");
+    setTitleEl("");
     setDescription("");
+    setDescriptionEl("");
     setStartsAt(plusHoursLocal(24));
     setEndsAt(plusHoursLocal(26));
     setBannerColor("purple");
@@ -118,7 +122,9 @@ export function EventsAdminClient({
   const startEdit = (event: EventPost) => {
     setEditingId(event.id);
     setTitle(event.title);
+    setTitleEl(event.titleEl ?? "");
     setDescription(event.description);
+    setDescriptionEl(event.descriptionEl ?? "");
     setStartsAt(isoToLocal(event.startsAt));
     setEndsAt(isoToLocal(event.endsAt));
     setBannerColor(event.bannerColor);
@@ -159,7 +165,9 @@ export function EventsAdminClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
+          titleEl: titleEl.trim() || "",
           description: description.trim(),
+          descriptionEl: descriptionEl.trim() || "",
           startsAt: new Date(startsAt).toISOString(),
           endsAt: new Date(endsAt).toISOString(),
           bannerColor,
@@ -311,6 +319,14 @@ export function EventsAdminClient({
             />
           </Field>
 
+          <Field label="Title (Greek, optional)">
+            <Input
+              value={titleEl}
+              onChange={(e) => setTitleEl(e.target.value)}
+              placeholder="Βραδιά ελεύθερου μικροφώνου"
+            />
+          </Field>
+
           <Field label="Description">
             <Textarea
               value={description}
@@ -318,6 +334,15 @@ export function EventsAdminClient({
               placeholder="What students need to know."
               rows={4}
               required
+            />
+          </Field>
+
+          <Field label="Description (Greek, optional)">
+            <Textarea
+              value={descriptionEl}
+              onChange={(e) => setDescriptionEl(e.target.value)}
+              placeholder="Τι πρέπει να ξέρουν οι φοιτητές."
+              rows={4}
             />
           </Field>
 

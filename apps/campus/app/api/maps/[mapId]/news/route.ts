@@ -79,6 +79,14 @@ export async function POST(req: Request, { params }: { params: Params }) {
       { status: 400 },
     );
   }
+  const titleEl =
+    typeof body.titleEl === "string" && body.titleEl.trim().length > 0
+      ? body.titleEl.trim()
+      : null;
+  const bodyEl =
+    typeof body.bodyEl === "string" && body.bodyEl.trim().length > 0
+      ? body.bodyEl.trim()
+      : null;
 
   const category: NewsCategory = VALID_CATEGORIES.includes(
     body.category as NewsCategory,
@@ -102,7 +110,9 @@ export async function POST(req: Request, { params }: { params: Params }) {
       organizationId: project.organizationId,
       projectId: mapId,
       title,
+      titleEl,
       body: post,
+      bodyEl,
       category,
       publishedAt,
       expiresAt,

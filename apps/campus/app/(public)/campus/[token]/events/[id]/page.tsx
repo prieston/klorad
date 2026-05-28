@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, MapPin, Compass, ExternalLink } from "lucide-react";
 import { getPublicCampusByToken } from "@/lib/public-campus";
-import { detectLocale } from "@/app/lib/i18n-core";
+import { detectLocale, pickLocalized } from "@/app/lib/i18n-core";
 import {
   formatEventWhen,
   getEventPost,
@@ -83,6 +83,12 @@ export default async function EventDetailPage({
 
   const lang = `?lang=${locale}`;
   const mapHref = `/campus/${token}/map${lang}`;
+  const title = pickLocalized(event.title, event.titleEl, locale);
+  const description = pickLocalized(
+    event.description,
+    event.descriptionEl,
+    locale,
+  );
   const firstAnchor = event.anchors[0];
   // Anchor with a refId → drop onto the map focused on that space.
   // Without a refId we still link to the map (the visitor can search).
@@ -120,7 +126,7 @@ export default async function EventDetailPage({
         ) : null}
 
         <h1 className="mt-8 text-3xl font-medium leading-tight text-[var(--brand-text)] md:text-4xl">
-          {event.title}
+          {title}
         </h1>
 
         <p className="mt-3 text-sm text-[var(--brand-text-muted)]">
@@ -157,7 +163,7 @@ export default async function EventDetailPage({
         ) : null}
 
         <div className="mt-8 whitespace-pre-wrap text-base leading-relaxed text-[var(--brand-text)]">
-          {event.description}
+          {description}
         </div>
 
         <div className="mt-8 flex flex-wrap gap-3">

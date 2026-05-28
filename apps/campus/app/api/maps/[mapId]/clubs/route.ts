@@ -58,6 +58,15 @@ export async function POST(req: Request, { params }: { params: Params }) {
       { status: 400 },
     );
   }
+  const nameEl =
+    typeof body.nameEl === "string" && body.nameEl.trim().length > 0
+      ? body.nameEl.trim()
+      : null;
+  const descriptionEl =
+    typeof body.descriptionEl === "string" &&
+    body.descriptionEl.trim().length > 0
+      ? body.descriptionEl.trim()
+      : null;
 
   const initials =
     typeof body.initials === "string" && body.initials.trim().length > 0
@@ -90,7 +99,9 @@ export async function POST(req: Request, { params }: { params: Params }) {
       organizationId: project.organizationId,
       projectId: mapId,
       name,
+      nameEl,
       description,
+      descriptionEl,
       initials,
       avatarColor,
       memberCount,

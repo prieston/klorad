@@ -14,6 +14,8 @@ import {
   SAMPLE_NEWS,
 } from "../sample-campus";
 import type { ConsumerClub, ConsumerEvent, ConsumerNews } from "./types";
+// (no import changes needed below; localisation happens in `page.tsx`
+// when DB rows are mapped to the consumer shape — see [[Arc 8 bilingual]].)
 
 export interface ConsumerHomeProps {
   token: string;

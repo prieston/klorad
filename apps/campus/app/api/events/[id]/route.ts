@@ -82,6 +82,19 @@ export async function PATCH(req: Request, { params }: { params: Params }) {
     }
     data.description = v;
   }
+  if (body.titleEl !== undefined) {
+    data.titleEl =
+      typeof body.titleEl === "string" && body.titleEl.trim().length > 0
+        ? body.titleEl.trim()
+        : null;
+  }
+  if (body.descriptionEl !== undefined) {
+    data.descriptionEl =
+      typeof body.descriptionEl === "string" &&
+      body.descriptionEl.trim().length > 0
+        ? body.descriptionEl.trim()
+        : null;
+  }
 
   // Validate start/end together so we never accept end < start.
   const newStart = parseDate(body.startsAt) ?? existing.startsAt;
