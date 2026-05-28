@@ -1,12 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { WayfindingControls, type SpaceOption } from "./WayfindingControls";
 import { AssistantChat } from "./AssistantChat";
 import { translate, type Locale } from "@/app/lib/i18n-core";
 
 export interface NavigateTabProps {
   locale: Locale;
+  /** Rooms in the currently selected building. */
   spaces: SpaceOption[];
+  /** Every room across every building — used when "show all" is on. */
+  allSpaces: SpaceOption[];
   routing: boolean;
   routeError: string | null;
   routeSummary: string | null;
@@ -26,14 +30,16 @@ export interface NavigateTabProps {
  * summary / turn-by-turn instructions, and the ask-the-assistant
  * chat below a divider.
  *
- * Accessibility routing isn't a top-level UI control here: the chat
- * detects it from the user's wording ("I use a wheelchair…") and
- * forwards `accessible: true` on the route call. Adding a dedicated
- * toggle is one prop away if a deployment wants it back.
+ * Cross-building wayfinding: the From / To dropdowns default to the
+ * current building's rooms only, but a "Show all buildings" toggle
+ * sitting above the controls swaps in `allSpaces` so the visitor can
+ * route between buildings without first deselecting one. When only
+ * one building exists, the toggle is hidden (no point).
  */
 export function NavigateTab({
   locale,
   spaces,
+  allSpaces,
   routing,
   routeError,
   routeSummary,
@@ -47,10 +53,32 @@ export function NavigateTab({
   const t = (key: Parameters<typeof translate>[1]) =>
     translate(locale, key);
 
+  const [allBuildings, setAllBuildings] = useState(false);
+  // Anything to switch between? If `spaces` already equals `allSpaces`
+  // we're either in a single-building venue or no building's filtered
+  // — either way the toggle is decoration, hide it.
+  const hasMultipleBuildings = allSpaces.length > spaces.length;
+  const visibleSpaces = allBuildings ? allSpaces : spaces;
+
   return (
     <div className="space-y-4">
+      {hasMultipleBuildings ? (
+        <label className="flex cursor-pointer items-center gap-2 text-xs text-text-secondary">
+          <input
+            type="checkbox"
+            checked={allBuildings}
+            onChange={(e) => setAllBuildings(e.target.checked)}
+            className="h-3.5 w-3.5 accent-accent"
+          />
+          {t("mappedin.showAllBuildings")}
+          <span className="ml-1 text-text-tertiary">
+            ({allSpaces.length} rooms)
+          </span>
+        </label>
+      ) : null}
+
       <WayfindingControls
-        spaces={spaces}
+        spaces={visibleSpaces}
         routing={routing}
         error={routeError}
         summary={routeSummary}
@@ -74,7 +102,7 @@ export function NavigateTab({
 
       <AssistantChat
         locale={locale}
-        spaces={spaces}
+        spaces={visibleSpaces}
         onFocus={onFocus}
         onRoute={onRoute}
         projectId={projectId}

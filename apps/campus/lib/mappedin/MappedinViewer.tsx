@@ -496,6 +496,7 @@ export const MappedinViewer = forwardRef<
     <SidePanel
       locale={locale}
       spaces={visibleSpaces}
+      allSpaces={spaces}
       onSearchSelect={(id) => {
         setSheetOpen(false);
         void handleSearchSelect(id);
