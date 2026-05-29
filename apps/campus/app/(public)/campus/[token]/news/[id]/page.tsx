@@ -92,7 +92,7 @@ export default async function NewsDetailPage({
   const shareUrl = `/campus/${token}/news/${id}${lang}`;
 
   return (
-    <main data-consumer lang={locale}>
+    <main id="main" data-consumer lang={locale}>
       <ConsumerNav
         campusName={campusName}
         logoUrl={branding.logo}

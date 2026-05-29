@@ -88,7 +88,7 @@ export default async function ClubDetailPage({
   );
 
   return (
-    <main data-consumer lang={locale} style={themeStyle}>
+    <main id="main" data-consumer lang={locale} style={themeStyle}>
       <ConsumerNav
         campusName={campusName}
         logoUrl={branding.logo}
@@ -110,7 +110,7 @@ export default async function ClubDetailPage({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={club.imageUrl}
-              alt=""
+              alt={name}
               className="h-16 w-16 rounded-2xl object-cover"
             />
           ) : (

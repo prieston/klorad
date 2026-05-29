@@ -72,7 +72,7 @@ export default async function ClubsPage({
   const clubs = await listTopClubsForProject(map.id, 50);
 
   return (
-    <main data-consumer lang={locale} style={themeStyle}>
+    <main id="main" data-consumer lang={locale} style={themeStyle}>
       <ConsumerNav
         campusName={campusName}
         logoUrl={branding.logo}

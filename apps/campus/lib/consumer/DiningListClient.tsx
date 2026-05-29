@@ -59,7 +59,7 @@ export function DiningListClient({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={l.imageUrl}
-                alt=""
+                alt={name}
                 className="block aspect-[16/9] w-full object-cover"
               />
             ) : (

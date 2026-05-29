@@ -231,7 +231,7 @@ export function KlioPanel({ mapId, campusName, locale, mapHref }: KlioPanelProps
             onKeyDown={onKeyDown}
             placeholder={copy.placeholder}
             disabled={sending}
-            className="min-w-0 flex-1 bg-transparent text-sm text-[var(--brand-text)] outline-none placeholder:text-[var(--brand-text-muted)] disabled:opacity-60"
+            className="min-w-0 flex-1 bg-transparent text-sm text-[var(--brand-text)] outline-none placeholder:text-[var(--brand-text-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-primary)] disabled:opacity-60"
           />
           <button
             type="button"

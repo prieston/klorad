@@ -101,6 +101,16 @@ export default async function CampusPublicLayout({
   return (
     <SWRProvider>
       <div style={themeStyle}>
+        {/* Skip link — first focusable element so a Tab from the URL
+            bar jumps straight to the page content, past the nav. Each
+            page renders `<main id="main">` so the target always
+            exists. Hidden visually until focused. */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-[var(--brand-primary,#534ab7)] focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
+        >
+          Skip to content
+        </a>
         {children}
         <CampusBottomNav token={token} />
         <InstallPrompt />

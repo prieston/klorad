@@ -56,6 +56,7 @@ export default async function CampusMapPage({
     const lang = `?lang=${locale}`;
     return (
       <main
+        id="main"
         data-mappedin
         lang={locale}
         className="flex h-[100dvh] w-full flex-col"

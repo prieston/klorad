@@ -8,7 +8,7 @@ import { KloradMark } from "@klorad/design-system";
  */
 export default function CampusNotFound() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-bg px-6 py-16 text-center">
+    <main id="main" className="flex min-h-screen flex-col items-center justify-center bg-bg px-6 py-16 text-center">
       <KloradMark className="h-10 w-10" />
       <h1 className="mt-6 text-2xl font-semibold tracking-tight text-text-primary">
         Campus not found

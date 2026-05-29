@@ -115,7 +115,7 @@ export default async function EventDetailPage({
   });
 
   return (
-    <main data-consumer lang={locale}>
+    <main id="main" data-consumer lang={locale}>
       <ConsumerNav
         campusName={campusName}
         logoUrl={branding.logo}

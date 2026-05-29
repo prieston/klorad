@@ -158,7 +158,7 @@ export function RouteEndpointPicker({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={copy.search}
-                  className="min-w-0 flex-1 bg-transparent text-sm text-[var(--brand-text)] outline-none placeholder:text-[var(--brand-text-muted)]"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-[var(--brand-text)] outline-none placeholder:text-[var(--brand-text-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-primary)]"
                 />
                 {query ? (
                   <button
