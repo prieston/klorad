@@ -48,6 +48,7 @@
     "audits:advisory": "pnpm --filter @klorad/dev-audits audits:advisory",
     "audits:light": "pnpm --filter @klorad/dev-audits audits:light",
     "prisma:generate": "pnpm --filter @klorad/prisma generate",
+    "spaces:set-cors": "node --env-file=apps/campus/.env.local --env-file-if-exists=apps/campus/.env --import tsx packages/storage/scripts/set-cors.ts",
     "prisma:migrate:dev": "./scripts/migrate.sh dev",
     "prisma:migrate:deploy": "./scripts/migrate.sh deploy",
     "vercel:build:editor": "pnpm prisma:generate && pnpm --filter @klorad/prisma prisma migrate deploy && pnpm clean && pnpm build:packages && cd apps/editor && pnpm build",
