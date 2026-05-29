@@ -3,6 +3,7 @@ import { getPublicCampusByToken } from "@/lib/public-campus";
 import { venueForIndoorMap } from "@/lib/mappedin/config";
 import { MappedinViewer } from "@/lib/mappedin/MappedinViewer";
 import { detectLocale } from "@/app/lib/i18n-core";
+import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import PublicViewerClient from "../PublicViewerClient";
 import NotPublishedPlaceholder from "../NotPublishedPlaceholder";
 
@@ -42,7 +43,7 @@ export default async function CampusMapPage({
 
   const scene = (map.sceneData ?? null) as {
     indoorMapId?: string;
-    branding?: { primaryColor?: string; name?: string };
+    branding?: { primaryColor?: string; name?: string; logo?: string };
   } | null;
   const indoorMapId = scene?.indoorMapId;
   const accentColor =
@@ -51,20 +52,29 @@ export default async function CampusMapPage({
       ? scene.branding.primaryColor
       : undefined;
   const campusName = scene?.branding?.name || map.title;
+  const logoUrl = scene?.branding?.logo;
 
   if (indoorMapId) {
     return (
-      <main data-mappedin className="h-screen w-full">
-        <MappedinViewer
-          venue={venueForIndoorMap(indoorMapId)}
-          focusSpaceId={focusSpaceId}
-          locale={locale}
-          homeHref={`/campus/${token}?lang=${locale}`}
-          accentColor={accentColor}
-          projectId={map.id}
+      <main data-mappedin className="flex h-screen w-full flex-col">
+        <ConsumerNav
           campusName={campusName}
-          showWelcome
+          logoUrl={logoUrl}
+          token={token}
+          locale={locale}
         />
+        <div className="min-h-0 flex-1">
+          <MappedinViewer
+            venue={venueForIndoorMap(indoorMapId)}
+            focusSpaceId={focusSpaceId}
+            locale={locale}
+            homeHref={`/campus/${token}?lang=${locale}`}
+            accentColor={accentColor}
+            projectId={map.id}
+            campusName={campusName}
+            showWelcome
+          />
+        </div>
       </main>
     );
   }

@@ -116,8 +116,6 @@ export function ConsumerHome({
         }
         primaryHref={mapHref}
         primaryLabel="Get started — it's free"
-        secondaryHref={`/campus/${token}/tour${lang}`}
-        secondaryLabel="Watch the tour"
         mapHref={mapHref}
         mapThumbnailUrl={mapThumbnailUrl}
       />

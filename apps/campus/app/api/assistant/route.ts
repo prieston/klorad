@@ -8,6 +8,34 @@ import {
   type ToolContext,
 } from "@/lib/assistant/tools";
 import { checkRateLimit, clientIp } from "@/lib/assistant/rate-limit";
+import { prisma } from "@/lib/prisma";
+import { decryptSecret, secretsEnabled } from "@/lib/secrets";
+
+/**
+ * Resolve the API key for a chat turn — per-campus stored key first,
+ * server-wide `ANTHROPIC_API_KEY` second. The campus key lives
+ * encrypted in `Project.anthropicApiKeyEncrypted`; decrypt failures
+ * (rotated SECRETS_KEY, stale ciphertext) fall through to the env
+ * var so the chat stays usable.
+ */
+async function resolveAnthropicKey(
+  mapId: string,
+): Promise<string | undefined> {
+  if (secretsEnabled()) {
+    try {
+      const project = await prisma.project.findUnique({
+        where: { id: mapId },
+        select: { anthropicApiKeyEncrypted: true },
+      });
+      if (project?.anthropicApiKeyEncrypted) {
+        return decryptSecret(project.anthropicApiKeyEncrypted);
+      }
+    } catch (err) {
+      console.error("[assistant] per-campus key lookup failed", err);
+    }
+  }
+  return process.env.ANTHROPIC_API_KEY ?? undefined;
+}
 
 interface AssistantTurn {
   role: "user" | "assistant";
@@ -243,7 +271,10 @@ export async function POST(req: Request) {
   }
 
   const spaces = Array.isArray(body.spaces) ? body.spaces : [];
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // Per-campus BYOK first, platform key second. Each chat turn does
+  // one extra Project read by id (cuid lookup, fast); per-tenant key
+  // means usage + cost scope to the right buyer.
+  const apiKey = await resolveAnthropicKey(body.mapId);
 
   // No key → keep the basic regex parser alive. The chat input is
   // still visible everywhere; without a key it only handles the
