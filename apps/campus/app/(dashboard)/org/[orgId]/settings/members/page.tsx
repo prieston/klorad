@@ -17,11 +17,9 @@ import {
   Spinner,
 } from "@klorad/design-system";
 import { showToast } from "@klorad/ui";
-import DeleteIcon from "@mui/icons-material/Delete";
-import CancelIcon from "@mui/icons-material/Cancel";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import { Copy, Trash2, UserPlus, X } from "lucide-react";
 import { useOrganization } from "@/app/hooks/useOrganizations";
+import { PageHeader } from "@/app/(dashboard)/components/PageHeader";
 
 interface Member {
   id: string;
@@ -216,16 +214,20 @@ export default function SettingsMembersPage() {
 
   return (
     <>
-      <div className="w-full space-y-6 px-6 py-8 md:px-10">
-        {canInvite && (
-          <div className="flex justify-end">
-            <Button size="sm" onClick={() => setInviteOpen(true)}>
-              <PersonAddIcon fontSize="small" />
-              Invite member
-            </Button>
-          </div>
-        )}
-
+      <div className="mx-auto w-full max-w-[1280px] space-y-6 px-6 py-8 md:px-10">
+        <PageHeader
+          eyebrow="Organisation"
+          title="Team"
+          subtitle="Who can author this organisation's campuses, and a log of what changed."
+          actions={
+            canInvite ? (
+              <Button size="sm" onClick={() => setInviteOpen(true)}>
+                <UserPlus size={14} strokeWidth={1.75} aria-hidden />
+                Invite member
+              </Button>
+            ) : null
+          }
+        />
         <Panel className="rounded-2xl p-6">
           <h2 className="text-sm font-semibold text-text-primary">
             Organization members
@@ -323,7 +325,7 @@ export default function SettingsMembersPage() {
                                 }}
                                 className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-red-500/10 hover:text-red-600"
                               >
-                                <DeleteIcon fontSize="small" />
+                                <Trash2 size={14} strokeWidth={1.75} aria-hidden />
                               </button>
                             )}
                           </td>
@@ -368,7 +370,7 @@ export default function SettingsMembersPage() {
                             }}
                             className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-red-500/10 hover:text-red-600 disabled:opacity-50"
                           >
-                            <CancelIcon fontSize="small" />
+                            <X size={14} strokeWidth={1.75} aria-hidden />
                           </button>
                         </td>
                       )}
@@ -449,7 +451,7 @@ export default function SettingsMembersPage() {
               }
             }}
           >
-            <ContentCopyIcon fontSize="small" />
+            <Copy size={14} strokeWidth={1.75} aria-hidden />
           </IconButton>
         </div>
       </Modal>

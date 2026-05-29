@@ -1,21 +1,39 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import mapboxgl, { type Map as MapboxMap, type Marker } from "mapbox-gl";
-import { Button } from "@klorad/design-system";
+import { Maximize2 } from "lucide-react";
 import type { CampusMap } from "@/app/hooks/useMaps";
 
 interface Props {
   maps: CampusMap[];
+  /** Tailwind height — overridable so the same component fits a hero
+   *  banner (taller) or a sidebar widget. */
+  className?: string;
 }
 
 const FALLBACK_CENTER: [number, number] = [23.7275, 37.9838]; // Athens
 const FALLBACK_ZOOM = 4;
-// Brand accent — constant across themes (mirrors --accent in tokens.css).
+// Brand accent — mirrors `--accent` in the tokens.css palette.
 const PIN_COLOR = "#158ca3";
 
-export default function LocationsHeader({ maps }: Props) {
+/**
+ * The Org Overview's world map — one pin per campus that has a stored
+ * `center` coordinate. The only surviving Mapbox surface in the
+ * product per [[campus-indoor-mappedin-decision]]; everything inside
+ * a single campus uses MappedIn.
+ *
+ * Lives in the dashboard chrome only — public surfaces never embed
+ * this. The map is non-interactive enough for an overview (cooperative
+ * gestures, no scroll-zoom hijack) and zooms to fit on prop change so
+ * adding a campus immediately reframes.
+ *
+ * Renders a "set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN" hint instead of
+ * silently failing when the token isn't configured — the dashboard
+ * is rector-facing, so being explicit about the gap beats a blank
+ * box.
+ */
+export function OrgWorldMap({ maps, className = "h-[260px]" }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
@@ -38,7 +56,11 @@ export default function LocationsHeader({ maps }: Props) {
     const map = mapRef.current;
     if (!map) return;
     if (pins.length === 0) {
-      map.flyTo({ center: FALLBACK_CENTER, zoom: FALLBACK_ZOOM, duration: 800 });
+      map.flyTo({
+        center: FALLBACK_CENTER,
+        zoom: FALLBACK_ZOOM,
+        duration: 800,
+      });
       return;
     }
     if (pins.length === 1) {
@@ -101,28 +123,31 @@ export default function LocationsHeader({ maps }: Props) {
   const hasToken = Boolean(process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN);
 
   return (
-    <div className="relative mb-6 h-[200px] w-full overflow-hidden rounded-2xl border border-line-soft bg-surface-1">
+    <div
+      className={`relative w-full overflow-hidden rounded-2xl border border-line-soft bg-surface-1 ${className}`}
+    >
       <div ref={containerRef} className="absolute inset-0" />
       {!hasToken && (
         <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-sm text-text-secondary">
-          Set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN to see campus locations on a map.
+          Set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN to see campus locations.
         </div>
       )}
-      <div className="glass-panel absolute left-3 top-3 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-text-primary">
+      <div className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-full border border-line-soft bg-surface-1/90 px-3 py-1.5 text-xs font-medium text-text-primary shadow-sm backdrop-blur">
         <span>Campus locations</span>
-        <span className="inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-[0.7rem] font-semibold text-accent">
+        <span className="inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent">
           {pins.length}
         </span>
       </div>
-      <Button
-        size="sm"
+      <button
+        type="button"
         onClick={fitToExtent}
         disabled={pins.length === 0}
-        className="absolute right-3 top-3"
+        aria-label="Fit to extent"
+        className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-line-soft bg-surface-1/90 px-3 py-1.5 text-xs font-medium text-text-primary shadow-sm backdrop-blur transition-opacity hover:opacity-90 disabled:opacity-40"
       >
-        <CenterFocusStrongIcon sx={{ fontSize: 16 }} />
-        Fit to extent
-      </Button>
+        <Maximize2 size={12} strokeWidth={1.75} aria-hidden />
+        Fit
+      </button>
     </div>
   );
 }

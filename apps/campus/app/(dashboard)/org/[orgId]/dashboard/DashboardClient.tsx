@@ -1,77 +1,155 @@
 "use client";
 
 import { useMemo } from "react";
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import MapIcon from "@mui/icons-material/Map";
-import PlaceIcon from "@mui/icons-material/Place";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import AccessibleIcon from "@mui/icons-material/Accessible";
-import { Panel, Button } from "@klorad/design-system";
+import {
+  Accessibility,
+  Building2,
+  Eye,
+  MapPin,
+  Plus,
+  UserPlus,
+} from "lucide-react";
+import { Button } from "@klorad/design-system";
 import { useMaps } from "@/app/hooks/useMaps";
-import LocationsHeader from "../maps/LocationsHeader";
+import { useOrganization } from "@/app/hooks/useOrganizations";
+import { PageHeader } from "@/app/(dashboard)/components/PageHeader";
+import { StatCard } from "@/app/(dashboard)/components/StatCard";
+import { CampusCard } from "@/app/(dashboard)/components/CampusCard";
+import { OrgWorldMap } from "@/app/(dashboard)/components/OrgWorldMap";
 
 interface Props {
   orgId: string;
 }
 
+/**
+ * Org Overview — the rector's first-screen-of-the-morning.
+ *
+ * Structure matches the IHU mocks:
+ *   header (org name + invite/new campus actions)
+ *   Mapbox world map with one pin per campus
+ *   4 stat cards (Campuses · POIs · Public views · Avg accessibility)
+ *   "Most active campuses" — 3 gradient cards sorted by recent edits
+ *
+ * Stats with a real backend show the real number; everything else
+ * is rendered as "—" rather than fake data, so the rector trusts
+ * what's displayed.
+ */
 export default function DashboardClient({ orgId }: Props) {
   const router = useRouter();
   const { maps, isLoading } = useMaps(orgId);
+  const { organization } = useOrganization(orgId);
 
-  const recentMaps = useMemo(() => maps.slice(0, 3), [maps]);
+  const sortedByActivity = useMemo(
+    () =>
+      [...maps].sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      ),
+    [maps],
+  );
+  const mostActive = sortedByActivity.slice(0, 3);
+  const publishedCount = maps.filter((m) => m.isPublished).length;
+  const draftCount = maps.length - publishedCount;
   const showSkeleton = isLoading && maps.length === 0;
 
   return (
-    <div className="w-full space-y-10 px-6 py-8 md:px-10">
-      <LocationsHeader maps={maps} />
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 md:px-10">
+      <PageHeader
+        eyebrow="Organisation"
+        title={organization?.name ?? "Organisation"}
+        subtitle="Every campus this organisation runs, across all locations."
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() =>
+                router.push(`/org/${orgId}/settings/members`)
+              }
+            >
+              <UserPlus size={14} strokeWidth={1.75} aria-hidden />
+              Invite team
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => router.push(`/org/${orgId}/maps`)}
+            >
+              <Plus size={14} strokeWidth={1.75} aria-hidden />
+              New campus
+            </Button>
+          </>
+        }
+      />
 
-      {/* KPI row */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <OrgWorldMap maps={maps} />
+
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          icon={<MapIcon fontSize="small" />}
+          icon={<Building2 size={18} strokeWidth={1.75} aria-hidden />}
           value={String(maps.length)}
-          label="Campus maps"
+          label="Campuses"
+          trend={
+            maps.length > 0
+              ? `${publishedCount} published · ${draftCount} draft`
+              : null
+          }
         />
         <StatCard
-          icon={<PlaceIcon fontSize="small" />}
+          icon={<MapPin size={18} strokeWidth={1.75} aria-hidden />}
           value="—"
           label="POIs across maps"
         />
         <StatCard
-          icon={<VisibilityIcon fontSize="small" />}
+          icon={<Eye size={18} strokeWidth={1.75} aria-hidden />}
           value="—"
           label="Public views (30d)"
         />
         <StatCard
-          icon={<AccessibleIcon fontSize="small" />}
+          icon={<Accessibility size={18} strokeWidth={1.75} aria-hidden />}
           value="—"
-          label="Accessibility coverage"
+          label="Avg accessibility"
         />
       </div>
 
-      {/* Recent campuses */}
-      <section className="space-y-4">
-        <SectionTitle>Recent campuses</SectionTitle>
+      <section className="mt-10">
+        <div className="mb-4 flex items-end justify-between">
+          <h2 className="text-[11px] font-medium uppercase tracking-[0.18em] text-text-tertiary">
+            Most active campuses
+          </h2>
+          {maps.length > 3 ? (
+            <Link
+              href={`/org/${orgId}/maps`}
+              className="text-sm font-medium text-accent hover:underline"
+            >
+              View all campuses →
+            </Link>
+          ) : null}
+        </div>
         {showSkeleton ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                className="h-[208px] animate-pulse rounded-xl bg-surface-2"
+                className="h-[208px] animate-pulse rounded-2xl bg-surface-2"
               />
             ))}
           </div>
-        ) : recentMaps.length === 0 ? (
-          <Panel className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-            <MapIcon className="text-accent opacity-60" fontSize="large" />
+        ) : mostActive.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line-soft bg-surface-1 px-6 py-12 text-center">
+            <Building2
+              size={28}
+              strokeWidth={1.5}
+              className="text-accent opacity-60"
+              aria-hidden
+            />
             <p className="text-base font-medium text-text-primary">
               No campuses yet
             </p>
             <p className="max-w-sm text-sm text-text-secondary">
-              Create your first campus map. Drop some POIs, share the URL —
-              it&apos;s a five-minute setup.
+              Create your first campus. Five-minute setup — pick a location,
+              annotate, share.
             </p>
             <Button
               className="mt-1"
@@ -79,142 +157,22 @@ export default function DashboardClient({ orgId }: Props) {
             >
               Create a campus
             </Button>
-          </Panel>
+          </div>
         ) : (
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {recentMaps.map((m) => (
-                <CampusCard
-                  key={m.id}
-                  name={m.name}
-                  updatedAt={m.updatedAt}
-                  thumbnail={m.thumbnail ?? undefined}
-                  href={`/org/${orgId}/maps/${m.id}`}
-                />
-              ))}
-            </div>
-            <div className="flex justify-end">
-              <Link
-                href={`/org/${orgId}/maps`}
-                className="text-sm font-medium text-accent transition-colors hover:text-accent-hover"
-              >
-                View all campuses →
-              </Link>
-            </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {mostActive.map((m) => (
+              <CampusCard
+                key={m.id}
+                id={m.id}
+                name={m.name}
+                isPublished={m.isPublished}
+                updatedAt={m.updatedAt}
+                href={`/org/${orgId}/maps/${m.id}`}
+              />
+            ))}
           </div>
         )}
       </section>
-
-      {/* Quick actions */}
-      <section className="space-y-4">
-        <SectionTitle>Quick actions</SectionTitle>
-        <div className="grid gap-4 md:grid-cols-3">
-          <QuickAction
-            title="Create a new campus"
-            description="Start with a blank 3D map. Drop POIs in seconds."
-            href={`/org/${orgId}/maps`}
-          />
-          <QuickAction
-            title="Invite a teammate"
-            description="Bring marketing or facilities staff into the org."
-            href={`/org/${orgId}/settings/members`}
-          />
-          <QuickAction
-            title="Review usage"
-            description="See plan limits, POI counts, and view analytics."
-            href={`/org/${orgId}/settings/usage`}
-          />
-        </div>
-      </section>
     </div>
-  );
-}
-
-function SectionTitle({ children }: { children: ReactNode }) {
-  return (
-    <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-text-tertiary">
-      {children}
-    </h2>
-  );
-}
-
-function StatCard({
-  icon,
-  value,
-  label,
-}: {
-  icon: ReactNode;
-  value: string;
-  label: string;
-}) {
-  return (
-    <Panel className="rounded-2xl p-5">
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-accent">
-        {icon}
-      </div>
-      <div className="mt-4 text-2xl font-light text-text-primary">{value}</div>
-      <div className="mt-0.5 text-sm text-text-secondary">{label}</div>
-    </Panel>
-  );
-}
-
-function CampusCard({
-  name,
-  updatedAt,
-  thumbnail,
-  href,
-}: {
-  name: string;
-  updatedAt: string | number | Date;
-  thumbnail?: string;
-  href: string;
-}) {
-  const updated = new Date(updatedAt).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-  return (
-    <Link href={href} className="group block">
-      <Panel className="overflow-hidden rounded-2xl transition-colors duration-200 group-hover:border-line-strong">
-        <div className="aspect-video bg-surface-2">
-          {thumbnail ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={thumbnail}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          ) : null}
-        </div>
-        <div className="p-4">
-          <div className="font-medium text-text-primary">{name}</div>
-          <div className="mt-1 text-xs text-text-tertiary">
-            Updated {updated}
-          </div>
-        </div>
-      </Panel>
-    </Link>
-  );
-}
-
-function QuickAction({
-  title,
-  description,
-  href,
-}: {
-  title: string;
-  description: string;
-  href: string;
-}) {
-  return (
-    <Link href={href} className="group block">
-      <Panel className="h-full rounded-2xl p-5 transition-colors duration-200 group-hover:border-line-strong">
-        <div className="text-sm font-semibold text-text-primary">{title}</div>
-        <div className="mt-1 text-xs leading-relaxed text-text-secondary">
-          {description}
-        </div>
-      </Panel>
-    </Link>
   );
 }
