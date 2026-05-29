@@ -73,7 +73,7 @@ export default async function DiningPage({
   const locations = await listDiningForProject(map.id);
 
   return (
-    <main data-consumer lang={locale} style={themeStyle}>
+    <main id="main" data-consumer lang={locale} style={themeStyle}>
       <ConsumerNav
         campusName={campusName}
         logoUrl={branding.logo}

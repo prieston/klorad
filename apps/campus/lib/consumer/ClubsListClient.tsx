@@ -68,7 +68,7 @@ export function ClubsListClient({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={c.imageUrl}
-                  alt=""
+                  alt={name}
                   className="h-12 w-12 rounded-xl object-cover"
                 />
               ) : (

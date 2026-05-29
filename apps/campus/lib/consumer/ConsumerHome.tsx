@@ -135,7 +135,7 @@ export function ConsumerHome({
     : undefined;
 
   return (
-    <main data-consumer lang={locale} style={themeStyle}>
+    <main id="main" data-consumer lang={locale} style={themeStyle}>
       <ConsumerNav
         campusName={campusName}
         logoUrl={logoUrl}

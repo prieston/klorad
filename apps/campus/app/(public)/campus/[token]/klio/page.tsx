@@ -69,7 +69,7 @@ export default async function KlioPage({
   const lang = `?lang=${locale}`;
 
   return (
-    <main data-consumer lang={locale} style={themeStyle}>
+    <main id="main" data-consumer lang={locale} style={themeStyle}>
       <ConsumerNav
         campusName={campusName}
         logoUrl={branding.logo}
