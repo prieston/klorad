@@ -57,7 +57,8 @@ export function MobileBottomNav({
       <ul
         className={cn(
           "flex w-full max-w-[420px] items-center justify-around gap-1 rounded-full",
-          "border border-solid border-line-soft bg-surface-1/95 p-1.5 shadow-glass backdrop-blur",
+          "border border-solid border-black/5 bg-white/95 p-1.5 backdrop-blur",
+          "shadow-[0_8px_28px_-12px_rgba(0,0,0,0.25)]",
         )}
       >
         {items.map((item) => {

@@ -76,21 +76,32 @@ export function CampusBottomNav({ token }: Props) {
     }
   };
 
+  // Override the design-system `--accent` and `--accent-contrast`
+  // tokens with the campus's brand colour so the active pill picks
+  // up `branding.primaryColor` per tenant. Children inherit the
+  // var override via the CSS cascade.
+  const styleVars = {
+    ["--accent" as string]: "var(--brand-primary)",
+    ["--accent-contrast" as string]: "#ffffff",
+  } as React.CSSProperties;
+
   return (
-    <MobileBottomNav
-      className="md:hidden"
-      items={ITEMS}
-      activeKey={activeKey}
-      renderItem={(item, content, isActive) => (
-        <Link
-          href={hrefForKey(item.key as TabKey)}
-          aria-current={isActive ? "page" : undefined}
-          aria-label={item.label}
-          className="flex w-full items-center justify-center"
-        >
-          {content}
-        </Link>
-      )}
-    />
+    <div style={styleVars}>
+      <MobileBottomNav
+        className="md:hidden"
+        items={ITEMS}
+        activeKey={activeKey}
+        renderItem={(item, content, isActive) => (
+          <Link
+            href={hrefForKey(item.key as TabKey)}
+            aria-current={isActive ? "page" : undefined}
+            aria-label={item.label}
+            className="flex w-full items-center justify-center"
+          >
+            {content}
+          </Link>
+        )}
+      />
+    </div>
   );
 }
