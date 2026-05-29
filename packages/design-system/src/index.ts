@@ -66,6 +66,7 @@ export {
   AppShell,
   type AppShellProps,
   type NavItem,
+  type NavGroup,
 } from "./components/app-shell";
 export {
   MobileBottomNav,

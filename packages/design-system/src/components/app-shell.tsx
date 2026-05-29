@@ -9,6 +9,14 @@ export type NavItem = {
   href: string;
   icon?: ReactNode;
   active?: boolean;
+  /** Optional small badge / count rendered at the right edge of the row. */
+  badge?: ReactNode;
+};
+
+export type NavGroup = {
+  /** Small-caps section header rendered above the items. Omit for an unlabeled group. */
+  label?: string;
+  items: NavItem[];
 };
 
 /** A link renderer — pass `next/link`'s `Link` so nav uses client routing. */
@@ -29,8 +37,17 @@ export type AppShellProps = {
   brand: ReactNode;
   /** Optional node between the brand and the nav — e.g. an org/workspace switcher. */
   sidebarHeader?: ReactNode;
-  /** Primary navigation. */
-  nav: NavItem[];
+  /**
+   * Primary navigation as a flat list. Pass either `nav` *or* `navGroups`;
+   * if both are provided, `navGroups` wins.
+   */
+  nav?: NavItem[];
+  /**
+   * Primary navigation as labelled groups — for IAs that need section
+   * headers (e.g. "PUBLIC SURFACES", "MANAGE"). When provided, replaces
+   * the flat `nav` rendering.
+   */
+  navGroups?: NavGroup[];
   /** Optional node pinned to the bottom of the sidebar (user menu, org switcher). */
   sidebarFooter?: ReactNode;
   /** Optional top-bar title or breadcrumb (left side). */
@@ -51,6 +68,7 @@ export function AppShell({
   brand,
   sidebarHeader,
   nav,
+  navGroups,
   sidebarFooter,
   title,
   actions,
@@ -59,6 +77,36 @@ export function AppShell({
 }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // `navGroups` wins when both are passed — callers migrating from flat
+  // nav to grouped nav can do so without juggling both props.
+  const groups: NavGroup[] =
+    navGroups ?? (nav ? [{ items: nav }] : []);
+
+  const renderItem = (item: NavItem) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+        item.active
+          ? "bg-accent-soft text-text-primary"
+          : "text-text-secondary hover:bg-accent-soft hover:text-text-primary",
+      )}
+    >
+      {item.icon ? (
+        <span className="flex h-5 w-5 items-center justify-center">
+          {item.icon}
+        </span>
+      ) : null}
+      <span className="flex-1 truncate">{item.label}</span>
+      {item.badge !== undefined && item.badge !== null ? (
+        <span className="shrink-0 text-[11px] font-medium text-text-tertiary">
+          {item.badge}
+        </span>
+      ) : null}
+    </Link>
+  );
+
   const sidebar = (
     <div className="flex h-full flex-col">
       <div className="flex h-16 shrink-0 items-center px-5">{brand}</div>
@@ -66,27 +114,21 @@ export function AppShell({
         <div className="shrink-0 px-3 pb-2">{sidebarHeader}</div>
       ) : null}
       <nav
-        className="flex-1 space-y-1 overflow-y-auto px-3 py-2"
+        className="flex-1 overflow-y-auto px-3 py-2"
         onClick={() => setMobileOpen(false)}
       >
-        {nav.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-              item.active
-                ? "bg-accent-soft text-text-primary"
-                : "text-text-secondary hover:bg-accent-soft hover:text-text-primary",
-            )}
+        {groups.map((group, idx) => (
+          <div
+            key={group.label ?? `group-${idx}`}
+            className={idx === 0 ? "space-y-1" : "mt-5 space-y-1"}
           >
-            {item.icon ? (
-              <span className="flex h-5 w-5 items-center justify-center">
-                {item.icon}
-              </span>
+            {group.label ? (
+              <div className="px-3 pb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-text-tertiary">
+                {group.label}
+              </div>
             ) : null}
-            {item.label}
-          </Link>
+            {group.items.map(renderItem)}
+          </div>
         ))}
       </nav>
       {sidebarFooter ? (
