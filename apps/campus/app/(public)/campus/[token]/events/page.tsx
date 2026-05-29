@@ -13,6 +13,8 @@ import { fetchCampusEvents } from "@/lib/events-server";
 import { eventHasDetailPage, mergeEvents } from "@/lib/events-merge";
 import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
+import { SegmentedTabs } from "@/lib/consumer/SegmentedTabs";
+import { stripedBanner } from "@/lib/consumer/bannerPattern";
 
 type Params = Promise<{ token: string }>;
 
@@ -27,10 +29,10 @@ function isValidHex(value: string | undefined): value is string {
 }
 
 const BANNER_BG: Record<string, string> = {
-  purple: "var(--brand-primary)",
-  coral: "#D85A30",
-  teal: "#1D9E75",
-  pink: "#D4537E",
+  purple: "var(--brand-primary-fill)",
+  coral: "var(--brand-accent-warm)",
+  teal: "var(--brand-accent-cool)",
+  pink: "var(--brand-accent-complement)",
 };
 
 export async function generateMetadata({
@@ -117,9 +119,15 @@ export default async function EventsPage({
 
       <section className="mx-auto max-w-[1280px] px-4 py-8 md:px-6 md:py-12">
         <h1 className="text-3xl font-medium text-[var(--brand-text)]">
-          Events
+          Explore
         </h1>
-        <p className="mt-2 text-sm text-[var(--brand-text-muted)]">
+        <SegmentedTabs
+          token={token}
+          lang={lang}
+          locale={locale}
+          active="events"
+        />
+        <p className="mt-4 text-sm text-[var(--brand-text-muted)]">
           What’s happening this week and beyond on campus.
         </p>
 
@@ -138,6 +146,8 @@ export default async function EventsPage({
                 : firstAnchor?.refId
                   ? `${mapHref}&space=${encodeURIComponent(firstAnchor.refId)}`
                   : mapHref;
+              const accent =
+                BANNER_BG[e.bannerColor] ?? "var(--brand-primary-fill)";
               return (
                 <Link
                   key={e.id}
@@ -146,14 +156,12 @@ export default async function EventsPage({
                 >
                   <div
                     className="flex h-20 items-end justify-start p-4"
-                    style={{
-                      backgroundColor: BANNER_BG[e.bannerColor] ?? "#534AB7",
-                    }}
+                    style={stripedBanner(accent)}
                   >
                     <Calendar
                       size={24}
                       strokeWidth={1.5}
-                      className="text-white"
+                      style={{ color: accent }}
                       aria-hidden
                     />
                   </div>

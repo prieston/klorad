@@ -1,22 +1,19 @@
-import { Calendar, MapPin, Newspaper, Users } from "lucide-react";
+import { Compass, LayoutGrid, MapPin, Sparkles } from "lucide-react";
 import type { Locale } from "@/app/lib/i18n-core";
 import { ConsumerNav } from "./ConsumerNav";
-import { ConsumerHero } from "./ConsumerHero";
-import { QuickTile } from "./QuickTile";
+import { GreetingCard } from "./GreetingCard";
+import { HomeTile } from "./HomeTile";
 import { EventCard } from "./EventCard";
-import { ClubRow } from "./ClubRow";
-import { NewsItem } from "./NewsItem";
+import { DiningRow } from "./DiningRow";
 import { ConsumerFooter } from "./ConsumerFooter";
-import { AssistantInput } from "./AssistantInput";
 import { NotificationButton } from "./NotificationButton";
-import {
-  SAMPLE_CLUBS,
-  SAMPLE_EVENTS,
-  SAMPLE_NEWS,
-} from "../sample-campus";
-import type { ConsumerClub, ConsumerEvent, ConsumerNews } from "./types";
-// (no import changes needed below; localisation happens in `page.tsx`
-// when DB rows are mapped to the consumer shape — see [[Arc 8 bilingual]].)
+import { SAMPLE_EVENTS } from "../sample-campus";
+import type {
+  ConsumerClub,
+  ConsumerDining,
+  ConsumerEvent,
+  ConsumerNews,
+} from "./types";
 
 export interface ConsumerHomeProps {
   token: string;
@@ -27,39 +24,82 @@ export interface ConsumerHomeProps {
   accentColor?: string;
   logoUrl?: string;
   locale: Locale;
-  /** Optional org-set hero copy; defaults to the platform marketing line. */
+  /** Optional org-set hero copy — unused in the new mobile layout but
+   *  kept on the props so the home `page.tsx` can keep passing it
+   *  while the schema settles. */
   headline?: string;
   subheading?: string;
-  /** Real venue thumbnail for the hero's MapTeaser. */
+  /** Real venue thumbnail — currently unused; kept for future hero variants. */
   mapThumbnailUrl?: string;
-  /**
-   * News items rendered in the News rail. Defaults to the sample seed
-   * when the page hasn't (yet) loaded real posts — keeps the layout
-   * populated for new tenants without forcing them to author first.
-   */
-  news?: ConsumerNews[];
-  /** Events for the "Happening this week" grid. Same fallback story. */
+  /** Background image painted behind the greeting hero. Falls back
+   *  via the home page (`sceneData.homePage.heroImage` → `thumbnail`). */
+  heroImageUrl?: string;
+  /** Optional rails — drive the **Happening today** + **Dining now** sections. */
   events?: ConsumerEvent[];
-  /** Clubs for the "Most active this week" rail. Same fallback story. */
+  /** Kept for prop-compat with the home page; unused since clubs live in Explore now. */
   clubs?: ConsumerClub[];
+  /** Kept for prop-compat; news lives in Explore now. */
+  news?: ConsumerNews[];
+  /** Dining locations for the "Dining now" rail. */
+  dining?: ConsumerDining[];
   /** VAPID public key — when set, renders the Get-notifications button. */
   vapidPublicKey?: string;
 }
 
+const COPY = {
+  en: {
+    tileFindRoom: "Find a room",
+    tileDirections: "Directions",
+    tileKlio: "Ask Klio",
+    tileExplore: "What's on",
+    happeningToday: "Happening today",
+    diningNow: "Dining now",
+    seeAll: "See all",
+    nothingToday: "Nothing scheduled today.",
+    noDining: "No dining published yet.",
+  },
+  el: {
+    tileFindRoom: "Βρες χώρο",
+    tileDirections: "Οδηγίες",
+    tileKlio: "Ρώτα την Κλειώ",
+    tileExplore: "Τι παίζει",
+    happeningToday: "Σήμερα στην πανεπιστημιούπολη",
+    diningNow: "Φαγητό τώρα",
+    seeAll: "Όλα",
+    nothingToday: "Δεν έχει προγραμματισμένα σήμερα.",
+    noDining: "Δεν έχει δημοσιευτεί χώρος εστίασης ακόμα.",
+  },
+} as const;
+
 /**
- * The new consumer home — top-level layout for the public-facing
- * campus surface ([[campus-consumer-pivot]] Arc 1).
+ * Filter events that start today (visitor's local clock, computed at
+ * render). Falls back to the next N events when nothing is scheduled
+ * for today so the rail never reads as empty for a healthy campus.
+ */
+function selectTodayEvents(events: ConsumerEvent[]): ConsumerEvent[] {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setHours(23, 59, 59, 999);
+  const today = events.filter((e) => {
+    const t = Date.parse(e.startsAt);
+    if (Number.isNaN(t)) return false;
+    return t >= start.getTime() && t <= end.getTime();
+  });
+  return today.length > 0 ? today.slice(0, 2) : events.slice(0, 2);
+}
+
+/**
+ * Mobile-first consumer home.
  *
- * Renders the spec's six bands top-to-bottom: nav · hero with map
- * teaser · 3 quick-action tiles · events grid · two-column (clubs
- * + news) bottom row · footer. Sample data drives the rails; Arcs
- * 2 – 5 swap each source from constants to API without changing
- * the markup.
+ * Bands top-to-bottom: nav · friendly greeting card with a Klio
+ * search affordance · 4-up action grid (Find a room, Directions,
+ * Ask Klio, What's on) · Happening today (max 2 event cards) ·
+ * Dining now (max 2 rows) · footer.
  *
- * The whole page is wrapped in `data-consumer`, which (a) restores
- * the border + list resets Tailwind preflight would have done and
- * (b) makes the consumer palette CSS vars apply. Per-org
- * `accentColor` overrides `--brand-primary` via inline style.
+ * News and Clubs no longer live on the home — both now sit inside
+ * the Explore tab so the home stays intent-driven (act on something)
+ * rather than browse-driven (read a feed).
  */
 export function ConsumerHome({
   token,
@@ -68,19 +108,26 @@ export function ConsumerHome({
   accentColor,
   logoUrl,
   locale,
-  headline,
-  subheading,
-  mapThumbnailUrl,
-  news,
   events,
-  clubs,
+  dining,
+  heroImageUrl,
   vapidPublicKey,
 }: ConsumerHomeProps) {
-  const newsItems = news?.length ? news : SAMPLE_NEWS;
+  const copy = COPY[locale];
   const eventItems = events?.length ? events : SAMPLE_EVENTS;
-  const clubItems = clubs?.length ? clubs : SAMPLE_CLUBS;
+  const todayEvents = selectTodayEvents(eventItems);
+  const diningItems = dining ?? [];
   const lang = `?lang=${locale}`;
   const mapHref = `/campus/${token}/map${lang}`;
+  // Directions tile lands on the map in route mode with the picker
+  // pre-opened for the destination; `from=` defaults to GPS via
+  // `YOUR_LOCATION_ID`.
+  const directionsHref = `/campus/${token}/map?route=1&lang=${locale}`;
+  const klioHref = `/campus/${token}/klio${lang}`;
+  const exploreHref = `/campus/${token}/explore${lang}`;
+  const diningHref = `/campus/${token}/dining${lang}`;
+  const eventsHref = `/campus/${token}/events${lang}`;
+
   // Per-org accent overrides the default purple at the wrapper, so
   // every descendant that uses `var(--brand-primary)` follows suit.
   const themeStyle = accentColor
@@ -96,109 +143,113 @@ export function ConsumerHome({
         locale={locale}
       />
 
-      <AssistantInput
-        mapId={mapId}
-        campusName={campusName}
+      <GreetingCard
+        klioHref={klioHref}
         locale={locale}
-        mapHref={mapHref}
+        backgroundImageUrl={heroImageUrl}
       />
 
-      {/* Bell button — silent-disable when push isn't configured. */}
-      <div className="mx-auto flex max-w-[1280px] justify-end px-4 pt-2 md:px-6">
-        <NotificationButton mapId={mapId} vapidPublicKey={vapidPublicKey} />
-      </div>
-
-      <ConsumerHero
-        headline={headline ?? "Your whole campus, one happy little app."}
-        subheading={
-          subheading ??
-          "Find any building, jump into events, and meet your people — without 12 tabs open."
-        }
-        primaryHref={mapHref}
-        primaryLabel="Get started — it's free"
-        mapHref={mapHref}
-        mapThumbnailUrl={mapThumbnailUrl}
-      />
-
-      <section className="mx-auto grid max-w-[1280px] grid-cols-1 gap-4 px-4 md:grid-cols-3 md:gap-6 md:px-6">
-        <QuickTile
-          href={mapHref}
-          icon={MapPin}
-          accent="purple"
-          label="Find a building"
-          subtitle="Walking time + indoor maps"
-        />
-        <QuickTile
-          href={`/campus/${token}/clubs${lang}`}
-          icon={Users}
-          accent="pink"
-          label="Browse clubs"
-          subtitle={`${clubItems.length}+ on campus`}
-        />
-        <QuickTile
-          href={`/campus/${token}/events${lang}`}
-          icon={Calendar}
-          accent="teal"
-          label="This week's events"
-          subtitle={`${eventItems.length} happening near you`}
-        />
-      </section>
-
-      <section className="mx-auto mt-12 max-w-[1280px] px-4 md:px-6">
-        <h2 className="text-lg font-medium text-[var(--brand-text)]">
-          Happening this week
-        </h2>
-        <div className="mt-4 grid grid-cols-1 gap-5 md:grid-cols-3">
-          {eventItems.slice(0, 3).map((e) => {
-            // ICS-sourced events (id contains `::`) have no detail
-            // page; link them to the map with the anchor focused
-            // when one's set, otherwise to the events list.
-            const isIcs = e.id.includes("::");
-            const firstAnchor = e.anchors[0];
-            const href = isIcs
-              ? firstAnchor?.refId
-                ? `${mapHref}&space=${encodeURIComponent(firstAnchor.refId)}`
-                : `/campus/${token}/events${lang}`
-              : `/campus/${token}/events/${e.id}${lang}`;
-            return <EventCard key={e.id} event={e} href={href} />;
-          })}
+      {/* Bell + 4 action tiles. */}
+      <section className="mx-auto mt-6 max-w-[1280px] px-4 md:px-6">
+        <div className="flex items-center justify-end pb-3">
+          <NotificationButton mapId={mapId} vapidPublicKey={vapidPublicKey} />
+        </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <HomeTile
+            href={mapHref}
+            icon={MapPin}
+            accent="cool"
+            label={copy.tileFindRoom}
+          />
+          <HomeTile
+            href={directionsHref}
+            icon={Compass}
+            accent="complement"
+            label={copy.tileDirections}
+          />
+          <HomeTile
+            href={klioHref}
+            icon={Sparkles}
+            label={copy.tileKlio}
+            variant="primary"
+          />
+          <HomeTile
+            href={exploreHref}
+            icon={LayoutGrid}
+            accent="warm"
+            label={copy.tileExplore}
+          />
         </div>
       </section>
 
-      <section className="mx-auto mt-12 grid max-w-[1280px] grid-cols-1 gap-6 px-4 md:grid-cols-[1.4fr_1fr] md:gap-10 md:px-6">
-        <div>
-          <h2 className="text-lg font-medium text-[var(--brand-text)]">
-            Most active clubs this week
+      {/* Happening today. */}
+      <section className="mx-auto mt-10 max-w-[1280px] px-4 md:px-6">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-lg font-semibold text-[var(--brand-text)]">
+            {copy.happeningToday}
           </h2>
-          <p className="mt-1 text-xs text-[var(--brand-text-muted)]">
-            Sorted by activity — no tracking
+          <a
+            href={eventsHref}
+            className="text-sm font-medium text-[var(--brand-primary)] hover:underline"
+          >
+            {copy.seeAll}
+          </a>
+        </div>
+        {todayEvents.length === 0 ? (
+          <p className="mt-3 rounded-2xl border border-[var(--brand-line)] bg-white p-4 text-sm text-[var(--brand-text-muted)]">
+            {copy.nothingToday}
           </p>
-          <div className="mt-4">
-            {clubItems.slice(0, 4).map((c) => (
-              <ClubRow
-                key={c.id}
-                club={c}
-                detailHref={`/campus/${token}/clubs/${c.id}${lang}`}
-              />
-            ))}
+        ) : (
+          <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+            {todayEvents.map((e) => {
+              const isIcs = e.id.includes("::");
+              const firstAnchor = e.anchors[0];
+              const href = isIcs
+                ? firstAnchor?.refId
+                  ? `${mapHref}&space=${encodeURIComponent(firstAnchor.refId)}`
+                  : eventsHref
+                : `/campus/${token}/events/${e.id}${lang}`;
+              return (
+                <EventCard
+                  key={e.id}
+                  event={e}
+                  href={href}
+                />
+              );
+            })}
           </div>
-        </div>
+        )}
+      </section>
 
-        <div>
-          <h2 className="inline-flex items-center gap-2 text-lg font-medium text-[var(--brand-text)]">
-            <Newspaper size={18} strokeWidth={1.75} />
-            Campus news
+      {/* Dining now. */}
+      <section className="mx-auto mt-10 max-w-[1280px] px-4 md:px-6">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-lg font-semibold text-[var(--brand-text)]">
+            {copy.diningNow}
           </h2>
-          <div className="mt-4">
-            {newsItems.map((n) => (
-              <NewsItem
-                key={n.id}
-                item={n}
-                href={`/campus/${token}/news/${n.id}${lang}`}
+          <a
+            href={diningHref}
+            className="text-sm font-medium text-[var(--brand-primary)] hover:underline"
+          >
+            {copy.seeAll}
+          </a>
+        </div>
+        {diningItems.length === 0 ? (
+          <p className="mt-3 rounded-2xl border border-[var(--brand-line)] bg-white p-4 text-sm text-[var(--brand-text-muted)]">
+            {copy.noDining}
+          </p>
+        ) : (
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+            {diningItems.slice(0, 2).map((d) => (
+              <DiningRow
+                key={d.id}
+                name={d.name}
+                status={d.status}
+                href={diningHref}
               />
             ))}
           </div>
-        </div>
+        )}
       </section>
 
       <ConsumerFooter campusName={campusName} />

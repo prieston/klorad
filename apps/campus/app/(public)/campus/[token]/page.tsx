@@ -10,12 +10,17 @@ import {
   type EventPost,
 } from "@/lib/events-db";
 import { listTopClubsForProject, type Club } from "@/lib/clubs-db";
+import { listDiningForProject, type DiningLocation } from "@/lib/dining-db";
 import { readEventFeeds, type CampusEvent } from "@/lib/events";
 import { fetchCampusEvents } from "@/lib/events-server";
 import { mergeEvents } from "@/lib/events-merge";
 import NotPublishedPlaceholder from "./NotPublishedPlaceholder";
 import { ConsumerHome } from "@/lib/consumer/ConsumerHome";
-import type { ConsumerClub, ConsumerNews } from "@/lib/consumer/types";
+import type {
+  ConsumerClub,
+  ConsumerDining,
+  ConsumerNews,
+} from "@/lib/consumer/types";
 
 type Params = Promise<{ token: string }>;
 
@@ -111,7 +116,7 @@ export default async function CampusHomePage({
   // `prisma migrate deploy` yet) the home renders with empty rails
   // + the sample-data fallback in `ConsumerHome` instead of 500ing.
   const feedUrls = readEventFeeds(map.sceneData);
-  const [dbPosts, dbEvents, dbClubs, icsEvents] = await Promise.all([
+  const [dbPosts, dbEvents, dbClubs, dbDining, icsEvents] = await Promise.all([
     listNewsForProject(map.id).catch((err): NewsPost[] => {
       console.error("[public-home] news fetch failed", err);
       return [];
@@ -122,6 +127,10 @@ export default async function CampusHomePage({
     }),
     listTopClubsForProject(map.id, 6).catch((err): Club[] => {
       console.error("[public-home] clubs fetch failed", err);
+      return [];
+    }),
+    listDiningForProject(map.id).catch((err): DiningLocation[] => {
+      console.error("[public-home] dining fetch failed", err);
       return [];
     }),
     feedUrls.length > 0
@@ -197,6 +206,15 @@ export default async function CampusHomePage({
     externalLink: c.externalLink ?? "",
   }));
 
+  // Dining rows for the "Dining now" rail — name + status pair.
+  // `hoursText` is the only status copy we have today; "open now"
+  // semantics arrive when an hours parser ships.
+  const dining: ConsumerDining[] = dbDining.map((d) => ({
+    id: d.id,
+    name: pickLocalized(d.name, d.nameEl, locale),
+    status: d.hoursText ?? d.cuisine ?? "",
+  }));
+
   // Merge DB events + ICS-feed events into one list — soonest first,
   // dupes (same title + minute) collapsed. `eventPostToConsumer` and
   // `icsToConsumer` share the mapping logic in `events-merge.ts`.
@@ -220,9 +238,11 @@ export default async function CampusHomePage({
       headline={headline}
       subheading={subheading}
       mapThumbnailUrl={map.thumbnail ?? undefined}
+      heroImageUrl={home.heroImage ?? map.thumbnail ?? undefined}
       news={news}
       events={events}
       clubs={clubs}
+      dining={dining}
     />
   );
 }

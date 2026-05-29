@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Calendar, MapPin, Music, Sprout, Trophy } from "lucide-react";
 import type { ConsumerEvent } from "./types";
+import { stripedBanner } from "./bannerPattern";
 
 const ICONS = {
   music: Music,
@@ -9,11 +10,11 @@ const ICONS = {
   calendar: Calendar,
 } as const;
 
-const BANNER_BG: Record<ConsumerEvent["bannerColor"], string> = {
-  purple: "var(--brand-primary)",
-  coral: "#D85A30",
-  teal: "#1D9E75",
-  pink: "#D4537E",
+const BANNER_ACCENT: Record<ConsumerEvent["bannerColor"], string> = {
+  purple: "var(--brand-primary-fill)",
+  coral: "var(--brand-accent-warm)",
+  teal: "var(--brand-accent-cool)",
+  pink: "var(--brand-accent-complement)",
 };
 
 function formatWhen(startsAt: string): string {
@@ -42,6 +43,7 @@ export interface EventCardProps {
 export function EventCard({ event, href }: EventCardProps) {
   const Icon = ICONS[event.bannerIcon];
   const where = event.anchors[0]?.refName;
+  const accent = BANNER_ACCENT[event.bannerColor];
 
   return (
     <Link
@@ -50,12 +52,12 @@ export function EventCard({ event, href }: EventCardProps) {
     >
       <div
         className="flex h-24 items-end justify-start p-4"
-        style={{ backgroundColor: BANNER_BG[event.bannerColor] }}
+        style={stripedBanner(accent)}
       >
         <Icon
           size={28}
           strokeWidth={1.5}
-          className="text-white"
+          style={{ color: accent }}
           aria-hidden
         />
       </div>

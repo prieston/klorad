@@ -6,6 +6,7 @@ import { getPublicCampusByToken } from "@/lib/public-campus";
 import { detectLocale, pickLocalized } from "@/app/lib/i18n-core";
 import { listTopClubsForProject } from "@/lib/clubs-db";
 import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
+import { SegmentedTabs } from "@/lib/consumer/SegmentedTabs";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
 
 type Params = Promise<{ token: string }>;
@@ -21,10 +22,10 @@ function isValidHex(value: string | undefined): value is string {
 }
 
 const AVATAR_BG: Record<string, string> = {
-  purple: "var(--brand-primary)",
-  coral: "#D85A30",
-  teal: "#1D9E75",
-  pink: "#D4537E",
+  purple: "var(--brand-primary-fill)",
+  coral: "var(--brand-accent-warm)",
+  teal: "var(--brand-accent-cool)",
+  pink: "var(--brand-accent-complement)",
 };
 
 export async function generateMetadata({
@@ -89,9 +90,15 @@ export default async function ClubsPage({
 
       <section className="mx-auto max-w-[1280px] px-4 py-8 md:px-6 md:py-12">
         <h1 className="text-3xl font-medium text-[var(--brand-text)]">
-          Clubs
+          Explore
         </h1>
-        <p className="mt-2 text-sm text-[var(--brand-text-muted)]">
+        <SegmentedTabs
+          token={token}
+          lang={lang}
+          locale={locale}
+          active="clubs"
+        />
+        <p className="mt-4 text-sm text-[var(--brand-text-muted)]">
           Student societies, sport clubs, interest groups — ranked by
           activity.
         </p>

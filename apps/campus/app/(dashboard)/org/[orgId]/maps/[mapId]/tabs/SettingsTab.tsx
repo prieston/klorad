@@ -11,6 +11,7 @@ import type { Branding, SceneData } from "@klorad/api";
 import MembersPanel from "./MembersPanel";
 import HomePagePanel from "./HomePagePanel";
 import { AiKeyPanel } from "./AiKeyPanel";
+import { PalettePreview } from "./PalettePreview";
 
 interface Props {
   orgId: string;
@@ -176,6 +177,8 @@ export default function SettingsTab({ orgId, mapId, map }: Props) {
               )}
             </div>
           </Field>
+
+          <PalettePreview primary={branding.primaryColor} />
 
           {branding.logo && (
             <div>
