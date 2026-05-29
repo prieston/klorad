@@ -34,11 +34,10 @@ export function ConsumerNav({
 }: ConsumerNavProps) {
   const lang = `?lang=${locale}`;
   const links: NavLink[] = [
+    { label: "Home", href: `/campus/${token}${lang}` },
     { label: "Map", href: `/campus/${token}/map${lang}` },
-    { label: "Events", href: `/campus/${token}/events${lang}` },
-    { label: "Clubs", href: `/campus/${token}/clubs${lang}` },
-    { label: "Dining", href: `/campus/${token}/dining${lang}` },
-    { label: "News", href: `/campus/${token}/news${lang}` },
+    { label: "Explore", href: `/campus/${token}/explore${lang}` },
+    { label: "Klio", href: `/campus/${token}/klio${lang}` },
   ];
 
   return (
@@ -53,11 +52,11 @@ export function ConsumerNav({
             <img
               src={logoUrl}
               alt={campusName}
-              className="h-7 max-w-[160px] object-contain"
+              className="h-10 max-w-[180px] rounded-xl object-contain"
             />
           ) : (
             <>
-              <KLogo />
+              <KLogo size={36} />
               <span className="text-base font-medium text-[var(--brand-text)]">
                 {campusName}
               </span>

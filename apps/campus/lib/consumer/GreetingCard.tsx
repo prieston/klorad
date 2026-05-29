@@ -41,6 +41,8 @@ interface Props {
   klioHref: string;
   /** EN/EL strings table. */
   locale: "en" | "el";
+  /** Optional hero image painted behind the brand-colour overlay. */
+  backgroundImageUrl?: string;
 }
 
 /**
@@ -48,8 +50,14 @@ interface Props {
  * a search-style chip that routes into Klio. Client component so the
  * greeting reflects the visitor's local clock (SSR'd greetings would
  * be wrong for anyone in a different timezone than the server).
+ *
+ * When `backgroundImageUrl` is set, the campus hero (from
+ * `sceneData.homePage.heroImage` or the MappedIn thumbnail) is
+ * painted full-bleed behind a partially-transparent brand overlay,
+ * so the photo shines through the colour without losing the
+ * playful shapes or the white type.
  */
-export function GreetingCard({ klioHref, locale }: Props) {
+export function GreetingCard({ klioHref, locale, backgroundImageUrl }: Props) {
   const copy = COPY[locale];
   const [greeting, setGreeting] = useState<string>(copy.afternoon);
 
@@ -61,8 +69,30 @@ export function GreetingCard({ klioHref, locale }: Props) {
     <section className="mx-auto max-w-[1280px] px-4 pt-4 md:px-6 md:pt-6">
       <div
         className="relative overflow-hidden rounded-3xl p-6 text-white md:p-8"
-        style={{ backgroundColor: "var(--brand-primary)" }}
+        style={
+          backgroundImageUrl
+            ? {
+                backgroundImage: `url(${backgroundImageUrl})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
+            : { backgroundColor: "var(--brand-primary-fill)" }
+        }
       >
+        {/* Brand-colour overlay — only when an image is present. Sits
+            above the photo, below the decorative shapes and copy.
+            ~75% opacity preserves legibility while letting the
+            building / venue photo come through. */}
+        {backgroundImageUrl ? (
+          <span
+            aria-hidden
+            className="absolute inset-0"
+            style={{
+              backgroundColor: "var(--brand-primary-fill)",
+              opacity: 0.78,
+            }}
+          />
+        ) : null}
         <span
           aria-hidden
           className="absolute -bottom-12 -right-8 h-44 w-44 rounded-full bg-white/15"

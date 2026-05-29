@@ -2,31 +2,31 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 
 type Variant = "default" | "primary";
+export type HomeTileAccent = "primary" | "warm" | "cool" | "complement";
 
-const ICON_CHIP_BG: Record<string, string> = {
-  blue: "#E4ECFB",
-  green: "#E3F4EB",
-  purple: "#EDE7FB",
-  coral: "#FBE2D6",
-};
-
-const ICON_CHIP_FG: Record<string, string> = {
-  blue: "#3D6CC2",
-  green: "#1D9E75",
-  purple: "var(--brand-primary)",
-  coral: "#C24A1F",
+const ACCENT_VAR: Record<HomeTileAccent, string> = {
+  primary: "var(--brand-primary-fill)",
+  warm: "var(--brand-accent-warm)",
+  cool: "var(--brand-accent-cool)",
+  complement: "var(--brand-accent-complement)",
 };
 
 export interface HomeTileProps {
   href: string;
   label: string;
   icon: LucideIcon;
-  /** Colour key for the soft icon chip — purple is the brand default. */
-  accent?: "blue" | "green" | "purple" | "coral";
   /**
-   * `primary` fills the tile with the brand accent and inverts the
-   * icon chip — used for the **Ask Klio** tile, the single
-   * stand-out CTA on the home grid.
+   * Which palette accent to use for the icon chip. Defaults to
+   * `primary` (a faint tint of `--brand-primary-fill`). Picking a
+   * different accent per tile keeps the four-up grid visually
+   * varied while every colour still derives from the campus's
+   * primary in Settings.
+   */
+  accent?: HomeTileAccent;
+  /**
+   * `primary` fills the tile with the raw brand colour — used for
+   * the **Ask Klio** tile, the only emphasised CTA on the grid.
+   * `default` is a soft accent chip on a white card.
    */
   variant?: Variant;
 }
@@ -35,15 +35,19 @@ export interface HomeTileProps {
  * Square-ish action tile for the home grid. Icon-on-top, label
  * below, four-up on mobile. Two visual modes:
  *
- *   - `default` — soft icon chip on a white card. Tap target.
- *   - `primary` — filled accent card, white icon, white label. The
- *     home's only emphasized CTA so the eye lands on it first.
+ *   - `default` — white card with a soft chip background derived
+ *     from `accent`. The chip uses a `color-mix` 14%-on-white tint
+ *     of the chosen palette colour; the icon itself sits in the
+ *     full saturation of that colour.
+ *   - `primary` — filled with raw `--brand-primary`; the home's
+ *     single eye-catch. Always rendered full strength so the AI
+ *     CTA reads as the main action, not just another tile.
  */
 export function HomeTile({
   href,
   label,
   icon: Icon,
-  accent = "purple",
+  accent = "primary",
   variant = "default",
 }: HomeTileProps) {
   if (variant === "primary") {
@@ -63,6 +67,7 @@ export function HomeTile({
       </Link>
     );
   }
+  const accentColor = ACCENT_VAR[accent];
   return (
     <Link
       href={href}
@@ -71,12 +76,14 @@ export function HomeTile({
       <span
         aria-hidden
         className="flex h-10 w-10 items-center justify-center rounded-xl"
-        style={{ backgroundColor: ICON_CHIP_BG[accent] }}
+        style={{
+          backgroundColor: `color-mix(in srgb, ${accentColor} 14%, #ffffff)`,
+        }}
       >
         <Icon
           size={20}
           strokeWidth={1.75}
-          style={{ color: ICON_CHIP_FG[accent] }}
+          style={{ color: accentColor }}
         />
       </span>
       <span className="text-sm font-medium text-[var(--brand-text)]">

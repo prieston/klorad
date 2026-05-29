@@ -128,7 +128,7 @@ export default async function DiningPage({
                       className="aspect-[16/9] w-full"
                       style={{
                         background:
-                          "linear-gradient(135deg, var(--brand-primary-bg) 0%, #E0F2EE 100%)",
+                          "linear-gradient(135deg, var(--brand-primary-bg) 0%, var(--brand-primary-soft) 100%)",
                       }}
                     />
                   )}

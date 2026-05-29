@@ -24,9 +24,13 @@ export function DiningRow({ name, status, href }: DiningRowProps) {
       <span
         aria-hidden
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-        style={{ backgroundColor: "#FBE2D6" }}
+        style={{ backgroundColor: "var(--brand-primary-bg)" }}
       >
-        <Coffee size={18} strokeWidth={1.75} style={{ color: "#C24A1F" }} />
+        <Coffee
+          size={18}
+          strokeWidth={1.75}
+          style={{ color: "var(--brand-primary)" }}
+        />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-[var(--brand-text)]">

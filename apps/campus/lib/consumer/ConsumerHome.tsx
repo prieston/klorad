@@ -31,6 +31,9 @@ export interface ConsumerHomeProps {
   subheading?: string;
   /** Real venue thumbnail — currently unused; kept for future hero variants. */
   mapThumbnailUrl?: string;
+  /** Background image painted behind the greeting hero. Falls back
+   *  via the home page (`sceneData.homePage.heroImage` → `thumbnail`). */
+  heroImageUrl?: string;
   /** Optional rails — drive the **Happening today** + **Dining now** sections. */
   events?: ConsumerEvent[];
   /** Kept for prop-compat with the home page; unused since clubs live in Explore now. */
@@ -107,6 +110,7 @@ export function ConsumerHome({
   locale,
   events,
   dining,
+  heroImageUrl,
   vapidPublicKey,
 }: ConsumerHomeProps) {
   const copy = COPY[locale];
@@ -115,6 +119,10 @@ export function ConsumerHome({
   const diningItems = dining ?? [];
   const lang = `?lang=${locale}`;
   const mapHref = `/campus/${token}/map${lang}`;
+  // Directions tile lands on the map in route mode with the picker
+  // pre-opened for the destination; `from=` defaults to GPS via
+  // `YOUR_LOCATION_ID`.
+  const directionsHref = `/campus/${token}/map?route=1&lang=${locale}`;
   const klioHref = `/campus/${token}/klio${lang}`;
   const exploreHref = `/campus/${token}/explore${lang}`;
   const diningHref = `/campus/${token}/dining${lang}`;
@@ -135,7 +143,11 @@ export function ConsumerHome({
         locale={locale}
       />
 
-      <GreetingCard klioHref={klioHref} locale={locale} />
+      <GreetingCard
+        klioHref={klioHref}
+        locale={locale}
+        backgroundImageUrl={heroImageUrl}
+      />
 
       {/* Bell + 4 action tiles. */}
       <section className="mx-auto mt-6 max-w-[1280px] px-4 md:px-6">
@@ -146,13 +158,13 @@ export function ConsumerHome({
           <HomeTile
             href={mapHref}
             icon={MapPin}
-            accent="blue"
+            accent="cool"
             label={copy.tileFindRoom}
           />
           <HomeTile
-            href={mapHref}
+            href={directionsHref}
             icon={Compass}
-            accent="green"
+            accent="complement"
             label={copy.tileDirections}
           />
           <HomeTile
@@ -164,7 +176,7 @@ export function ConsumerHome({
           <HomeTile
             href={exploreHref}
             icon={LayoutGrid}
-            accent="purple"
+            accent="warm"
             label={copy.tileExplore}
           />
         </div>

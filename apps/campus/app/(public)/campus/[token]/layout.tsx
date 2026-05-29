@@ -1,12 +1,9 @@
 import type { ReactNode } from "react";
 import { getPublicCampusByToken } from "@/lib/public-campus";
 import { CampusBottomNav } from "@/lib/consumer/CampusBottomNav";
+import { deriveCampusPalette, paletteToCssVars } from "@/lib/palette";
 
 type Params = Promise<{ token: string }>;
-
-function isValidHex(value: string | undefined): value is string {
-  return !!value && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
-}
 
 /**
  * Shared layout for every `/campus/[token]` route — mounts the
@@ -33,16 +30,13 @@ export default async function CampusPublicLayout({
   const scene = (map?.sceneData ?? null) as {
     branding?: { primaryColor?: string };
   } | null;
-  const accentColor = isValidHex(scene?.branding?.primaryColor)
-    ? scene!.branding!.primaryColor
-    : undefined;
-  // Define `--brand-primary` directly on the wrapper so the bottom
-  // nav (sibling of `<main data-consumer>`) inherits a real value.
-  // Per-tenant override flows through `accentColor`; default matches
-  // the consumer palette in global.css.
-  const themeStyle = {
-    ["--brand-primary" as string]: accentColor ?? "#534ab7",
-  } as React.CSSProperties;
+  // Full derived palette — primary + fill/bg/soft/ink + 3 hue-rotated
+  // accents — flows down as CSS vars from a single inline style on
+  // the layout wrapper. The bottom nav (sibling of `<main
+  // data-consumer>`) inherits the same vars, so the active pill and
+  // every consumer surface stays on-brand for the tenant.
+  const palette = deriveCampusPalette(scene?.branding?.primaryColor);
+  const themeStyle = paletteToCssVars(palette);
 
   return (
     <div style={themeStyle}>

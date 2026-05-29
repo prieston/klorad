@@ -141,7 +141,7 @@ export function KlioPanel({ mapId, campusName, locale, mapHref }: KlioPanelProps
         <div>
           <span
             aria-hidden
-            className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--brand-primary)] text-white"
+            className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--brand-primary-fill)] text-white"
           >
             <Sparkles size={22} strokeWidth={1.75} />
           </span>
@@ -190,7 +190,7 @@ export function KlioPanel({ mapId, campusName, locale, mapHref }: KlioPanelProps
               {m.role === "user" ? (
                 <span
                   className="inline-block max-w-[85%] rounded-2xl px-3.5 py-2 text-sm text-white"
-                  style={{ backgroundColor: "var(--brand-primary)" }}
+                  style={{ backgroundColor: "var(--brand-primary-fill)" }}
                 >
                   {m.text}
                 </span>
@@ -239,7 +239,7 @@ export function KlioPanel({ mapId, campusName, locale, mapHref }: KlioPanelProps
             disabled={sending || !input.trim()}
             aria-label="Send"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white transition-opacity hover:opacity-90 disabled:opacity-40"
-            style={{ backgroundColor: "var(--brand-primary)" }}
+            style={{ backgroundColor: "var(--brand-primary-fill)" }}
           >
             <ArrowUp size={16} strokeWidth={2} />
           </button>

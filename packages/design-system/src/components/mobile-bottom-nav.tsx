@@ -49,14 +49,22 @@ export function MobileBottomNav({
     <nav
       aria-label="Primary"
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 flex justify-center px-3",
-        "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+        "pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3",
+        // Fade gradient behind the nav — pure-white at the bottom
+        // bleeding to transparent ~6rem up. Tells the visitor that
+        // content scrolled under the nav still exists ("there's
+        // more, keep scrolling") without hiding it outright.
+        // `content-['']` is the bit that makes Tailwind actually
+        // emit the pseudo-element; without it the `before:*`
+        // utilities are no-ops.
+        "before:pointer-events-none before:absolute before:inset-x-0 before:bottom-0 before:-z-10 before:h-[8rem] before:bg-gradient-to-t before:from-white before:via-white/85 before:to-transparent before:content-['']",
+        "pt-[6rem] pb-[max(0.75rem,env(safe-area-inset-bottom))]",
         className,
       )}
     >
       <ul
         className={cn(
-          "flex w-full max-w-[420px] items-center justify-around gap-1 rounded-full",
+          "pointer-events-auto flex w-full max-w-[420px] list-none items-center justify-around gap-1 rounded-full",
           "border border-solid border-black/5 bg-white/95 p-1.5 backdrop-blur",
           "shadow-[0_8px_28px_-12px_rgba(0,0,0,0.25)]",
         )}

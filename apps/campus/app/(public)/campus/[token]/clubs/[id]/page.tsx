@@ -21,10 +21,10 @@ function isValidHex(value: string | undefined): value is string {
 }
 
 const AVATAR_HEX: Record<string, string> = {
-  purple: "#534AB7",
-  coral: "#D85A30",
-  teal: "#1D9E75",
-  pink: "#D4537E",
+  purple: "var(--brand-primary-fill)",
+  coral: "var(--brand-accent-warm)",
+  teal: "var(--brand-accent-cool)",
+  pink: "var(--brand-accent-complement)",
 };
 
 export async function generateMetadata({

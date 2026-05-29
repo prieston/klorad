@@ -238,6 +238,7 @@ export default async function CampusHomePage({
       headline={headline}
       subheading={subheading}
       mapThumbnailUrl={map.thumbnail ?? undefined}
+      heroImageUrl={home.heroImage ?? map.thumbnail ?? undefined}
       news={news}
       events={events}
       clubs={clubs}

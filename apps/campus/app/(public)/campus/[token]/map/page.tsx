@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
 import { getPublicCampusByToken } from "@/lib/public-campus";
 import { venueForIndoorMap } from "@/lib/mappedin/config";
-import { MappedinViewer } from "@/lib/mappedin/MappedinViewer";
 import { detectLocale } from "@/app/lib/i18n-core";
 import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import PublicViewerClient from "../PublicViewerClient";
 import NotPublishedPlaceholder from "../NotPublishedPlaceholder";
+import { MapPageClient } from "./MapPageClient";
 
 type Params = Promise<{ token: string }>;
 type Search = Promise<{
@@ -14,14 +14,12 @@ type Search = Promise<{
 }>;
 
 /**
- * `/campus/[token]/map` — the campus map.
+ * `/campus/[token]/map` — the campus map page.
  *
- * MappedIn is the campus map: a campus with a MappedIn venue
- * (`indoorMapId`) renders the MappedIn viewer — outdoor + indoor in
- * one. A `?space=` param deep-links to a room (news + event links).
- *
- * Campuses without a MappedIn venue fall back to the parked Mapbox
- * viewer. Same `isPublished` gate as the home.
+ * Layout: ConsumerNav on top → sticky search chip → MappedIn viewer
+ * in a rounded card (bounded height so the buildings list shows
+ * below the fold) → up-front Buildings list. Per-tenant brand
+ * colours cascade from the layout wrapper.
  */
 export default async function CampusMapPage({
   params,
@@ -55,26 +53,29 @@ export default async function CampusMapPage({
   const logoUrl = scene?.branding?.logo;
 
   if (indoorMapId) {
+    const lang = `?lang=${locale}`;
     return (
-      <main data-mappedin className="flex h-screen w-full flex-col">
+      <main
+        data-mappedin
+        lang={locale}
+        className="flex h-[100dvh] w-full flex-col"
+      >
         <ConsumerNav
           campusName={campusName}
           logoUrl={logoUrl}
           token={token}
           locale={locale}
         />
-        <div className="min-h-0 flex-1">
-          <MappedinViewer
-            venue={venueForIndoorMap(indoorMapId)}
-            focusSpaceId={focusSpaceId}
-            locale={locale}
-            homeHref={`/campus/${token}?lang=${locale}`}
-            accentColor={accentColor}
-            projectId={map.id}
-            campusName={campusName}
-            showWelcome
-          />
-        </div>
+        <MapPageClient
+          venue={venueForIndoorMap(indoorMapId)}
+          focusSpaceId={focusSpaceId}
+          locale={locale}
+          homeHref={`/campus/${token}${lang}`}
+          accentColor={accentColor}
+          projectId={map.id}
+          campusName={campusName}
+          klioHref={`/campus/${token}/klio${lang}`}
+        />
       </main>
     );
   }
