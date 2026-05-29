@@ -1,20 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Calendar, Compass, MapPin } from "lucide-react";
+import { Compass } from "lucide-react";
 import { getPublicCampusByToken } from "@/lib/public-campus";
-import { detectLocale, pickLocalized } from "@/app/lib/i18n-core";
-import {
-  formatEventWhen,
-  listUpcomingEventsForProject,
-} from "@/lib/events-db";
+import { detectLocale } from "@/app/lib/i18n-core";
+import { listUpcomingEventsForProject } from "@/lib/events-db";
 import { readEventFeeds, type CampusEvent } from "@/lib/events";
 import { fetchCampusEvents } from "@/lib/events-server";
-import { eventHasDetailPage, mergeEvents } from "@/lib/events-merge";
 import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
 import { SegmentedTabs } from "@/lib/consumer/SegmentedTabs";
-import { stripedBanner } from "@/lib/consumer/bannerPattern";
+import { EventsListClient } from "@/lib/consumer/EventsListClient";
 
 type Params = Promise<{ token: string }>;
 
@@ -27,13 +23,6 @@ interface CampusBranding {
 function isValidHex(value: string | undefined): value is string {
   return !!value && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
 }
-
-const BANNER_BG: Record<string, string> = {
-  purple: "var(--brand-primary-fill)",
-  coral: "var(--brand-accent-warm)",
-  teal: "var(--brand-accent-cool)",
-  pink: "var(--brand-accent-complement)",
-};
 
 export async function generateMetadata({
   params,
@@ -86,9 +75,10 @@ export default async function EventsPage({
 
   const lang = `?lang=${locale}`;
   const mapHref = `/campus/${token}/map${lang}`;
-  // DB-backed events + any ICS feeds the admin configured. Same
-  // merge the consumer home uses; defensive `.catch()` on the ICS
-  // fetch so a slow / broken feed doesn't blank the page.
+  // DB-backed events + any ICS feeds the admin configured. The DB
+  // rows are seeded into SWR's cache via `EventsListClient`'s
+  // `initialDbEvents`; ICS rows stay server-side (slow external
+  // fetch) and are merged on every client render.
   const feedUrls = readEventFeeds(map.sceneData);
   const [dbEvents, icsEvents] = await Promise.all([
     listUpcomingEventsForProject(map.id, 100),
@@ -99,14 +89,6 @@ export default async function EventsPage({
         })
       : Promise.resolve<CampusEvent[]>([]),
   ]);
-  // Localise the DB rows before they meet `mergeEvents`. ICS rows
-  // have no EL columns to pick from; they stay as-is.
-  const dbEventsLocalised = dbEvents.map((e) => ({
-    ...e,
-    title: pickLocalized(e.title, e.titleEl, locale),
-    description: pickLocalized(e.description, e.descriptionEl, locale),
-  }));
-  const events = mergeEvents(dbEventsLocalised, icsEvents, 100);
 
   return (
     <main data-consumer lang={locale} style={themeStyle}>
@@ -131,70 +113,15 @@ export default async function EventsPage({
           What’s happening this week and beyond on campus.
         </p>
 
-        {events.length === 0 ? (
-          <div className="mt-10 rounded-2xl border border-[var(--brand-line)] bg-white p-8 text-center text-sm text-[var(--brand-text-muted)]">
-            No events published yet.
-          </div>
-        ) : (
-          <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {events.map((e) => {
-              const firstAnchor = e.anchors[0];
-              // DB rows link to their detail page; ICS rows (id contains
-              // `::`) link to the map with the anchor focused.
-              const href = eventHasDetailPage(e.id)
-                ? `/campus/${token}/events/${e.id}${lang}`
-                : firstAnchor?.refId
-                  ? `${mapHref}&space=${encodeURIComponent(firstAnchor.refId)}`
-                  : mapHref;
-              const accent =
-                BANNER_BG[e.bannerColor] ?? "var(--brand-primary-fill)";
-              return (
-                <Link
-                  key={e.id}
-                  href={href}
-                  className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--brand-line)] bg-white transition-colors hover:border-[var(--brand-primary)]"
-                >
-                  <div
-                    className="flex h-20 items-end justify-start p-4"
-                    style={stripedBanner(accent)}
-                  >
-                    <Calendar
-                      size={24}
-                      strokeWidth={1.5}
-                      style={{ color: accent }}
-                      aria-hidden
-                    />
-                  </div>
-                  <div className="flex flex-1 flex-col gap-2 p-5">
-                    <h2 className="text-base font-medium text-[var(--brand-text)]">
-                      {e.title}
-                    </h2>
-                    <span className="text-xs text-[var(--brand-text-muted)]">
-                      {formatEventWhen(e.startsAt)}
-                    </span>
-                    <p className="line-clamp-2 text-xs leading-relaxed text-[var(--brand-text-muted)]">
-                      {e.blurb}
-                    </p>
-                    <div className="mt-auto flex flex-wrap items-center gap-2 pt-2 text-xs text-[var(--brand-text-muted)]">
-                      {firstAnchor ? (
-                        <span className="inline-flex items-center gap-1">
-                          <MapPin size={14} strokeWidth={1.75} />
-                          {firstAnchor.refName}
-                        </span>
-                      ) : null}
-                      {firstAnchor?.refId ? (
-                        <span className="ml-auto inline-flex items-center gap-1 text-[var(--brand-primary)] group-hover:underline">
-                          <Compass size={14} strokeWidth={1.75} />
-                          Directions
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
+        <EventsListClient
+          token={token}
+          locale={locale}
+          lang={lang}
+          mapHref={mapHref}
+          initialDbEvents={dbEvents}
+          icsEvents={icsEvents}
+          emptyCopy="No events published yet."
+        />
 
         <Link
           href={mapHref}
