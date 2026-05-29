@@ -1,43 +1,53 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import type { ReactNode } from "react";
-import MapIcon from "@mui/icons-material/Map";
-import PlaceIcon from "@mui/icons-material/Place";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import ApartmentIcon from "@mui/icons-material/Apartment";
+import { Accessibility, Building2, Eye, MapPin } from "lucide-react";
 import { Panel } from "@klorad/design-system";
+import { PageHeader } from "@/app/(dashboard)/components/PageHeader";
+import { StatCard } from "@/app/(dashboard)/components/StatCard";
 
+/**
+ * Org Usage — quick plan + counters page. Lives at /settings/usage as
+ * a sibling of /settings/general because the broader IA rebuild keeps
+ * URL paths stable. Numbers are placeholders until the analytics
+ * arc lands; rendering "—" keeps trust intact.
+ */
 export default async function SettingsUsagePage() {
   const session = await auth();
   if (!session) redirect("/auth/signin");
 
   return (
-    <div className="w-full space-y-10 px-6 py-8 md:px-10">
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 md:px-10">
+      <PageHeader
+        eyebrow="Organisation"
+        title="Usage"
+        subtitle="Plan, limits, counters across every campus."
+      />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          icon={<MapIcon fontSize="small" />}
+          icon={<Building2 size={18} strokeWidth={1.75} aria-hidden />}
           value="—"
-          label="Campus maps"
+          label="Campuses"
         />
         <StatCard
-          icon={<PlaceIcon fontSize="small" />}
+          icon={<MapPin size={18} strokeWidth={1.75} aria-hidden />}
           value="—"
-          label="Total POIs"
+          label="POIs across maps"
         />
         <StatCard
-          icon={<ApartmentIcon fontSize="small" />}
+          icon={<Accessibility size={18} strokeWidth={1.75} aria-hidden />}
           value="—"
-          label="Floor plans"
+          label="Accessible POIs"
         />
         <StatCard
-          icon={<VisibilityIcon fontSize="small" />}
+          icon={<Eye size={18} strokeWidth={1.75} aria-hidden />}
           value="—"
-          label="Views (30d)"
+          label="Public views (30d)"
         />
       </div>
 
-      <section className="space-y-4">
-        <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-text-tertiary">
+      <section className="mt-10 space-y-4">
+        <h2 className="text-[11px] font-medium uppercase tracking-[0.18em] text-text-tertiary">
           Plan
         </h2>
         <Panel className="rounded-2xl p-5">
@@ -45,31 +55,11 @@ export default async function SettingsUsagePage() {
             Pro · €5k / yr
           </div>
           <p className="mt-1 max-w-prose text-sm text-text-secondary">
-            Detailed usage, plan limits, and invoicing land here once billing is
-            wired. Contact us to adjust your plan meanwhile.
+            Detailed usage, plan limits, and invoicing land here once billing
+            is wired. Contact us to adjust your plan in the meantime.
           </p>
         </Panel>
       </section>
     </div>
-  );
-}
-
-function StatCard({
-  icon,
-  value,
-  label,
-}: {
-  icon: ReactNode;
-  value: string;
-  label: string;
-}) {
-  return (
-    <Panel className="rounded-2xl p-5">
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-accent">
-        {icon}
-      </div>
-      <div className="mt-4 text-2xl font-light text-text-primary">{value}</div>
-      <div className="mt-0.5 text-sm text-text-secondary">{label}</div>
-    </Panel>
   );
 }

@@ -1,41 +1,43 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import AddIcon from "@mui/icons-material/Add";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import {
-  Badge,
-  Button,
-  EmptyState,
-  Field,
-  IconButton,
-  Input,
-  Menu,
-  MenuItem,
-  Modal,
-  Panel,
-} from "@klorad/design-system";
+import { Plus, Search } from "lucide-react";
+import { Button, Field, Input, Modal } from "@klorad/design-system";
 import { useMaps } from "@/app/hooks/useMaps";
-import LocationsHeader from "./LocationsHeader";
+import { PageHeader } from "@/app/(dashboard)/components/PageHeader";
+import { CampusCard } from "@/app/(dashboard)/components/CampusCard";
 
 interface Props {
   orgId: string;
   userId: string;
 }
 
+type Filter = "all" | "published" | "drafts";
+
+/**
+ * Org Campuses — the searchable / filterable grid of every campus this
+ * organisation runs. The Org Overview's "Most active" rail is a
+ * curated three; this is the place to find any campus by name or
+ * publication state.
+ *
+ * Mirrors the IHU mock: header (title + "New campus"), search +
+ * three pills (All / Published / Drafts), the grid, and an "Add a
+ * campus" dashed tile at the end so creating one feels native to the
+ * grid instead of hiding behind a header CTA only.
+ *
+ * Per [[campus-backoffice-redesign]], the world map that used to live
+ * here was promoted to the Org Overview — this screen is now purely
+ * about *which* campuses exist, not *where* they are.
+ */
 export default function MapsPageClient({ orgId }: Props) {
   const router = useRouter();
-  const { maps, isLoading, createMap, deleteMap } = useMaps(orgId);
+  const { maps, isLoading, createMap } = useMaps(orgId);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
   const closeCreate = () => {
     if (creating) return;
@@ -53,77 +55,139 @@ export default function MapsPageClient({ orgId }: Props) {
     if (map) router.push(`/org/${orgId}/maps/${map.id}`);
   };
 
-  const handleConfirmDelete = async () => {
-    if (!confirmDelete) return;
-    setDeleting(true);
-    await deleteMap(confirmDelete.id);
-    setDeleting(false);
-    setConfirmDelete(null);
-  };
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return maps.filter((m) => {
+      if (filter === "published" && !m.isPublished) return false;
+      if (filter === "drafts" && m.isPublished) return false;
+      if (q && !m.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [maps, filter, query]);
+
+  const counts = useMemo(
+    () => ({
+      all: maps.length,
+      published: maps.filter((m) => m.isPublished).length,
+      drafts: maps.filter((m) => !m.isPublished).length,
+    }),
+    [maps],
+  );
 
   const showSkeleton = isLoading && maps.length === 0;
-  const showEmpty = !isLoading && maps.length === 0;
 
   return (
-    <div className="w-full space-y-8 px-6 py-8 md:px-10">
-      <LocationsHeader maps={maps} />
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 md:px-10">
+      <PageHeader
+        eyebrow="Organisation"
+        title="Campuses"
+        subtitle="Pick a campus to manage its public app — or spin up a new one."
+        actions={
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus size={14} strokeWidth={1.75} aria-hidden />
+            New campus
+          </Button>
+        }
+      />
 
-      {showEmpty ? (
-        <EmptyState
-          icon={CampusGlyph}
-          title="No campuses yet"
-          body="Start with a blank campus, then pick a location on the map and draw the first building."
-          action={
-            <Button onClick={() => setCreateOpen(true)}>
-              <AddIcon fontSize="small" />
-              Create your first campus
-            </Button>
-          }
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[240px]">
+          <Search
+            size={14}
+            strokeWidth={1.75}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
+            aria-hidden
+          />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search campuses…"
+            className="h-9 w-full rounded-full border border-line-soft bg-surface-1 pl-9 pr-3 text-sm text-text-primary outline-none placeholder:text-text-tertiary focus-visible:border-accent"
+          />
+        </div>
+        <div
+          role="tablist"
+          aria-label="Filter campuses"
+          className="inline-flex items-center gap-1 rounded-full border border-line-soft bg-surface-1 p-1"
+        >
+          {(["all", "published", "drafts"] as Filter[]).map((f) => {
+            const isActive = filter === f;
+            return (
+              <button
+                key={f}
+                role="tab"
+                type="button"
+                aria-selected={isActive}
+                onClick={() => setFilter(f)}
+                className={
+                  isActive
+                    ? "rounded-full bg-accent px-3 py-1 text-xs font-medium text-white"
+                    : "rounded-full px-3 py-1 text-xs font-medium text-text-secondary hover:text-text-primary"
+                }
+              >
+                <span className="capitalize">{f}</span>
+                <span className="ml-1 text-text-tertiary">
+                  {counts[f]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        {showSkeleton
+          ? [0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-[208px] animate-pulse rounded-2xl bg-surface-2"
+              />
+            ))
+          : filtered.map((m) => (
+              <CampusCard
+                key={m.id}
+                id={m.id}
+                name={m.name}
+                isPublished={m.isPublished}
+                updatedAt={m.updatedAt}
+                href={`/org/${orgId}/maps/${m.id}`}
+              />
+            ))}
+
+        {!showSkeleton && filtered.length === 0 ? (
+          <div className="col-span-full rounded-2xl border border-dashed border-line-soft bg-surface-1 px-6 py-10 text-center text-sm text-text-secondary">
+            {query
+              ? "No campuses match that search."
+              : filter === "published"
+                ? "No published campuses yet."
+                : filter === "drafts"
+                  ? "No drafts."
+                  : "No campuses yet."}
+          </div>
+        ) : null}
+
+        {!showSkeleton ? (
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
             className="group flex min-h-[208px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-line-strong bg-surface-1 text-text-secondary transition-colors hover:border-accent hover:text-accent"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-accent">
-              <AddIcon fontSize="small" />
+              <Plus size={18} strokeWidth={1.75} aria-hidden />
             </span>
-            <span className="text-sm font-medium">New map</span>
+            <span className="text-sm font-medium">Add a campus</span>
             <span className="text-xs text-text-tertiary">
-              Create a new campus map
+              Link a MappedIn venue and brand it in minutes.
             </span>
           </button>
-
-          {showSkeleton
-            ? [0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="h-[208px] animate-pulse rounded-2xl bg-surface-2"
-                />
-              ))
-            : maps.map((map) => (
-                <CampusCard
-                  key={map.id}
-                  name={map.name}
-                  updatedAt={map.updatedAt}
-                  thumbnail={map.thumbnail ?? undefined}
-                  isPublished={map.isPublished ?? false}
-                  href={`/org/${orgId}/maps/${map.id}`}
-                  onEdit={() => router.push(`/org/${orgId}/maps/${map.id}`)}
-                  onDelete={() =>
-                    setConfirmDelete({ id: map.id, name: map.name })
-                  }
-                />
-              ))}
-        </div>
-      )}
+        ) : null}
+      </div>
 
       <Modal
         open={createOpen}
         onClose={closeCreate}
-        title="New campus map"
+        title="New campus"
         footer={
           <>
             <Button
@@ -137,12 +201,12 @@ export default function MapsPageClient({ orgId }: Props) {
               onClick={handleCreate}
               disabled={!newName.trim() || creating}
             >
-              {creating ? "Creating…" : "Create map"}
+              {creating ? "Creating…" : "Create campus"}
             </Button>
           </>
         }
       >
-        <Field label="Map name">
+        <Field label="Campus name">
           <Input
             autoFocus
             placeholder="e.g. Main Campus"
@@ -152,132 +216,6 @@ export default function MapsPageClient({ orgId }: Props) {
           />
         </Field>
       </Modal>
-
-      <Modal
-        open={confirmDelete !== null}
-        onClose={() => !deleting && setConfirmDelete(null)}
-        title="Delete map?"
-        description={`"${confirmDelete?.name ?? ""}" and all its POIs will be permanently removed. This cannot be undone.`}
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => setConfirmDelete(null)}
-              disabled={deleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              onClick={handleConfirmDelete}
-              disabled={deleting}
-            >
-              {deleting ? "Deleting…" : "Delete map"}
-            </Button>
-          </>
-        }
-      />
     </div>
-  );
-}
-
-function CampusCard({
-  name,
-  updatedAt,
-  thumbnail,
-  isPublished,
-  href,
-  onEdit,
-  onDelete,
-}: {
-  name: string;
-  updatedAt: string | number | Date;
-  thumbnail?: string;
-  isPublished: boolean;
-  href: string;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const updated = new Date(updatedAt).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-  return (
-    <div className="group relative">
-      <Link href={href} className="block">
-        <Panel className="overflow-hidden rounded-2xl transition-colors duration-200 group-hover:border-line-strong">
-          <div className="relative aspect-video bg-surface-2">
-            {thumbnail ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={thumbnail}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-            ) : null}
-            <span className="absolute left-3 top-3">
-              <Badge tone={isPublished ? "success" : "neutral"}>
-                {isPublished ? "Published" : "Draft"}
-              </Badge>
-            </span>
-          </div>
-          <div className="p-4">
-            <div className="truncate font-medium text-text-primary">{name}</div>
-            <div className="mt-1 text-xs text-text-tertiary">
-              Updated {updated}
-            </div>
-          </div>
-        </Panel>
-      </Link>
-      <div className="absolute right-2 top-2">
-        <Menu
-          trigger={
-            <IconButton
-              variant="secondary"
-              size="sm"
-              aria-label="Map options"
-              className="bg-surface-1"
-            >
-              <MoreVertIcon fontSize="small" />
-            </IconButton>
-          }
-        >
-          <MenuItem onClick={onEdit}>Edit</MenuItem>
-          <MenuItem tone="danger" onClick={onDelete}>
-            Delete
-          </MenuItem>
-        </Menu>
-      </div>
-    </div>
-  );
-}
-
-/** Tiny campus glyph for the empty state — no need to pull a 24px MUI
- *  icon when an inline SVG matches the rest of our visual language. */
-function CampusGlyph({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <rect x="3" y="9" width="7" height="12" rx="1" />
-      <rect x="14" y="5" width="7" height="16" rx="1" />
-      <line x1="5.5" y1="13" x2="5.5" y2="13" />
-      <line x1="7.5" y1="13" x2="7.5" y2="13" />
-      <line x1="5.5" y1="16" x2="5.5" y2="16" />
-      <line x1="7.5" y1="16" x2="7.5" y2="16" />
-      <line x1="16" y1="9" x2="16" y2="9" />
-      <line x1="19" y1="9" x2="19" y2="9" />
-      <line x1="16" y1="13" x2="16" y2="13" />
-      <line x1="19" y1="13" x2="19" y2="13" />
-      <line x1="16" y1="17" x2="19" y2="17" />
-    </svg>
   );
 }

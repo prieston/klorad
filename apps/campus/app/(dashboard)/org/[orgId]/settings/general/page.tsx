@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { Button, Field, Input, Panel, Spinner, cn } from "@klorad/design-system";
 import { showToast } from "@klorad/ui";
 import { useOrganization } from "@/app/hooks/useOrganizations";
+import { PageHeader } from "@/app/(dashboard)/components/PageHeader";
 
 export default function SettingsGeneralPage() {
   const params = useParams<{ orgId: string }>();
@@ -82,32 +83,39 @@ export default function SettingsGeneralPage() {
   const scopeLabel = organization.isPersonal ? "Workspace" : "Organization";
 
   return (
-    <div className="w-full space-y-6 px-6 py-8 md:px-10">
-      <div className="flex items-center justify-end gap-2 border-b border-line-soft pb-5">
-        {hasChanges && (
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={saving}
-            onClick={() =>
-              setFormData({
-                name: organization.name,
-                slug: organization.slug ?? "",
-              })
-            }
-          >
-            Cancel
-          </Button>
-        )}
-        <Button
-          size="sm"
-          className="min-w-[96px]"
-          disabled={!canEdit || !hasChanges || saving}
-          onClick={handleSave}
-        >
-          {saving ? "Saving…" : "Save"}
-        </Button>
-      </div>
+    <div className="mx-auto w-full max-w-[1280px] space-y-6 px-6 py-8 md:px-10">
+      <PageHeader
+        eyebrow="Organisation"
+        title="Settings"
+        subtitle="Locale defaults, custom domain and billing."
+        actions={
+          <>
+            {hasChanges && (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={saving}
+                onClick={() =>
+                  setFormData({
+                    name: organization.name,
+                    slug: organization.slug ?? "",
+                  })
+                }
+              >
+                Cancel
+              </Button>
+            )}
+            <Button
+              size="sm"
+              className="min-w-[96px]"
+              disabled={!canEdit || !hasChanges || saving}
+              onClick={handleSave}
+            >
+              {saving ? "Saving…" : "Save"}
+            </Button>
+          </>
+        }
+      />
 
       <Panel className="rounded-2xl p-6">
         <h2 className="text-sm font-semibold text-text-primary">
