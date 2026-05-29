@@ -1,10 +1,63 @@
 import type { ReactNode } from "react";
+import type { Metadata, Viewport } from "next";
 import { getPublicCampusByToken } from "@/lib/public-campus";
 import { CampusBottomNav } from "@/lib/consumer/CampusBottomNav";
 import { deriveCampusPalette, paletteToCssVars } from "@/lib/palette";
 import { SWRProvider } from "@/lib/swr/SWRProvider";
+import { ServiceWorkerRegistrar } from "@/lib/consumer/ServiceWorkerRegistrar";
+import { InstallPrompt } from "@/lib/consumer/InstallPrompt";
 
 type Params = Promise<{ token: string }>;
+
+function isValidHex(value: string | undefined): value is string {
+  return !!value && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
+}
+
+/**
+ * Per-tenant `<head>` metadata — point each campus at its own
+ * `manifest.webmanifest` route so the install prompt picks up the
+ * campus's name, icon, and theme colour.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Params;
+}): Promise<Metadata> {
+  const { token } = await params;
+  const map = await getPublicCampusByToken(token);
+  return {
+    manifest: `/campus/${token}/manifest.webmanifest`,
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "default",
+      title: map?.title ?? "Campus",
+    },
+  };
+}
+
+/**
+ * Per-tenant viewport — `themeColor` tints the mobile browser
+ * chrome (status bar / address bar) so the campus's brand reaches
+ * past the page boundary. In Next 15 this lives on `viewport`,
+ * not `metadata`.
+ */
+export async function generateViewport({
+  params,
+}: {
+  params: Params;
+}): Promise<Viewport> {
+  const { token } = await params;
+  const map = await getPublicCampusByToken(token);
+  const scene = (map?.sceneData ?? null) as {
+    branding?: { primaryColor?: string };
+  } | null;
+  const themeColor = isValidHex(scene?.branding?.primaryColor)
+    ? scene!.branding!.primaryColor!
+    : "#534ab7";
+  return {
+    themeColor,
+  };
+}
 
 /**
  * Shared layout for every `/campus/[token]` route — mounts the
@@ -18,6 +71,12 @@ type Params = Promise<{ token: string }>;
  * per-tenant accent colour up here. That gives **both** the page
  * content and the bottom nav the same `--brand-primary`, so the
  * active pill stays on-brand for every campus.
+ *
+ * PWA wiring lives here too — `ServiceWorkerRegistrar` installs
+ * `/sw.js` on the first visit, and `InstallPrompt` surfaces the
+ * native install card when the browser fires `beforeinstallprompt`.
+ * Both are no-ops on desktop / unsupported browsers, so there's no
+ * cost when they can't help.
  */
 export default async function CampusPublicLayout({
   children,
@@ -44,6 +103,8 @@ export default async function CampusPublicLayout({
       <div style={themeStyle}>
         {children}
         <CampusBottomNav token={token} />
+        <InstallPrompt />
+        <ServiceWorkerRegistrar />
       </div>
     </SWRProvider>
   );
