@@ -55,3 +55,10 @@ export interface ConsumerClub {
   /** External link the View / Join button opens (Discord, Insta, …). */
   externalLink: string;
 }
+
+export interface ConsumerDining {
+  id: string;
+  name: string;
+  /** Free-text hours / status — surfaced as the rail's subtitle. */
+  status: string;
+}
