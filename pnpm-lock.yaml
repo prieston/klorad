@@ -330,7 +330,7 @@ importers:
         specifier: ^6.5.0
         version: 6.5.0(@react-email/render@2.0.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1))
       swr:
-        specifier: ^2.2.4
+        specifier: ^2.3.6
         version: 2.3.6(react@19.2.1)
       three:
         specifier: ^0.170.0

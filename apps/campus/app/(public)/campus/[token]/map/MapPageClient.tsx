@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Compass, Search, X } from "lucide-react";
 // Lucide's `X` is also imported here for the building header's close
 // chip. Renamed to disambiguate from the search-clear button below.
@@ -108,24 +108,49 @@ export function MapPageClient({
   const viewerRef = useRef<MappedinViewerHandle | null>(null);
   const [buildings, setBuildings] = useState<BuildingsListItem[]>([]);
   const [spaces, setSpaces] = useState<SpaceOption[]>([]);
-  const [selectedBuildingId, setSelectedBuildingId] = useState<string>("");
-  const [detailBuildingId, setDetailBuildingId] = useState<string>("");
-  const [selectedRoomId, setSelectedRoomId] = useState<string>(
-    focusSpaceId ?? "",
-  );
-  const [query, setQuery] = useState("");
 
-  // ── Route mode state ────────────────────────────────────────────
+  // ── URL state ───────────────────────────────────────────────────
+  // Every shareable piece of state — selected building, open detail,
+  // selected room, search query, route configuration, active step —
+  // is mirrored to the URL via `router.replace`. Visitors who hit
+  // refresh or share a link land back in the exact same state, with
+  // the map zoomed correctly and the bottom container in the right
+  // mode. Initial state below seeds from `useSearchParams`.
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  const routeRequested = searchParams?.get("route") === "1";
   const initialTo = searchParams?.get("to") ?? "";
   const initialFrom = searchParams?.get("from") ?? "";
-  const routeRequested = searchParams?.get("route") === "1";
+  const initialPhase: "configuring" | "viewing" =
+    searchParams?.get("phase") === "v" ? "viewing" : "configuring";
+  const initialStep = parseInt(searchParams?.get("step") ?? "-1", 10);
+  const initialAccessible = searchParams?.get("a") === "1";
+  const initialSelectedBuilding = searchParams?.get("b") ?? "";
+  const initialDetailBuilding = searchParams?.get("d") ?? "";
+  // `?space=` is the legacy deep-link param from news / event
+  // anchor chips. New shareable state uses `?r=`; honour both.
+  const initialSelectedRoom =
+    searchParams?.get("r") ?? focusSpaceId ?? "";
+  const initialQuery = searchParams?.get("q") ?? "";
+
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
+    initialSelectedBuilding,
+  );
+  const [detailBuildingId, setDetailBuildingId] = useState<string>(
+    initialDetailBuilding,
+  );
+  const [selectedRoomId, setSelectedRoomId] =
+    useState<string>(initialSelectedRoom);
+  const [query, setQuery] = useState(initialQuery);
+
   const [routeMode, setRouteMode] = useState<boolean>(routeRequested);
   const [fromId, setFromId] = useState<string>(
     initialFrom || (routeRequested ? YOUR_LOCATION_ID : ""),
   );
   const [toId, setToId] = useState<string>(initialTo);
-  const [accessible, setAccessible] = useState(false);
+  const [accessible, setAccessible] = useState(initialAccessible);
   const [routeStatus, setRouteStatus] = useState<RouteStatus>({ kind: "idle" });
   /** Two-phase route UX. `configuring` shows the toggle + Get
    *  directions CTA in the bottom container; `viewing` swaps that
@@ -133,9 +158,59 @@ export function MapPageClient({
    *  the moment the visitor taps Get directions and stays there
    *  for the rest of the route session. */
   const [routePhase, setRoutePhase] = useState<"configuring" | "viewing">(
-    "configuring",
+    initialPhase,
   );
-  const [activeStepIndex, setActiveStepIndex] = useState<number>(-1);
+  const [activeStepIndex, setActiveStepIndex] = useState<number>(
+    Number.isFinite(initialStep) ? initialStep : -1,
+  );
+
+  // Sync URL ← state. One effect builds the URLSearchParams from
+  // every shareable piece and calls `router.replace` (not `push`)
+  // so internal state changes don't pollute browser history.
+  // `scroll: false` keeps the scroll position when the URL updates.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (selectedBuildingId) next.set("b", selectedBuildingId);
+    if (detailBuildingId) next.set("d", detailBuildingId);
+    if (selectedRoomId) next.set("r", selectedRoomId);
+    if (query) next.set("q", query);
+    if (routeMode) {
+      next.set("route", "1");
+      if (fromId) next.set("from", fromId);
+      if (toId) next.set("to", toId);
+      if (accessible) next.set("a", "1");
+      if (routePhase === "viewing") next.set("phase", "v");
+      if (activeStepIndex >= 0) next.set("step", String(activeStepIndex));
+    }
+    // Preserve `lang` so the locale survives the URL rewrite.
+    const lang = searchParams?.get("lang");
+    if (lang) next.set("lang", lang);
+    const qs = next.toString();
+    const target = qs ? `${pathname}?${qs}` : pathname;
+    // `searchParams.toString()` is the current URL; skip replace if
+    // we're already there (avoids a render thrash when the effect
+    // re-runs from React StrictMode's double-invoke).
+    if (
+      typeof window !== "undefined" &&
+      target !== `${pathname}${window.location.search}`
+    ) {
+      router.replace(target, { scroll: false });
+    }
+  }, [
+    selectedBuildingId,
+    detailBuildingId,
+    selectedRoomId,
+    query,
+    routeMode,
+    fromId,
+    toId,
+    accessible,
+    routePhase,
+    activeStepIndex,
+    pathname,
+    router,
+    searchParams,
+  ]);
 
   // GPS-derived "from" space id. When the visitor picks "Your
   // location" the browser prompts for permission; on success we
