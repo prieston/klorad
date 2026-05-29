@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { getPublicCampusByToken } from "@/lib/public-campus";
 import { CampusBottomNav } from "@/lib/consumer/CampusBottomNav";
 import { deriveCampusPalette, paletteToCssVars } from "@/lib/palette";
+import { SWRProvider } from "@/lib/swr/SWRProvider";
 
 type Params = Promise<{ token: string }>;
 
@@ -39,9 +40,11 @@ export default async function CampusPublicLayout({
   const themeStyle = paletteToCssVars(palette);
 
   return (
-    <div style={themeStyle}>
-      {children}
-      <CampusBottomNav token={token} />
-    </div>
+    <SWRProvider>
+      <div style={themeStyle}>
+        {children}
+        <CampusBottomNav token={token} />
+      </div>
+    </SWRProvider>
   );
 }

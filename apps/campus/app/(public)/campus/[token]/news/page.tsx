@@ -1,17 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MapPin } from "lucide-react";
 import { getPublicCampusByToken } from "@/lib/public-campus";
 import { detectLocale, pickText } from "@/app/lib/i18n-core";
-import {
-  listNewsForProject,
-  relativeNewsTime,
-} from "@/lib/news";
+import { listNewsForProject } from "@/lib/news";
 import { readPosts } from "@/lib/posts";
 import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import { SegmentedTabs } from "@/lib/consumer/SegmentedTabs";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
+import { NewsListClient } from "@/lib/consumer/NewsListClient";
 
 type Params = Promise<{ token: string }>;
 
@@ -45,9 +41,13 @@ export async function generateMetadata({
 /**
  * `/campus/[token]/news` — public news list.
  *
- * Combines `NewsPost` rows with legacy `sceneData.posts` so existing
- * tenants don't lose their content during the migration — same merge
- * the consumer home uses, just unbounded.
+ * Hybrid SSR + SWR. The page fetches the initial DB news set
+ * server-side (fast first paint, SEO-correct markup), then hands
+ * off to `NewsListClient` which manages cross-mount cache hits and
+ * background revalidation via `useCampusNews`. Legacy
+ * `sceneData.posts` are read server-side and passed in
+ * pre-formatted — they're static per request, so SWR doesn't need
+ * to track them.
  */
 export default async function NewsPage({
   params,
@@ -76,45 +76,30 @@ export default async function NewsPage({
   const lang = `?lang=${locale}`;
   const mapHref = `/campus/${token}/map${lang}`;
 
-  const [dbPosts, legacyPosts] = await Promise.all([
+  const [dbPosts, legacyPostsRaw] = await Promise.all([
     listNewsForProject(map.id, 100),
     Promise.resolve(readPosts(map.sceneData)),
   ]);
-
-  // Merge into one display shape, newest first. Legacy posts use
-  // their `?lang` pick; the new model is plain strings.
-  const news = [
-    ...dbPosts.map((p) => ({
-      id: p.id,
-      title: p.title,
-      body: p.body,
-      publishedAt: p.publishedAt,
-      anchors: p.anchors,
-      detailHref: `/campus/${token}/news/${p.id}${lang}`,
-    })),
-    ...legacyPosts.map((p) => ({
-      id: p.id,
-      title: pickText(p.title, locale) || "",
-      body: pickText(p.body, locale) || "",
-      publishedAt: p.publishedAt,
-      anchors: p.place
-        ? [
-            {
-              kind: (p.place.kind === "room" ? "room" : "building") as
-                | "room"
-                | "building",
-              refId: p.place.id,
-              refName: p.place.name,
-            },
-          ]
-        : [],
-      // Legacy posts don't have detail pages — link to the map with
-      // the place focused, or to the home if there's no place.
-      detailHref: p.place
-        ? `${mapHref}&space=${encodeURIComponent(p.place.id)}`
-        : `/campus/${token}${lang}`,
-    })),
-  ].sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
+  const legacy = legacyPostsRaw.map((p) => ({
+    id: p.id,
+    title: pickText(p.title, locale) || "",
+    body: pickText(p.body, locale) || "",
+    publishedAt: p.publishedAt,
+    anchors: p.place
+      ? [
+          {
+            kind: (p.place.kind === "room" ? "room" : "building") as
+              | "room"
+              | "building",
+            refId: p.place.id,
+            refName: p.place.name,
+          },
+        ]
+      : [],
+    detailHref: p.place
+      ? `${mapHref}&space=${encodeURIComponent(p.place.id)}`
+      : `/campus/${token}${lang}`,
+  }));
 
   return (
     <main data-consumer lang={locale} style={themeStyle}>
@@ -139,38 +124,14 @@ export default async function NewsPage({
           Announcements, updates, and alerts.
         </p>
 
-        {news.length === 0 ? (
-          <div className="mt-10 rounded-2xl border border-[var(--brand-line)] bg-white p-8 text-center text-sm text-[var(--brand-text-muted)]">
-            No news published yet.
-          </div>
-        ) : (
-          <div className="mt-6">
-            {news.map((n) => (
-              <article
-                key={n.id}
-                className="border-b border-[var(--brand-line)] py-5 last:border-b-0"
-              >
-                <Link href={n.detailHref} className="group block">
-                  <h2 className="text-base font-medium text-[var(--brand-text)] transition-colors group-hover:text-[var(--brand-primary)]">
-                    {n.title}
-                  </h2>
-                  <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-[var(--brand-text-muted)]">
-                    {n.body}
-                  </p>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-[0.7rem] uppercase tracking-wide text-[var(--brand-text-muted)]">
-                    <span>{relativeNewsTime(n.publishedAt)}</span>
-                    {n.anchors[0] ? (
-                      <span className="inline-flex items-center gap-1 normal-case tracking-normal">
-                        <MapPin size={12} strokeWidth={1.75} />
-                        {n.anchors[0].refName}
-                      </span>
-                    ) : null}
-                  </div>
-                </Link>
-              </article>
-            ))}
-          </div>
-        )}
+        <NewsListClient
+          token={token}
+          locale={locale}
+          lang={lang}
+          initialNews={dbPosts}
+          legacy={legacy}
+          emptyCopy="No news published yet."
+        />
       </section>
 
       <ConsumerFooter campusName={campusName} />

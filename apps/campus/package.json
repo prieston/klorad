@@ -50,7 +50,7 @@
     "react-dom": "^19.2.1",
     "react-toastify": "^11.0.5",
     "resend": "^6.5.0",
-    "swr": "^2.2.4",
+    "swr": "^2.3.6",
     "three": "^0.170.0",
     "threebox-plugin": "2.2.7",
     "uuid": "^11.1.0",
