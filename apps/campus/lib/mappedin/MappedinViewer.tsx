@@ -314,9 +314,21 @@ export const MappedinViewer = forwardRef<
         setStatus("ready");
       } catch (e) {
         if (cancelled) return;
-        setError(
-          e instanceof Error ? e.message : "Failed to load the indoor map",
-        );
+        // The MappedIn SDK uses internal AbortControllers — when the
+        // effect cleanup tears the viewer down mid-load (StrictMode in
+        // dev, soft-nav in prod), the in-flight fetch for sprite.json /
+        // map tiles rejects with an AbortError. We've already returned
+        // on `cancelled` above for the truly-stale path; if we land here
+        // with an abort we still want to swallow it instead of showing
+        // a load-failure card to the visitor.
+        const msg = e instanceof Error ? e.message : "";
+        if (
+          (e instanceof Error && e.name === "AbortError") ||
+          /aborted|signal is aborted/i.test(msg)
+        ) {
+          return;
+        }
+        setError(msg || "Failed to load the indoor map");
         setStatus("error");
       }
     })();

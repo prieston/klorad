@@ -25,6 +25,13 @@ body {
   font-family: "Inter", system-ui, sans-serif;
 }
 
+/* Reserve the vertical scrollbar lane on every page so navigating
+   between a tall scrolling route (home, events) and a no-scroll one
+   (the map) doesn't reflow the nav by the scrollbar's width. */
+html {
+  scrollbar-gutter: stable;
+}
+
 .mapboxgl-map {
   width: 100%;
   height: 100%;

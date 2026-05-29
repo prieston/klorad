@@ -39,11 +39,10 @@ export function ConsumerNav({
     { label: "Clubs", href: `/campus/${token}/clubs${lang}` },
     { label: "Dining", href: `/campus/${token}/dining${lang}` },
     { label: "News", href: `/campus/${token}/news${lang}` },
-    { label: "Help", href: `/campus/${token}/help${lang}` },
   ];
 
   return (
-    <header className="sticky top-0 z-20 border-b border-[var(--brand-line)] bg-white">
+    <header className="sticky top-0 z-20 bg-white">
       <div className="mx-auto flex h-14 max-w-[1280px] items-center justify-between gap-4 px-4 md:px-6">
         <Link
           href={`/campus/${token}${lang}`}
