@@ -10,6 +10,7 @@ import {
 } from "@/lib/news";
 import { readPosts } from "@/lib/posts";
 import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
+import { SegmentedTabs } from "@/lib/consumer/SegmentedTabs";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
 
 type Params = Promise<{ token: string }>;
@@ -125,8 +126,16 @@ export default async function NewsPage({
       />
 
       <section className="mx-auto max-w-[820px] px-4 py-8 md:px-6 md:py-12">
-        <h1 className="text-3xl font-medium text-[var(--brand-text)]">News</h1>
-        <p className="mt-2 text-sm text-[var(--brand-text-muted)]">
+        <h1 className="text-3xl font-medium text-[var(--brand-text)]">
+          Explore
+        </h1>
+        <SegmentedTabs
+          token={token}
+          lang={lang}
+          locale={locale}
+          active="news"
+        />
+        <p className="mt-4 text-sm text-[var(--brand-text-muted)]">
           Announcements, updates, and alerts.
         </p>
 

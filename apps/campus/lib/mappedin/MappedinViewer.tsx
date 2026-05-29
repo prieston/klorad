@@ -549,7 +549,7 @@ export const MappedinViewer = forwardRef<
         <button
           type="button"
           onClick={() => setSheetOpen(true)}
-          className="absolute bottom-4 right-4 z-20 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-contrast shadow-glass md:hidden"
+          className="absolute right-4 bottom-[calc(env(safe-area-inset-bottom)+5rem)] z-20 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-contrast shadow-glass md:hidden"
           aria-label={t("mappedin.menu")}
         >
           <Menu size={16} strokeWidth={2} />
@@ -606,11 +606,11 @@ export const MappedinViewer = forwardRef<
           type="button"
           onClick={() => setSheetOpen(false)}
           aria-label={t("mappedin.closeMenu")}
-          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+          className="fixed inset-0 z-50 bg-black/40 md:hidden"
         />
       ) : null}
       <div
-        className={`fixed inset-x-0 bottom-0 z-40 flex max-h-[85vh] min-h-[60vh] flex-col rounded-t-2xl bg-surface-1 shadow-glass transition-transform duration-200 ease-out md:hidden ${
+        className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] min-h-[60vh] flex-col rounded-t-2xl bg-surface-1 shadow-glass transition-transform duration-200 ease-out md:hidden ${
           sheetOpen ? "translate-y-0" : "translate-y-full"
         }`}
         aria-hidden={!sheetOpen}

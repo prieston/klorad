@@ -6,6 +6,7 @@ import { getPublicCampusByToken } from "@/lib/public-campus";
 import { detectLocale, pickLocalized } from "@/app/lib/i18n-core";
 import { listDiningForProject } from "@/lib/dining-db";
 import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
+import { SegmentedTabs } from "@/lib/consumer/SegmentedTabs";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
 
 type Params = Promise<{ token: string }>;
@@ -83,9 +84,15 @@ export default async function DiningPage({
 
       <section className="mx-auto max-w-[1280px] px-4 py-8 md:px-6 md:py-12">
         <h1 className="text-3xl font-medium text-[var(--brand-text)]">
-          Dining
+          Explore
         </h1>
-        <p className="mt-2 text-sm text-[var(--brand-text-muted)]">
+        <SegmentedTabs
+          token={token}
+          lang={lang}
+          locale={locale}
+          active="dining"
+        />
+        <p className="mt-4 text-sm text-[var(--brand-text-muted)]">
           Where to eat on campus.
         </p>
 

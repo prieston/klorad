@@ -13,6 +13,7 @@ import { fetchCampusEvents } from "@/lib/events-server";
 import { eventHasDetailPage, mergeEvents } from "@/lib/events-merge";
 import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
+import { SegmentedTabs } from "@/lib/consumer/SegmentedTabs";
 
 type Params = Promise<{ token: string }>;
 
@@ -117,9 +118,15 @@ export default async function EventsPage({
 
       <section className="mx-auto max-w-[1280px] px-4 py-8 md:px-6 md:py-12">
         <h1 className="text-3xl font-medium text-[var(--brand-text)]">
-          Events
+          Explore
         </h1>
-        <p className="mt-2 text-sm text-[var(--brand-text-muted)]">
+        <SegmentedTabs
+          token={token}
+          lang={lang}
+          locale={locale}
+          active="events"
+        />
+        <p className="mt-4 text-sm text-[var(--brand-text-muted)]">
           What’s happening this week and beyond on campus.
         </p>
 

@@ -32,6 +32,16 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* The floating mobile bottom nav (`CampusBottomNav`) sits on top of
+   every consumer route on phones — give those pages bottom padding
+   so the footer + last list row clear the nav's height. Desktop
+   uses the top `ConsumerNav` instead, so no padding needed there. */
+@media (max-width: 767px) {
+  main[data-consumer] {
+    padding-bottom: 6rem;
+  }
+}
+
 .mapboxgl-map {
   width: 100%;
   height: 100%;

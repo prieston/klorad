@@ -67,6 +67,11 @@ export {
   type AppShellProps,
   type NavItem,
 } from "./components/app-shell";
+export {
+  MobileBottomNav,
+  type MobileBottomNavItem,
+  type MobileBottomNavProps,
+} from "./components/mobile-bottom-nav";
 export { Dock, type DockProps } from "./components/dock";
 export {
   Workbench,
