@@ -66,3 +66,6 @@ storybook-static/
 **/public/workbox-*.js
 **/public/sw.js.map
 **/public/workbox-*.js.map
+# Campus's sw.js is hand-rolled (push delivery + PWA caching), not
+# generated — keep it tracked.
+!apps/campus/public/sw.js
