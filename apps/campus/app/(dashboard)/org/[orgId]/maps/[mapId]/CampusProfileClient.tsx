@@ -1,24 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { toast as toastify } from "react-toastify";
 import useSWR from "swr";
-import EditIcon from "@mui/icons-material/Edit";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import ShareIcon from "@mui/icons-material/Share";
-import PublishIcon from "@mui/icons-material/Publish";
 import {
-  Badge,
-  Button,
-  WorkbenchStatTile,
-  cn,
-} from "@klorad/design-system";
-import OverviewTab from "./tabs/OverviewTab";
-import NewsTab from "./tabs/NewsTab";
-import IndoorTab from "./tabs/IndoorTab";
-import SettingsTab from "./tabs/SettingsTab";
-import IntegrationsTab from "./tabs/IntegrationsTab";
+  Accessibility,
+  Eye,
+  ExternalLink,
+  MapPin,
+  Share2,
+} from "lucide-react";
+import { Button } from "@klorad/design-system";
+import { PageHeader } from "@/app/(dashboard)/components/PageHeader";
+import { StatCard } from "@/app/(dashboard)/components/StatCard";
+import { CampusHealthCard } from "@/app/(dashboard)/components/CampusHealthCard";
+import { WhatChangedCard } from "@/app/(dashboard)/components/WhatChangedCard";
+import { JumpBackInTiles } from "@/app/(dashboard)/components/JumpBackInTiles";
+import { useCampusHealth } from "@/app/hooks/useCampusHealth";
+import { useOrganization } from "@/app/hooks/useOrganizations";
 
 interface Props {
   orgId: string;
@@ -30,202 +29,41 @@ interface CampusMap {
   name: string;
   updatedAt: string;
   createdAt: string;
-  sceneData?: unknown;
   thumbnail?: string | null;
   isPublished?: boolean;
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-type TabKey = "overview" | "news" | "indoor" | "settings" | "integrations";
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "overview", label: "Overview" },
-  { key: "news", label: "News" },
-  { key: "indoor", label: "Indoor" },
-  { key: "settings", label: "Settings" },
-  { key: "integrations", label: "Integrations" },
-];
-
 /**
- * Phase 0 of the production-polish arc — the campus profile hub.
+ * Campus Dashboard — Phase 3 of [[campus-backoffice-redesign]].
  *
- * What changed:
- *   - Hero now leads with a real status badge derived from the
- *     scene (Draft vs Published — persisted publish state ships
- *     in a follow-up commit).
- *   - Stats row gives a one-glance read of the campus's size +
- *     accessibility coverage.
- *   - Three primary CTAs (Edit / Open public viewer / Share) sit
- *     in the hero where buyers expect them. Share copies the
- *     public-viewer link — same flow the workbench top bar uses.
+ * Single-screen overview replacing the prior tab-based hub. The tabs
+ * (Overview / News / Indoor / Settings / Integrations) became
+ * first-class left-rail destinations in Phase 1, so this surface is
+ * now purely a glance-of-the-morning:
  *
- * The hero structure is intentionally generic so it lifts cleanly
- * into a `WorldProfileHero` DS primitive when the second vertical
- * (mobility / heritage / …) ships. For now it lives here.
+ *   header  → name + org context + Share + Open public viewer
+ *   stats   → 4 KPI cards (Public views, Push subscribers, POIs,
+ *             Accessibility); unbacked stats render "—" not fake data
+ *   left    → Campus Health checklist (server-side checks)
+ *   right   → What Changed feed (empty state until the audit log
+ *             arc lands)
+ *   bottom  → Jump back in shortcuts
  */
 export default function CampusProfileClient({ orgId, mapId }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const tabParam = searchParams.get("tab") as TabKey | null;
-  const activeTab: TabKey = TABS.some((t) => t.key === tabParam)
-    ? (tabParam as TabKey)
-    : "overview";
-
-  const { data: map, isLoading, mutate } = useSWR<CampusMap>(
+  const { data: map, isLoading } = useSWR<CampusMap>(
     `/api/maps/${mapId}`,
     fetcher,
   );
-
-  const setTab = (key: TabKey) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (key === "overview") params.delete("tab");
-    else params.set("tab", key);
-    const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  };
-
-  if (!map && isLoading) {
-    return (
-      <div className="w-full space-y-3 px-6 py-8 md:px-10">
-        <div className="h-32 animate-pulse rounded-2xl bg-surface-2" />
-        <div className="h-12 animate-pulse rounded-xl bg-surface-2" />
-        <div className="h-80 animate-pulse rounded-2xl bg-surface-2" />
-      </div>
-    );
-  }
-
-  if (!map) {
-    return (
-      <div className="w-full px-6 py-8 md:px-10">
-        <p className="text-sm text-red-600">Map not found.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full px-6 py-8 md:px-10">
-      <CampusProfileHero
-        orgId={orgId}
-        mapId={mapId}
-        map={map}
-        onMutate={mutate}
-      />
-
-      <div className="mt-8 flex gap-1 border-b border-line-soft">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            className={cn(
-              "relative px-3 py-2.5 text-sm font-medium transition-colors",
-              activeTab === t.key
-                ? "text-text-primary"
-                : "text-text-secondary hover:text-text-primary",
-            )}
-          >
-            {t.label}
-            {activeTab === t.key && (
-              <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-accent" />
-            )}
-          </button>
-        ))}
-      </div>
-
-      <div className="pt-2">
-        {activeTab === "overview" && (
-          <OverviewTab orgId={orgId} mapId={mapId} map={map} />
-        )}
-        {activeTab === "news" && <NewsTab mapId={mapId} />}
-        {activeTab === "indoor" && (
-          <IndoorTab map={map} onConfigure={() => setTab("settings")} />
-        )}
-        {activeTab === "settings" && (
-          <SettingsTab orgId={orgId} mapId={mapId} map={map} />
-        )}
-        {activeTab === "integrations" && <IntegrationsTab mapId={mapId} />}
-      </div>
-    </div>
-  );
-}
-
-/* ─── Hero ────────────────────────────────────────────────────────── */
-
-interface CampusHeroPoi {
-  id: string;
-  meta?: {
-    poi?: {
-      accessibility?: { wheelchairAccessible?: boolean };
-      linkedBuilding?: unknown;
-    };
-  };
-}
-
-/**
- * Top-of-page hero: status, name, last-updated, four stat tiles, and
- * a context-aware action group.
- *
- * The CTAs reshape based on `isPublished`:
- *   - Draft (with ≥1 POI)  → [Publish] (primary), [Edit campus]
- *   - Draft (empty)        → [Edit campus] only (Publish disabled
- *                              with a tooltip)
- *   - Published            → [Share], [Open public viewer], [Edit campus]
- *
- * `onMutate` is the SWR revalidator from the parent — called after
- * a publish / unpublish so the badge and CTA shape update without
- * a page reload.
- *
- * Stays inline in `CampusProfileClient` for now. Lifts to a shared
- * `WorldProfileHero` DS primitive when the second vertical needs
- * it (`memory/reusable-feature-primitives.md`).
- */
-function CampusProfileHero({
-  orgId,
-  mapId,
-  map,
-  onMutate,
-}: {
-  orgId: string;
-  mapId: string;
-  map: CampusMap;
-  onMutate: () => Promise<unknown>;
-}) {
-  const router = useRouter();
-
-  const stats = useMemo(() => {
-    const scene = map.sceneData as
-      | { objects?: CampusHeroPoi[] }
-      | undefined;
-    const objects = scene?.objects ?? [];
-    const pois = objects.filter((o) => o?.meta?.poi);
-    const buildings = pois.filter((p) => p?.meta?.poi?.linkedBuilding);
-    const accessible = pois.filter(
-      (p) => p?.meta?.poi?.accessibility?.wheelchairAccessible,
-    );
-    return {
-      poiCount: pois.length,
-      buildingCount: buildings.length,
-      accessibleCount: accessible.length,
-      accessibilityPct:
-        pois.length > 0
-          ? Math.round((accessible.length / pois.length) * 100)
-          : 0,
-    };
-  }, [map.sceneData]);
-
-  const isPublished = Boolean(map.isPublished);
-  const status: { label: string; tone: "neutral" | "success" } = isPublished
-    ? { label: "Published", tone: "success" }
-    : { label: "Draft", tone: "neutral" };
+  const { health, isLoading: healthLoading } = useCampusHealth(mapId);
+  const { organization } = useOrganization(orgId);
+  const [shareBusy, setShareBusy] = useState(false);
 
   const publicUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/campus/${mapId}`
       : `/campus/${mapId}`;
-
-  const [shareBusy, setShareBusy] = useState(false);
-  const [publishBusy, setPublishBusy] = useState(false);
 
   const handleShare = async () => {
     if (typeof window === "undefined") return;
@@ -240,116 +78,122 @@ function CampusProfileHero({
     }
   };
 
-  const setPublished = async (next: boolean) => {
-    setPublishBusy(true);
-    try {
-      const res = await fetch(`/api/maps/${mapId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPublished: next }),
-      });
-      if (!res.ok) throw new Error("Patch failed");
-      await onMutate();
-      toastify.success(next ? "Campus published" : "Campus unpublished");
-    } catch {
-      toastify.error(
-        next ? "Couldn't publish the campus" : "Couldn't unpublish",
-      );
-    } finally {
-      setPublishBusy(false);
-    }
-  };
-
-  const canPublish = stats.poiCount > 0;
-
-  return (
-    <section className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Badge tone={status.tone}>{status.label}</Badge>
-            <span className="text-[0.7rem] text-text-tertiary">
-              Updated {new Date(map.updatedAt).toLocaleDateString()}
-            </span>
-          </div>
-          <h1 className="truncate text-2xl font-semibold tracking-tight text-text-primary">
-            {map.name}
-          </h1>
-        </div>
-
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {isPublished ? (
-            <>
-              <Button
-                variant="secondary"
-                onClick={handleShare}
-                disabled={shareBusy}
-              >
-                <ShareIcon fontSize="small" />
-                {shareBusy ? "Copying…" : "Share"}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  window.open(publicUrl, "_blank", "noopener,noreferrer")
-                }
-              >
-                <OpenInNewIcon fontSize="small" />
-                Open public viewer
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setPublished(false)}
-                disabled={publishBusy}
-              >
-                {publishBusy ? "Working…" : "Unpublish"}
-              </Button>
-            </>
-          ) : (
-            <Button
-              onClick={() => setPublished(true)}
-              disabled={publishBusy || !canPublish}
-              title={
-                !canPublish
-                  ? "Add at least one POI before publishing"
-                  : undefined
-              }
-            >
-              <PublishIcon fontSize="small" />
-              {publishBusy ? "Publishing…" : "Publish"}
-            </Button>
-          )}
-          <Button
-            onClick={() =>
-              router.push(`/org/${orgId}/maps/${mapId}/workbench`)
-            }
-          >
-            <EditIcon fontSize="small" />
-            Edit campus
-          </Button>
+  if (!map && isLoading) {
+    return (
+      <div className="mx-auto w-full max-w-[1280px] space-y-4 px-6 py-8 md:px-10">
+        <div className="h-16 animate-pulse rounded-2xl bg-surface-2" />
+        <div className="h-32 animate-pulse rounded-2xl bg-surface-2" />
+        <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+          <div className="h-96 animate-pulse rounded-2xl bg-surface-2" />
+          <div className="h-96 animate-pulse rounded-2xl bg-surface-2" />
         </div>
       </div>
+    );
+  }
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <WorkbenchStatTile label="POIs" value={stats.poiCount} />
-        <WorkbenchStatTile label="Buildings" value={stats.buildingCount} />
-        <WorkbenchStatTile
-          label="Accessible"
-          value={stats.accessibleCount}
-          hint={`${stats.accessibilityPct}% of POIs`}
+  if (!map) {
+    return (
+      <div className="mx-auto w-full max-w-[1280px] px-6 py-8 md:px-10">
+        <p className="text-sm text-red-600">Campus not found.</p>
+      </div>
+    );
+  }
+
+  const isPublished = Boolean(map.isPublished);
+
+  return (
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 md:px-10">
+      <PageHeader
+        eyebrow="Overview"
+        title={map.name}
+        subtitle={organization?.name ?? undefined}
+        actions={
+          <>
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                isPublished
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : "bg-text-tertiary/10 text-text-tertiary"
+              }`}
+            >
+              <span
+                aria-hidden
+                className={`h-1.5 w-1.5 rounded-full ${
+                  isPublished ? "bg-emerald-500" : "bg-text-tertiary"
+                }`}
+              />
+              {isPublished ? "Published" : "Draft"}
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleShare}
+              disabled={shareBusy || !isPublished}
+              title={
+                !isPublished ? "Publish the campus to share it" : undefined
+              }
+            >
+              <Share2 size={14} strokeWidth={1.75} aria-hidden />
+              {shareBusy ? "Copying…" : "Share"}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() =>
+                window.open(publicUrl, "_blank", "noopener,noreferrer")
+              }
+            >
+              <ExternalLink size={14} strokeWidth={1.75} aria-hidden />
+              Open public viewer
+            </Button>
+          </>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={<Eye size={18} strokeWidth={1.75} aria-hidden />}
+          value="—"
+          label="Public views (30d)"
         />
-        <WorkbenchStatTile
-          label="Status"
-          value={status.label}
-          hint={
-            !canPublish
-              ? "Add your first POI to publish"
-              : isPublished
-                ? "Reachable via the public link"
-                : "Not yet published"
+        <StatCard
+          icon={<MapPin size={18} strokeWidth={1.75} aria-hidden />}
+          value="—"
+          label="Push subscribers"
+        />
+        <StatCard
+          icon={<MapPin size={18} strokeWidth={1.75} aria-hidden />}
+          value={health ? String(health.counts.pois) : "—"}
+          label="Points of interest"
+          trend={
+            health && health.counts.buildings > 0
+              ? `across ${health.counts.buildings} buildings`
+              : undefined
+          }
+        />
+        <StatCard
+          icon={<Accessibility size={18} strokeWidth={1.75} aria-hidden />}
+          value={
+            health && health.counts.pois > 0
+              ? `${health.counts.accessibilityPct}%`
+              : "—"
+          }
+          label="Accessibility"
+          trend={
+            health && health.counts.accessibleSpaces > 0
+              ? `${health.counts.accessibleSpaces} step-free tagged`
+              : undefined
           }
         />
       </div>
-    </section>
+
+      <div className="mt-8 grid gap-4 lg:grid-cols-[2fr_1fr]">
+        <CampusHealthCard health={health} isLoading={healthLoading} />
+        <WhatChangedCard />
+      </div>
+
+      <div className="mt-4">
+        <JumpBackInTiles orgId={orgId} mapId={mapId} />
+      </div>
+    </div>
   );
 }
