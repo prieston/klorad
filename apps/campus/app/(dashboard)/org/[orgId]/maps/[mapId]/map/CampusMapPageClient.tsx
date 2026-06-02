@@ -1,9 +1,10 @@
 "use client";
 
-import { Compass, ExternalLink, Route } from "lucide-react";
-import { Button, Panel } from "@klorad/design-system";
+import { Compass, Route } from "lucide-react";
+import { Panel } from "@klorad/design-system";
 import { PageHeader } from "@/app/(dashboard)/components/PageHeader";
 import { IndoorMapIdCard } from "@/app/(dashboard)/components/IndoorMapIdCard";
+import { OpenPublicAction } from "@/app/(dashboard)/components/OpenPublicAction";
 
 interface Props {
   orgId: string;
@@ -29,18 +30,7 @@ export default function CampusMapPageClient({ orgId: _orgId, mapId }: Props) {
         eyebrow="Public surface"
         title="Map & Wayfinding"
         subtitle="Link the MappedIn venue and curate the routes worth sharing."
-        actions={
-          <a
-            href={`/campus/${mapId}/map`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Button size="sm" variant="secondary">
-              <ExternalLink size={14} strokeWidth={1.75} aria-hidden />
-              Open public
-            </Button>
-          </a>
-        }
+        actions={<OpenPublicAction href={`/campus/${mapId}/map`} />}
       />
 
       <div className="grid gap-4 lg:grid-cols-2">

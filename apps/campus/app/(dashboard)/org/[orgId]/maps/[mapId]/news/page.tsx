@@ -1,20 +1,24 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { listNewsForAdmin } from "@/lib/news";
 import { NewsAdminClient } from "./NewsAdminClient";
+import { PageHeader } from "@/app/(dashboard)/components/PageHeader";
+import { PhonePreview } from "@/app/(dashboard)/components/PhonePreview";
+import { OpenPublicAction } from "@/app/(dashboard)/components/OpenPublicAction";
 
 type Params = Promise<{ orgId: string; mapId: string }>;
 
 /**
- * `/org/[orgId]/maps/[mapId]/news` — the new news authoring surface.
+ * `/org/[orgId]/maps/[mapId]/news` — news authoring under the new
+ * backoffice IA. The left rail handles "back to campus" navigation,
+ * so this page no longer needs an inline back link; `PageHeader` is
+ * the consistent chrome across every rail destination.
  *
- * Lists news posts on this campus + an inline create form. Backed by
- * the `NewsPost` model added in Arc 2 of [[campus-consumer-pivot]].
- * The legacy tab in `CampusProfileClient` (`NewsTab`) is untouched —
- * existing bilingual posts in `sceneData.posts` keep their editor.
+ * The phone preview on the right is the Phase 4b pilot of the
+ * preview pattern — see `PhonePreview`. The pane loads the public
+ * news route; the rector hits Refresh after Save to see the new
+ * post land.
  */
 export default async function NewsAdminPage({
   params,
@@ -48,28 +52,29 @@ export default async function NewsAdminPage({
   const posts = await listNewsForAdmin(mapId);
 
   return (
-    <div className="mx-auto max-w-[960px] px-6 py-10">
-      <Link
-        href={`/org/${orgId}/maps/${mapId}`}
-        className="inline-flex items-center gap-1 text-xs text-text-tertiary transition-colors hover:text-text-primary"
-      >
-        <ChevronLeft size={14} strokeWidth={1.75} />
-        Back to {project.title}
-      </Link>
-
-      <div className="mt-6">
-        <h1 className="text-2xl font-semibold text-text-primary">News</h1>
-        <p className="mt-1 text-sm text-text-tertiary">
-          Geospatial posts pinned to buildings or rooms. They show up on
-          the public campus home and on the map.
-        </p>
-      </div>
-
-      <NewsAdminClient
-        mapId={mapId}
-        initialPosts={posts}
-        indoorMapId={indoorMapId}
+    <div className="mx-auto w-full max-w-[1400px] px-6 py-8 md:px-10">
+      <PageHeader
+        eyebrow="Public surface"
+        title="News"
+        subtitle="Posts pinned to buildings or rooms. Surface on the public home and the news feed."
+        actions={<OpenPublicAction href={`/campus/${mapId}/news`} />}
       />
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0">
+          <NewsAdminClient
+            mapId={mapId}
+            initialPosts={posts}
+            indoorMapId={indoorMapId}
+          />
+        </div>
+        <aside className="hidden lg:block">
+          <PhonePreview
+            src={`/campus/${mapId}/news`}
+            title="Public news preview"
+          />
+        </aside>
+      </div>
     </div>
   );
 }

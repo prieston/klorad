@@ -1,18 +1,16 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { listClubsForAdmin } from "@/lib/clubs-db";
 import { ClubsAdminClient } from "./ClubsAdminClient";
+import { PageHeader } from "@/app/(dashboard)/components/PageHeader";
+import { OpenPublicAction } from "@/app/(dashboard)/components/OpenPublicAction";
 
 type Params = Promise<{ orgId: string; mapId: string }>;
 
 /**
- * `/org/[orgId]/maps/[mapId]/clubs` — admin clubs authoring.
- *
- * Lists clubs (name asc) + an inline create form. Backed by the
- * `Club` model from Arc 4 of [[campus-consumer-pivot]].
+ * `/org/[orgId]/maps/[mapId]/clubs` — admin clubs authoring under
+ * the new backoffice IA.
  */
 export default async function ClubsAdminPage({
   params,
@@ -43,23 +41,13 @@ export default async function ClubsAdminPage({
   const clubs = await listClubsForAdmin(mapId);
 
   return (
-    <div className="mx-auto max-w-[960px] px-6 py-10">
-      <Link
-        href={`/org/${orgId}/maps/${mapId}`}
-        className="inline-flex items-center gap-1 text-xs text-text-tertiary transition-colors hover:text-text-primary"
-      >
-        <ChevronLeft size={14} strokeWidth={1.75} />
-        Back to {project.title}
-      </Link>
-
-      <div className="mt-6">
-        <h1 className="text-2xl font-semibold text-text-primary">Clubs</h1>
-        <p className="mt-1 text-sm text-text-tertiary">
-          Student societies, sport clubs, interest groups. The View
-          button on the consumer site opens the club&apos;s external
-          link — no login on the public site.
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-8 md:px-10">
+      <PageHeader
+        eyebrow="Public surface"
+        title="Clubs"
+        subtitle="Student societies, ranked by weight. Featured clubs appear on the home rail."
+        actions={<OpenPublicAction href={`/campus/${mapId}/clubs`} />}
+      />
 
       <ClubsAdminClient mapId={mapId} initialClubs={clubs} />
     </div>
