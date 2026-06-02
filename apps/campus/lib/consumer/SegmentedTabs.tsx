@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export type SegmentedTabKey = "news" | "events" | "clubs" | "dining";
@@ -31,6 +34,11 @@ const ORDER: SegmentedTabKey[] = ["news", "events", "clubs", "dining"];
  * Each tab is a real `<Link>` so the URL stays canonical
  * (`/campus/[token]/events`) and back/forward works naturally —
  * client-side switching would silently lose the deep-link.
+ *
+ * Optimistic active state — taps flip the pill before the new route
+ * has committed. Same pattern as `CampusBottomNav`: track the
+ * pending tab, render it as active, clear once the `active` prop
+ * (server-resolved from the URL) catches up.
  */
 export function SegmentedTabs({
   token,
@@ -38,18 +46,27 @@ export function SegmentedTabs({
   locale,
   active,
 }: SegmentedTabsProps) {
+  const [pending, setPending] = useState<SegmentedTabKey | null>(null);
+  const activeKey = pending ?? active;
+  useEffect(() => {
+    if (pending && active === pending) setPending(null);
+  }, [active, pending]);
+
   return (
     <nav
       aria-label="Explore"
       className="mt-6 flex items-center gap-1 overflow-x-auto rounded-full border border-[var(--brand-line)] bg-white p-1"
     >
       {ORDER.map((key) => {
-        const isActive = key === active;
+        const isActive = key === activeKey;
         return (
           <Link
             key={key}
             href={`/campus/${token}/${key}${lang}`}
             aria-current={isActive ? "page" : undefined}
+            onClick={() => {
+              if (key !== active) setPending(key);
+            }}
             className={
               isActive
                 ? "inline-flex items-center justify-center rounded-full bg-[var(--brand-primary)] px-4 py-2 text-sm font-semibold text-white transition-colors"

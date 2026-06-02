@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Compass, Search, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Compass, Search, X } from "lucide-react";
 // Lucide's `X` is also imported here for the building header's close
 // chip. Renamed to disambiguate from the search-clear button below.
 import {
@@ -108,6 +108,12 @@ export function MapPageClient({
   const viewerRef = useRef<MappedinViewerHandle | null>(null);
   const [buildings, setBuildings] = useState<BuildingsListItem[]>([]);
   const [spaces, setSpaces] = useState<SpaceOption[]>([]);
+  // Bottom-container aspect: `false` = default 4:3 split (map gets more
+  // vertical room), `true` = inverted 2:5 (the buildings list / route
+  // steps get more room). The user toggles this on mobile via the
+  // chevron in the bottom container's header — desktop has plenty of
+  // vertical room so the toggle is hidden there.
+  const [listExpanded, setListExpanded] = useState(false);
 
   // ── URL state ───────────────────────────────────────────────────
   // Every shareable piece of state — selected building, open detail,
@@ -452,13 +458,15 @@ export function MapPageClient({
         </div>
       )}
 
-      {/* Map — 4 parts of the 4:3 split. On mobile the map runs
-          edge-to-edge (no padding, no rounded card) so the bottom
-          sheet can overlap it via its negative top margin; the
-          rounded-card treatment is desktop-only. */}
+      {/* Map — flex share depends on the user's aspect toggle.
+          Default 4 parts (of 4:3 split with the bottom container);
+          shrinks to 2 parts when the visitor pulls the list up to
+          read more. On mobile the map runs edge-to-edge so the
+          bottom sheet can overlap it via its negative top margin;
+          the rounded-card treatment is desktop-only. */}
       <div
-        className="min-h-0 md:px-6 md:pt-3"
-        style={{ flex: "4 1 0" }}
+        className="min-h-0 transition-[flex-grow] duration-200 ease-out md:px-6 md:pt-3"
+        style={{ flex: listExpanded ? "2 1 0" : "4 1 0" }}
       >
         <div className="h-full overflow-hidden bg-white md:rounded-2xl">
           <MappedinViewer
@@ -487,9 +495,32 @@ export function MapPageClient({
           the scroll surface ends with `pb-24` to clear the
           floating nav. */}
       <div
-        className="relative z-10 -mt-6 flex min-h-0 flex-col rounded-t-3xl bg-[var(--brand-page)] md:mt-0 md:rounded-none"
-        style={{ flex: "3 1 0" }}
+        className="relative z-10 -mt-6 flex min-h-0 flex-col rounded-t-3xl bg-[var(--brand-page)] transition-[flex-grow] duration-200 ease-out md:mt-0 md:rounded-none"
+        style={{ flex: listExpanded ? "5 1 0" : "3 1 0" }}
       >
+        {/* Aspect toggle — mobile only. Trades vertical room between
+            the map viewer above and the list / route panel below.
+            Doubles as the bottom-sheet's drag handle: the visible
+            pill reads as a grab affordance even before the visitor
+            sees the chevron. */}
+        <button
+          type="button"
+          onClick={() => setListExpanded((v) => !v)}
+          aria-label={listExpanded ? "Shrink list" : "Expand list"}
+          className="flex shrink-0 items-center justify-center gap-1 px-3 pt-2 pb-1 md:hidden"
+        >
+          <span
+            aria-hidden
+            className="flex h-6 items-center gap-1 rounded-full bg-white px-2.5 text-[10px] font-medium text-[var(--brand-text-muted)] shadow-sm"
+          >
+            {listExpanded ? (
+              <ChevronDown size={11} strokeWidth={2.25} />
+            ) : (
+              <ChevronUp size={11} strokeWidth={2.25} />
+            )}
+            {listExpanded ? "Show map" : "Show more"}
+          </span>
+        </button>
         {inRoute && routePhase === "viewing" ? (
           <RouteStatsCard
             status={routeStatus.kind}
