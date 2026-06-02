@@ -2,61 +2,65 @@ import type { Metadata } from "next";
 import { ProductPage, type ProductData } from "@/components/product-page";
 
 export const metadata: Metadata = {
-  title: { absolute: "Klorad Campus | Mapping & wayfinding" },
+  title: { absolute: "Klorad Campus | The campus app students actually use" },
   description:
-    "Klorad Campus turns a campus into a navigable digital twin: indoor and outdoor wayfinding, room-level detail, and live points of interest.",
+    "Mobile-first PWA for higher-ed campuses — indoor wayfinding, AI assistant, news / events / clubs / dining, push notifications, bilingual EN/ΕΛ. Installable. White-labelled per university.",
   alternates: { canonical: "/campus" },
 };
 
 const data: ProductData = {
   product: "Klorad Campus",
   heroImage: "/klorad-campus.webp",
-  promise: "Campuses people can navigate.",
-  lede: "Reduce facility operational costs, streamline infrastructure maintenance, and map campus utility assets dynamically. A digital twin of your campus that works on a screen as well as on foot.",
-  intro: "For universities, hospitals, and corporate campuses.",
+  promise: "The campus app your students actually use.",
+  lede:
+    "Klorad Campus is a mobile-first, installable PWA per university — indoor wayfinding, news, events, clubs, dining, and an AI assistant that answers in context. Brand it, link your MappedIn venue, share a QR. Students install it once and it lives on their home screen.",
+  intro:
+    "For Greek higher education first, then any campus that wants a real app without writing one.",
+  liveUrl: "https://campus.klorad.com",
+  liveLabel: "Open the live campus →",
   capabilities: [
     {
-      title: "Indoor meets outdoor",
-      desc: "One continuous map from the main gate to the third-floor lab, with no break between outside and in.",
+      title: "Native-app feel",
+      desc: "Persistent shell, instant tab swaps with skeletons, pull-to-refresh, install-to-home-screen. The same gestures iOS and Android users already trust.",
     },
     {
-      title: "Modeled to the room",
-      desc: "Every building rendered with floors, entrances, and accessible routes, not just a footprint on a map.",
+      title: "Klio, the campus assistant",
+      desc: "Ask in plain language — 'step-free route to the library', 'any robotics clubs?', 'what's open for lunch?'. Klio answers with inline source cards that deep-link straight into the right surface.",
     },
     {
-      title: "Live points of interest",
-      desc: "Events, services, and facilities surfaced in place and kept current, so the map reflects the campus today.",
+      title: "White-labelled per university",
+      desc: "Each campus is its own tenant — own name, logo, primary colour, hero, content. The whole palette derives from one hex; theme even tints the mobile browser chrome.",
     },
   ],
   features: [
     {
-      title: "Wayfinding & directions",
-      desc: "Turn-by-turn routing between any two points, indoor or out.",
+      title: "Indoor & outdoor wayfinding",
+      desc: "Powered by MappedIn — the venue you author once becomes the public viewer. Step-free routes are a first-class toggle, not an afterthought.",
     },
     {
-      title: "Floor-by-floor navigation",
-      desc: "Move through buildings level by level, with rooms and entrances in place.",
+      title: "News · events · clubs · dining",
+      desc: "Four content surfaces with bilingual EN + ΕΛ authoring, per-row image upload, building-anchored deep links, schedule-ahead publishing, and ICS feed sync.",
     },
     {
-      title: "Accessibility routing",
-      desc: "Step-free paths, ramps, and lifts as first-class route options.",
+      title: "Klio with cited sources",
+      desc: "Claude tool-use answers grounded in your campus data — every mention drops a tappable card to the news post, event, club, dining venue, or directions on the map.",
     },
     {
-      title: "Search & filtering",
-      desc: "Find a department, a service, or an event and see it located instantly.",
+      title: "Push notifications",
+      desc: "Web push subscribed silently on install. Broadcast composer in the dashboard sends to every device. Anonymous endpoints — no student identity collected.",
     },
     {
-      title: "Embeddable & shareable",
-      desc: "Drop the map into any site, or share a deep link to a single place.",
+      title: "QR-shareable everything",
+      desc: "Every state of the map is in the URL — building selected, route configured, step highlighted. Generate a QR for a printed sign and students get the exact same view on tap.",
     },
     {
-      title: "Self-service editing",
-      desc: "Update places, events, and content from a dashboard. No developer needed.",
+      title: "Five-minute setup, no developer",
+      desc: "Rector dashboard: link your MappedIn venue, set the brand colour, write the welcome copy in EN and ΕΛ, publish. The first campus goes live the same morning.",
     },
   ],
   builtOn:
-    "Klorad Campus is a world built on the Klorad platform. It runs on the same World model, the three renderers, and the live-data backbone behind every Klorad product.",
-  ctaTitle: "Put your campus on the map.",
+    "Klorad Campus is a world built on the Klorad platform. It runs on the same World model, the three renderers, and the live-data backbone behind every Klorad product — so the same plumbing scales to Mobility, Virtual Heritage, and Urban next.",
+  ctaTitle: "Put your campus in your students' pockets.",
 };
 
 export default function CampusPage() {

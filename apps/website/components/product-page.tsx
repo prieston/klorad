@@ -27,6 +27,15 @@ export type ProductData = {
   builtOn: string;
   /** Closing CTA headline. */
   ctaTitle: string;
+  /**
+   * Optional URL to a running instance. When present, surfaces a
+   * "View live" button alongside the primary CTA in both the hero
+   * and the closing section — buyers click to see the product
+   * before booking the audit.
+   */
+  liveUrl?: string;
+  /** Visible label for the live link. Defaults to "View live demo". */
+  liveLabel?: string;
 };
 
 /** Shared template for every Klorad product page (Campus, Mobility, …). */
@@ -77,12 +86,29 @@ export function ProductPage({ data }: { data: ProductData }) {
               {data.intro}
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link href="/contact" className={btnPrimary}>
-                Book an Architecture Audit
-              </Link>
-              <Link href="/platform" className={btnGhost}>
-                Explore the Platform
-              </Link>
+              {data.liveUrl ? (
+                <a
+                  href={data.liveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={btnPrimary}
+                >
+                  {data.liveLabel ?? "View live demo"}
+                </a>
+              ) : (
+                <Link href="/contact" className={btnPrimary}>
+                  Book an Architecture Audit
+                </Link>
+              )}
+              {data.liveUrl ? (
+                <Link href="/contact" className={btnGhost}>
+                  Book an Architecture Audit
+                </Link>
+              ) : (
+                <Link href="/platform" className={btnGhost}>
+                  Explore the Platform
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -166,12 +192,29 @@ export function ProductPage({ data }: { data: ProductData }) {
             audit with the team.
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/contact" className={btnPrimary}>
-              Book an Architecture Audit
-            </Link>
-            <Link href="/samples" className={btnGhost}>
-              Browse the worlds
-            </Link>
+            {data.liveUrl ? (
+              <a
+                href={data.liveUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={btnPrimary}
+              >
+                {data.liveLabel ?? "View live demo"}
+              </a>
+            ) : (
+              <Link href="/contact" className={btnPrimary}>
+                Book an Architecture Audit
+              </Link>
+            )}
+            {data.liveUrl ? (
+              <Link href="/contact" className={btnGhost}>
+                Book an Architecture Audit
+              </Link>
+            ) : (
+              <Link href="/samples" className={btnGhost}>
+                Browse the worlds
+              </Link>
+            )}
           </div>
         </div>
       </section>
