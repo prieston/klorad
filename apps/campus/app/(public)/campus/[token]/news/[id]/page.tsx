@@ -9,7 +9,6 @@ import {
   getNewsPost,
   type NewsCategory,
 } from "@/lib/news";
-import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
 import { ShareButton } from "@/lib/consumer/ShareButton";
 import { stripedBanner } from "@/lib/consumer/bannerPattern";
@@ -93,12 +92,6 @@ export default async function NewsDetailPage({
 
   return (
     <main id="main" data-consumer lang={locale}>
-      <ConsumerNav
-        campusName={campusName}
-        logoUrl={branding.logo}
-        token={token}
-        locale={locale}
-      />
 
       <article className="mx-auto max-w-[760px]">
         {/* Striped cover + image. `stripedBanner` paints the diagonal

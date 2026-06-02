@@ -1,6 +1,5 @@
 import { Compass, LayoutGrid, MapPin, Sparkles } from "lucide-react";
 import type { Locale } from "@/app/lib/i18n-core";
-import { ConsumerNav } from "./ConsumerNav";
 import { GreetingCard } from "./GreetingCard";
 import { HomeTile } from "./HomeTile";
 import { EventCard } from "./EventCard";
@@ -136,13 +135,6 @@ export function ConsumerHome({
 
   return (
     <main id="main" data-consumer lang={locale} style={themeStyle}>
-      <ConsumerNav
-        campusName={campusName}
-        logoUrl={logoUrl}
-        token={token}
-        locale={locale}
-      />
-
       <GreetingCard
         klioHref={klioHref}
         locale={locale}

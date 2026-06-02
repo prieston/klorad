@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { getPublicCampusByToken } from "@/lib/public-campus";
 import { detectLocale } from "@/app/lib/i18n-core";
 import { listTopClubsForProject } from "@/lib/clubs-db";
-import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import { SegmentedTabs } from "@/lib/consumer/SegmentedTabs";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
 import { ClubsListClient } from "@/lib/consumer/ClubsListClient";
@@ -73,12 +72,6 @@ export default async function ClubsPage({
 
   return (
     <main id="main" data-consumer lang={locale} style={themeStyle}>
-      <ConsumerNav
-        campusName={campusName}
-        logoUrl={branding.logo}
-        token={token}
-        locale={locale}
-      />
 
       <section className="mx-auto max-w-[1280px] px-4 py-8 md:px-6 md:py-12">
         <h1 className="text-3xl font-medium text-[var(--brand-text)]">

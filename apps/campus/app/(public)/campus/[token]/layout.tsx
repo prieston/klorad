@@ -2,10 +2,17 @@ import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
 import { getPublicCampusByToken } from "@/lib/public-campus";
 import { CampusBottomNav } from "@/lib/consumer/CampusBottomNav";
+import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import { deriveCampusPalette, paletteToCssVars } from "@/lib/palette";
 import { SWRProvider } from "@/lib/swr/SWRProvider";
 import { ServiceWorkerRegistrar } from "@/lib/consumer/ServiceWorkerRegistrar";
 import { InstallPrompt } from "@/lib/consumer/InstallPrompt";
+
+interface CampusBranding {
+  name?: string;
+  logo?: string;
+  primaryColor?: string;
+}
 
 type Params = Promise<{ token: string }>;
 
@@ -87,30 +94,40 @@ export default async function CampusPublicLayout({
 }) {
   const { token } = await params;
   const map = await getPublicCampusByToken(token);
-  const scene = (map?.sceneData ?? null) as {
-    branding?: { primaryColor?: string };
-  } | null;
+  const scene = (map?.sceneData ?? {}) as { branding?: CampusBranding };
+  const branding = scene.branding ?? {};
+  const campusName = branding.name || map?.title || "Campus";
   // Full derived palette — primary + fill/bg/soft/ink + 3 hue-rotated
   // accents — flows down as CSS vars from a single inline style on
   // the layout wrapper. The bottom nav (sibling of `<main
   // data-consumer>`) inherits the same vars, so the active pill and
   // every consumer surface stays on-brand for the tenant.
-  const palette = deriveCampusPalette(scene?.branding?.primaryColor);
+  const palette = deriveCampusPalette(branding.primaryColor);
   const themeStyle = paletteToCssVars(palette);
 
   return (
     <SWRProvider>
       <div style={themeStyle}>
         {/* Skip link — first focusable element so a Tab from the URL
-            bar jumps straight to the page content, past the nav. Each
-            page renders `<main id="main">` so the target always
-            exists. Hidden visually until focused. */}
+            bar jumps straight to the page content, past the nav. The
+            target `#main` lives on each page's content wrapper. */}
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-[var(--brand-primary,#534ab7)] focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
         >
           Skip to content
         </a>
+        {/* The desktop top nav is hoisted into the layout so it
+            persists across page navigations — the body unmounts on
+            each route change but this stays mounted, giving the
+            public surface a native-app feel instead of a flash on
+            every tap. Map page hides it via its own `data-mappedin`
+            full-viewport layout. */}
+        <ConsumerNav
+          campusName={campusName}
+          logoUrl={branding.logo}
+          token={token}
+        />
         {children}
         <CampusBottomNav token={token} />
         <InstallPrompt />

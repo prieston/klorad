@@ -5,7 +5,6 @@ import { ChevronLeft, ExternalLink, MapPin } from "lucide-react";
 import { getPublicCampusByToken } from "@/lib/public-campus";
 import { detectLocale, pickLocalized } from "@/app/lib/i18n-core";
 import { getClub } from "@/lib/clubs-db";
-import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
 
 type Params = Promise<{ token: string; id: string }>;
@@ -89,12 +88,6 @@ export default async function ClubDetailPage({
 
   return (
     <main id="main" data-consumer lang={locale} style={themeStyle}>
-      <ConsumerNav
-        campusName={campusName}
-        logoUrl={branding.logo}
-        token={token}
-        locale={locale}
-      />
 
       <article className="mx-auto max-w-[760px] px-4 py-8 md:px-6 md:py-12">
         <Link

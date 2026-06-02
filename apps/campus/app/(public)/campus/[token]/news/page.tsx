@@ -4,7 +4,6 @@ import { getPublicCampusByToken } from "@/lib/public-campus";
 import { detectLocale, pickText } from "@/app/lib/i18n-core";
 import { listNewsForProject } from "@/lib/news";
 import { readPosts } from "@/lib/posts";
-import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import { SegmentedTabs } from "@/lib/consumer/SegmentedTabs";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
 import { NewsListClient } from "@/lib/consumer/NewsListClient";
@@ -103,12 +102,6 @@ export default async function NewsPage({
 
   return (
     <main id="main" data-consumer lang={locale} style={themeStyle}>
-      <ConsumerNav
-        campusName={campusName}
-        logoUrl={branding.logo}
-        token={token}
-        locale={locale}
-      />
 
       <section className="mx-auto max-w-[820px] px-4 py-8 md:px-6 md:py-12">
         <h1 className="text-3xl font-medium text-[var(--brand-text)]">
