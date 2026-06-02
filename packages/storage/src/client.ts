@@ -68,7 +68,19 @@ export function uploadToSignedUrl(
       "Content-Type",
       opts.contentType || file.type || "application/octet-stream"
     );
-    if (opts.acl) xhr.setRequestHeader("x-amz-acl", opts.acl);
+    // ACL is already baked into the presigned URL as a query parameter
+    // (`x-amz-acl=...`) by the server. Sending it *also* as an HTTP
+    // header here means the request carries an `x-amz-*` header that
+    // *isn't* in the URL's `X-Amz-SignedHeaders=host` list — DO Spaces
+    // (and other strict S3-compatibles) reject that combination with
+    // 403, treating the unsigned header as signature tampering even
+    // though the value matches the query string. AWS S3 itself is
+    // lenient and accepts it; this is one of the spots S3-compatible
+    // services diverge from S3. Don't send it.
+    //
+    // `opts.acl` is kept on the type for back-compat with any
+    // hypothetical caller that builds its own request — the wrapped
+    // `uploadFile` flow no longer needs it.
     xhr.send(file);
   });
 }
