@@ -54,8 +54,10 @@ export async function GET(
   // prompt. The campus logo (if uploaded) is usually a good fit; we
   // declare `sizes: "any"` so the browser doesn't second-guess us
   // when the upload isn't a perfect square. Always include the Klorad
-  // favicon (302×302) as a fallback so installability holds even
-  // before the rector uploads a logo.
+  // mark (SVG primary, PNG fallback) so installability holds even
+  // before the rector uploads a logo. Chrome 116+ accepts an SVG with
+  // `sizes: "any"` as the install icon; the PNG keeps older Chromium
+  // versions + iOS happy.
   const icons: Array<{
     src: string;
     sizes: string;
@@ -70,8 +72,14 @@ export async function GET(
     });
   }
   icons.push({
+    src: "/klorad-icon.svg",
+    sizes: "any",
+    type: "image/svg+xml",
+    purpose: "any",
+  });
+  icons.push({
     src: "/klorad-favicon.png",
-    sizes: "302x302",
+    sizes: "100x100",
     type: "image/png",
     purpose: "any",
   });

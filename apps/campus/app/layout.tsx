@@ -14,8 +14,14 @@ export const metadata: Metadata = {
   },
   description:
     "Self-service 3D campus maps for Greek higher education — indoor wayfinding, accessibility layers, events integration, and a five-minute CMS.",
+  // SVG preferred so browsers render the mark sharp at any resolution;
+  // PNG fallback for the older browsers (and the Apple touch icon, which
+  // doesn't accept SVG).
   icons: {
-    icon: "/klorad-favicon.png",
+    icon: [
+      { url: "/klorad-icon.svg", type: "image/svg+xml" },
+      { url: "/klorad-favicon.png", type: "image/png" },
+    ],
     shortcut: "/klorad-favicon.png",
     apple: "/klorad-favicon.png",
   },
