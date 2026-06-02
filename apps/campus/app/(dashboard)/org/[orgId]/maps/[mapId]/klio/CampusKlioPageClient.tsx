@@ -1,8 +1,9 @@
 "use client";
 
-import { ExternalLink, MessageSquare, Sliders, Wrench } from "lucide-react";
-import { Button, Panel } from "@klorad/design-system";
+import { MessageSquare, Sliders, Wrench } from "lucide-react";
+import { Panel } from "@klorad/design-system";
 import { PageHeader } from "@/app/(dashboard)/components/PageHeader";
+import { OpenPublicAction } from "@/app/(dashboard)/components/OpenPublicAction";
 import { AiKeyPanel } from "@/app/(dashboard)/org/[orgId]/maps/[mapId]/tabs/AiKeyPanel";
 
 interface Props {
@@ -28,18 +29,7 @@ export default function CampusKlioPageClient({
         eyebrow="Public surface"
         title="Klio"
         subtitle="The AI campus assistant, powered by Claude. BYOK Anthropic key, choose its tools and seed the prompts students see first."
-        actions={
-          <a
-            href={`/campus/${mapId}/klio`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Button size="sm" variant="secondary">
-              <ExternalLink size={14} strokeWidth={1.75} aria-hidden />
-              Open public
-            </Button>
-          </a>
-        }
+        actions={<OpenPublicAction href={`/campus/${mapId}/klio`} />}
       />
 
       <div className="space-y-6">

@@ -1,8 +1,9 @@
 "use client";
 
-import { ExternalLink, LayoutGrid } from "lucide-react";
-import { Button, Panel } from "@klorad/design-system";
+import { LayoutGrid } from "lucide-react";
+import { Panel } from "@klorad/design-system";
 import { PageHeader } from "@/app/(dashboard)/components/PageHeader";
+import { OpenPublicAction } from "@/app/(dashboard)/components/OpenPublicAction";
 import HomePagePanel from "@/app/(dashboard)/org/[orgId]/maps/[mapId]/tabs/HomePagePanel";
 
 interface Props {
@@ -26,18 +27,7 @@ export default function CampusHomePageClient({
         eyebrow="Public surface"
         title="Home"
         subtitle="Greeting, hero image and which home sections appear. EL + EN."
-        actions={
-          <a
-            href={`/campus/${mapId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Button size="sm" variant="secondary">
-              <ExternalLink size={14} strokeWidth={1.75} aria-hidden />
-              Open public
-            </Button>
-          </a>
-        }
+        actions={<OpenPublicAction href={`/campus/${mapId}`} />}
       />
 
       <div className="space-y-6">
