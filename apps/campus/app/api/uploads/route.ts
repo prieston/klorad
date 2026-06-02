@@ -2,13 +2,31 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { presignUpload, storageConfigFromEnv } from "@klorad/storage/server";
 import type { PresignUploadInput } from "@klorad/storage/types";
+import { UPLOAD_PREFIXES } from "@/lib/uploads/prefixes";
 
-const ALLOWED_PREFIXES = new Set([
+/**
+ * Allowlist of upload prefixes the browser may target.
+ *
+ * Builds from `UPLOAD_PREFIXES` so the client and the server stay in
+ * sync — the client *passes* a prefix, the server *validates* it,
+ * both read the same constants. Adding a new surface = one entry
+ * there, no follow-up edit here.
+ *
+ * Legacy prefixes (`campus-hero`, `campus-news`, etc.) are kept here
+ * during a rollout grace period so an admin tab opened *before* the
+ * rector reloaded the dashboard doesn't get a 400 from a stale
+ * client string. They can be removed in a follow-up once we know
+ * nothing in the wild still sends them.
+ */
+const ALLOWED_PREFIXES = new Set<string>([
+  ...Object.values(UPLOAD_PREFIXES),
+  // Parked workbench floor-plan uploader.
   "floor-plans",
+  // Legacy strings the old client shipped before the rename. Drop
+  // once the dashboard has been reloaded in production.
+  "campus-hero",
   "campus-thumbnails",
   "campus-branding",
-  "campus-hero",
-  // Per-news-post hero image — see lib/news.ts + the admin create form.
   "campus-news",
 ]);
 const ALLOWED_TYPES = new Set([
