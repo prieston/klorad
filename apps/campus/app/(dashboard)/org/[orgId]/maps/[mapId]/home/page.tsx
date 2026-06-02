@@ -1,11 +1,14 @@
-import { ComingSoonScreen } from "@/app/(dashboard)/components/ComingSoonScreen";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import CampusHomePageClient from "./CampusHomePageClient";
 
-export default function CampusHomePage() {
-  return (
-    <ComingSoonScreen
-      title="Home"
-      hint="Greeting copy, quick-action tiles, section toggles — composes the mobile home students see."
-      phase="Phase 4"
-    />
-  );
+export default async function CampusHomePage({
+  params,
+}: {
+  params: Promise<{ orgId: string; mapId: string }>;
+}) {
+  const session = await auth();
+  if (!session) redirect("/auth/signin");
+  const { orgId, mapId } = await params;
+  return <CampusHomePageClient orgId={orgId} mapId={mapId} />;
 }

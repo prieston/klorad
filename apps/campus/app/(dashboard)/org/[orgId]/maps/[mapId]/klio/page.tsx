@@ -1,11 +1,14 @@
-import { ComingSoonScreen } from "@/app/(dashboard)/components/ComingSoonScreen";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import CampusKlioPageClient from "./CampusKlioPageClient";
 
-export default function CampusKlioPage() {
-  return (
-    <ComingSoonScreen
-      title="Klio"
-      hint="BYOK Anthropic key, tool toggles, persona sliders, suggestion chips for the empty state."
-      phase="Phase 4"
-    />
-  );
+export default async function CampusKlioPage({
+  params,
+}: {
+  params: Promise<{ orgId: string; mapId: string }>;
+}) {
+  const session = await auth();
+  if (!session) redirect("/auth/signin");
+  const { orgId, mapId } = await params;
+  return <CampusKlioPageClient orgId={orgId} mapId={mapId} />;
 }
