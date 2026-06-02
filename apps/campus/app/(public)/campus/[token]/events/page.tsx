@@ -7,7 +7,6 @@ import { detectLocale } from "@/app/lib/i18n-core";
 import { listUpcomingEventsForProject } from "@/lib/events-db";
 import { readEventFeeds, type CampusEvent } from "@/lib/events";
 import { fetchCampusEvents } from "@/lib/events-server";
-import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
 import { SegmentedTabs } from "@/lib/consumer/SegmentedTabs";
 import { EventsListClient } from "@/lib/consumer/EventsListClient";
@@ -92,12 +91,6 @@ export default async function EventsPage({
 
   return (
     <main id="main" data-consumer lang={locale} style={themeStyle}>
-      <ConsumerNav
-        campusName={campusName}
-        logoUrl={branding.logo}
-        token={token}
-        locale={locale}
-      />
 
       <section className="mx-auto max-w-[1280px] px-4 py-8 md:px-6 md:py-12">
         <h1 className="text-3xl font-medium text-[var(--brand-text)]">

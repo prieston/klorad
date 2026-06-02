@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPublicCampusByToken } from "@/lib/public-campus";
 import { detectLocale } from "@/app/lib/i18n-core";
-import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import { KlioPanel } from "@/lib/consumer/KlioPanel";
 import NotPublishedPlaceholder from "../NotPublishedPlaceholder";
 
@@ -70,12 +69,6 @@ export default async function KlioPage({
 
   return (
     <main id="main" data-consumer lang={locale} style={themeStyle}>
-      <ConsumerNav
-        campusName={campusName}
-        logoUrl={branding.logo}
-        token={token}
-        locale={locale}
-      />
       <KlioPanel
         mapId={map.id}
         campusName={campusName}
