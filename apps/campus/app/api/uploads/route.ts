@@ -13,7 +13,7 @@ import { UPLOAD_PREFIXES } from "@/lib/uploads/prefixes";
  * there, no follow-up edit here.
  *
  * Legacy prefixes (`campus-hero`, `campus-news`, etc.) are kept here
- * during a transition window so an admin tab opened *before* the
+ * during a rollout grace period so an admin tab opened *before* the
  * rector reloaded the dashboard doesn't get a 400 from a stale
  * client string. They can be removed in a follow-up once we know
  * nothing in the wild still sends them.
