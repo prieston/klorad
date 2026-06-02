@@ -36,6 +36,29 @@ html {
    every consumer route on phones — give those pages bottom padding
    so the footer + last list row clear the nav's height. Desktop
    uses the top `ConsumerNav` instead, so no padding needed there. */
+/* iOS Safari zooms the viewport when an input is focused and its
+   effective font-size is below 16px. Lock every text-y control on
+   the public surface to 16px+ so focusing the search bar / chat
+   composer doesn't shove the whole page sideways. Scoped to the
+   consumer surface so the dashboard's smaller inputs aren't
+   affected — desktop browsers don't trigger the zoom in the first
+   place. */
+:where([data-consumer], [data-mappedin])
+  :where(
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="url"],
+    input:not([type]),
+    textarea,
+    select
+  ) {
+  font-size: max(16px, 1em);
+}
+
 /* Consumer pages scroll the page body — `main[data-consumer]` IS
    the scroll container, so `padding-bottom` here is "inner padding"
    that lets the last item clear the floating nav while still letting

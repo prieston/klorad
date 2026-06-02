@@ -7,6 +7,7 @@ import { deriveCampusPalette, paletteToCssVars } from "@/lib/palette";
 import { SWRProvider } from "@/lib/swr/SWRProvider";
 import { ServiceWorkerRegistrar } from "@/lib/consumer/ServiceWorkerRegistrar";
 import { InstallPrompt } from "@/lib/consumer/InstallPrompt";
+import { PullToRefresh } from "@/lib/consumer/PullToRefresh";
 
 interface CampusBranding {
   name?: string;
@@ -130,6 +131,7 @@ export default async function CampusPublicLayout({
         />
         {children}
         <CampusBottomNav token={token} />
+        <PullToRefresh />
         <InstallPrompt />
         <ServiceWorkerRegistrar />
       </div>

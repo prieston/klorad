@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Home, Map as MapIcon, LayoutGrid, Sparkles } from "lucide-react";
@@ -56,13 +57,36 @@ function resolveActiveTab(pathname: string, token: string): TabKey {
  *
  * Hidden on desktop (`md:hidden`) where the top `ConsumerNav` takes
  * over.
+ *
+ * **Optimistic active state** — taps flip the pill immediately
+ * instead of waiting for the route to commit. Next's `Link` already
+ * navigates inside a React transition, but the pathname doesn't
+ * update until the new route's HTML streams in (~100-500ms on a
+ * cold cache), and `usePathname` resolves to the *previous* URL
+ * during that window. Tracking a `pendingKey` and rendering it as
+ * active until the pathname catches up closes the perceived gap to
+ * zero — the rest of the body still shows the skeleton from
+ * `loading.tsx` until the new page lands.
  */
 export function CampusBottomNav({ token }: Props) {
   const pathname = usePathname() ?? `/campus/${token}`;
   const searchParams = useSearchParams();
   const locale = detectLocale(searchParams?.get("lang") ?? null);
-  const activeKey = resolveActiveTab(pathname, token);
+  const activeFromPath = resolveActiveTab(pathname, token);
+  const [pendingKey, setPendingKey] = useState<TabKey | null>(null);
+  const activeKey = pendingKey ?? activeFromPath;
   const lang = `?lang=${locale}`;
+
+  // Clear the optimistic pending state the moment the URL catches up.
+  // Doing this in an effect rather than inline avoids a flash where
+  // both `pendingKey` and `activeFromPath` briefly agree and we
+  // re-render with stale state.
+  useEffect(() => {
+    if (pendingKey && activeFromPath === pendingKey) {
+      setPendingKey(null);
+    }
+  }, [activeFromPath, pendingKey]);
+
   const hrefForKey = (key: TabKey): string => {
     switch (key) {
       case "home":
@@ -99,6 +123,10 @@ export function CampusBottomNav({ token }: Props) {
             href={hrefForKey(item.key as TabKey)}
             aria-current={isActive ? "page" : undefined}
             aria-label={item.label}
+            onClick={() => {
+              const key = item.key as TabKey;
+              if (key !== activeFromPath) setPendingKey(key);
+            }}
             className="flex w-full items-center justify-center"
           >
             {content}
