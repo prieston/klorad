@@ -5,6 +5,7 @@ import useSWR, { mutate } from "swr";
 import { toast } from "react-toastify";
 import { uploadFile } from "@klorad/storage/client";
 import { Button, Field, Input, Panel, Textarea } from "@klorad/design-system";
+import { UPLOAD_PREFIXES } from "@/lib/uploads/prefixes";
 import { type HomePageConfig, readHomePage } from "@/lib/home-page";
 import {
   type Localizable,
@@ -84,7 +85,7 @@ export default function HomePagePanel({ mapId }: Props) {
   const handleUpload = async (file: File) => {
     setUploading(true);
     try {
-      const { publicUrl } = await uploadFile(file, { prefix: "campus-hero" });
+      const { publicUrl } = await uploadFile(file, { prefix: UPLOAD_PREFIXES.branding });
       setHeroImage(publicUrl);
       toast.success("Hero image uploaded — Save to apply");
     } catch {

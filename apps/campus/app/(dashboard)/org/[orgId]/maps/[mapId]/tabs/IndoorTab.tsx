@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import { mutate } from "swr";
 import { Button } from "@klorad/design-system";
 import { uploadFile } from "@klorad/storage/client";
+import { UPLOAD_PREFIXES } from "@/lib/uploads/prefixes";
 import {
   MappedinViewer,
   type MappedinViewerHandle,
@@ -63,7 +64,7 @@ export default function IndoorTab({ map, onConfigure }: Props) {
         type: blob.type || "image/png",
       });
       const { publicUrl } = await uploadFile(file, {
-        prefix: "campus-thumbnails",
+        prefix: UPLOAD_PREFIXES.thumbnails,
       });
       const res = await fetch(`/api/maps/${mapId}`, {
         method: "PATCH",
