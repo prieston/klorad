@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { KLogo } from "./KLogo";
-import { LOCALES, type Locale } from "@/app/lib/i18n-core";
+import { detectLocale, LOCALES, type Locale } from "@/app/lib/i18n-core";
 
 interface NavLink {
   label: string;
@@ -16,27 +19,36 @@ export interface ConsumerNavProps {
   logoUrl?: string;
   /** Token in the URL — used to build the nav links. */
   token: string;
-  /** Locale appended to every link so language survives navigation. */
-  locale: Locale;
 }
 
 /**
  * Consumer nav: white, hairline-bottom, K logo + wordmark on the
- * left, text links centre-right, language toggle / map CTA on the
- * far right. On mobile every link is hidden — only the logo +
- * wordmark stay visible so the bar never wraps to two rows.
+ * left, text links centre-right, language toggle on the far right.
+ *
+ * Mounted from the campus layout (not per-page) so it persists
+ * across navigations — the body unmounts on each route change but
+ * this stays put, giving the public surface a native-app feel
+ * instead of a full-page reload flash. Same applies to
+ * `CampusBottomNav` below the fold.
+ *
+ * Reads the locale from `useSearchParams` (the `?lang=` URL param)
+ * rather than taking it as a prop, because layouts can't receive
+ * `searchParams` in Next 15 — only pages can. Pulling it client-side
+ * here keeps the locale toggle working without a server roundtrip
+ * per nav.
  */
 export function ConsumerNav({
   campusName,
   logoUrl,
   token,
-  locale,
 }: ConsumerNavProps) {
+  const searchParams = useSearchParams();
+  const locale = detectLocale(searchParams?.get("lang") ?? null);
   const lang = `?lang=${locale}`;
   const links: NavLink[] = [
     { label: "Home", href: `/campus/${token}${lang}` },
     { label: "Map", href: `/campus/${token}/map${lang}` },
-    { label: "Explore", href: `/campus/${token}/explore${lang}` },
+    { label: "Explore", href: `/campus/${token}/events${lang}` },
     { label: "Klio", href: `/campus/${token}/klio${lang}` },
   ];
 

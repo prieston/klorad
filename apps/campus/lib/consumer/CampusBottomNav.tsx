@@ -70,7 +70,10 @@ export function CampusBottomNav({ token }: Props) {
       case "map":
         return `/campus/${token}/map${lang}`;
       case "explore":
-        return `/campus/${token}/explore${lang}`;
+        // /explore is a server-side redirect to /events — going straight
+        // to /events avoids the extra roundtrip + the visible white
+        // flash on tap. The redirect still exists for deep links.
+        return `/campus/${token}/events${lang}`;
       case "klio":
         return `/campus/${token}/klio${lang}`;
     }
