@@ -89,6 +89,14 @@ function systemPrompt(campusName: string, locale: string): string {
     "matching `query_*` tool. Filter by anchor when the user names a",
     "building. Don't list more than ~5 results unless asked.",
     "",
+    "**Always cite your sources.** When you mention a specific club,",
+    "event, news post, or dining venue you fetched, call `cite(kind,",
+    "id, name)` so the student gets a tappable card linking to it in",
+    "the app. One `cite` per mention; up to 4 per response. Don't",
+    "cite something you didn't fetch. For spaces, pass the human-",
+    "readable name to `focus` / `route` (`toName`, `fromName`) so the",
+    "directions card reads 'Library' instead of an id.",
+    "",
     locale === "el"
       ? "Απαντήστε στα ελληνικά όταν ο χρήστης γράφει στα ελληνικά."
       : "Reply in the language of the user's question.",

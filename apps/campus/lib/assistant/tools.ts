@@ -21,10 +21,38 @@ export interface AssistantSpace {
   type?: string;
 }
 
-/** A client-dispatchable action the LLM asked us to suggest. */
+/**
+ * A client-dispatchable action the LLM asked us to suggest. Two
+ * families:
+ *
+ *   - **Spatial** (`focus`, `route`) — register from `focus` / `route`
+ *     tool calls. The client renders these as "Show on map" /
+ *     "Get directions" cards that deep-link into the MappedIn
+ *     viewer.
+ *   - **Content** (`open_*`) — registered via the `cite` tool. The
+ *     client renders these as compact source cards under the
+ *     assistant message so the student can tap straight into the
+ *     news post / event / club / dining venue Klio mentioned.
+ *
+ * Names are kept on every variant so the frontend can render a
+ * readable label without re-fetching the entity. Spatial actions
+ * carry names too (added 2026-06-02) so the source card shows
+ * "Library" instead of a raw MappedIn space id.
+ */
 export type AssistantAction =
-  | { action: "focus"; toId: string }
-  | { action: "route"; fromId: string; toId: string; accessible: boolean };
+  | { action: "focus"; toId: string; toName?: string }
+  | {
+      action: "route";
+      fromId: string;
+      toId: string;
+      accessible: boolean;
+      fromName?: string;
+      toName?: string;
+    }
+  | { action: "open_news"; id: string; title: string }
+  | { action: "open_event"; id: string; title: string }
+  | { action: "open_club"; id: string; name: string }
+  | { action: "open_dining"; id: string; name: string };
 
 /** Execution context the executor needs to run a tool call. */
 export interface ToolContext {
@@ -146,6 +174,12 @@ export const ASSISTANT_TOOLS = [
           type: "string",
           description: "The MappedIn space id from `search_places`.",
         },
+        toName: {
+          type: "string",
+          description:
+            "Human-readable space name from `search_places` — used as " +
+            "the card label so the student sees 'Library' not the id.",
+        },
       },
       required: ["toId"],
     },
@@ -161,6 +195,14 @@ export const ASSISTANT_TOOLS = [
       properties: {
         fromId: { type: "string" },
         toId: { type: "string" },
+        fromName: {
+          type: "string",
+          description: "Human-readable name for the from space.",
+        },
+        toName: {
+          type: "string",
+          description: "Human-readable name for the to space.",
+        },
         accessible: {
           type: "boolean",
           description:
@@ -169,6 +211,36 @@ export const ASSISTANT_TOOLS = [
         },
       },
       required: ["fromId", "toId"],
+    },
+  },
+  {
+    name: "cite",
+    description:
+      "Surface a source as a tappable card under your reply. Call this " +
+      "once per source you mention by name — a specific club, event, " +
+      "news post, or dining venue you returned from a `query_*` tool. " +
+      "The student can tap the card to open the entity in the app. " +
+      "Don't cite a source you didn't fetch; only entities backed by a " +
+      "real id should be cited. At most 4 citations per response.",
+    input_schema: {
+      type: "object",
+      properties: {
+        kind: {
+          type: "string",
+          enum: ["news", "event", "club", "dining"],
+          description: "Which content surface the cited entity lives on.",
+        },
+        id: {
+          type: "string",
+          description: "The entity id from the relevant `query_*` tool.",
+        },
+        name: {
+          type: "string",
+          description:
+            "Human-readable label — title for news/events, name for clubs/dining.",
+        },
+      },
+      required: ["kind", "id", "name"],
     },
   },
 ] as const;
@@ -340,6 +412,10 @@ export async function executeTool(
 
       case "focus": {
         const toId = typeof input.toId === "string" ? input.toId : "";
+        const toName =
+          typeof input.toName === "string" && input.toName.trim()
+            ? input.toName.trim()
+            : undefined;
         if (!toId) return { ok: false, error: "toId is required" };
         if (ctx.spaces.length === 0) {
           return {
@@ -348,13 +424,21 @@ export async function executeTool(
               "No MappedIn context — say to open the map instead of focusing.",
           };
         }
-        ctx.collectedActions.push({ action: "focus", toId });
+        ctx.collectedActions.push({ action: "focus", toId, toName });
         return { ok: true };
       }
 
       case "route": {
         const fromId = typeof input.fromId === "string" ? input.fromId : "";
         const toId = typeof input.toId === "string" ? input.toId : "";
+        const fromName =
+          typeof input.fromName === "string" && input.fromName.trim()
+            ? input.fromName.trim()
+            : undefined;
+        const toName =
+          typeof input.toName === "string" && input.toName.trim()
+            ? input.toName.trim()
+            : undefined;
         const accessible = input.accessible === true;
         if (!fromId || !toId) {
           return { ok: false, error: "fromId and toId are required" };
@@ -370,9 +454,47 @@ export async function executeTool(
           action: "route",
           fromId,
           toId,
+          fromName,
+          toName,
           accessible,
         });
         return { ok: true };
+      }
+
+      case "cite": {
+        const kind = typeof input.kind === "string" ? input.kind : "";
+        const id = typeof input.id === "string" ? input.id.trim() : "";
+        const name = typeof input.name === "string" ? input.name.trim() : "";
+        if (!id || !name) {
+          return { ok: false, error: "id and name are required" };
+        }
+        // Hard cap on citations so a confused LLM can't flood the
+        // reply with 20 cards — UX gets noisy past 4.
+        const existing = ctx.collectedActions.filter((a) =>
+          a.action.startsWith("open_"),
+        ).length;
+        if (existing >= 4) {
+          return {
+            ok: false,
+            error: "Citation cap reached (4 per response).",
+          };
+        }
+        switch (kind) {
+          case "news":
+            ctx.collectedActions.push({ action: "open_news", id, title: name });
+            return { ok: true };
+          case "event":
+            ctx.collectedActions.push({ action: "open_event", id, title: name });
+            return { ok: true };
+          case "club":
+            ctx.collectedActions.push({ action: "open_club", id, name });
+            return { ok: true };
+          case "dining":
+            ctx.collectedActions.push({ action: "open_dining", id, name });
+            return { ok: true };
+          default:
+            return { ok: false, error: `Unknown cite kind: ${kind}` };
+        }
       }
 
       default:
