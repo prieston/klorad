@@ -8,6 +8,7 @@ import {
   type ToolContext,
 } from "@/lib/assistant/tools";
 import { checkRateLimit, clientIp } from "@/lib/assistant/rate-limit";
+import { loadAssistantSpacesForProject } from "@/lib/assistant/spaces-loader";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret, secretsEnabled } from "@/lib/secrets";
 
@@ -88,6 +89,14 @@ function systemPrompt(campusName: string, locale: string): string {
     "If the user asks about news, events, clubs, or dining, call the",
     "matching `query_*` tool. Filter by anchor when the user names a",
     "building. Don't list more than ~5 results unless asked.",
+    "",
+    "**Always cite your sources.** When you mention a specific club,",
+    "event, news post, or dining venue you fetched, call `cite(kind,",
+    "id, name)` so the student gets a tappable card linking to it in",
+    "the app. One `cite` per mention; up to 4 per response. Don't",
+    "cite something you didn't fetch. For spaces, pass the human-",
+    "readable name to `focus` / `route` (`toName`, `fromName`) so the",
+    "directions card reads 'Library' instead of an id.",
     "",
     locale === "el"
       ? "Απαντήστε στα ελληνικά όταν ο χρήστης γράφει στα ελληνικά."
@@ -270,7 +279,17 @@ export async function POST(req: Request) {
     );
   }
 
-  const spaces = Array.isArray(body.spaces) ? body.spaces : [];
+  // If the caller already has a MappedIn viewer open it sends the
+  // visible spaces along — use those. Otherwise (Klio tab, home chat,
+  // any tab without a viewer) fall back to a cached server-side load
+  // from the campus's `indoorMapId` so directions / focus questions
+  // don't dead-end with "open the map first". Empty when no venue is
+  // configured.
+  const callerSpaces = Array.isArray(body.spaces) ? body.spaces : [];
+  const spaces =
+    callerSpaces.length > 0
+      ? callerSpaces
+      : await loadAssistantSpacesForProject(body.mapId);
   // Per-campus BYOK first, platform key second. Each chat turn does
   // one extra Project read by id (cuid lookup, fast); per-tenant key
   // means usage + cost scope to the right buyer.

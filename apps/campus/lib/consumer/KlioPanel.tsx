@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import Link from "next/link";
 import { ArrowUp, Sparkles, ArrowRight } from "lucide-react";
+import type { AssistantAction } from "@/lib/assistant/tools";
+import { KlioSourceCards } from "./KlioSourceCards";
 
 interface Message {
   role: "user" | "assistant";
   text: string;
+  /** Structured deep-link cards Klio surfaced for this turn. */
+  actions?: AssistantAction[];
 }
 
 export interface KlioPanelProps {
@@ -16,8 +19,12 @@ export interface KlioPanelProps {
   campusName: string;
   /** UI locale — drives all visible strings + the assistant locale param. */
   locale: "en" | "el";
-  /** Where the deep links land when the assistant suggests a route. */
-  mapHref: string;
+  /**
+   * Deprecated — `KlioSourceCards` builds map URLs from `mapId` + locale
+   * directly. Kept on the props for one release so the existing call
+   * site doesn't break; can be dropped after.
+   */
+  mapHref?: string;
 }
 
 interface Suggestion {
@@ -78,7 +85,7 @@ const COPY = {
  * Empty state mirrors the mockup: hero ("Hi, I'm Klio"), four
  * suggested-prompt pills, a chat thread, an input + send button.
  */
-export function KlioPanel({ mapId, campusName, locale, mapHref }: KlioPanelProps) {
+export function KlioPanel({ mapId, campusName, locale }: KlioPanelProps) {
   const copy = COPY[locale];
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -114,8 +121,14 @@ export function KlioPanel({ mapId, campusName, locale, mapHref }: KlioPanelProps
         }),
       });
       if (!res.ok) throw new Error("assistant failed");
-      const data = (await res.json()) as { reply: string };
-      setMessages((m) => [...m, { role: "assistant", text: data.reply }]);
+      const data = (await res.json()) as {
+        reply: string;
+        actions?: AssistantAction[];
+      };
+      setMessages((m) => [
+        ...m,
+        { role: "assistant", text: data.reply, actions: data.actions },
+      ]);
     } catch {
       setMessages((m) => [
         ...m,
@@ -195,19 +208,15 @@ export function KlioPanel({ mapId, campusName, locale, mapHref }: KlioPanelProps
                   {m.text}
                 </span>
               ) : (
-                <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-[var(--brand-page)] px-3.5 py-2 leading-relaxed text-[var(--brand-text)]">
-                  {m.text}
-                  {/map\b|χάρτ/i.test(m.text) ? (
-                    <>
-                      {" "}
-                      <Link
-                        href={mapHref}
-                        className="text-[var(--brand-primary)] underline-offset-2 hover:underline"
-                      >
-                        {copy.openMap} →
-                      </Link>
-                    </>
-                  ) : null}
+                <div className="max-w-[85%]">
+                  <div className="whitespace-pre-wrap rounded-2xl bg-[var(--brand-page)] px-3.5 py-2 leading-relaxed text-[var(--brand-text)]">
+                    {m.text}
+                  </div>
+                  <KlioSourceCards
+                    actions={m.actions ?? []}
+                    mapId={mapId}
+                    locale={locale}
+                  />
                 </div>
               )}
             </div>

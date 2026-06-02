@@ -105,7 +105,11 @@ export function ConsumerHome({
   mapId,
   campusName,
   accentColor,
-  logoUrl,
+  // `logoUrl` was passed for the old in-page ConsumerNav; the layout
+  // now owns the nav (see [[campus-public-app-feel]]), so this prop
+  // is unused here. Kept on the type so the call site doesn't break;
+  // can be dropped from the interface in a cleanup sweep.
+  logoUrl: _logoUrl,
   locale,
   events,
   dining,
