@@ -70,12 +70,21 @@ async function main() {
   // need PUT/GET/HEAD for the browser direct-upload flow. The
   // wildcard `AllowedHeaders` covers every `x-amz-*` header the
   // AWS SDK adds (checksums, ACL, signed-headers list).
+  //
+  // MaxAgeSeconds = 5 minutes. Was 3000 (50 min); reduced because
+  // a longer preflight cache turned every CORS-related fix into
+  // a guaranteed 50-minute "wait for the browser cache to expire"
+  // saga. We hit this twice on 2026-06-02 chasing what looked
+  // like a CORS regression but was actually a stale preflight
+  // remembering a failure from an earlier broken state. 5 min is
+  // long enough to deduplicate preflights inside a normal session
+  // and short enough that fixes feel immediate.
   const rule: CORSRule = {
     AllowedOrigins: origins,
     AllowedMethods: ["PUT", "GET", "HEAD"],
     AllowedHeaders: ["*"],
     ExposeHeaders: ["ETag"],
-    MaxAgeSeconds: 3000,
+    MaxAgeSeconds: 300,
   };
 
   await client.send(
