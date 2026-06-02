@@ -13,6 +13,7 @@ import {
   Textarea,
 } from "@klorad/design-system";
 import { uploadFile } from "@klorad/storage/client";
+import { UPLOAD_PREFIXES } from "@/lib/uploads/prefixes";
 import {
   deriveInitials,
   type Club,
@@ -60,7 +61,7 @@ export function ClubsAdminClient({ mapId, initialClubs }: Props) {
   const handleImage = async (file: File) => {
     setUploading(true);
     try {
-      const result = await uploadFile(file, { prefix: "campus-news" });
+      const result = await uploadFile(file, { prefix: UPLOAD_PREFIXES.clubs });
       setImageUrl(result.publicUrl);
     } catch (e) {
       console.error(e);

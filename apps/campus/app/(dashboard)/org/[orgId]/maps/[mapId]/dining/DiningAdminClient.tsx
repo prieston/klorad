@@ -12,6 +12,7 @@ import {
   Textarea,
 } from "@klorad/design-system";
 import { uploadFile } from "@klorad/storage/client";
+import { UPLOAD_PREFIXES } from "@/lib/uploads/prefixes";
 import { type DiningLocation } from "@/lib/dining-db";
 import { AnchorPicker, type AnchorValue } from "@/lib/admin/AnchorPicker";
 
@@ -52,7 +53,7 @@ export function DiningAdminClient({
   const handleImage = async (file: File) => {
     setUploading(true);
     try {
-      const result = await uploadFile(file, { prefix: "campus-news" });
+      const result = await uploadFile(file, { prefix: UPLOAD_PREFIXES.dining });
       setImageUrl(result.publicUrl);
     } catch (e) {
       console.error(e);
