@@ -8,6 +8,7 @@ import {
   type ToolContext,
 } from "@/lib/assistant/tools";
 import { checkRateLimit, clientIp } from "@/lib/assistant/rate-limit";
+import { loadAssistantSpacesForProject } from "@/lib/assistant/spaces-loader";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret, secretsEnabled } from "@/lib/secrets";
 
@@ -278,7 +279,17 @@ export async function POST(req: Request) {
     );
   }
 
-  const spaces = Array.isArray(body.spaces) ? body.spaces : [];
+  // If the caller already has a MappedIn viewer open it sends the
+  // visible spaces along — use those. Otherwise (Klio tab, home chat,
+  // any tab without a viewer) fall back to a cached server-side load
+  // from the campus's `indoorMapId` so directions / focus questions
+  // don't dead-end with "open the map first". Empty when no venue is
+  // configured.
+  const callerSpaces = Array.isArray(body.spaces) ? body.spaces : [];
+  const spaces =
+    callerSpaces.length > 0
+      ? callerSpaces
+      : await loadAssistantSpacesForProject(body.mapId);
   // Per-campus BYOK first, platform key second. Each chat turn does
   // one extra Project read by id (cuid lookup, fast); per-tenant key
   // means usage + cost scope to the right buyer.
