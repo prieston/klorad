@@ -33,6 +33,18 @@ function makeClient(cfg: StorageConfig): S3Client {
       accessKeyId: cfg.accessKeyId,
       secretAccessKey: cfg.secretAccessKey,
     },
+    // AWS SDK v3 ≥ 3.729 defaults to `WHEN_SUPPORTED`, which bakes a
+    // CRC32 of an *empty* body into every presigned PUT URL (the SDK
+    // computes the checksum at sign time, but a presigned URL has no
+    // body to checksum yet). DigitalOcean Spaces — and every other
+    // S3-compatible service that isn't AWS S3 — then 403s when the
+    // browser PUTs the real (non-empty) body because the signed
+    // checksum doesn't match. Reverting to `WHEN_REQUIRED` skips
+    // automatic checksums; we only get them when we ask for them.
+    // See AWS SDK release notes around 3.729 and the GitHub issue
+    // thread `aws-sdk-js-v3#6810`.
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
   });
 }
 
