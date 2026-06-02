@@ -49,7 +49,6 @@ export default async function CampusMapPage({
       ? scene.branding.primaryColor
       : undefined;
   const campusName = scene?.branding?.name || map.title;
-  const logoUrl = scene?.branding?.logo;
 
   if (indoorMapId) {
     const lang = `?lang=${locale}`;
