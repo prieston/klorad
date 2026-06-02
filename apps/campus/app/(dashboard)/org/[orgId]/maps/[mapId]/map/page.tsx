@@ -1,11 +1,14 @@
-import { ComingSoonScreen } from "@/app/(dashboard)/components/ComingSoonScreen";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import CampusMapPageClient from "./CampusMapPageClient";
 
-export default function CampusMapPage() {
-  return (
-    <ComingSoonScreen
-      title="Map & Wayfinding"
-      hint="Link the MappedIn venue, set the default floor, curate saved routes for QR sharing."
-      phase="Phase 4"
-    />
-  );
+export default async function CampusMapPage({
+  params,
+}: {
+  params: Promise<{ orgId: string; mapId: string }>;
+}) {
+  const session = await auth();
+  if (!session) redirect("/auth/signin");
+  const { orgId, mapId } = await params;
+  return <CampusMapPageClient orgId={orgId} mapId={mapId} />;
 }
