@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { getPublicCampusByToken } from "@/lib/public-campus";
 import { venueForIndoorMap } from "@/lib/mappedin/config";
 import { detectLocale } from "@/app/lib/i18n-core";
-import { ConsumerNav } from "@/lib/consumer/ConsumerNav";
 import PublicViewerClient from "../PublicViewerClient";
 import NotPublishedPlaceholder from "../NotPublishedPlaceholder";
 import { MapPageClient } from "./MapPageClient";
@@ -59,14 +58,11 @@ export default async function CampusMapPage({
         id="main"
         data-mappedin
         lang={locale}
-        className="flex h-[100dvh] w-full flex-col"
+        // 3.5rem = layout ConsumerNav (h-14). Subtract so the
+        // viewer fills the remaining viewport instead of pushing
+        // the bottom nav off-screen.
+        className="flex h-[calc(100dvh-3.5rem)] w-full flex-col"
       >
-        <ConsumerNav
-          campusName={campusName}
-          logoUrl={logoUrl}
-          token={token}
-          locale={locale}
-        />
         <MapPageClient
           venue={venueForIndoorMap(indoorMapId)}
           focusSpaceId={focusSpaceId}
