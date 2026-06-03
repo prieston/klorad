@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireCampusAccess } from "@/lib/authz";
+import { recordAudit } from "@/lib/audit";
 import { listDiningForProject, type DiningAnchor } from "@/lib/dining-db";
 import { parseHours } from "@/lib/dining-hours";
 import { revalidateTag } from "next/cache";
@@ -111,5 +113,17 @@ export async function POST(req: Request, { params }: { params: Params }) {
   });
 
   revalidateTag(publicCampusTag(mapId));
+
+  const session = await auth();
+  await recordAudit({
+    organizationId: project.organizationId,
+    projectId: mapId,
+    actorId: (session?.user?.id as string | undefined) ?? null,
+    entityType: "DINING_LOCATION",
+    entityId: created.id,
+    action: "CREATED",
+    message: `Dining "${name}"`,
+  });
+
   return NextResponse.json({ id: created.id });
 }

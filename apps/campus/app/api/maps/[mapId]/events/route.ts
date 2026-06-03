@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { Prisma, type EventBanner, type EventIcon } from "@prisma/client";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireCampusAccess } from "@/lib/authz";
+import { recordAudit } from "@/lib/audit";
 import {
   listEventsForAdmin,
   type EventAnchor,
@@ -146,5 +148,18 @@ export async function POST(req: Request, { params }: { params: Params }) {
   });
 
   revalidateTag(publicCampusTag(mapId));
+
+  const session = await auth();
+  await recordAudit({
+    organizationId: project.organizationId,
+    projectId: mapId,
+    actorId: (session?.user?.id as string | undefined) ?? null,
+    entityType: "EVENT_POST",
+    entityId: created.id,
+    action: "CREATED",
+    message: `Event "${title}"`,
+    metadata: { startsAt: startsAt.toISOString() },
+  });
+
   return NextResponse.json({ id: created.id });
 }

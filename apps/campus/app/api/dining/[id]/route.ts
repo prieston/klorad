@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireOrgAccess } from "@/lib/authz";
+import { recordAudit } from "@/lib/audit";
 import { parseHours } from "@/lib/dining-hours";
 import { revalidateTag } from "next/cache";
 import { publicCampusTag } from "@/lib/public-campus";
@@ -119,8 +121,20 @@ export async function PATCH(req: Request, { params }: { params: Params }) {
     data.anchors = parseAnchors(body.anchors) as unknown as Prisma.InputJsonValue;
   }
 
-  await prisma.diningLocation.update({ where: { id }, data });
+  const updated = await prisma.diningLocation.update({ where: { id }, data });
   revalidateTag(publicCampusTag(existing.projectId));
+
+  const session = await auth();
+  await recordAudit({
+    organizationId: existing.organizationId,
+    projectId: existing.projectId,
+    actorId: (session?.user?.id as string | undefined) ?? null,
+    entityType: "DINING_LOCATION",
+    entityId: id,
+    action: "UPDATED",
+    message: `Dining "${updated.name}"`,
+  });
+
   return NextResponse.json({ ok: true });
 }
 
@@ -128,7 +142,11 @@ export async function DELETE(_req: Request, { params }: { params: Params }) {
   const { id } = await params;
   const location = await prisma.diningLocation.findUnique({
     where: { id },
-    select: { organizationId: true, projectId: true },
+    select: {
+      organizationId: true,
+      projectId: true,
+      name: true,
+    },
   });
   if (!location) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -137,5 +155,17 @@ export async function DELETE(_req: Request, { params }: { params: Params }) {
   if (denied) return denied;
   await prisma.diningLocation.delete({ where: { id } });
   revalidateTag(publicCampusTag(location.projectId));
+
+  const session = await auth();
+  await recordAudit({
+    organizationId: location.organizationId,
+    projectId: location.projectId,
+    actorId: (session?.user?.id as string | undefined) ?? null,
+    entityType: "DINING_LOCATION",
+    entityId: id,
+    action: "DELETED",
+    message: `Dining "${location.name}"`,
+  });
+
   return NextResponse.json({ ok: true });
 }

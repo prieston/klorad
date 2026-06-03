@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { Prisma, type EventBanner, type EventIcon } from "@prisma/client";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireOrgAccess } from "@/lib/authz";
+import { recordAudit } from "@/lib/audit";
 import { revalidateTag } from "next/cache";
 import { publicCampusTag } from "@/lib/public-campus";
 
@@ -142,8 +144,20 @@ export async function PATCH(req: Request, { params }: { params: Params }) {
     data.anchors = parseAnchors(body.anchors) as unknown as Prisma.InputJsonValue;
   }
 
-  await prisma.eventPost.update({ where: { id }, data });
+  const updated = await prisma.eventPost.update({ where: { id }, data });
   revalidateTag(publicCampusTag(existing.projectId));
+
+  const session = await auth();
+  await recordAudit({
+    organizationId: existing.organizationId,
+    projectId: existing.projectId,
+    actorId: (session?.user?.id as string | undefined) ?? null,
+    entityType: "EVENT_POST",
+    entityId: id,
+    action: "UPDATED",
+    message: `Event "${updated.title}"`,
+  });
+
   return NextResponse.json({ ok: true });
 }
 
@@ -151,7 +165,11 @@ export async function DELETE(_req: Request, { params }: { params: Params }) {
   const { id } = await params;
   const event = await prisma.eventPost.findUnique({
     where: { id },
-    select: { organizationId: true, projectId: true },
+    select: {
+      organizationId: true,
+      projectId: true,
+      title: true,
+    },
   });
   if (!event) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -160,5 +178,17 @@ export async function DELETE(_req: Request, { params }: { params: Params }) {
   if (denied) return denied;
   await prisma.eventPost.delete({ where: { id } });
   revalidateTag(publicCampusTag(event.projectId));
+
+  const session = await auth();
+  await recordAudit({
+    organizationId: event.organizationId,
+    projectId: event.projectId,
+    actorId: (session?.user?.id as string | undefined) ?? null,
+    entityType: "EVENT_POST",
+    entityId: id,
+    action: "DELETED",
+    message: `Event "${event.title}"`,
+  });
+
   return NextResponse.json({ ok: true });
 }

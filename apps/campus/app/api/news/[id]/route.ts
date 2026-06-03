@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { Prisma, type NewsCategory } from "@prisma/client";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireOrgAccess } from "@/lib/authz";
+import { recordAudit } from "@/lib/audit";
 import { revalidateTag } from "next/cache";
 import { publicCampusTag } from "@/lib/public-campus";
 
@@ -118,8 +120,20 @@ export async function PATCH(req: Request, { params }: { params: Params }) {
     data.anchors = parseAnchors(body.anchors) as unknown as Prisma.InputJsonValue;
   }
 
-  await prisma.newsPost.update({ where: { id }, data });
+  const updated = await prisma.newsPost.update({ where: { id }, data });
   revalidateTag(publicCampusTag(existing.projectId));
+
+  const session = await auth();
+  await recordAudit({
+    organizationId: existing.organizationId,
+    projectId: existing.projectId,
+    actorId: (session?.user?.id as string | undefined) ?? null,
+    entityType: "NEWS_POST",
+    entityId: id,
+    action: "UPDATED",
+    message: `News post "${updated.title}"`,
+  });
+
   return NextResponse.json({ ok: true });
 }
 
@@ -128,7 +142,11 @@ export async function DELETE(_req: Request, { params }: { params: Params }) {
   const { id } = await params;
   const post = await prisma.newsPost.findUnique({
     where: { id },
-    select: { organizationId: true, projectId: true },
+    select: {
+      organizationId: true,
+      projectId: true,
+      title: true,
+    },
   });
   if (!post) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -138,5 +156,17 @@ export async function DELETE(_req: Request, { params }: { params: Params }) {
 
   await prisma.newsPost.delete({ where: { id } });
   revalidateTag(publicCampusTag(post.projectId));
+
+  const session = await auth();
+  await recordAudit({
+    organizationId: post.organizationId,
+    projectId: post.projectId,
+    actorId: (session?.user?.id as string | undefined) ?? null,
+    entityType: "NEWS_POST",
+    entityId: id,
+    action: "DELETED",
+    message: `News post "${post.title}"`,
+  });
+
   return NextResponse.json({ ok: true });
 }

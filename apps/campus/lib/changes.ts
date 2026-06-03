@@ -1,4 +1,8 @@
 import "server-only";
+import type {
+  ActivityActionType,
+  ActivityEntityType,
+} from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export type ChangeKind =
@@ -7,57 +11,51 @@ export type ChangeKind =
   | "club"
   | "dining"
   | "campus"
+  | "broadcast"
+  | "member"
   | "subscribers";
 
 export interface CampusChange {
-  /** Stable identifier — composed `<kind>:<rowId>` so React keys never clash. */
+  /** Stable identifier — `Activity.id` for real audit rows,
+   *  `subscribers:<mapId>:7d` for the rolled-up subscriber tally. */
   id: string;
   kind: ChangeKind;
-  /** Human-readable label, e.g. `"Exam schedule"` or `"Branding updated"`. */
+  /** Human-readable label. Audit rows pre-render this on write so
+   *  the dashboard can show it verbatim (no second lookup). */
   title: string;
   /** Optional deep-link into the dashboard. */
   href?: string;
-  /** Optional one-line context, e.g. `"3 new"` or `"posted by Maria"`. */
+  /** Optional secondary context — e.g. `"3 new"` or `"by Maria"`. */
   detail?: string;
-  /** True for creations (createdAt ≈ updatedAt), false for updates. */
+  /** True for creations rather than updates. */
   isNew: boolean;
-  /** ISO timestamp — the change's `updatedAt`. */
+  /** ISO timestamp. */
   at: string;
+  /** Display name of the actor (when known). */
+  actor?: string;
 }
 
-/** How many rows to read per satellite model before merging. The merged
- *  list is capped at `limit`; over-reading per model keeps the merge
- *  fair when one model has a sustained edit burst. */
-const PER_MODEL_LIMIT = 10;
-/** "Created" vs "updated" — Prisma stamps `createdAt` and `updatedAt`
- *  in the same write, but they can drift by a few ms. Treat the gap
- *  as a creation. */
-const CREATION_GAP_MS = 5_000;
-/** Activity window — anything older than this drops out of the feed
- *  even if there's slack in the per-model cap. */
-const WINDOW_DAYS = 30;
-
 interface BuildOpts {
-  /** Project / campus id. */
   mapId: string;
-  /** Org id — used to scope the org-tier hrefs. */
   orgId: string;
   /** How many changes to return after merging. */
   limit?: number;
 }
 
+/** Activity window — anything older than this drops off the feed. */
+const WINDOW_DAYS = 30;
+
 /**
- * "What changed" feed for a campus dashboard.
+ * "What changed" feed for the campus dashboard, backed by the
+ * `Activity` table. Each write through Campus's API endpoints
+ * leaves a row (see `lib/audit.ts`); this function reads them back
+ * and shapes them for the UI.
  *
- * We don't have a dedicated audit-log model — every write would need
- * to be re-routed through one — so this builds the feed from the
- * `updatedAt` columns we already maintain on news / events / clubs /
- * dining + the project itself. Good enough to answer "what did the
- * team do this week?" without a schema change; we can swap in a real
- * `Activity` reader later without touching the UI (just this file).
- *
- * Subscriber growth is rolled up into a single entry so a one-tab
- * burst of installs doesn't drown the rest of the feed.
+ * Subscriber growth is still synthesised — push subscriptions are
+ * anonymous, so we roll them up into a single 7-day tally rather
+ * than write one Activity row per device. Same intent as the
+ * earlier `updatedAt`-based feed; just narrower scope now that real
+ * audit rows carry every other entity.
  */
 export async function readCampusChanges({
   mapId,
@@ -67,123 +65,55 @@ export async function readCampusChanges({
   const since = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000);
   const dashBase = `/org/${orgId}/maps/${mapId}`;
 
-  const [project, news, events, clubs, dining, recentSubs] =
-    await Promise.all([
-      prisma.project.findUnique({
-        where: { id: mapId },
-        select: {
-          id: true,
-          title: true,
-          updatedAt: true,
-          createdAt: true,
-          isPublished: true,
+  const [rows, recentSubs] = await Promise.all([
+    prisma.activity
+      .findMany({
+        where: { projectId: mapId, createdAt: { gte: since } },
+        orderBy: { createdAt: "desc" },
+        take: limit * 2,
+        include: {
+          actor: { select: { name: true, email: true } },
         },
-      }),
-      prisma.newsPost
-        .findMany({
-          where: { projectId: mapId, updatedAt: { gte: since } },
-          orderBy: { updatedAt: "desc" },
-          take: PER_MODEL_LIMIT,
-          select: {
-            id: true,
-            title: true,
-            updatedAt: true,
-            createdAt: true,
+      })
+      .catch(() => []),
+    prisma.pushSubscription
+      .count({
+        where: {
+          projectId: mapId,
+          createdAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
           },
-        })
-        .catch(() => []),
-      prisma.eventPost
-        .findMany({
-          where: { projectId: mapId, updatedAt: { gte: since } },
-          orderBy: { updatedAt: "desc" },
-          take: PER_MODEL_LIMIT,
-          select: {
-            id: true,
-            title: true,
-            updatedAt: true,
-            createdAt: true,
-          },
-        })
-        .catch(() => []),
-      prisma.club
-        .findMany({
-          where: { projectId: mapId, updatedAt: { gte: since } },
-          orderBy: { updatedAt: "desc" },
-          take: PER_MODEL_LIMIT,
-          select: {
-            id: true,
-            name: true,
-            updatedAt: true,
-            createdAt: true,
-          },
-        })
-        .catch(() => []),
-      prisma.diningLocation
-        .findMany({
-          where: { projectId: mapId, updatedAt: { gte: since } },
-          orderBy: { updatedAt: "desc" },
-          take: PER_MODEL_LIMIT,
-          select: {
-            id: true,
-            name: true,
-            updatedAt: true,
-            createdAt: true,
-          },
-        })
-        .catch(() => []),
-      prisma.pushSubscription
-        .count({
-          where: {
-            projectId: mapId,
-            createdAt: {
-              gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-            },
-          },
-        })
-        .catch(() => 0),
-    ]);
+        },
+      })
+      .catch(() => 0),
+  ]);
 
   const items: CampusChange[] = [];
 
-  for (const row of news) {
-    items.push(makeRow("news", row.id, row.title, row.createdAt, row.updatedAt, `${dashBase}/news`));
-  }
-  for (const row of events) {
-    items.push(makeRow("event", row.id, row.title, row.createdAt, row.updatedAt, `${dashBase}/events`));
-  }
-  for (const row of clubs) {
-    items.push(makeRow("club", row.id, row.name, row.createdAt, row.updatedAt, `${dashBase}/clubs`));
-  }
-  for (const row of dining) {
-    items.push(makeRow("dining", row.id, row.name, row.createdAt, row.updatedAt, `${dashBase}/dining`));
-  }
-
-  // Project-level change: branding / publish state / scene edits.
-  // We can't tell what specifically moved without an audit log, so
-  // we label it as either "Branding & settings updated" or "Campus
-  // published" — the latter only if isPublished is true and updatedAt
-  // is fresh.
-  if (project && project.updatedAt >= since) {
-    const projectIsNew =
-      project.updatedAt.getTime() - project.createdAt.getTime() <
-      CREATION_GAP_MS;
+  for (const row of rows) {
+    const kind = mapKind(row.entityType);
+    if (!kind) continue;
     items.push({
-      id: `campus:${project.id}:${project.updatedAt.getTime()}`,
-      kind: "campus",
-      title: projectIsNew
-        ? "Campus created"
-        : project.isPublished
-          ? "Campus settings updated"
-          : "Draft settings updated",
-      href: `${dashBase}/identity`,
-      isNew: projectIsNew,
-      at: project.updatedAt.toISOString(),
+      id: row.id,
+      kind,
+      title:
+        row.message ??
+        // Fallback when older rows have no pre-rendered message —
+        // synthesise something serviceable so the feed doesn't show
+        // a blank row.
+        `${humanAction(row.action)} ${humanEntity(row.entityType)}`,
+      href: hrefFor(kind, dashBase),
+      isNew: isCreation(row.action),
+      at: row.createdAt.toISOString(),
+      actor:
+        row.actor?.name?.trim() ||
+        row.actor?.email?.split("@")[0] ||
+        undefined,
     });
   }
 
-  // Push subscribers rolled up into one entry. The endpoint is the
-  // dashboard's Reach screen — clicking through gives the live total
-  // and the broadcast composer in one place.
+  // Subscribers: anonymous, no Activity rows — keep the rolled-up
+  // tally so a burst of installs still surfaces in the feed.
   if (recentSubs > 0) {
     items.push({
       id: `subscribers:${mapId}:7d`,
@@ -195,34 +125,104 @@ export async function readCampusChanges({
       detail: "last 7 days",
       href: `${dashBase}/reach`,
       isNew: true,
-      // Timestamp at "now" so this floats to the top when activity is
-      // otherwise thin — feels right because the count IS current,
-      // not a single past event.
       at: new Date().toISOString(),
     });
   }
 
-  // Newest first, capped.
   items.sort((a, b) => b.at.localeCompare(a.at));
   return items.slice(0, limit);
 }
 
-function makeRow(
-  kind: ChangeKind,
-  id: string,
-  title: string,
-  createdAt: Date,
-  updatedAt: Date,
-  href: string,
-): CampusChange {
-  const isNew =
-    updatedAt.getTime() - createdAt.getTime() < CREATION_GAP_MS;
-  return {
-    id: `${kind}:${id}`,
-    kind,
-    title,
-    href,
-    isNew,
-    at: updatedAt.toISOString(),
-  };
+function isCreation(action: ActivityActionType): boolean {
+  return action === "CREATED" || action === "ADDED" || action === "PUBLISHED";
+}
+
+/** Map an `ActivityEntityType` to the dashboard's `ChangeKind`. The
+ *  enum carries lots of platform values (sensors, cesium assets etc.)
+ *  that the campus dashboard doesn't render — those return null and
+ *  get filtered. */
+function mapKind(value: ActivityEntityType): ChangeKind | null {
+  switch (value) {
+    case "NEWS_POST":
+      return "news";
+    case "EVENT_POST":
+      return "event";
+    case "CLUB":
+      return "club";
+    case "DINING_LOCATION":
+      return "dining";
+    case "BROADCAST":
+      return "broadcast";
+    case "PROJECT_MEMBER":
+      return "member";
+    case "PROJECT":
+      return "campus";
+    default:
+      return null;
+  }
+}
+
+function hrefFor(kind: ChangeKind, base: string): string {
+  switch (kind) {
+    case "news":
+      return `${base}/news`;
+    case "event":
+      return `${base}/events`;
+    case "club":
+      return `${base}/clubs`;
+    case "dining":
+      return `${base}/dining`;
+    case "campus":
+      return `${base}/identity`;
+    case "broadcast":
+      return `${base}/reach`;
+    case "member":
+      return `${base}/members`;
+    case "subscribers":
+      return `${base}/reach`;
+  }
+}
+
+function humanAction(action: ActivityActionType): string {
+  switch (action) {
+    case "CREATED":
+      return "Created";
+    case "UPDATED":
+      return "Updated";
+    case "DELETED":
+      return "Deleted";
+    case "RENAMED":
+      return "Renamed";
+    case "PUBLISHED":
+      return "Published";
+    case "ARCHIVED":
+      return "Archived";
+    case "ADDED":
+      return "Added";
+    case "REMOVED":
+      return "Removed";
+    case "SYNCED":
+      return "Synced";
+  }
+}
+
+function humanEntity(value: ActivityEntityType): string {
+  switch (value) {
+    case "NEWS_POST":
+      return "news post";
+    case "EVENT_POST":
+      return "event";
+    case "CLUB":
+      return "club";
+    case "DINING_LOCATION":
+      return "dining venue";
+    case "BROADCAST":
+      return "broadcast";
+    case "PROJECT_MEMBER":
+      return "member access";
+    case "PROJECT":
+      return "campus settings";
+    default:
+      return "item";
+  }
 }

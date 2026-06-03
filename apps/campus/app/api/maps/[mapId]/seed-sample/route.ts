@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireCampusAccess } from "@/lib/authz";
+import { recordAudit } from "@/lib/audit";
 import {
   projectHasContent,
   seedSampleCampus,
@@ -45,6 +47,19 @@ export async function POST(_req: Request, { params }: { params: Params }) {
   try {
     const counts = await seedSampleCampus(mapId, project.organizationId);
     revalidateTag(publicCampusTag(mapId));
+
+    const session = await auth();
+    await recordAudit({
+      organizationId: project.organizationId,
+      projectId: mapId,
+      actorId: (session?.user?.id as string | undefined) ?? null,
+      entityType: "PROJECT",
+      entityId: mapId,
+      action: "ADDED",
+      message: `Seeded sample content (${counts.news} news, ${counts.events} events, ${counts.clubs} clubs, ${counts.dining} dining)`,
+      metadata: counts,
+    });
+
     return NextResponse.json({ ok: true, counts });
   } catch (err) {
     console.error("[seed-sample] failed", err);
