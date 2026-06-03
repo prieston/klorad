@@ -16,6 +16,7 @@ import { StatCard } from "@/app/(dashboard)/components/StatCard";
 import { CampusHealthCard } from "@/app/(dashboard)/components/CampusHealthCard";
 import { WhatChangedCard } from "@/app/(dashboard)/components/WhatChangedCard";
 import { JumpBackInTiles } from "@/app/(dashboard)/components/JumpBackInTiles";
+import { WelcomeFirstRunCard } from "@/app/(dashboard)/components/WelcomeFirstRunCard";
 import { useCampusHealth } from "@/app/hooks/useCampusHealth";
 import { useOrganization } from "@/app/hooks/useOrganizations";
 
@@ -101,6 +102,21 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
 
   const isPublished = Boolean(map.isPublished);
 
+  // "Fresh" = the rector hasn't set up anything yet. We deliberately
+  // ignore the Klio + Published checks (Klio depends on a server
+  // env var the rector can't change, and publishing is a final step
+  // — pre-publish state shouldn't trigger the welcome banner). The
+  // banner self-dismisses the moment any of these flip; no toggle.
+  const isFresh = Boolean(
+    health &&
+      !health.checks.find((c) => c.key === "branding")?.done &&
+      !health.checks.find((c) => c.key === "mappedin")?.done &&
+      health.counts.news === 0 &&
+      health.counts.events === 0 &&
+      health.counts.clubs === 0 &&
+      health.counts.dining === 0,
+  );
+
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-8 md:px-10">
       <PageHeader
@@ -148,6 +164,16 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
           </>
         }
       />
+
+      {isFresh ? (
+        <div className="mb-6">
+          <WelcomeFirstRunCard
+            orgId={orgId}
+            mapId={mapId}
+            campusName={map.name}
+          />
+        </div>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
