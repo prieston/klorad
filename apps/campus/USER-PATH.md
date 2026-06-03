@@ -113,7 +113,7 @@
 | 2 | Copy the public URL | ✅ | `/reach` |
 | 3 | Download an SVG QR code (sized for print) | ✅ | `/reach` (#192) |
 | 4 | Send a push broadcast with deep-link target | ✅ | `/reach` → `POST /api/maps/[mapId]/notify` |
-| 5 | Broadcast history with delivered / attempted counts | ✅ | `Broadcast` model + `GET /api/maps/<mapId>/broadcasts`. Open-rate / CTR still TBD — needs a service-worker click hook |
+| 5 | Broadcast history with delivered / attempted counts and CTR | ✅ | `Broadcast` model + `GET /api/maps/<mapId>/broadcasts`. Open count fed by a service-worker `notificationclick` beacon (`POST /api/broadcasts/click`) gated on a per-row click token |
 
 ### A11. Day-to-day operations — dashboard glance
 
@@ -257,7 +257,7 @@ Roughly in shipping order; "S" = size (S/M/L), "U" = user impact (low/med/high).
 | S | Med | Wire `sceneData.defaultLocale` from Settings through the 10 public routes that today fall back to platform default | A13 follow-up — shipped |
 | M | Med | "Open now" structured hours for dining | A7.6 |
 | L | Med | Real audit log (per-write trail with actor + diff) | A11.6 — feed shipped synthesised from `updatedAt`; richer trail TBD |
-| M | Med | Broadcast model + history with CTR on `/reach` | A10.5 — history shipped; CTR (service-worker click hook) still queued |
+| M | Med | Broadcast model + history with CTR on `/reach` | A10.5 — history + CTR shipped |
 | S | Med | Org-level "New organisation" form | A2.2 |
 | S | Med | Org-level "Enable Campus app" toggle | A2.4 |
 | M | Low | Klio: tool toggles, persona sliders, suggestion chip editor | A9.3–5 |

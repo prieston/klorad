@@ -49,6 +49,7 @@ interface BroadcastHistoryItem {
   attempted: number;
   delivered: number;
   pruned: number;
+  opened: number;
   sentAt: string;
   senderName: string | null;
 }
@@ -390,9 +391,8 @@ export default function CampusReachPageClient({
                   Broadcast history
                 </h2>
                 <p className="mt-0.5 text-xs text-text-tertiary">
-                  Past broadcasts with delivered / attempted counts.
-                  Open-rate tracking lands once the service worker
-                  reports back-clicks.
+                  Past broadcasts with delivered / attempted counts
+                  and the share of recipients that tapped through.
                 </p>
               </div>
             </div>
@@ -563,6 +563,22 @@ function BroadcastHistoryRow({ item }: { item: BroadcastHistoryItem }) {
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-text-tertiary">
         <time dateTime={item.sentAt}>{relative(item.sentAt)}</time>
+        {item.opened > 0 ? (
+          <>
+            <span aria-hidden>&middot;</span>
+            <span>
+              {item.opened.toLocaleString()} opened
+              {item.delivered > 0 ? (
+                <>
+                  {" "}
+                  <span className="text-text-secondary">
+                    ({Math.round((item.opened / item.delivered) * 100)}% CTR)
+                  </span>
+                </>
+              ) : null}
+            </span>
+          </>
+        ) : null}
         {item.targetPath ? (
           <>
             <span aria-hidden>&middot;</span>

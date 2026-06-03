@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
 import { auth } from "@/auth";
 import { requireCampusAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -12,14 +13,17 @@ type Params = Promise<{ mapId: string }>;
  * Admin-triggered web push to every subscriber on this campus. Body:
  *   { title: string, body: string, url?: string, icon?: string }
  *
- * Returns counts: `{ attempted, delivered, pruned }`. Subscriptions
- * that respond 404 / 410 are pruned in-line — anything else is
- * logged and the row stays in case it was transient.
+ * Flow: we pre-allocate a `Broadcast` row *before* sending so the
+ * push payload can carry a stable broadcastId + clickToken; the
+ * service worker reports each notificationclick back, and that's
+ * how the Reach screen's open rate is built. After
+ * `sendPushToProject` resolves we update the same row with the
+ * attempted / delivered / pruned counters.
  *
- * On success we also persist a `Broadcast` row so the Reach screen
- * can render history. We store the *campus-relative* path (e.g.
- * `/events`) rather than the absolute URL so deep-links survive a
- * change to the public URL scheme.
+ * Returns `{ attempted, delivered, pruned }` in `result`. The
+ * broadcast row's id is never exposed to the rector — they don't
+ * need it and unique-ish ids in client responses are an
+ * enumeration vector.
  */
 export async function POST(req: Request, { params }: { params: Params }) {
   const { mapId } = await params;
@@ -51,34 +55,45 @@ export async function POST(req: Request, { params }: { params: Params }) {
   const url = typeof body.url === "string" ? body.url : undefined;
   const icon = typeof body.icon === "string" ? body.icon : undefined;
 
+  // Pre-allocate the broadcast row so the push payload can carry its
+  // id. If anything fails before the send, the row is left with
+  // `attempted: 0` which the Reach UI renders as a "0/0 · queued"
+  // line — surfacing the failed send instead of hiding it.
+  const clickToken = randomBytes(12).toString("base64url");
+  const session = await auth();
+  const broadcast = await prisma.broadcast.create({
+    data: {
+      projectId: mapId,
+      title,
+      body: message,
+      targetPath: extractCampusRelativePath(url, mapId),
+      senderId: (session?.user?.id as string | undefined) ?? null,
+      clickToken,
+    },
+    select: { id: true },
+  });
+
   try {
     const result = await sendPushToProject(mapId, {
       title,
       body: message,
       url,
       icon,
+      broadcastId: broadcast.id,
+      clickToken,
     });
 
-    // Persist a history row. We deliberately *don't* fail the send
-    // when the DB write fails — the notification already reached the
-    // devices, missing history is recoverable.
-    const session = await auth();
     await prisma.broadcast
-      .create({
+      .update({
+        where: { id: broadcast.id },
         data: {
-          projectId: mapId,
-          title,
-          body: message,
-          targetPath: extractCampusRelativePath(url, mapId),
-          senderId:
-            (session?.user?.id as string | undefined) ?? null,
           attempted: result.attempted,
           delivered: result.delivered,
           pruned: result.pruned,
         },
       })
       .catch((err) => {
-        console.error("[notify] history insert failed", err);
+        console.error("[notify] count update failed", err);
       });
 
     return NextResponse.json({ ok: true, result });
@@ -96,16 +111,13 @@ export async function POST(req: Request, { params }: { params: Params }) {
  * `/campus/<mapId>/events`. We store the campus-relative tail so
  * future history rows stay valid if the public URL scheme moves
  * (e.g. custom domains). Returns `null` when the URL doesn't look
- * like a campus link — there's nothing safe to deep-link to from
- * the history list in that case.
+ * like a campus link.
  */
 function extractCampusRelativePath(
   url: string | undefined,
   mapId: string,
 ): string | null {
   if (!url) return null;
-  // Accept either an absolute URL or a path. We only care about the
-  // pathname for the relative tail.
   let path = url;
   try {
     if (url.startsWith("http://") || url.startsWith("https://")) {

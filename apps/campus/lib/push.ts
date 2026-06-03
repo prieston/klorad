@@ -41,6 +41,12 @@ export interface PushPayload {
   url?: string;
   /** Optional thumbnail; falls back to the campus icon. */
   icon?: string;
+  /** Broadcast.id — the service worker forwards this back to the
+   *  open-count endpoint on notificationclick. */
+  broadcastId?: string;
+  /** One-time token paired with `broadcastId` so the counter
+   *  endpoint can reject replayed URLs. */
+  clickToken?: string;
 }
 
 export interface PushSendResult {

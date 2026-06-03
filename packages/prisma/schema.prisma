@@ -613,6 +613,14 @@ model Broadcast {
   delivered  Int      @default(0)
   /// How many subscriptions were pruned (404/410) during this send.
   pruned     Int      @default(0)
+  /// How many recipients tapped the notification. Counted via the
+  /// service worker's `notificationclick` handler — see /api/
+  /// broadcasts/click. Best-effort; never an integrity check.
+  opened     Int      @default(0)
+  /// One-time-ish token included in the push payload and required
+  /// when posting to the open counter so a bored visitor can't pad
+  /// the open-rate by replaying URLs they sniffed from devtools.
+  clickToken String?
   createdAt  DateTime @default(now())
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
