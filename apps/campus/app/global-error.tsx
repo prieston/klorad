@@ -54,7 +54,12 @@ export default function GlobalError({ error }: Props) {
             We&rsquo;ve been notified and are taking a look. Try again, or
             head back to the dashboard.
           </p>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
+            // Plain anchor on purpose: this boundary renders when the
+            // React tree itself has died, so a full document reload is
+            // the correct recovery — soft navigation would re-mount
+            // into the same broken state.
             href="/"
             style={{
               display: "inline-block",

@@ -124,7 +124,7 @@
 | 3 | Stat: Push subscribers | ⚠️ → ✅ | Wired in **this** PR using existing `/push-stats` |
 | 4 | Stat: POIs across N buildings | ✅ | From `campus-health` |
 | 5 | Stat: Accessibility % | ✅ | From `campus-health` |
-| 6 | What Changed feed (audit timeline) | ❌ | Empty state; needs Activity log surfaced |
+| 6 | What Changed feed (audit timeline) | ✅ | Synthesised from satellite `updatedAt` columns (news / events / clubs / dining / campus settings) + a rolled-up subscriber tally — no audit-log schema needed. `GET /api/maps/<mapId>/changes` |
 | 7 | Jump-back tiles to recent CRUD | ✅ | `JumpBackInTiles` |
 
 ### A12. Manage organisation members
@@ -188,7 +188,7 @@
 | 2 | Events list + detail | ✅ | `/campus/<token>/events` |
 | 3 | Clubs grid + detail | ✅ | `/campus/<token>/clubs` |
 | 4 | Dining grid (no detail) | ✅ | `/campus/<token>/dining` |
-| 5 | `/explore` page | 🗑 | Empty placeholder — nothing linked to it. Remove or replace with the consolidated explore from #46 |
+| 5 | `/explore` page | ✅ | Working shortlink: `?tab=news\|events\|clubs\|dining` redirects to the matching page; bare `/explore` defaults to `/events`. Used by the home "Explore" tile and notification deep-links |
 
 ### B4. Use the map
 
@@ -251,11 +251,10 @@ Roughly in shipping order; "S" = size (S/M/L), "U" = user impact (low/med/high).
 ### Post-MVP, useful
 | S | U | Item | Pointer |
 |---|---|---|---|
-| S | Low | Delete `/campus/<token>/explore` page (orphan) | B3.5 |
 | M | Med | Campus-tier "Members" screen (per-campus access) | A12.3 |
 | M | Med | Campus-tier "Settings" screen (publish + danger zone) | A13.2 |
 | M | Med | "Open now" structured hours for dining | A7.6 |
-| L | Med | Audit log / What Changed feed | A11.6 |
+| L | Med | Real audit log (per-write trail with actor + diff) | A11.6 — feed shipped synthesised from `updatedAt`; richer trail TBD |
 | M | Med | Broadcast model + history with CTR on `/reach` | A10.5 |
 | S | Med | Org-level "New organisation" form | A2.2 |
 | S | Med | Org-level "Enable Campus app" toggle | A2.4 |
