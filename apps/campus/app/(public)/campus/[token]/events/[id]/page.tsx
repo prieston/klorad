@@ -9,7 +9,11 @@ import {
   MapPin,
 } from "lucide-react";
 import { getPublicCampusByToken } from "@/lib/public-campus";
-import { detectLocale, pickLocalized } from "@/app/lib/i18n-core";
+import {
+  detectLocale,
+  pickDefaultLocale,
+  pickLocalized,
+} from "@/app/lib/i18n-core";
 import {
   formatEventWhen,
   getEventPost,
@@ -77,14 +81,19 @@ export default async function EventDetailPage({
 }) {
   const { token, id } = await params;
   const sp = await searchParams;
-  const locale = detectLocale(typeof sp.lang === "string" ? sp.lang : null);
-
   const map = await getPublicCampusByToken(token);
   if (!map) notFound();
   const event = await getEventPost(id);
   if (!event || event.projectId !== map.id) notFound();
 
-  const scene = (map.sceneData ?? {}) as { branding?: CampusBranding };
+  const scene = (map.sceneData ?? {}) as {
+    branding?: CampusBranding;
+    defaultLocale?: unknown;
+  };
+  const locale = detectLocale(
+    typeof sp.lang === "string" ? sp.lang : null,
+    pickDefaultLocale(scene.defaultLocale),
+  );
   const branding = scene.branding ?? {};
   const campusName = branding.name || map.title;
 

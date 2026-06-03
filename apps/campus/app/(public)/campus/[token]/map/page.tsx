@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getPublicCampusByToken } from "@/lib/public-campus";
 import { venueForIndoorMap } from "@/lib/mappedin/config";
-import { detectLocale } from "@/app/lib/i18n-core";
+import { detectLocale, pickDefaultLocale } from "@/app/lib/i18n-core";
 import PublicViewerClient from "../PublicViewerClient";
 import NotPublishedPlaceholder from "../NotPublishedPlaceholder";
 import { MapPageClient } from "./MapPageClient";
@@ -30,18 +30,21 @@ export default async function CampusMapPage({
   const { token } = await params;
   const sp = await searchParams;
   const focusSpaceId = typeof sp.space === "string" ? sp.space : undefined;
-  const locale = detectLocale(typeof sp.lang === "string" ? sp.lang : null);
 
   const map = await getPublicCampusByToken(token);
 
   if (!map) notFound();
-  if (!map.isPublished)
-    return <NotPublishedPlaceholder name={map.title} locale={locale} />;
-
   const scene = (map.sceneData ?? null) as {
     indoorMapId?: string;
     branding?: { primaryColor?: string; name?: string; logo?: string };
+    defaultLocale?: unknown;
   } | null;
+  const locale = detectLocale(
+    typeof sp.lang === "string" ? sp.lang : null,
+    pickDefaultLocale(scene?.defaultLocale),
+  );
+  if (!map.isPublished)
+    return <NotPublishedPlaceholder name={map.title} locale={locale} />;
   const indoorMapId = scene?.indoorMapId;
   const accentColor =
     scene?.branding?.primaryColor &&
@@ -76,5 +79,10 @@ export default async function CampusMapPage({
     );
   }
 
-  return <PublicViewerClient mapId={token} />;
+  return (
+    <PublicViewerClient
+      mapId={token}
+      defaultLocale={pickDefaultLocale(scene?.defaultLocale)}
+    />
+  );
 }

@@ -257,14 +257,37 @@ const MESSAGES = {
 export type MessageKey = keyof typeof MESSAGES.en;
 
 /**
- * URL-only locale detection. Browser-side preferences (localStorage,
- * navigator.language) are intentionally NOT consulted here — they make
- * the SSR pass disagree with the first client render and trigger React
- * hydration warnings.
+ * Locale detection — URL parameter wins, then the campus's stored
+ * default (typically read from `sceneData.defaultLocale`), then the
+ * platform fallback. Browser-side preferences (localStorage,
+ * navigator.language) are intentionally NOT consulted: they'd make
+ * the SSR pass disagree with the first client render and trigger
+ * React hydration warnings.
+ *
+ * Two precedence rules deliberately:
+ *   1. `?lang=` always wins, because the visitor explicitly chose.
+ *   2. The campus default applies only when the URL is silent — a
+ *      Greek-defaulting campus still shows English the moment a
+ *      visitor clicks the EN toggle.
  */
-export function detectLocale(urlParam?: string | null): Locale {
+export function detectLocale(
+  urlParam?: string | null,
+  fallback?: Locale | null,
+): Locale {
   if (urlParam === "el" || urlParam === "en") return urlParam;
+  if (fallback === "el" || fallback === "en") return fallback;
   return DEFAULT_LOCALE;
+}
+
+/**
+ * Narrow an unknown value (typically `sceneData.defaultLocale` read
+ * from the JSON blob) to a `Locale`, returning `null` when the value
+ * isn't a supported language. Use the result directly as the second
+ * argument to {@link detectLocale}.
+ */
+export function pickDefaultLocale(value: unknown): Locale | null {
+  if (value === "el" || value === "en") return value;
+  return null;
 }
 
 /** Message lookup with {placeholder} substitution. */

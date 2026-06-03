@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPublicCampusByToken } from "@/lib/public-campus";
-import { detectLocale } from "@/app/lib/i18n-core";
+import { detectLocale, pickDefaultLocale } from "@/app/lib/i18n-core";
 import { KlioPanel } from "@/lib/consumer/KlioPanel";
 import NotPublishedPlaceholder from "../NotPublishedPlaceholder";
 
@@ -49,14 +49,19 @@ export default async function KlioPage({
 }) {
   const { token } = await params;
   const sp = await searchParams;
-  const locale = detectLocale(typeof sp.lang === "string" ? sp.lang : null);
-
   const map = await getPublicCampusByToken(token);
   if (!map) notFound();
+
+  const scene = (map.sceneData ?? {}) as {
+    branding?: CampusBranding;
+    defaultLocale?: unknown;
+  };
+  const locale = detectLocale(
+    typeof sp.lang === "string" ? sp.lang : null,
+    pickDefaultLocale(scene.defaultLocale),
+  );
   if (!map.isPublished)
     return <NotPublishedPlaceholder name={map.title} locale={locale} />;
-
-  const scene = (map.sceneData ?? {}) as { branding?: CampusBranding };
   const branding = scene.branding ?? {};
   const campusName = branding.name || map.title;
   const accentColor = isValidHex(branding.primaryColor)
