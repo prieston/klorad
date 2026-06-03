@@ -264,6 +264,7 @@ export default async function CampusHomePage({
       events={events}
       clubs={clubs}
       dining={dining}
+      vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY}
     />
   );
 }
