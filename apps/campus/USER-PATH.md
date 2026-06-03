@@ -79,7 +79,7 @@
 | 3 | Events ICS feed sync (paste a Google Calendar feed URL) | ✅ | `IcsFeedsManager` + `/api/maps/[mapId]/sync-ics` |
 | 4 | Clubs authoring (initials, avatar colour, member count, meets cadence) | ✅ | `/clubs` |
 | 5 | Dining authoring (hours as free text, cuisine, menu URL) | ✅ | `/dining` |
-| 6 | Structured "open now" hours (parse hoursText into a weekly schema) | ❌ | Today the public page can't tell a student whether dining is open right now |
+| 6 | Structured "open now" hours on a weekly schema | ✅ | `DiningLocation.hours` (JSON shifts). `hoursText` survives as a free-text caveat for one-off notes ("Closed for finals") |
 | 7 | Bulk-edit / re-order / tagging | ❌ | One-at-a-time only |
 | 8 | Drafts vs. published per content item | ❌ | Everything is live the moment it's saved |
 
@@ -170,7 +170,7 @@
 | 4 | News rail (DB + legacy sceneData posts) | ✅ | |
 | 5 | Events rail (DB + ICS-merged) | ✅ | |
 | 6 | Clubs "most active" rail | ✅ | |
-| 7 | Dining "now open" rail | ⚠️ | "Open now" is a heuristic on free-text hours; structured hours not yet (A7.6) |
+| 7 | Dining "now open" rail | ✅ | Real "Open now" / "Opens HH:mm" status driven by structured `hours` JSON on `DiningLocation`. Past-midnight kitchens close at 25:00+ |
 
 ### B2. Install as a PWA & receive push
 
@@ -255,7 +255,7 @@ Roughly in shipping order; "S" = size (S/M/L), "U" = user impact (low/med/high).
 | M | Med | Campus-tier "Members" screen (per-campus access) | A12.3 — read-only view shipped; per-campus *overrides* are the bigger arc still queued |
 | M | Med | Campus-tier "Settings" screen (publish + danger zone) | A13.2 — shipped |
 | S | Med | Wire `sceneData.defaultLocale` from Settings through the 10 public routes that today fall back to platform default | A13 follow-up — shipped |
-| M | Med | "Open now" structured hours for dining | A7.6 |
+| M | Med | "Open now" structured hours for dining | A7.6 — shipped |
 | L | Med | Real audit log (per-write trail with actor + diff) | A11.6 — feed shipped synthesised from `updatedAt`; richer trail TBD |
 | M | Med | Broadcast model + history with CTR on `/reach` | A10.5 — history + CTR shipped |
 | S | Med | Org-level "New organisation" form | A2.2 |

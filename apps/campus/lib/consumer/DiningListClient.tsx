@@ -1,9 +1,14 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { Clock, ExternalLink, MapPin } from "lucide-react";
 import { pickLocalized, type Locale } from "@/app/lib/i18n-core";
 import type { DiningLocation } from "@/lib/dining-db";
+import {
+  formatWeeklyHours,
+  openNowStatus,
+} from "@/lib/dining-hours";
 import { useCampusDining } from "@/lib/swr/useCampusDining";
 import { DiningListSkeleton } from "./DiningListSkeleton";
 
@@ -27,6 +32,11 @@ export function DiningListClient({
   emptyCopy,
 }: Props) {
   const { dining, isLoading } = useCampusDining(token, initialLocations);
+  // Resolve "open now" once per render. The minute resolution is
+  // enough — the client never re-renders fast enough for clock-skew
+  // to matter, and re-running every minute would trigger SWR-revalidate
+  // churn for no useful UX gain.
+  const now = useMemo(() => new Date(), [dining]);
 
   if (isLoading && dining.length === 0) {
     return <DiningListSkeleton rows={4} />;
@@ -50,6 +60,10 @@ export function DiningListClient({
           l.descriptionEl,
           locale,
         );
+        const status = openNowStatus(l.hours, now);
+        const statusCopy =
+          locale === "el" ? status.labelEl : status.label;
+        const weekly = formatWeeklyHours(l.hours, locale);
         return (
           <article
             key={l.id}
@@ -73,14 +87,33 @@ export function DiningListClient({
               />
             )}
             <div className="flex flex-1 flex-col gap-3 p-5">
-              <div>
-                <h2 className="text-lg font-medium text-[var(--brand-text)]">
-                  {name}
-                </h2>
-                {l.cuisine ? (
-                  <p className="mt-0.5 text-xs uppercase tracking-wide text-[var(--brand-text-muted)]">
-                    {l.cuisine}
-                  </p>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h2 className="text-lg font-medium text-[var(--brand-text)]">
+                    {name}
+                  </h2>
+                  {l.cuisine ? (
+                    <p className="mt-0.5 text-xs uppercase tracking-wide text-[var(--brand-text-muted)]">
+                      {l.cuisine}
+                    </p>
+                  ) : null}
+                </div>
+                {statusCopy ? (
+                  <span
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                      status.open
+                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                        : "bg-[var(--brand-line)] text-[var(--brand-text-muted)]"
+                    }`}
+                  >
+                    <span
+                      aria-hidden
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        status.open ? "bg-emerald-500" : "bg-[var(--brand-text-muted)]"
+                      }`}
+                    />
+                    {statusCopy}
+                  </span>
                 ) : null}
               </div>
 
@@ -88,9 +121,19 @@ export function DiningListClient({
                 {description}
               </p>
 
-              {l.hoursText ? (
+              {weekly ? (
+                <p className="inline-flex items-start gap-1.5 text-xs text-[var(--brand-text-muted)]">
+                  <Clock size={14} strokeWidth={1.75} aria-hidden />
+                  <span>{weekly}</span>
+                </p>
+              ) : l.hoursText ? (
                 <p className="inline-flex items-center gap-1.5 text-xs text-[var(--brand-text-muted)]">
-                  <Clock size={14} strokeWidth={1.75} />
+                  <Clock size={14} strokeWidth={1.75} aria-hidden />
+                  {l.hoursText}
+                </p>
+              ) : null}
+              {weekly && l.hoursText ? (
+                <p className="-mt-1 text-[11px] text-[var(--brand-text-muted)]">
                   {l.hoursText}
                 </p>
               ) : null}

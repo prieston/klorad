@@ -569,9 +569,17 @@ model DiningLocation {
   description     String   @db.Text
   /// Greek translation of `description`, optional.
   descriptionEl   String?  @db.Text
-  /// Free text — "Mon-Fri 7am-10pm · Sat 9am-3pm · Sun closed".
-  /// Structured day/time ranges + "open now" badge are a follow-up.
+  /// Free-text caveat shown alongside the structured hours below —
+  /// e.g. "Closed for finals week" or "Patio seasonal". When the
+  /// structured `hours` is null we still display this as the
+  /// fallback status copy on the public surface.
   hoursText       String?
+  /// Structured weekly schedule. Array of
+  /// `{ day: 0-6 (Sun..Sat), open: "HH:mm", close: "HH:mm" }`
+  /// shifts. Multiple entries per day model split shifts (lunch +
+  /// dinner). Drives the "Open now" badge on the public dining list
+  /// — see `lib/dining-hours.ts`.
+  hours           Json?
   /// Free text — "Pizza, Salads, Coffee".
   cuisine         String?
   /// External link to the menu (PDF, Google Doc, restaurant site).

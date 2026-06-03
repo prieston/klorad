@@ -9,12 +9,149 @@ import {
   Field,
   Input,
   Panel,
+  Select,
   Textarea,
 } from "@klorad/design-system";
 import { uploadFile } from "@klorad/storage/client";
 import { UPLOAD_PREFIXES } from "@/lib/uploads/prefixes";
 import { type DiningLocation } from "@/lib/dining-db";
+import { type HoursShift, type Weekday } from "@/lib/dining-hours";
 import { AnchorPicker, type AnchorValue } from "@/lib/admin/AnchorPicker";
+
+const WEEKDAY_LABELS: Record<Weekday, string> = {
+  0: "Sun",
+  1: "Mon",
+  2: "Tue",
+  3: "Wed",
+  4: "Thu",
+  5: "Fri",
+  6: "Sat",
+};
+
+/**
+ * Hours editor — row per shift, add/remove rows, pick the weekday
+ * and type open + close (`HH:mm`). Native `<input type="time">` gives
+ * us free validation and a sane keyboard / dial UI on every browser;
+ * we don't try to be clever about preventing overlapping shifts,
+ * since "lunch + dinner" overlap is actually legitimate.
+ */
+function HoursEditor({
+  value,
+  onChange,
+}: {
+  value: HoursShift[];
+  onChange: (next: HoursShift[]) => void;
+}) {
+  const sorted = [...value].sort(
+    (a, b) => a.day - b.day || a.open.localeCompare(b.open),
+  );
+
+  const addRow = () => {
+    // Default to "Mon 09:00 - 17:00" if no existing rows, otherwise
+    // clone the day of the last row so the rector can quickly add a
+    // second shift (Mon lunch, Mon dinner).
+    const last = sorted[sorted.length - 1];
+    const next: HoursShift = {
+      day: last ? last.day : 1,
+      open: "09:00",
+      close: "17:00",
+    };
+    onChange([...value, next]);
+  };
+
+  const update = (idx: number, patch: Partial<HoursShift>) => {
+    const copy = [...value];
+    copy[idx] = { ...copy[idx], ...patch };
+    onChange(copy);
+  };
+
+  const remove = (idx: number) => {
+    const copy = [...value];
+    copy.splice(idx, 1);
+    onChange(copy);
+  };
+
+  if (sorted.length === 0) {
+    return (
+      <div className="space-y-2">
+        <div className="rounded-xl border border-dashed border-line-soft bg-surface-2/40 px-4 py-4 text-xs text-text-tertiary">
+          No structured hours yet. The public site will fall back to the
+          caveat below.
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onClick={addRow}
+        >
+          <Plus size={12} strokeWidth={1.75} aria-hidden />
+          Add shift
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <ul className="space-y-2">
+        {value.map((shift, idx) => (
+          <li
+            key={idx}
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-line-soft bg-surface-2/30 p-2"
+          >
+            <Select
+              value={String(shift.day)}
+              onChange={(e) =>
+                update(idx, { day: Number(e.target.value) as Weekday })
+              }
+              className="w-[88px]"
+            >
+              {([0, 1, 2, 3, 4, 5, 6] as Weekday[]).map((d) => (
+                <option key={d} value={d}>
+                  {WEEKDAY_LABELS[d]}
+                </option>
+              ))}
+            </Select>
+            <input
+              type="time"
+              value={shift.open}
+              onChange={(e) => update(idx, { open: e.target.value })}
+              className="h-9 w-[96px] rounded-md border border-line-strong bg-surface-1 px-2 text-sm text-text-primary outline-none focus:border-accent"
+              aria-label="Opens at"
+            />
+            <span aria-hidden className="text-xs text-text-tertiary">
+              &mdash;
+            </span>
+            <input
+              type="time"
+              value={shift.close}
+              onChange={(e) => update(idx, { close: e.target.value })}
+              className="h-9 w-[96px] rounded-md border border-line-strong bg-surface-1 px-2 text-sm text-text-primary outline-none focus:border-accent"
+              aria-label="Closes at"
+            />
+            <button
+              type="button"
+              onClick={() => remove(idx)}
+              aria-label="Remove shift"
+              className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-surface-2 hover:text-red-500"
+            >
+              <Trash2 size={14} strokeWidth={1.75} aria-hidden />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        onClick={addRow}
+      >
+        <Plus size={12} strokeWidth={1.75} aria-hidden />
+        Add shift
+      </Button>
+    </div>
+  );
+}
 
 interface Props {
   mapId: string;
@@ -43,6 +180,7 @@ export function DiningAdminClient({
   const [description, setDescription] = useState("");
   const [descriptionEl, setDescriptionEl] = useState("");
   const [hoursText, setHoursText] = useState("");
+  const [hours, setHours] = useState<HoursShift[]>([]);
   const [cuisine, setCuisine] = useState("");
   const [menuUrl, setMenuUrl] = useState("");
   const [anchor, setAnchor] = useState<AnchorValue>(EMPTY_ANCHOR);
@@ -70,6 +208,7 @@ export function DiningAdminClient({
     setDescription("");
     setDescriptionEl("");
     setHoursText("");
+    setHours([]);
     setCuisine("");
     setMenuUrl("");
     setAnchor(EMPTY_ANCHOR);
@@ -83,6 +222,7 @@ export function DiningAdminClient({
     setDescription(location.description);
     setDescriptionEl(location.descriptionEl ?? "");
     setHoursText(location.hoursText ?? "");
+    setHours(location.hours);
     setCuisine(location.cuisine ?? "");
     setMenuUrl(location.menuUrl ?? "");
     setAnchor(
@@ -120,6 +260,7 @@ export function DiningAdminClient({
           description: description.trim(),
           descriptionEl: descriptionEl.trim() || "",
           hoursText: hoursText.trim() || undefined,
+          hours,
           cuisine: cuisine.trim() || undefined,
           menuUrl: menuUrl.trim() || undefined,
           imageUrl,
@@ -291,11 +432,21 @@ export function DiningAdminClient({
             />
           </Field>
 
-          <Field label="Hours (free text)">
+          <Field
+            label="Hours"
+            hint="Add a shift per opening — split shifts (lunch + dinner) are separate rows on the same day. Used to compute the live Open now badge."
+          >
+            <HoursEditor value={hours} onChange={setHours} />
+          </Field>
+
+          <Field
+            label="Hours caveat (free text, optional)"
+            hint="Shows alongside the structured hours. Use for one-off notes: 'Closed for finals week', 'Patio seasonal'."
+          >
             <Input
               value={hoursText}
               onChange={(e) => setHoursText(e.target.value)}
-              placeholder="Mon-Fri 7am-10pm · Sat 9am-3pm · Sun closed"
+              placeholder="Closed for finals week"
             />
           </Field>
 
