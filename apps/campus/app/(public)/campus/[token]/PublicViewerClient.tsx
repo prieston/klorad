@@ -59,13 +59,23 @@ function MapLoadingFallback() {
 
 interface Props {
   mapId: string;
+  /** The campus's stored `sceneData.defaultLocale`, threaded through
+   *  from the server page so a fresh visit with no `?lang=` matches
+   *  the rector's chosen default instead of the platform fallback. */
+  defaultLocale?: Locale | null;
 }
 
 type Section = "home" | "directions" | "tour";
 
-export default function PublicViewerClient({ mapId }: Props) {
+export default function PublicViewerClient({
+  mapId,
+  defaultLocale,
+}: Props) {
   const searchParams = useSearchParams();
-  const initialLocale: Locale = detectLocale(searchParams.get("lang"));
+  const initialLocale: Locale = detectLocale(
+    searchParams.get("lang"),
+    defaultLocale,
+  );
   return (
     <LocaleProvider initial={initialLocale}>
       <PublicViewerInner mapId={mapId} />

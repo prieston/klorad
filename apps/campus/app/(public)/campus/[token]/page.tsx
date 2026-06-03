@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPublicCampusByToken } from "@/lib/public-campus";
 import { readHomePage } from "@/lib/home-page";
-import { detectLocale, pickLocalized, pickText } from "@/app/lib/i18n-core";
+import {
+  detectLocale,
+  pickDefaultLocale,
+  pickLocalized,
+  pickText,
+} from "@/app/lib/i18n-core";
 import { readPosts } from "@/lib/posts";
 import { listNewsForProject, type NewsPost } from "@/lib/news";
 import {
@@ -85,14 +90,21 @@ export default async function CampusHomePage({
 }) {
   const { token } = await params;
   const sp = await searchParams;
-  const locale = detectLocale(typeof sp.lang === "string" ? sp.lang : null);
 
   const map = await getPublicCampusByToken(token);
   if (!map) notFound();
+  const scene = (map.sceneData ?? {}) as {
+    branding?: CampusBranding;
+    defaultLocale?: unknown;
+  };
+  // URL wins; tenant default applies only when the visitor hasn't
+  // picked. The campus Settings screen writes `defaultLocale`.
+  const locale = detectLocale(
+    typeof sp.lang === "string" ? sp.lang : null,
+    pickDefaultLocale(scene.defaultLocale),
+  );
   if (!map.isPublished)
     return <NotPublishedPlaceholder name={map.title} locale={locale} />;
-
-  const scene = (map.sceneData ?? {}) as { branding?: CampusBranding };
   const branding = scene.branding ?? {};
   const campusName = branding.name || map.title;
   const accentColor = isValidHex(branding.primaryColor)

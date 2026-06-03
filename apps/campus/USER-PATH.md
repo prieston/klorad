@@ -254,7 +254,7 @@ Roughly in shipping order; "S" = size (S/M/L), "U" = user impact (low/med/high).
 |---|---|---|---|
 | M | Med | Campus-tier "Members" screen (per-campus access) | A12.3 — read-only view shipped; per-campus *overrides* are the bigger arc still queued |
 | M | Med | Campus-tier "Settings" screen (publish + danger zone) | A13.2 — shipped |
-| S | Med | Wire `sceneData.defaultLocale` from Settings through the 10 public routes that today fall back to platform default | A13 follow-up |
+| S | Med | Wire `sceneData.defaultLocale` from Settings through the 10 public routes that today fall back to platform default | A13 follow-up — shipped |
 | M | Med | "Open now" structured hours for dining | A7.6 |
 | L | Med | Real audit log (per-write trail with actor + diff) | A11.6 — feed shipped synthesised from `updatedAt`; richer trail TBD |
 | M | Med | Broadcast model + history with CTR on `/reach` | A10.5 |

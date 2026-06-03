@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Compass } from "lucide-react";
 import { getPublicCampusByToken } from "@/lib/public-campus";
-import { detectLocale } from "@/app/lib/i18n-core";
+import { detectLocale, pickDefaultLocale } from "@/app/lib/i18n-core";
 import { listUpcomingEventsForProject } from "@/lib/events-db";
 import { readEventFeeds, type CampusEvent } from "@/lib/events";
 import { fetchCampusEvents } from "@/lib/events-server";
@@ -57,12 +57,17 @@ export default async function EventsPage({
 }) {
   const { token } = await params;
   const sp = await searchParams;
-  const locale = detectLocale(typeof sp.lang === "string" ? sp.lang : null);
-
   const map = await getPublicCampusByToken(token);
   if (!map) notFound();
 
-  const scene = (map.sceneData ?? {}) as { branding?: CampusBranding };
+  const scene = (map.sceneData ?? {}) as {
+    branding?: CampusBranding;
+    defaultLocale?: unknown;
+  };
+  const locale = detectLocale(
+    typeof sp.lang === "string" ? sp.lang : null,
+    pickDefaultLocale(scene.defaultLocale),
+  );
   const branding = scene.branding ?? {};
   const campusName = branding.name || map.title;
   const accentColor = isValidHex(branding.primaryColor)

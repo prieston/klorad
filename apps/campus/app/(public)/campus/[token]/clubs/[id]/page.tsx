@@ -3,7 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, ExternalLink, MapPin } from "lucide-react";
 import { getPublicCampusByToken } from "@/lib/public-campus";
-import { detectLocale, pickLocalized } from "@/app/lib/i18n-core";
+import {
+  detectLocale,
+  pickDefaultLocale,
+  pickLocalized,
+} from "@/app/lib/i18n-core";
 import { getClub } from "@/lib/clubs-db";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
 
@@ -59,14 +63,19 @@ export default async function ClubDetailPage({
 }) {
   const { token, id } = await params;
   const sp = await searchParams;
-  const locale = detectLocale(typeof sp.lang === "string" ? sp.lang : null);
-
   const map = await getPublicCampusByToken(token);
   if (!map) notFound();
   const club = await getClub(id);
   if (!club || club.projectId !== map.id) notFound();
 
-  const scene = (map.sceneData ?? {}) as { branding?: CampusBranding };
+  const scene = (map.sceneData ?? {}) as {
+    branding?: CampusBranding;
+    defaultLocale?: unknown;
+  };
+  const locale = detectLocale(
+    typeof sp.lang === "string" ? sp.lang : null,
+    pickDefaultLocale(scene.defaultLocale),
+  );
   const branding = scene.branding ?? {};
   const campusName = branding.name || map.title;
   const accentColor = isValidHex(branding.primaryColor)

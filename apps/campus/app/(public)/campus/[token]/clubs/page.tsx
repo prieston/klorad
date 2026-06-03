@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPublicCampusByToken } from "@/lib/public-campus";
-import { detectLocale } from "@/app/lib/i18n-core";
+import { detectLocale, pickDefaultLocale } from "@/app/lib/i18n-core";
 import { listTopClubsForProject } from "@/lib/clubs-db";
 import { SegmentedTabs } from "@/lib/consumer/SegmentedTabs";
 import { ConsumerFooter } from "@/lib/consumer/ConsumerFooter";
@@ -52,12 +52,17 @@ export default async function ClubsPage({
 }) {
   const { token } = await params;
   const sp = await searchParams;
-  const locale = detectLocale(typeof sp.lang === "string" ? sp.lang : null);
-
   const map = await getPublicCampusByToken(token);
   if (!map) notFound();
 
-  const scene = (map.sceneData ?? {}) as { branding?: CampusBranding };
+  const scene = (map.sceneData ?? {}) as {
+    branding?: CampusBranding;
+    defaultLocale?: unknown;
+  };
+  const locale = detectLocale(
+    typeof sp.lang === "string" ? sp.lang : null,
+    pickDefaultLocale(scene.defaultLocale),
+  );
   const branding = scene.branding ?? {};
   const campusName = branding.name || map.title;
   const accentColor = isValidHex(branding.primaryColor)
