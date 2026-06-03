@@ -1,5 +1,13 @@
 import type { MappedinVenue } from "./config";
-import type { PlaceOption } from "@/lib/places";
+import type { PostPlace } from "@/lib/posts";
+
+/** Display row for the news / events anchor pickers. Mirrors the old
+ *  `PlaceOption` shape that lived in the now-deleted `lib/places.ts`
+ *  scene-graph helper — only the type travels with us, the runtime
+ *  helper went away with the Workbench. */
+export interface PlaceOption extends PostPlace {
+  label: string;
+}
 
 /**
  * Load a MappedIn venue's named spaces as place options for the news

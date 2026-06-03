@@ -85,15 +85,14 @@
 
 ### A8. Author the campus map (POIs, buildings, accessibility)
 
+Campus authors **don't** edit a 3D scene in the Klorad app any more — MappedIn is the single source of truth for the indoor venue. The Workbench (Mapbox-based scene editor) was retired from `apps/campus`; the design-system shells (`Workbench`, `SceneToolbar`, `CommandPalette`, …) stay in `@klorad/design-system` for future verticals (Mobility, Heritage, Urban) to reuse. See [[campus-indoor-mappedin-decision]] and the matching memory `workbench-retired-from-campus`.
+
 | # | Step | Status | Where |
 |---|---|---|---|
-| 1 | Open the Workbench (3D outdoor + indoor scene editor) | ✅ | `/workbench` |
-| 2 | Place buildings, rooms, POIs | ✅ | Workbench operations (`lib/workbench/operations/*`) |
-| 3 | Reshape a room (geometry edit) | ❌ | Op `room.reshape` deferred — see `lib/workbench/operations/edit-room.tsx:124` |
-| 4 | Reposition a floor-plan image | ❌ | Op `floor-plan.reposition` deferred — see `lib/workbench/operations/upload-floor-plan.tsx:57` |
-| 5 | Replace floor-plan image | ❌ | Op `floor-plan.replace-image` deferred — see `lib/workbench/operations/edit-floor-plan.tsx:115` |
-| 6 | Tag POIs as wheelchair-accessible | ✅ | Workbench inspector |
-| 7 | Saved routes editor (predefined walking directions) | ❌ | Mentioned in the public viewer's wayfinding panel but no authoring UI |
+| 1 | Indoor venue authoring (buildings, floors, rooms, POIs, walkpaths) | ✅ | MappedIn's authoring tools — Klorad reads the venue id |
+| 2 | Connect that venue to a Klorad campus | ✅ | "MappedIn venue" card on `/map` (`indoorMapId` in `sceneData`) |
+| 3 | Accessibility / wayfinding metadata | ✅ | Inherited from the MappedIn venue |
+| 4 | Outdoor pin on the org-tier world map | ✅ | `/identity` Location panel (PR #196 / #197) |
 
 ### A9. Configure Klio (the AI assistant)
 
@@ -262,6 +261,5 @@ Roughly in shipping order; "S" = size (S/M/L), "U" = user impact (low/med/high).
 | S | Med | Org-level "Enable Campus app" toggle | A2.4 |
 | M | Low | Klio: tool toggles, persona sliders, suggestion chip editor | A9.3–5 — shipped |
 | L | Med | Virtual tour authoring + playback | B4.4 |
-| M | Med | Workbench: room.reshape, floor-plan.reposition, floor-plan.replace-image | A8.3–5 |
-| M | Med | Saved routes authoring UI | A8.7 |
+| M | Med | Saved routes authoring (predefined walking directions on top of MappedIn) | A8 follow-up |
 | S | Low | Backoffice MUI retirement (still-pending Phase 6) | tech debt |

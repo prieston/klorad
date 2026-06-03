@@ -283,13 +283,6 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   const { organization: currentOrganization, loadingOrganization } =
     useOrganization(orgId);
 
-  // Builder + Workbench routes own the full viewport — no dashboard shell.
-  const isFullScreen =
-    pathname.includes("/builder") || pathname.includes("/workbench");
-  if (isFullScreen) {
-    return <main className="min-h-screen">{children}</main>;
-  }
-
   // Two IAs share one shell: organisation tier when no campus is
   // selected, campus tier the moment the URL carries a `mapId`. The
   // sidebar header gains the "← All campuses" back link + a campus

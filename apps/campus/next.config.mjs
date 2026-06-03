@@ -2,14 +2,7 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: [
-    "@klorad/api",
-    "@klorad/core",
-    "@klorad/design-system",
-    "@klorad/ui",
-    "@klorad/engine-mapbox",
-    "@klorad/engine-three",
-  ],
+  transpilePackages: ["@klorad/design-system", "@klorad/ui"],
   // `node-ical` (ICS event parsing) is a Node library that doesn't
   // survive webpack bundling — load it at runtime instead of bundling
   // it into the server output.
@@ -24,13 +17,6 @@ const nextConfig = {
         hostname: "**.digitaloceanspaces.com",
       },
     ],
-  },
-  webpack(config) {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "mapbox-gl": "mapbox-gl",
-    };
-    return config;
   },
 };
 
