@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import useSWR, { mutate as globalMutate } from "swr";
 import { toast } from "react-toastify";
-import { Palette, Upload } from "lucide-react";
+import { MapPin, Palette, Upload } from "lucide-react";
 import { Button, Field, Input, Panel } from "@klorad/design-system";
 import { uploadFile } from "@klorad/storage/client";
 import { PageHeader } from "@/app/(dashboard)/components/PageHeader";
@@ -11,6 +12,19 @@ import { OpenPublicAction } from "@/app/(dashboard)/components/OpenPublicAction"
 import { PhonePreview } from "@/app/(dashboard)/components/PhonePreview";
 import { UPLOAD_PREFIXES } from "@/lib/uploads/prefixes";
 import { deriveCampusPalette } from "@/lib/palette";
+
+// LocationPicker pulls in mapbox-gl (~half a megabyte). Most rectors
+// brand first and scroll to Location later, so defer the chunk —
+// the panel mounts with a skeleton until the user reaches it.
+const LocationPicker = dynamic(
+  () => import("./LocationPicker").then((m) => m.LocationPicker),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[340px] animate-pulse rounded-xl bg-surface-2" />
+    ),
+  },
+);
 
 interface Props {
   orgId: string;
@@ -35,12 +49,23 @@ interface HomePageConfig {
 interface SceneData {
   branding?: CampusBranding;
   homePage?: HomePageConfig;
+  /** Mapbox scene bundle written by the Workbench. The campus's
+   *  geographic location lives at `mapboxScene.center` as `[lng, lat]`. */
+  mapboxScene?: {
+    center?: [number, number];
+    [k: string]: unknown;
+  };
+  /** Legacy field (pre-Workbench rows wrote here). Still read by the
+   *  org world map as a fallback, but new writes always go to
+   *  `mapboxScene.center`. */
+  center?: [number, number];
   [k: string]: unknown;
 }
 
 interface MapResponse {
   id: string;
   title: string;
+  thumbnail?: string | null;
   sceneData?: SceneData;
 }
 
@@ -120,11 +145,14 @@ export default function CampusIdentityPageClient({
   const [shortName, setShortName] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [heroUrl, setHeroUrl] = useState("");
+  const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [primaryColor, setPrimaryColor] = useState("");
+  const [center, setCenter] = useState<[number, number] | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingHero, setUploadingHero] = useState(false);
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [saving, setSaving] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
 
@@ -136,12 +164,26 @@ export default function CampusIdentityPageClient({
     if (hydrated || !server) return;
     const branding = server.sceneData?.branding ?? {};
     const home = server.sceneData?.homePage ?? {};
+    // Coordinates live at `mapboxScene.center`; pre-Workbench rows
+    // wrote to `sceneData.center`. Read both, write only the new
+    // location on save. `[0, 0]` is the legacy "not set" sentinel
+    // used by OrgWorldMap, treat it as null here so the picker
+    // doesn't show a bogus pin off the coast of Africa.
+    const rawCenter =
+      server.sceneData?.mapboxScene?.center ?? server.sceneData?.center;
+    const isRealCenter =
+      Array.isArray(rawCenter) &&
+      typeof rawCenter[0] === "number" &&
+      typeof rawCenter[1] === "number" &&
+      !(rawCenter[0] === 0 && rawCenter[1] === 0);
     setName(branding.name ?? server.title ?? "");
     setNameEl(branding.nameEl ?? "");
     setShortName(branding.shortName ?? "");
     setLogoUrl(branding.logo ?? "");
     setHeroUrl(home.heroImage ?? "");
+    setThumbnailUrl(server.thumbnail ?? "");
     setPrimaryColor(branding.primaryColor ?? "");
+    setCenter(isRealCenter ? [rawCenter[0], rawCenter[1]] : null);
     setHydrated(true);
   }, [hydrated, server]);
 
@@ -160,13 +202,30 @@ export default function CampusIdentityPageClient({
     if (!hydrated || !server) return false;
     const b = server.sceneData?.branding ?? {};
     const h = server.sceneData?.homePage ?? {};
+    const rawCenter =
+      server.sceneData?.mapboxScene?.center ?? server.sceneData?.center;
+    const savedCenter: [number, number] | null =
+      Array.isArray(rawCenter) &&
+      typeof rawCenter[0] === "number" &&
+      typeof rawCenter[1] === "number" &&
+      !(rawCenter[0] === 0 && rawCenter[1] === 0)
+        ? [rawCenter[0], rawCenter[1]]
+        : null;
+    const centerChanged =
+      (center === null) !== (savedCenter === null) ||
+      (center !== null &&
+        savedCenter !== null &&
+        (Math.abs(center[0] - savedCenter[0]) > 0.000001 ||
+          Math.abs(center[1] - savedCenter[1]) > 0.000001));
     return (
       name !== (b.name ?? server.title ?? "") ||
       nameEl !== (b.nameEl ?? "") ||
       shortName !== (b.shortName ?? "") ||
       logoUrl !== (b.logo ?? "") ||
       heroUrl !== (h.heroImage ?? "") ||
-      primaryColor !== (b.primaryColor ?? "")
+      thumbnailUrl !== (server.thumbnail ?? "") ||
+      primaryColor !== (b.primaryColor ?? "") ||
+      centerChanged
     );
   }, [
     hydrated,
@@ -176,22 +235,45 @@ export default function CampusIdentityPageClient({
     shortName,
     logoUrl,
     heroUrl,
+    thumbnailUrl,
     primaryColor,
+    center,
   ]);
 
   const handleUpload = async (
     file: File,
-    target: "logo" | "hero",
+    target: "logo" | "hero" | "thumbnail",
   ) => {
-    const setter = target === "logo" ? setLogoUrl : setHeroUrl;
-    const busy = target === "logo" ? setUploadingLogo : setUploadingHero;
+    const setter =
+      target === "logo"
+        ? setLogoUrl
+        : target === "hero"
+          ? setHeroUrl
+          : setThumbnailUrl;
+    const busy =
+      target === "logo"
+        ? setUploadingLogo
+        : target === "hero"
+          ? setUploadingHero
+          : setUploadingThumbnail;
+    // The card image lives in a different prefix so it's bucketed
+    // alongside the existing list-card thumbnails for tooling /
+    // moderation reviews.
+    const prefix =
+      target === "thumbnail"
+        ? UPLOAD_PREFIXES.thumbnails
+        : UPLOAD_PREFIXES.branding;
     busy(true);
     try {
-      const result = await uploadFile(file, {
-        prefix: UPLOAD_PREFIXES.branding,
-      });
+      const result = await uploadFile(file, { prefix });
       setter(result.publicUrl);
-      toast.success(target === "logo" ? "Logo uploaded" : "Hero uploaded");
+      const label =
+        target === "logo"
+          ? "Logo"
+          : target === "hero"
+            ? "Hero"
+            : "Card image";
+      toast.success(`${label} uploaded`);
     } catch (err) {
       console.error(err);
       toast.error("Upload failed");
@@ -199,6 +281,16 @@ export default function CampusIdentityPageClient({
       busy(false);
     }
   };
+
+  // Stable reference — `LocationPicker` calls this from inside its
+  // own effects, so an unstable inline lambda would re-trigger its
+  // mount/sync passes on every parent render.
+  const handleLocationChange = useCallback(
+    (next: [number, number] | null) => {
+      setCenter(next);
+    },
+    [],
+  );
 
   const handleSave = async () => {
     if (!server || !dirty || saving) return;
@@ -224,15 +316,35 @@ export default function CampusIdentityPageClient({
         ...(server.sceneData?.homePage ?? {}),
         heroImage: heroUrl.trim() || undefined,
       };
+      // Write coordinates to `mapboxScene.center` — same shape the
+      // Workbench writes — so the org-tier world map and any future
+      // Workbench-side reads agree. We also strip the legacy
+      // top-level `center` on save so the two locations don't
+      // diverge over time.
+      const existingScene = { ...(server.sceneData?.mapboxScene ?? {}) };
+      if (center !== null) {
+        existingScene.center = center;
+      } else {
+        delete existingScene.center;
+      }
+      const sceneWithoutLegacyCenter = { ...(server.sceneData ?? {}) };
+      delete sceneWithoutLegacyCenter.center;
       const nextScene: SceneData = {
-        ...(server.sceneData ?? {}),
+        ...sceneWithoutLegacyCenter,
         branding: nextBranding,
         homePage: nextHome,
+        mapboxScene: existingScene,
       };
       const res = await fetch(`/api/maps/${mapId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sceneData: nextScene }),
+        body: JSON.stringify({
+          sceneData: nextScene,
+          // Card image is a top-level Project column, not part of
+          // sceneData — that's where the campus list + public viewer
+          // fallback hero both read it from.
+          thumbnail: thumbnailUrl.trim() || null,
+        }),
       });
       if (!res.ok) throw new Error("Save failed");
       await globalMutate(`/api/maps/${mapId}`);
@@ -388,7 +500,58 @@ export default function CampusIdentityPageClient({
                 onUpload={(file) => handleUpload(file, "hero")}
                 onClear={() => setHeroUrl("")}
               />
+              <UploadField
+                label="Card image"
+                hint="Shown on the campus list card and the org world map's pin tooltip. Falls back to the hero if you skip it."
+                value={thumbnailUrl}
+                preview={
+                  thumbnailUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={thumbnailUrl}
+                      alt=""
+                      className="block h-20 w-32 rounded-md object-cover"
+                    />
+                  ) : heroUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={heroUrl}
+                      alt=""
+                      className="block h-20 w-32 rounded-md object-cover opacity-60"
+                    />
+                  ) : (
+                    <HeroPlaceholder
+                      color={palette.primary}
+                      fill={palette.primaryFill}
+                    />
+                  )
+                }
+                accept="image/png,image/jpeg,image/webp"
+                uploading={uploadingThumbnail}
+                onUpload={(file) => handleUpload(file, "thumbnail")}
+                onClear={() => setThumbnailUrl("")}
+              />
             </div>
+          </Panel>
+
+          {/* ─ Location ────────────────────────────────────────────── */}
+          <Panel className="rounded-2xl p-6">
+            <div className="mb-4 flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
+                <MapPin size={16} strokeWidth={1.75} aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-text-primary">
+                  Location
+                </h2>
+                <p className="mt-0.5 text-xs text-text-tertiary">
+                  Drops a pin on the org dashboard&rsquo;s world map and lets
+                  the public viewer centre on the right place. Search an
+                  address or click anywhere to set.
+                </p>
+              </div>
+            </div>
+            <LocationPicker value={center} onChange={handleLocationChange} />
           </Panel>
 
           {/* ─ Primary colour ─────────────────────────────────────── */}
