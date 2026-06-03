@@ -4,7 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { ArrowRight, Check, Palette, Sparkles, Map as MapIcon } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  Megaphone,
+  Palette,
+  Sparkles,
+  Map as MapIcon,
+} from "lucide-react";
 import { Button, Panel } from "@klorad/design-system";
 
 interface Props {
@@ -92,10 +99,10 @@ export function OnboardingClient({
         doneLabel="Branding set"
       >
         <Link
-          href={`/org/${orgId}/maps/${mapId}?tab=settings`}
+          href={`/org/${orgId}/maps/${mapId}/identity`}
           className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
         >
-          Open settings
+          Open Identity
           <ArrowRight size={14} strokeWidth={1.75} />
         </Link>
       </StepCard>
@@ -109,31 +116,39 @@ export function OnboardingClient({
         doneLabel="MappedIn linked"
       >
         <Link
-          href={`/org/${orgId}/maps/${mapId}?tab=indoor`}
+          href={`/org/${orgId}/maps/${mapId}/map`}
           className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
         >
-          Open Indoor
+          Open Map &amp; Wayfinding
           <ArrowRight size={14} strokeWidth={1.75} />
         </Link>
       </StepCard>
 
       <Panel className="md:col-span-3 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-text-primary">
-              Publish when you’re ready
-            </p>
-            <p className="mt-0.5 text-xs text-text-tertiary">
-              {isPublished
-                ? "This campus is live. Edits go out immediately."
-                : "The campus is still a draft. Publish from the Settings tab when you’re ready to share."}
-            </p>
+          <div className="flex items-start gap-3">
+            <span
+              aria-hidden
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"
+            >
+              <Megaphone size={16} strokeWidth={1.75} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-text-primary">
+                {isPublished ? "Share with students" : "Publish &amp; share"}
+              </p>
+              <p className="mt-0.5 text-xs text-text-tertiary">
+                {isPublished
+                  ? "This campus is live. Grab the URL, the QR, or push a broadcast from Reach."
+                  : "Publish from Reach, then hand students the URL or scan the QR. Broadcast composer lives there too."}
+              </p>
+            </div>
           </div>
           <Link
-            href={`/org/${orgId}/maps/${mapId}?tab=settings`}
+            href={`/org/${orgId}/maps/${mapId}/reach`}
             className="inline-flex items-center gap-1.5 rounded-full border border-solid border-line-soft bg-surface-1 px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:border-accent"
           >
-            {isPublished ? "Manage publishing" : "Publish"}
+            Open Reach
             <ArrowRight size={14} strokeWidth={1.75} />
           </Link>
         </div>
