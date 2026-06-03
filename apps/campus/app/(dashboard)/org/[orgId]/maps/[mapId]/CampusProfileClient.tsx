@@ -19,6 +19,7 @@ import { WhatChangedCard } from "@/app/(dashboard)/components/WhatChangedCard";
 import { JumpBackInTiles } from "@/app/(dashboard)/components/JumpBackInTiles";
 import { WelcomeFirstRunCard } from "@/app/(dashboard)/components/WelcomeFirstRunCard";
 import { useCampusHealth } from "@/app/hooks/useCampusHealth";
+import { useCampusChanges } from "@/app/hooks/useCampusChanges";
 import { useOrganization } from "@/app/hooks/useOrganizations";
 
 interface Props {
@@ -63,6 +64,8 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
     fetcher,
   );
   const { health, isLoading: healthLoading } = useCampusHealth(mapId);
+  const { items: changes, isLoading: changesLoading } =
+    useCampusChanges(mapId);
   // Reuse Reach's stat endpoint so the dashboard's Subscribers card
   // and the Reach screen agree to the unit. 30s refresh matches Reach.
   const { data: pushStats } = useSWR<PushStats>(
@@ -228,7 +231,7 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
 
       <div className="mt-8 grid gap-4 lg:grid-cols-[2fr_1fr]">
         <CampusHealthCard health={health} isLoading={healthLoading} />
-        <WhatChangedCard />
+        <WhatChangedCard items={changes} isLoading={changesLoading} />
       </div>
 
       <div className="mt-4">
