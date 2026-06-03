@@ -1,10 +1,9 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { Page, PageCard, PageContent } from "@klorad/ui";
-import { Box, Button, Stack, Typography } from "@mui/material";
-import BlockIcon from "@mui/icons-material/Block";
 import Link from "next/link";
+import { Ban } from "lucide-react";
+import { Panel } from "@klorad/design-system";
 
 export default async function OrgLayout({
   children,
@@ -30,54 +29,35 @@ export default async function OrgLayout({
 
   if (!hasAccess) {
     return (
-      <Page>
-        <PageContent sx={{ mt: 0 }}>
-          <PageCard>
-            <Stack spacing={2} alignItems="center" sx={{ py: 6, textAlign: "center" }}>
-              <Box
-                sx={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: "action.hover",
-                  color: "text.secondary",
-                }}
-              >
-                <BlockIcon />
-              </Box>
-              <Typography variant="h6" fontWeight={700}>
-                Klorad Campus is not enabled for this organization
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 440 }}>
-                {member
-                  ? `"${member.organization.name}" doesn't have access to the Campus app. Ask your admin to enable it, or pick another organization from the sidebar.`
-                  : "You are not a member of this organization, or it doesn't exist."}
-              </Typography>
-              <Stack direction="row" spacing={1.5}>
-                <Button
-                  component={Link}
-                  href="/"
-                  variant="contained"
-                  sx={{ textTransform: "none" }}
-                >
-                  Back to my workspaces
-                </Button>
-                <Button
-                  component={Link}
-                  href="mailto:support@klorad.com?subject=Enable%20Topos%20Campus"
-                  variant="outlined"
-                  sx={{ textTransform: "none" }}
-                >
-                  Contact admin
-                </Button>
-              </Stack>
-            </Stack>
-          </PageCard>
-        </PageContent>
-      </Page>
+      <div className="mx-auto flex w-full max-w-[640px] flex-col items-center px-6 py-12 text-center">
+        <Panel className="w-full rounded-2xl p-8">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-surface-2 text-text-secondary">
+            <Ban size={24} strokeWidth={1.75} aria-hidden />
+          </div>
+          <h1 className="mt-4 text-lg font-semibold text-text-primary">
+            Klorad Campus is not enabled for this organization
+          </h1>
+          <p className="mx-auto mt-2 max-w-md text-sm text-text-secondary">
+            {member
+              ? `"${member.organization.name}" doesn't have access to the Campus app. Ask your admin to enable it, or pick another organization from the sidebar.`
+              : "You are not a member of this organization, or it doesn't exist."}
+          </p>
+          <div className="mt-6 flex items-center justify-center gap-2">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
+            >
+              Back to my workspaces
+            </Link>
+            <a
+              href="mailto:support@klorad.com?subject=Enable%20Klorad%20Campus"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-surface-1 px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:border-accent"
+            >
+              Contact admin
+            </a>
+          </div>
+        </Panel>
+      </div>
     );
   }
 
