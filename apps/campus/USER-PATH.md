@@ -151,8 +151,8 @@
 |---|---|---|---|
 | 1 | Typed env + boot-blocking validation | ✅ | `lib/env.ts` (#194) |
 | 2 | `/api/health` probe (DB ping + features) | ✅ | (#194) |
-| 3 | Remove `SKIP_ENV_VALIDATION=1` from `vercel.json` once runtime env verified | ❌ | Health endpoint reports `envValidationSkipped: true` — flip when ready |
-| 4 | Sentry server + client + edge | ❌ | Next PR |
+| 3 | Remove `SKIP_ENV_VALIDATION=1` from `vercel.json` once runtime env verified | ✅ | Schema now enforced in prod. Mechanism still honoured if anyone sets `SKIP_ENV_VALIDATION=1` externally as a breakglass |
+| 4 | Sentry server + client + edge | ✅ | DSN-gated. Flip on by setting `SENTRY_DSN` (server) + `NEXT_PUBLIC_SENTRY_DSN` (browser). Add `SENTRY_ORG`/`SENTRY_PROJECT`/`SENTRY_AUTH_TOKEN` for de-minified stacks |
 | 5 | Uptime monitor pointed at `/api/health` | ❌ | External (Better Uptime / Pingdom) |
 
 ---
@@ -244,8 +244,8 @@ Roughly in shipping order; "S" = size (S/M/L), "U" = user impact (low/med/high).
 | M | High | Add a "Location" panel to `/identity` (Mapbox preview + geocoder + pin) | A5 — shipped |
 | M | Med | Empty-state CTA on the org world map for campuses with no location | A5.3 — shipped |
 | S | Med | World map pin tooltips that show the campus card image | A6.3 — shipped |
-| S | Med | Remove `SKIP_ENV_VALIDATION=1` from `apps/campus/vercel.json` | A14.3 |
-| M | Med | Sentry: server + client + edge config, DSN-gated | A14.4 |
+| S | Med | Remove `SKIP_ENV_VALIDATION=1` from `apps/campus/vercel.json` | A14.3 — shipped |
+| M | Med | Sentry: server + client + edge config, DSN-gated | A14.4 — shipped |
 | S | Med | Wire Resend so org invites send a real email | A1.4 / A12.2 — already wired (env-gated) |
 
 ### Post-MVP, useful
