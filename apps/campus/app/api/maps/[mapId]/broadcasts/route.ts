@@ -27,6 +27,7 @@ export async function GET(_req: Request, { params }: { params: Params }) {
         attempted: true,
         delivered: true,
         pruned: true,
+        opened: true,
         createdAt: true,
         sender: { select: { name: true, email: true } },
       },
@@ -40,6 +41,7 @@ export async function GET(_req: Request, { params }: { params: Params }) {
         attempted: b.attempted,
         delivered: b.delivered,
         pruned: b.pruned,
+        opened: b.opened,
         sentAt: b.createdAt.toISOString(),
         senderName:
           b.sender?.name ?? b.sender?.email?.split("@")[0] ?? null,

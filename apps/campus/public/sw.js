@@ -27,7 +27,11 @@
  * don't start with the current version prefix.
  */
 
-const CACHE_VERSION = "v1";
+// v2: notificationclick now reports back to /api/broadcasts/click,
+// which requires fresh `broadcastId` + `clickToken` data on each
+// shown notification. Older SW instances would silently drop the
+// open-count beacon; bumping the version forces a re-activation.
+const CACHE_VERSION = "v2";
 const CACHE_STATIC = `klorad-campus-${CACHE_VERSION}-static`;
 const CACHE_PAGES = `klorad-campus-${CACHE_VERSION}-pages`;
 const CACHE_DATA = `klorad-campus-${CACHE_VERSION}-data`;
@@ -166,18 +170,66 @@ self.addEventListener("push", (event) => {
     payload = { title: "Campus update", body: event.data.text() };
   }
   const title = payload.title || "Campus update";
+  // `broadcastId` + `clickToken` ride through to the notificationclick
+  // handler so we can post the open back to the counter endpoint
+  // without re-querying the server.
   const options = {
     body: payload.body || "",
     icon: payload.icon || "/favicon.ico",
     badge: payload.icon || "/favicon.ico",
-    data: { url: payload.url || "/" },
+    data: {
+      url: payload.url || "/",
+      broadcastId: payload.broadcastId,
+      clickToken: payload.clickToken,
+    },
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
+/**
+ * Fire-and-forget POST to the open-count endpoint. `sendBeacon` is
+ * the right tool — the SW thread may terminate before a `fetch`
+ * promise resolves, but the browser keeps a beacon's body in flight
+ * across that termination.
+ *
+ * Falls back to `fetch` with `keepalive: true` when sendBeacon
+ * doesn't exist (rare in 2026; cheap to keep).
+ */
+function reportOpen(data) {
+  if (!data || !data.broadcastId || !data.clickToken) return;
+  const body = JSON.stringify({
+    id: data.broadcastId,
+    token: data.clickToken,
+  });
+  try {
+    if (self.navigator && self.navigator.sendBeacon) {
+      self.navigator.sendBeacon(
+        "/api/broadcasts/click",
+        new Blob([body], { type: "application/json" }),
+      );
+      return;
+    }
+  } catch {
+    // sendBeacon can throw on some browsers when offline — fall
+    // through to the fetch path.
+  }
+  try {
+    fetch("/api/broadcasts/click", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      keepalive: true,
+    });
+  } catch {
+    // Best-effort.
+  }
+}
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = (event.notification.data && event.notification.data.url) || "/";
+  reportOpen(event.notification.data);
+  const target =
+    (event.notification.data && event.notification.data.url) || "/";
   event.waitUntil(
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
