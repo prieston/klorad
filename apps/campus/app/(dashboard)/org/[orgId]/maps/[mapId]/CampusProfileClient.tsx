@@ -5,6 +5,7 @@ import { toast as toastify } from "react-toastify";
 import useSWR from "swr";
 import {
   Accessibility,
+  Bell,
   Eye,
   ExternalLink,
   MapPin,
@@ -34,6 +35,10 @@ interface CampusMap {
   isPublished?: boolean;
 }
 
+interface PushStats {
+  subscribers: number;
+}
+
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 /**
@@ -58,6 +63,13 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
     fetcher,
   );
   const { health, isLoading: healthLoading } = useCampusHealth(mapId);
+  // Reuse Reach's stat endpoint so the dashboard's Subscribers card
+  // and the Reach screen agree to the unit. 30s refresh matches Reach.
+  const { data: pushStats } = useSWR<PushStats>(
+    `/api/maps/${mapId}/push-stats`,
+    fetcher,
+    { refreshInterval: 30_000 },
+  );
   const { organization } = useOrganization(orgId);
   const [shareBusy, setShareBusy] = useState(false);
 
@@ -182,8 +194,10 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
           label="Public views (30d)"
         />
         <StatCard
-          icon={<MapPin size={18} strokeWidth={1.75} aria-hidden />}
-          value="—"
+          icon={<Bell size={18} strokeWidth={1.75} aria-hidden />}
+          value={
+            pushStats ? pushStats.subscribers.toLocaleString() : "—"
+          }
           label="Push subscribers"
         />
         <StatCard
