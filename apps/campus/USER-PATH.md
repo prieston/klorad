@@ -132,8 +132,8 @@ Campus authors **don't** edit a 3D scene in the Klorad app any more — MappedIn
 |---|---|---|---|
 | 1 | List members, change role, remove | ✅ | `/org/[orgId]/settings/members` |
 | 2 | Send invite email | ✅ (env-gated) | Sends via Resend when configured, otherwise hands the owner the link (see A1.4) |
-| 3 | See "who can edit this campus" from the campus IA | ✅ | Campus-tier `/members` screen — read-only roll, separates editors from viewers, deep-link to the org-tier screen for management |
-| 4 | Per-campus role overrides (some campuses for some members) | ❌ | Role is still org-wide today; the campus-tier screen acknowledges this |
+| 3 | See "who can edit this campus" from the campus IA | ✅ | Campus-tier `/members` screen groups by effective role on this campus, not by org role |
+| 4 | Per-campus role overrides (promote, demote, or block one member for one campus) | ✅ | `ProjectMember` row supersedes `OrganizationMember.role` for that campus. NULL role = explicit block. Owners are immune to overrides. The campus-tier `/members` screen edits these inline |
 
 ### A13. Organisation tier
 
@@ -251,7 +251,7 @@ Roughly in shipping order; "S" = size (S/M/L), "U" = user impact (low/med/high).
 ### Post-MVP, useful
 | S | U | Item | Pointer |
 |---|---|---|---|
-| M | Med | Campus-tier "Members" screen (per-campus access) | A12.3 — read-only view shipped; per-campus *overrides* are the bigger arc still queued |
+| M | Med | Campus-tier "Members" screen (per-campus access) | A12.3 — shipped (with overrides) |
 | M | Med | Campus-tier "Settings" screen (publish + danger zone) | A13.2 — shipped |
 | S | Med | Wire `sceneData.defaultLocale` from Settings through the 10 public routes that today fall back to platform default | A13 follow-up — shipped |
 | M | Med | "Open now" structured hours for dining | A7.6 — shipped |
