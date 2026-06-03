@@ -56,6 +56,7 @@ model User {
   organizationInvitesSent OrganizationInvite[] @relation("InvitesSent") // Invitations sent by this user
   activities              Activity[] // Activities performed by this user (as actor)
   broadcastsSent          Broadcast[]          @relation("BroadcastsSent") // Push broadcasts triggered by this user
+  projectRoleOverrides    ProjectMember[] // Per-project role overrides (per-campus access scoping)
 }
 
 model VerificationToken {
@@ -185,6 +186,9 @@ model Project {
   pushSubscriptions PushSubscription[]
   // Per-campus push broadcast history — see lib/broadcasts.ts.
   broadcasts        Broadcast[]
+  // Per-campus role overrides — when set, supersede the user's
+  // organization role for this specific campus. See lib/authz.ts.
+  memberOverrides   ProjectMember[]
 
   // Showcase Relation
   showcaseWorld ShowcaseWorld?
@@ -597,6 +601,30 @@ model DiningLocation {
 }
 
 /// Anonymous web-push subscription. No PII — just the endpoint URL +
+/// Per-campus role override for an organization member. When present,
+/// supersedes the user's `OrganizationMember.role` for this specific
+/// project. `role` is nullable on purpose: NULL means "explicitly
+/// blocked from this campus" — the only way to keep an org-level
+/// editor out of one campus without removing them from the org
+/// entirely. Owners always retain access; the authz helper short-
+/// circuits before consulting overrides for them.
+model ProjectMember {
+  id        String            @id @default(cuid())
+  projectId String
+  userId    String
+  /// NULL = explicit block. Otherwise overrides `OrganizationMember.role`
+  /// for this campus.
+  role      OrganizationRole?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
 /// One row per push broadcast the rector sends from the Reach screen.
 /// Stores enough context to render the history feed (title/body/target
 /// + counts) without keeping the literal device endpoint list around.
