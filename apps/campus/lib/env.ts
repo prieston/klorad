@@ -137,8 +137,13 @@ export const features = {
   ),
   /** At-rest secret encryption (BYOK Anthropic keys, etc.) is configured. */
   byokSecrets: Boolean(serverEnv.SECRETS_KEY),
-  /** Server-side error reporting is configured. */
-  sentry: Boolean(serverEnv.SENTRY_DSN),
+  /** Sentry error reporting is configured for at least one runtime
+   *  (server `SENTRY_DSN` and/or browser `NEXT_PUBLIC_SENTRY_DSN`).
+   *  The health endpoint surfaces this so a deploy missing the DSN
+   *  pair is obvious from the outside. */
+  sentry: Boolean(
+    serverEnv.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN,
+  ),
 } as const;
 
 export type FeatureFlags = typeof features;

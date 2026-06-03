@@ -12,10 +12,12 @@ function generateToken() {
 }
 
 /**
- * POST: create a pending invite. Email delivery is not yet wired on the
- * campus app — the response includes the invite URL so the owner can share
- * it manually. TODO: port the editor's Resend integration once email is
- * needed in production.
+ * POST: create a pending invite. Email delivery is best-effort via
+ * Resend (`lib/email.ts → sendOrgInviteEmail`) — when `RESEND_API_KEY`
+ * is set the recipient gets a branded invite mail; when it isn't, the
+ * response still carries the `inviteUrl` so the owner can paste it
+ * manually. The `emailed` flag on the response tells the UI which
+ * happened.
  */
 export async function POST(
   req: NextRequest,
