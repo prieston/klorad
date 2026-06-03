@@ -1,7 +1,6 @@
 import "@/app/global.css";
 import "react-toastify/dist/ReactToastify.css";
 import "mapbox-gl/dist/mapbox-gl.css";
-import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { auth } from "@/auth";
