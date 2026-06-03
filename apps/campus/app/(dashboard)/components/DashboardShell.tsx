@@ -255,6 +255,18 @@ function campusNavGroups(
           icon: <Globe2 size={16} strokeWidth={1.7} />,
           active: is("/identity"),
         },
+        {
+          label: "Members",
+          href: `${prefix}/members`,
+          icon: <Users size={16} strokeWidth={1.7} />,
+          active: is("/members"),
+        },
+        {
+          label: "Settings",
+          href: `${prefix}/settings`,
+          icon: <Settings size={16} strokeWidth={1.7} />,
+          active: is("/settings"),
+        },
       ],
     },
   ];
