@@ -1,0 +1,40 @@
+<svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Student club gathering in a circle">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#b22d68"/>
+      <stop offset="100%" stop-color="#5b1230"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#bg)"/>
+  <g fill="#ffe2ec">
+    <circle cx="250" cy="170" r="34"/>
+    <rect x="218" y="200" width="64" height="80" rx="14"/>
+  </g>
+  <g fill="#ffd166">
+    <circle cx="345" cy="155" r="34"/>
+    <rect x="313" y="185" width="64" height="80" rx="14"/>
+  </g>
+  <g fill="#9bf6c5">
+    <circle cx="440" cy="160" r="34"/>
+    <rect x="408" y="190" width="64" height="80" rx="14"/>
+  </g>
+  <g fill="#a5d8ff">
+    <circle cx="535" cy="175" r="34"/>
+    <rect x="503" y="205" width="64" height="80" rx="14"/>
+  </g>
+  <g fill="#caa9ff">
+    <circle cx="300" cy="280" r="34"/>
+    <rect x="268" y="310" width="64" height="80" rx="14"/>
+  </g>
+  <g fill="#ffadb0">
+    <circle cx="400" cy="290" r="34"/>
+    <rect x="368" y="320" width="64" height="80" rx="14"/>
+  </g>
+  <g fill="#a0e7ff">
+    <circle cx="500" cy="280" r="34"/>
+    <rect x="468" y="310" width="64" height="80" rx="14"/>
+  </g>
+  <g opacity="0.5" stroke="#ffffff" stroke-width="2" fill="none">
+    <path d="M250 170 Q400 50 535 175"/>
+  </g>
+</svg>

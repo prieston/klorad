@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Image from "next/image";
 import { toast } from "react-toastify";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import {
   Button,
   Field,
@@ -12,8 +12,8 @@ import {
   Select,
   Textarea,
 } from "@klorad/design-system";
-import { uploadFile } from "@klorad/storage/client";
 import { UPLOAD_PREFIXES } from "@/lib/uploads/prefixes";
+import { ImagePicker } from "@/app/(dashboard)/components/ImagePicker";
 import {
   formatNewsDate,
   type NewsPost,
@@ -64,21 +64,7 @@ export function NewsAdminClient({
   const [publishedAt, setPublishedAt] = useState(todayISODate());
   const [anchor, setAnchor] = useState<AnchorValue>(EMPTY_ANCHOR);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  const handleImage = async (file: File) => {
-    setUploading(true);
-    try {
-      const result = await uploadFile(file, { prefix: UPLOAD_PREFIXES.news });
-      setImageUrl(result.publicUrl);
-    } catch (e) {
-      console.error(e);
-      toast.error("Image upload failed");
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const reset = () => {
     setEditingId(null);
@@ -341,40 +327,16 @@ export function NewsAdminClient({
             />
           </Field>
 
-          <Field label="Image (optional)">
-            {imageUrl ? (
-              <div className="flex items-center gap-3 rounded-lg border border-solid border-line-soft p-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageUrl}
-                  alt=""
-                  className="h-16 w-16 rounded-md object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => setImageUrl(null)}
-                  className="ml-auto flex items-center gap-1 rounded-md p-1 text-text-tertiary hover:bg-surface-2 hover:text-red-600"
-                >
-                  <X size={14} strokeWidth={1.75} />
-                </button>
-              </div>
-            ) : (
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-line-soft px-3 py-2 text-sm text-text-tertiary transition-colors hover:border-accent hover:text-accent">
-                <Plus size={16} strokeWidth={1.75} />
-                {uploading ? "Uploading…" : "Add image"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  disabled={uploading}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void handleImage(file);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-            )}
+          <Field
+            label="Image (optional)"
+            hint="Pick a stock cover or upload your own."
+          >
+            <ImagePicker
+              value={imageUrl}
+              onChange={setImageUrl}
+              uploadPrefix={UPLOAD_PREFIXES.news}
+              defaultCategory="news"
+            />
           </Field>
 
           <div className="flex justify-end gap-2 pt-2">

@@ -15,6 +15,7 @@
  */
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { stockById } from "@/lib/stock-images";
 import type {
   ClubColor,
   EventBanner,
@@ -36,6 +37,9 @@ interface SeedNews {
   category: NewsCategory;
   /** Days ago — turned into a real Date relative to now() at write time. */
   publishedDaysAgo: number;
+  /** Stock image id from `lib/stock-images.ts`. Optional — when set,
+   *  the seeded row lands with the matching public/stock SVG. */
+  stockImage?: string;
   anchors: SeedAnchor[];
 }
 
@@ -53,6 +57,7 @@ interface SeedEvent {
   expectedAttendance: number;
   organizer?: string;
   registrationUrl?: string;
+  stockImage?: string;
   anchors: SeedAnchor[];
 }
 
@@ -67,6 +72,7 @@ interface SeedClub {
   meetsCadence: string;
   externalLink: string;
   popularityScore: number;
+  stockImage?: string;
 }
 
 interface SeedDining {
@@ -81,6 +87,7 @@ interface SeedDining {
   hours: Array<{ day: number; open: string; close: string }>;
   cuisine: string;
   menuUrl?: string;
+  stockImage?: string;
   anchors: SeedAnchor[];
 }
 
@@ -109,6 +116,7 @@ const NEWS: SeedNews[] = [
       "Το Engineering South παραμένει ανοιχτό 24/7 έως τις 9 Ιουνίου. Ησυχία στους ορόφους 2 και 3· δωρεάν καφές στον δεύτερο όροφο κάθε βράδυ από τις 8 μ.μ. Φέρτε τη φοιτητική σας ταυτότητα μετά τις 11 μ.μ.",
     category: "announcement",
     publishedDaysAgo: 3,
+    stockImage: "news-campus",
     anchors: [
       { kind: "building", refId: "", refName: "Engineering South Building" },
     ],
@@ -118,6 +126,7 @@ const NEWS: SeedNews[] = [
     body: "Closed May 28 — June 2 for a kitchen refit. Grab-and-go meals available at the Marketplace in the meantime. The patio remains open for seating.",
     category: "alert",
     publishedDaysAgo: 1,
+    stockImage: "news-megaphone",
     anchors: [{ kind: "building", refId: "", refName: "Cafe Pavilion" }],
   },
   {
@@ -128,6 +137,7 @@ const NEWS: SeedNews[] = [
       "Έξι νέοι εκτυπωτές έφτασαν την περασμένη εβδομάδα — ελεύθερη πρόσβαση κάθε καθημερινό απόγευμα. Εκπαίδευση την Τρίτη στις 4 μ.μ.· δεν χρειάζεται εγγραφή.",
     category: "news",
     publishedDaysAgo: 7,
+    stockImage: "news-bulletin",
     anchors: [
       { kind: "building", refId: "", refName: "Graphic Arts Building" },
     ],
@@ -137,6 +147,7 @@ const NEWS: SeedNews[] = [
     body: "All-campus fire drill at 10:30 am Wednesday. Plan ~10 minutes outside. Faculty: please assist with attendance at your assembly point.",
     category: "alert",
     publishedDaysAgo: 0,
+    stockImage: "news-megaphone",
     anchors: [
       { kind: "building", refId: "", refName: "Mott Athletics Center" },
       { kind: "building", refId: "", refName: "Engineering South Building" },
@@ -174,6 +185,7 @@ const EVENTS: SeedEvent[] = [
     bannerIcon: "music",
     expectedAttendance: 84,
     organizer: "Student union",
+    stockImage: "events-stage",
     anchors: [{ kind: "building", refId: "", refName: "Cafe Pavilion" }],
   },
   {
@@ -186,6 +198,7 @@ const EVENTS: SeedEvent[] = [
     bannerIcon: "trophy",
     expectedAttendance: 212,
     organizer: "Intramural sports",
+    stockImage: "events-sports",
     anchors: [
       { kind: "building", refId: "", refName: "Mott Athletics Center" },
     ],
@@ -229,6 +242,7 @@ const EVENTS: SeedEvent[] = [
     bannerIcon: "sprout",
     expectedAttendance: 180,
     organizer: "Student affairs",
+    stockImage: "events-confetti",
     anchors: [
       { kind: "building", refId: "", refName: "1901 Marketplace Building" },
     ],
@@ -290,6 +304,7 @@ const CLUBS: SeedClub[] = [
     meetsCadence: "Meets Wednesdays at 6 pm",
     externalLink: "https://discord.gg/example",
     popularityScore: 90,
+    stockImage: "clubs-circle",
   },
   {
     name: "Film club",
@@ -301,6 +316,7 @@ const CLUBS: SeedClub[] = [
     meetsCadence: "Screenings every Friday at 8 pm",
     externalLink: "https://instagram.com/example",
     popularityScore: 80,
+    stockImage: "clubs-quad",
   },
   {
     name: "Hiking & outdoors",
@@ -312,6 +328,7 @@ const CLUBS: SeedClub[] = [
     meetsCadence: "Trips most Saturdays",
     externalLink: "https://discord.gg/example",
     popularityScore: 85,
+    stockImage: "clubs-hands",
   },
   {
     name: "Sustainability union",
@@ -323,6 +340,7 @@ const CLUBS: SeedClub[] = [
     meetsCadence: "Meets Mondays at 5 pm",
     externalLink: "https://instagram.com/example",
     popularityScore: 70,
+    stockImage: "clubs-circle",
   },
   {
     name: "Chess club",
@@ -363,6 +381,7 @@ const DINING: SeedDining[] = [
       { day: 6, open: "09:00", close: "15:00" },
     ],
     cuisine: "Sandwiches, salads, coffee",
+    stockImage: "dining-salad",
     anchors: [{ kind: "building", refId: "", refName: "Cafe Pavilion" }],
   },
   {
@@ -372,6 +391,7 @@ const DINING: SeedDining[] = [
     hoursText: "",
     hours: shiftRange(0, 6, "07:00", "21:00"),
     cuisine: "International, fast-casual",
+    stockImage: "dining-pizza",
     anchors: [
       { kind: "building", refId: "", refName: "1901 Marketplace Building" },
     ],
@@ -387,6 +407,7 @@ const DINING: SeedDining[] = [
       { day: 0, open: "08:00", close: "16:00" },
     ],
     cuisine: "Smoothies, bowls",
+    stockImage: "dining-salad",
     anchors: [
       { kind: "building", refId: "", refName: "Mott Athletics Center" },
     ],
@@ -400,6 +421,7 @@ const DINING: SeedDining[] = [
     hoursText: "Late-night window opens at 9 pm",
     hours: shiftRange(0, 6, "11:00", "25:00"),
     cuisine: "Pizza, salads",
+    stockImage: "dining-pizza",
     anchors: [{ kind: "building", refId: "", refName: "Cafe Pavilion" }],
   },
   {
@@ -416,6 +438,7 @@ const DINING: SeedDining[] = [
       { day: 0, open: "10:00", close: "20:00" },
     ],
     cuisine: "Coffee, pastries",
+    stockImage: "dining-coffee",
     anchors: [
       { kind: "building", refId: "", refName: "Engineering South Building" },
     ],
@@ -449,6 +472,7 @@ export async function seedSampleCampus(
     bodyEl: n.bodyEl ?? null,
     category: n.category,
     publishedAt: new Date(now - n.publishedDaysAgo * day),
+    imageUrl: stockById(n.stockImage ?? "")?.url ?? null,
     anchors: n.anchors as unknown as Prisma.InputJsonValue,
   }));
 
@@ -468,6 +492,7 @@ export async function seedSampleCampus(
       expectedAttendance: e.expectedAttendance,
       organizer: e.organizer ?? null,
       registrationUrl: e.registrationUrl ?? null,
+      imageUrl: stockById(e.stockImage ?? "")?.url ?? null,
       anchors: e.anchors as unknown as Prisma.InputJsonValue,
     };
   });
@@ -485,6 +510,8 @@ export async function seedSampleCampus(
     meetsCadence: c.meetsCadence,
     externalLink: c.externalLink,
     popularityScore: c.popularityScore,
+    imageUrl: stockById(c.stockImage ?? "")?.url ?? null,
+    anchors: [] as unknown as Prisma.InputJsonValue,
   }));
 
   const diningRows = DINING.map((d) => ({
@@ -498,6 +525,7 @@ export async function seedSampleCampus(
     hours: d.hours as unknown as Prisma.InputJsonValue,
     cuisine: d.cuisine,
     menuUrl: d.menuUrl ?? null,
+    imageUrl: stockById(d.stockImage ?? "")?.url ?? null,
     anchors: d.anchors as unknown as Prisma.InputJsonValue,
   }));
 

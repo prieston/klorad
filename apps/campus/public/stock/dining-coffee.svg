@@ -1,0 +1,28 @@
+<svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Coffee on a wooden table">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7a4a1a"/>
+      <stop offset="100%" stop-color="#3a210b"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#bg)"/>
+  <ellipse cx="400" cy="320" rx="260" ry="60" fill="#4d2a0e"/>
+  <g transform="translate(300 130)">
+    <ellipse cx="100" cy="180" rx="100" ry="14" fill="#1c0c04" opacity="0.55"/>
+    <rect x="20" y="60" width="160" height="120" rx="20" fill="#ffffff"/>
+    <ellipse cx="100" cy="60" rx="80" ry="18" fill="#3a210b"/>
+    <ellipse cx="100" cy="60" rx="80" ry="16" fill="#6a3e16"/>
+    <ellipse cx="100" cy="58" rx="62" ry="10" fill="#c19a76"/>
+    <ellipse cx="100" cy="50" rx="44" ry="6" fill="#ffe5cf"/>
+    <rect x="180" y="80" width="40" height="60" rx="20" fill="none" stroke="#ffffff" stroke-width="10"/>
+  </g>
+  <g fill="#ffffff" opacity="0.6">
+    <path d="M380 60 c-6 12 6 24 0 36 c-6 12 6 24 0 36" stroke="#ffffff" stroke-width="3" fill="none"/>
+    <path d="M410 60 c-6 12 6 24 0 36 c-6 12 6 24 0 36" stroke="#ffffff" stroke-width="3" fill="none"/>
+    <path d="M440 60 c-6 12 6 24 0 36 c-6 12 6 24 0 36" stroke="#ffffff" stroke-width="3" fill="none"/>
+  </g>
+  <g fill="#ffd166" opacity="0.9">
+    <circle cx="170" cy="380" r="14"/>
+    <circle cx="630" cy="380" r="14"/>
+  </g>
+</svg>
