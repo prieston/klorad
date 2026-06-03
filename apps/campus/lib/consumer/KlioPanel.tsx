@@ -19,6 +19,12 @@ export interface KlioPanelProps {
   campusName: string;
   /** UI locale — drives all visible strings + the assistant locale param. */
   locale: "en" | "el";
+  /** Rector-defined suggestion chips. Empty array = use the platform
+   *  defaults. Resolved server-side from `sceneData.klio.chips`. */
+  chipOverrides?: Array<{
+    en: { label: string; prompt: string };
+    el?: { label: string; prompt: string };
+  }>;
   /**
    * Deprecated — `KlioSourceCards` builds map URLs from `mapId` + locale
    * directly. Kept on the props for one release so the existing call
@@ -85,8 +91,23 @@ const COPY = {
  * Empty state mirrors the mockup: hero ("Hi, I'm Klio"), four
  * suggested-prompt pills, a chat thread, an input + send button.
  */
-export function KlioPanel({ mapId, campusName, locale }: KlioPanelProps) {
+export function KlioPanel({
+  mapId,
+  campusName,
+  locale,
+  chipOverrides,
+}: KlioPanelProps) {
   const copy = COPY[locale];
+  // Pick the rector's chips when set; otherwise fall through to the
+  // platform defaults. Locale fallback: EL falls back to EN within a
+  // single chip — same behaviour as `pickLocalized` for news titles.
+  const suggestions: Suggestion[] =
+    chipOverrides && chipOverrides.length > 0
+      ? chipOverrides.map((c) => {
+          const loc = locale === "el" ? c.el ?? c.en : c.en;
+          return { label: loc.label, prompt: loc.prompt };
+        })
+      : copy.suggestions;
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -166,7 +187,7 @@ export function KlioPanel({ mapId, campusName, locale }: KlioPanelProps) {
           </p>
 
           <ul className="mt-6 space-y-2.5">
-            {copy.suggestions.map((s) => (
+            {suggestions.map((s) => (
               <li key={s.label}>
                 <button
                   type="button"

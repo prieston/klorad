@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getPublicCampusByToken } from "@/lib/public-campus";
 import { detectLocale, pickDefaultLocale } from "@/app/lib/i18n-core";
 import { KlioPanel } from "@/lib/consumer/KlioPanel";
+import { parseKlioConfig } from "@/lib/klio-config";
 import NotPublishedPlaceholder from "../NotPublishedPlaceholder";
 
 type Params = Promise<{ token: string }>;
@@ -55,7 +56,9 @@ export default async function KlioPage({
   const scene = (map.sceneData ?? {}) as {
     branding?: CampusBranding;
     defaultLocale?: unknown;
+    klio?: unknown;
   };
+  const klio = parseKlioConfig(scene.klio);
   const locale = detectLocale(
     typeof sp.lang === "string" ? sp.lang : null,
     pickDefaultLocale(scene.defaultLocale),
@@ -78,6 +81,7 @@ export default async function KlioPage({
         mapId={map.id}
         campusName={campusName}
         locale={locale}
+        chipOverrides={klio.chips}
         mapHref={`/campus/${token}/map${lang}`}
       />
     </main>

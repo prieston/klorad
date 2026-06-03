@@ -73,6 +73,23 @@ export interface ToolContext {
  * spaces are available — without spaces, those tools return an
  * empty list / a "not available" note and Claude routes around them.
  */
+/** Names of every tool exposed by the assistant. Kept as a tuple so
+ *  `AssistantToolName` is a strict union and `lib/klio-config.ts`'s
+ *  parse functions can iterate it. Keep this list in sync with
+ *  `ASSISTANT_TOOLS` below. */
+export const ASSISTANT_TOOL_NAMES = [
+  "search_places",
+  "query_news",
+  "query_events",
+  "query_clubs",
+  "query_dining",
+  "focus",
+  "route",
+  "cite",
+] as const;
+
+export type AssistantToolName = (typeof ASSISTANT_TOOL_NAMES)[number];
+
 export const ASSISTANT_TOOLS = [
   {
     name: "search_places",

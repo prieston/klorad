@@ -5,10 +5,16 @@ import {
   executeTool,
   type AssistantAction,
   type AssistantSpace,
+  type AssistantToolName,
   type ToolContext,
 } from "@/lib/assistant/tools";
 import { checkRateLimit, clientIp } from "@/lib/assistant/rate-limit";
 import { loadAssistantSpacesForProject } from "@/lib/assistant/spaces-loader";
+import {
+  parseKlioConfig,
+  personaPromptFragment,
+  type KlioConfig,
+} from "@/lib/klio-config";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret, secretsEnabled } from "@/lib/secrets";
 
@@ -36,6 +42,27 @@ async function resolveAnthropicKey(
     }
   }
   return process.env.ANTHROPIC_API_KEY ?? undefined;
+}
+
+/**
+ * Read `sceneData.klio` and narrow it to a `KlioConfig`. Errors fall
+ * through to the default config so a flaky DB doesn't kill the chat
+ * — defaults are safe (every tool enabled, neutral persona).
+ */
+async function loadKlioConfig(mapId: string): Promise<KlioConfig> {
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: mapId },
+      select: { sceneData: true },
+    });
+    const scene = (project?.sceneData ?? null) as
+      | { klio?: unknown }
+      | null;
+    return parseKlioConfig(scene?.klio);
+  } catch (err) {
+    console.error("[assistant] klio config lookup failed", err);
+    return parseKlioConfig(null);
+  }
 }
 
 interface AssistantTurn {
@@ -70,38 +97,115 @@ const MODEL = "claude-haiku-4-5-20251001";
 const MAX_TOOL_ITERATIONS = 5;
 const MAX_TOKENS = 1024;
 
-function systemPrompt(campusName: string, locale: string): string {
-  return [
+function systemPrompt(
+  campusName: string,
+  locale: string,
+  klio: KlioConfig,
+): string {
+  // Build the active-tools list so we can both name them in the
+  // prompt and skip instructions for disabled ones — Claude follows
+  // a shorter prompt more reliably than one that says "do X" then
+  // hides the X tool from the registry.
+  const t = klio.tools;
+  const activeQueryTools = [
+    t.query_news && "news",
+    t.query_events && "events",
+    t.query_clubs && "clubs",
+    t.query_dining && "dining",
+  ].filter(Boolean) as string[];
+
+  const lines: string[] = [
     `You are the friendly assistant for the ${campusName} campus app.`,
     "",
-    "You help students find news, events, clubs, dining, and rooms on campus.",
+    "You help students find " +
+      (activeQueryTools.length > 0
+        ? `${activeQueryTools.join(", ")}, and rooms on campus.`
+        : "rooms on campus."),
     "Be concise — answers fit in 2-3 short sentences whenever possible.",
     "Always prefer tool calls over guessing. If a tool returns nothing,",
     "say so plainly. Cite places, events, and clubs by name.",
     "",
-    "When the user mentions a place (gym, library, room 201), call",
-    "`search_places` first. If the map context is available (spaces > 0),",
-    "you can also call `focus` (to point at a single space) or `route`",
-    "(for 'from X to Y' style questions). Mark a route `accessible: true`",
-    "when the user mentions wheelchair, step-free, accessibility, αναπηρ,",
-    "or προσβάσιμ.",
-    "",
-    "If the user asks about news, events, clubs, or dining, call the",
-    "matching `query_*` tool. Filter by anchor when the user names a",
-    "building. Don't list more than ~5 results unless asked.",
-    "",
-    "**Always cite your sources.** When you mention a specific club,",
-    "event, news post, or dining venue you fetched, call `cite(kind,",
-    "id, name)` so the student gets a tappable card linking to it in",
-    "the app. One `cite` per mention; up to 4 per response. Don't",
-    "cite something you didn't fetch. For spaces, pass the human-",
-    "readable name to `focus` / `route` (`toName`, `fromName`) so the",
-    "directions card reads 'Library' instead of an id.",
+  ];
+
+  if (t.search_places) {
+    lines.push(
+      "When the user mentions a place (gym, library, room 201), call",
+      "`search_places` first.",
+    );
+  }
+  if (t.focus || t.route) {
+    const both = t.focus && t.route;
+    const onlyFocus = t.focus && !t.route;
+    const onlyRoute = !t.focus && t.route;
+    lines.push(
+      `If the map context is available (spaces > 0), you can ${
+        both
+          ? "call `focus` (to point at a single space) or `route` (for 'from X to Y' style questions)"
+          : onlyFocus
+            ? "call `focus` to point at a single space"
+            : onlyRoute
+              ? "call `route` for 'from X to Y' style questions"
+              : ""
+      }.`,
+    );
+    if (t.route) {
+      lines.push(
+        "Mark a route `accessible: true` when the user mentions wheelchair, step-free, accessibility, αναπηρ, or προσβάσιμ.",
+      );
+    }
+    lines.push("");
+  }
+
+  if (activeQueryTools.length > 0) {
+    lines.push(
+      `If the user asks about ${activeQueryTools.join(", ")}, call the`,
+      "matching `query_*` tool. Filter by anchor when the user names a",
+      "building. Don't list more than ~5 results unless asked.",
+      "",
+    );
+  }
+
+  if (t.cite) {
+    lines.push(
+      "**Always cite your sources.** When you mention a specific club,",
+      "event, news post, or dining venue you fetched, call `cite(kind,",
+      "id, name)` so the student gets a tappable card linking to it in",
+      "the app. One `cite` per mention; up to 4 per response. Don't",
+      "cite something you didn't fetch.",
+    );
+  }
+  if (t.focus || t.route) {
+    lines.push(
+      "For spaces, pass the human-readable name to `focus` / `route`",
+      "(`toName`, `fromName`) so the directions card reads 'Library'",
+      "instead of an id.",
+    );
+  }
+
+  lines.push(
     "",
     locale === "el"
       ? "Απαντήστε στα ελληνικά όταν ο χρήστης γράφει στα ελληνικά."
       : "Reply in the language of the user's question.",
-  ].join("\n");
+  );
+
+  const persona = personaPromptFragment(klio.persona);
+  if (persona) {
+    lines.push("", persona);
+  }
+
+  return lines.join("\n");
+}
+
+/** Filter the static tool registry down to whatever the rector has
+ *  left enabled. We never mutate `ASSISTANT_TOOLS` — Anthropic's
+ *  Tool type is shared by reference across requests, and a concurrent
+ *  splice would scramble other tenants. */
+function activeToolsFor(klio: KlioConfig) {
+  return ASSISTANT_TOOLS.filter((tool) => {
+    const name = tool.name as AssistantToolName;
+    return klio.tools[name] !== false;
+  });
 }
 
 /**
@@ -179,6 +283,7 @@ async function runClaude(
   client: Anthropic,
   body: RequestBody,
   ctx: ToolContext,
+  klio: KlioConfig,
 ): Promise<AssistantReply> {
   const messages: Anthropic.Messages.MessageParam[] = [
     ...(body.history ?? []).map((turn) => ({
@@ -188,12 +293,19 @@ async function runClaude(
     { role: "user", content: body.message },
   ];
 
+  const tools = activeToolsFor(klio);
+  const system = systemPrompt(
+    body.campusName ?? "the",
+    body.locale ?? "en",
+    klio,
+  );
+
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
-      system: systemPrompt(body.campusName ?? "the", body.locale ?? "en"),
-      tools: ASSISTANT_TOOLS as unknown as Anthropic.Messages.Tool[],
+      system,
+      tools: tools as unknown as Anthropic.Messages.Tool[],
       messages,
     });
 
@@ -292,8 +404,13 @@ export async function POST(req: Request) {
       : await loadAssistantSpacesForProject(body.mapId);
   // Per-campus BYOK first, platform key second. Each chat turn does
   // one extra Project read by id (cuid lookup, fast); per-tenant key
-  // means usage + cost scope to the right buyer.
-  const apiKey = await resolveAnthropicKey(body.mapId);
+  // means usage + cost scope to the right buyer. We also pull the
+  // Klio config from sceneData so the rector's tool / persona /
+  // notes settings take effect on every turn.
+  const [apiKey, klio] = await Promise.all([
+    resolveAnthropicKey(body.mapId),
+    loadKlioConfig(body.mapId),
+  ]);
 
   // No key → keep the basic regex parser alive. The chat input is
   // still visible everywhere; without a key it only handles the
@@ -310,7 +427,7 @@ export async function POST(req: Request) {
 
   try {
     const client = new Anthropic({ apiKey });
-    const reply = await runClaude(client, body, ctx);
+    const reply = await runClaude(client, body, ctx, klio);
     return NextResponse.json(reply);
   } catch (err) {
     console.error("[/api/assistant] Claude call failed", err);
