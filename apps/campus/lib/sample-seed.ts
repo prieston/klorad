@@ -74,10 +74,30 @@ interface SeedDining {
   nameEl?: string;
   description: string;
   descriptionEl?: string;
+  /** Free-text caveat shown alongside the structured hours. */
   hoursText: string;
+  /** Structured hours — drives the "Open now" badge on the public
+   *  surface. See `lib/dining-hours.ts` for the shape. */
+  hours: Array<{ day: number; open: string; close: string }>;
   cuisine: string;
   menuUrl?: string;
   anchors: SeedAnchor[];
+}
+
+/** Helper for the seed — give it a `[start, end]` range of weekdays
+ *  (e.g. `[1, 5]` for Mon-Fri) plus an open/close pair, get an array
+ *  of one shift per day in that range. */
+function shiftRange(
+  start: number,
+  end: number,
+  open: string,
+  close: string,
+): Array<{ day: number; open: string; close: string }> {
+  const out: Array<{ day: number; open: string; close: string }> = [];
+  for (let d = start; d <= end; d++) {
+    out.push({ day: d, open, close });
+  }
+  return out;
 }
 
 const NEWS: SeedNews[] = [
@@ -337,7 +357,11 @@ const DINING: SeedDining[] = [
       "Quick-service cafe with sandwiches, bowls, espresso, and a long patio. Bring a laptop, stay all afternoon.",
     descriptionEl:
       "Γρήγορη εξυπηρέτηση με σάντουιτς, μπολ, espresso και μεγάλη βεράντα. Φέρτε τον φορητό σας, μείνετε όλο το απόγευμα.",
-    hoursText: "Mon-Fri 7am-10pm · Sat 9am-3pm · Sun closed",
+    hoursText: "",
+    hours: [
+      ...shiftRange(1, 5, "07:00", "22:00"),
+      { day: 6, open: "09:00", close: "15:00" },
+    ],
     cuisine: "Sandwiches, salads, coffee",
     anchors: [{ kind: "building", refId: "", refName: "Cafe Pavilion" }],
   },
@@ -345,7 +369,8 @@ const DINING: SeedDining[] = [
     name: "Marketplace",
     description:
       "All-day food court — pizza, ramen, burrito bar, and a salad bar. Multiple stations, one card swipe.",
-    hoursText: "Mon-Sun 7am-9pm",
+    hoursText: "",
+    hours: shiftRange(0, 6, "07:00", "21:00"),
     cuisine: "International, fast-casual",
     anchors: [
       { kind: "building", refId: "", refName: "1901 Marketplace Building" },
@@ -355,7 +380,12 @@ const DINING: SeedDining[] = [
     name: "Mott juice bar",
     description:
       "Smoothies, açai bowls, cold-pressed juices. Inside the athletics centre, drop in after a workout.",
-    hoursText: "Mon-Fri 6am-8pm · Sat-Sun 8am-4pm",
+    hoursText: "",
+    hours: [
+      ...shiftRange(1, 5, "06:00", "20:00"),
+      { day: 6, open: "08:00", close: "16:00" },
+      { day: 0, open: "08:00", close: "16:00" },
+    ],
     cuisine: "Smoothies, bowls",
     anchors: [
       { kind: "building", refId: "", refName: "Mott Athletics Center" },
@@ -365,7 +395,10 @@ const DINING: SeedDining[] = [
     name: "Quad pizza",
     description:
       "Sourdough pizza by the slice, salads, and dessert. Late-night window opens at 9 pm.",
-    hoursText: "Mon-Sun 11am-1am",
+    // 25:00 = 01:00 the next day — see lib/dining-hours.ts for the
+    // past-midnight encoding.
+    hoursText: "Late-night window opens at 9 pm",
+    hours: shiftRange(0, 6, "11:00", "25:00"),
     cuisine: "Pizza, salads",
     anchors: [{ kind: "building", refId: "", refName: "Cafe Pavilion" }],
   },
@@ -376,7 +409,12 @@ const DINING: SeedDining[] = [
       "Quiet espresso bar tucked inside Engineering South. Strict no-microwave policy; pastries from the campus bakery.",
     descriptionEl:
       "Ήσυχο espresso bar μέσα στο Engineering South. Αυστηρή απαγόρευση φούρνου μικροκυμάτων· γλυκά από τον φούρνο της πανεπιστημιούπολης.",
-    hoursText: "Mon-Fri 8am-11pm · Sat-Sun 10am-8pm",
+    hoursText: "",
+    hours: [
+      ...shiftRange(1, 5, "08:00", "23:00"),
+      { day: 6, open: "10:00", close: "20:00" },
+      { day: 0, open: "10:00", close: "20:00" },
+    ],
     cuisine: "Coffee, pastries",
     anchors: [
       { kind: "building", refId: "", refName: "Engineering South Building" },
@@ -456,7 +494,8 @@ export async function seedSampleCampus(
     nameEl: d.nameEl ?? null,
     description: d.description,
     descriptionEl: d.descriptionEl ?? null,
-    hoursText: d.hoursText,
+    hoursText: d.hoursText || null,
+    hours: d.hours as unknown as Prisma.InputJsonValue,
     cuisine: d.cuisine,
     menuUrl: d.menuUrl ?? null,
     anchors: d.anchors as unknown as Prisma.InputJsonValue,

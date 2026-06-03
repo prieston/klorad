@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireOrgAccess } from "@/lib/authz";
+import { parseHours } from "@/lib/dining-hours";
 import { revalidateTag } from "next/cache";
 import { publicCampusTag } from "@/lib/public-campus";
 
@@ -88,6 +89,13 @@ export async function PATCH(req: Request, { params }: { params: Params }) {
       typeof body.hoursText === "string" && body.hoursText.length > 0
         ? body.hoursText
         : null;
+  }
+  if (body.hours !== undefined) {
+    const parsed = parseHours(body.hours);
+    data.hours =
+      parsed.length > 0
+        ? (parsed as unknown as Prisma.InputJsonValue)
+        : Prisma.JsonNull;
   }
   if (body.cuisine !== undefined) {
     data.cuisine =

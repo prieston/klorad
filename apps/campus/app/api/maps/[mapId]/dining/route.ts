@@ -3,8 +3,19 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireCampusAccess } from "@/lib/authz";
 import { listDiningForProject, type DiningAnchor } from "@/lib/dining-db";
+import { parseHours } from "@/lib/dining-hours";
 import { revalidateTag } from "next/cache";
 import { publicCampusTag } from "@/lib/public-campus";
+
+/** Normalise the incoming `hours` payload to the JSON shape we
+ *  store. Empty / missing returns `null` so the column truly says
+ *  "no structured hours" instead of an empty array — the renderer
+ *  treats those the same, but `null` is what the rest of the schema
+ *  uses for unset values. */
+function parseHoursForDb(value: unknown): Prisma.InputJsonValue | null {
+  const parsed = parseHours(value);
+  return parsed.length > 0 ? (parsed as unknown as Prisma.InputJsonValue) : null;
+}
 
 type Params = Promise<{ mapId: string }>;
 
@@ -82,6 +93,7 @@ export async function POST(req: Request, { params }: { params: Params }) {
         typeof body.hoursText === "string" && body.hoursText.trim().length > 0
           ? body.hoursText.trim()
           : null,
+      hours: parseHoursForDb(body.hours),
       cuisine:
         typeof body.cuisine === "string" && body.cuisine.trim().length > 0
           ? body.cuisine.trim()

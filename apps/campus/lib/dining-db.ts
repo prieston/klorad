@@ -8,6 +8,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import type { DiningLocation as PrismaDining } from "@prisma/client";
+import { parseHours, type WeeklyHours } from "@/lib/dining-hours";
 
 export interface DiningAnchor {
   kind: "building" | "room";
@@ -25,6 +26,10 @@ export interface DiningLocation {
   /** Greek translation, optional. */
   descriptionEl: string | null;
   hoursText: string | null;
+  /** Structured weekly schedule — drives "Open now" copy on the
+   *  public surface. Empty array when the location hasn't set
+   *  structured hours yet. */
+  hours: WeeklyHours;
   cuisine: string | null;
   menuUrl: string | null;
   imageUrl: string | null;
@@ -51,6 +56,7 @@ function fromPrisma(row: PrismaDining): DiningLocation {
     description: row.description,
     descriptionEl: row.descriptionEl,
     hoursText: row.hoursText,
+    hours: parseHours(row.hours),
     cuisine: row.cuisine,
     menuUrl: row.menuUrl,
     imageUrl: row.imageUrl,

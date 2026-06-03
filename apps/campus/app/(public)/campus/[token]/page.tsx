@@ -16,6 +16,7 @@ import {
 } from "@/lib/events-db";
 import { listTopClubsForProject, type Club } from "@/lib/clubs-db";
 import { listDiningForProject, type DiningLocation } from "@/lib/dining-db";
+import { openNowStatus } from "@/lib/dining-hours";
 import { readEventFeeds, type CampusEvent } from "@/lib/events";
 import { fetchCampusEvents } from "@/lib/events-server";
 import { mergeEvents } from "@/lib/events-merge";
@@ -219,13 +220,19 @@ export default async function CampusHomePage({
   }));
 
   // Dining rows for the "Dining now" rail — name + status pair.
-  // `hoursText` is the only status copy we have today; "open now"
-  // semantics arrive when an hours parser ships.
-  const dining: ConsumerDining[] = dbDining.map((d) => ({
-    id: d.id,
-    name: pickLocalized(d.name, d.nameEl, locale),
-    status: d.hoursText ?? d.cuisine ?? "",
-  }));
+  // Structured `hours` (when set) drives a real "Open now" / "Opens
+  // 17:00" status; otherwise we fall back to the free-text caveat or
+  // the cuisine label.
+  const now = new Date();
+  const dining: ConsumerDining[] = dbDining.map((d) => {
+    const status = openNowStatus(d.hours, now);
+    const statusCopy = locale === "el" ? status.labelEl : status.label;
+    return {
+      id: d.id,
+      name: pickLocalized(d.name, d.nameEl, locale),
+      status: statusCopy || d.hoursText || d.cuisine || "",
+    };
+  });
 
   // Merge DB events + ICS-feed events into one list — soonest first,
   // dupes (same title + minute) collapsed. `eventPostToConsumer` and
