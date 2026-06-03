@@ -101,9 +101,9 @@
 |---|---|---|---|
 | 1 | Use the platform's Anthropic key (zero config) | ✅ | Server falls back to `ANTHROPIC_API_KEY` env var |
 | 2 | Bring your own key per-campus, encrypted at rest | ✅ | `/klio` → `AiKeyPanel` (AES-256-GCM via `lib/secrets.ts`) |
-| 3 | Toggle individual tools (search, wayfinding, etc.) | ❌ | All tools on or none |
-| 4 | Persona sliders (formal ↔ casual; verbose ↔ concise) | ❌ | Single fixed persona |
-| 5 | Suggestion-chip editor (custom starter prompts on the chat screen) | ❌ | Hardcoded chips |
+| 3 | Toggle individual tools (search, wayfinding, etc.) | ✅ | Per-tool kill switches on `/klio`. Disabled tools also drop their instructions from the system prompt so Claude won't pretend it has them |
+| 4 | Persona sliders (formal ↔ casual; verbose ↔ concise) | ✅ | Two 1-5 sliders + free-text additional instructions, appended to the system prompt |
+| 5 | Suggestion-chip editor (custom starter prompts on the chat screen) | ✅ | Bilingual (EN required, EL optional with EN fallback), up to eight. Empty list keeps the platform defaults |
 
 ### A10. Publish + share
 
@@ -260,7 +260,7 @@ Roughly in shipping order; "S" = size (S/M/L), "U" = user impact (low/med/high).
 | M | Med | Broadcast model + history with CTR on `/reach` | A10.5 — history + CTR shipped |
 | S | Med | Org-level "New organisation" form | A2.2 |
 | S | Med | Org-level "Enable Campus app" toggle | A2.4 |
-| M | Low | Klio: tool toggles, persona sliders, suggestion chip editor | A9.3–5 |
+| M | Low | Klio: tool toggles, persona sliders, suggestion chip editor | A9.3–5 — shipped |
 | L | Med | Virtual tour authoring + playback | B4.4 |
 | M | Med | Workbench: room.reshape, floor-plan.reposition, floor-plan.replace-image | A8.3–5 |
 | M | Med | Saved routes authoring UI | A8.7 |
