@@ -112,28 +112,37 @@ export async function readCampusHealth(mapId: string): Promise<CampusHealth | nu
   const mappedinDone = Boolean(branding.indoorMapId);
   const klioDone = Boolean(project.anthropicApiKeyEncrypted);
 
+  // Titles are neutral nouns — the green check (done) or empty dot
+  // (not done) carries the state. Avoids confusing copy like
+  // "Branding is complete" sitting next to an empty circle.
   const checks: HealthCheck[] = [
     {
       key: "branding",
-      title: "Branding is complete",
-      hint: "Name, logo and primary colour all set.",
+      title: "Branding",
+      hint: brandingDone
+        ? "Name, logo and primary colour all set."
+        : "Add a logo and primary colour to white-label the campus.",
       done: brandingDone,
     },
     {
       key: "mappedin",
-      title: "MappedIn venue connected",
-      hint: "Anchors can deep-link into the map.",
+      title: "MappedIn venue",
+      hint: mappedinDone
+        ? "Connected — anchors deep-link into the map."
+        : "Paste a MappedIn venue id to light up the indoor map.",
       done: mappedinDone,
     },
     {
       key: "published",
-      title: "Campus is published",
-      hint: "Drafts aren't visible to students.",
+      title: "Publication",
+      hint: project.isPublished
+        ? "Live — anyone with the link can see it."
+        : "Draft — only authors can see it.",
       done: Boolean(project.isPublished),
     },
     {
       key: "news",
-      title: "At least 1 news post",
+      title: "News",
       hint:
         newsCount > 0
           ? `${newsCount} published`
@@ -142,19 +151,21 @@ export async function readCampusHealth(mapId: string): Promise<CampusHealth | nu
     },
     {
       key: "events",
-      title: "3+ events scheduled",
-      hint: eventsCount > 0 ? `Currently ${eventsCount}` : "Powers Today.",
+      title: "Events",
+      hint: eventsCount > 0
+        ? `${eventsCount} scheduled`
+        : "Powers Happening today on home.",
       done: eventsCount >= 3,
     },
     {
       key: "clubs",
-      title: "1+ club published",
-      hint: clubsCount > 0 ? `${clubsCount} clubs` : "Anchor of campus life.",
+      title: "Clubs",
+      hint: clubsCount > 0 ? `${clubsCount} published` : "Anchor of campus life.",
       done: clubsCount >= 1,
     },
     {
       key: "dining",
-      title: "1+ dining location",
+      title: "Dining",
       hint:
         diningCount > 0
           ? `${diningCount} venues`
@@ -163,7 +174,7 @@ export async function readCampusHealth(mapId: string): Promise<CampusHealth | nu
     },
     {
       key: "klio",
-      title: "Klio enabled",
+      title: "Klio (AI assistant)",
       hint: klioDone
         ? "Anthropic key set — Claude is live."
         : "Add an API key to unlock the assistant.",

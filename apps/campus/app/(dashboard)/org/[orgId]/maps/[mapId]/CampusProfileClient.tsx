@@ -230,7 +230,12 @@ export default function CampusProfileClient({ orgId, mapId }: Props) {
       </div>
 
       <div className="mt-8 grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <CampusHealthCard health={health} isLoading={healthLoading} />
+        <CampusHealthCard
+          health={health}
+          isLoading={healthLoading}
+          orgId={orgId}
+          mapId={mapId}
+        />
         <WhatChangedCard items={changes} isLoading={changesLoading} />
       </div>
 

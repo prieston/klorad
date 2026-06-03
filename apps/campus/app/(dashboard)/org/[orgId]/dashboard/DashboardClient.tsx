@@ -167,6 +167,7 @@ export default function DashboardClient({ orgId }: Props) {
                 name={m.name}
                 isPublished={m.isPublished}
                 updatedAt={m.updatedAt}
+                thumbnail={m.thumbnail ?? null}
                 href={`/org/${orgId}/maps/${m.id}`}
               />
             ))}

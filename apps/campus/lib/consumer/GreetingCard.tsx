@@ -43,6 +43,15 @@ interface Props {
   locale: "en" | "el";
   /** Optional hero image painted behind the brand-colour overlay. */
   backgroundImageUrl?: string;
+  /** Rector-defined headline. When set, replaces the platform's
+   *  "Welcome 👋" copy as the H1. */
+  headline?: string;
+  /** Rector-defined tagline. When set, replaces the platform's
+   *  time-of-day greeting as the eyebrow line above the headline. */
+  tagline?: string;
+  /** Rector-defined CTA copy for the Klio search chip. Falls back
+   *  to the locale-specific search placeholder. */
+  ctaLabel?: string;
 }
 
 /**
@@ -57,13 +66,28 @@ interface Props {
  * so the photo shines through the colour without losing the
  * playful shapes or the white type.
  */
-export function GreetingCard({ klioHref, locale, backgroundImageUrl }: Props) {
+export function GreetingCard({
+  klioHref,
+  locale,
+  backgroundImageUrl,
+  headline,
+  tagline,
+  ctaLabel,
+}: Props) {
   const copy = COPY[locale];
   const [greeting, setGreeting] = useState<string>(copy.afternoon);
 
   useEffect(() => {
     setGreeting(pickGreeting(new Date().getHours(), copy));
   }, [copy]);
+
+  // Rector overrides win; the time-of-day greeting + the platform
+  // "Welcome" stay as the friendly default.
+  const eyebrow = tagline?.trim() || greeting;
+  const heading =
+    headline?.trim() ||
+    (locale === "el" ? "Καλώς ήρθες 👋" : "Welcome 👋");
+  const searchCopy = ctaLabel?.trim() || copy.placeholder;
 
   return (
     <section className="mx-auto max-w-[1280px] px-4 pt-4 md:px-6 md:pt-6">
@@ -98,10 +122,10 @@ export function GreetingCard({ klioHref, locale, backgroundImageUrl }: Props) {
           className="absolute -bottom-12 -right-8 h-44 w-44 rounded-full bg-white/15"
         />
         <p className="relative text-sm font-medium text-white/85">
-          {greeting}
+          {eyebrow}
         </p>
         <h1 className="relative mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-          {locale === "el" ? "Καλώς ήρθες 👋" : "Welcome 👋"}
+          {heading}
         </h1>
 
         <Link
@@ -109,7 +133,7 @@ export function GreetingCard({ klioHref, locale, backgroundImageUrl }: Props) {
           className="relative mt-5 flex items-center gap-2 rounded-full bg-white px-4 py-3 text-sm text-[var(--brand-text-muted)] shadow-sm transition-colors hover:text-[var(--brand-text)]"
         >
           <Search size={16} strokeWidth={2} className="shrink-0" />
-          <span className="truncate">{copy.placeholder}</span>
+          <span className="truncate">{searchCopy}</span>
         </Link>
       </div>
     </section>

@@ -248,6 +248,12 @@ Roughly in shipping order; "S" = size (S/M/L), "U" = user impact (low/med/high).
 | M | Med | Sentry: server + client + edge config, DSN-gated | A14.4 — shipped |
 | S | Med | Wire Resend so org invites send a real email | A1.4 / A12.2 — already wired (env-gated) |
 
+### Polish queue (small but rector-visible)
+| S | U | Item | Pointer |
+|---|---|---|---|
+| S | Med | Quick-action tiles on the public home are hardcoded (Map · Directions · Klio · Explore). Admin Home screen has no tile editor | Home admin / `ConsumerHome` |
+| M | Med | Stock-image picker + library for content covers (news / events / clubs / dining) | Polish follow-up — needs a stock-image source dep + a picker component |
+
 ### Post-MVP, useful
 | S | U | Item | Pointer |
 |---|---|---|---|
