@@ -1,11 +1,14 @@
-import { ComingSoonScreen } from "@/app/(dashboard)/components/ComingSoonScreen";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import CampusIdentityPageClient from "./CampusIdentityPageClient";
 
-export default function CampusIdentityPage() {
-  return (
-    <ComingSoonScreen
-      title="Identity & branding"
-      hint="Campus name, display name, tagline and description in EL+EN. Logo, hero image, primary colour."
-      phase="Phase 5"
-    />
-  );
+export default async function CampusIdentityPage({
+  params,
+}: {
+  params: Promise<{ orgId: string; mapId: string }>;
+}) {
+  const session = await auth();
+  if (!session) redirect("/auth/signin");
+  const { orgId, mapId } = await params;
+  return <CampusIdentityPageClient orgId={orgId} mapId={mapId} />;
 }
