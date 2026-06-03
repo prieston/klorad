@@ -10,6 +10,7 @@ import {
 } from "@/app/lib/i18n-core";
 import NotPublishedPlaceholder from "../NotPublishedPlaceholder";
 import { MapPageClient } from "./MapPageClient";
+import { parseSavedRoutes } from "@/lib/saved-routes";
 
 type Params = Promise<{ token: string }>;
 type Search = Promise<{
@@ -43,7 +44,9 @@ export default async function CampusMapPage({
     indoorMapId?: string;
     branding?: { primaryColor?: string; name?: string; logo?: string };
     defaultLocale?: unknown;
+    savedRoutes?: unknown;
   } | null;
+  const savedRoutes = parseSavedRoutes(scene?.savedRoutes);
   const locale = detectLocale(
     typeof sp.lang === "string" ? sp.lang : null,
     pickDefaultLocale(scene?.defaultLocale),
@@ -79,6 +82,7 @@ export default async function CampusMapPage({
           projectId={map.id}
           campusName={campusName}
           klioHref={`/campus/${token}/klio${lang}`}
+          savedRoutes={savedRoutes}
         />
       </main>
     );

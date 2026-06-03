@@ -1,10 +1,11 @@
 "use client";
 
-import { Compass, Route } from "lucide-react";
+import { Compass } from "lucide-react";
 import { Panel } from "@klorad/design-system";
 import { PageHeader } from "@/app/(dashboard)/components/PageHeader";
 import { IndoorMapIdCard } from "@/app/(dashboard)/components/IndoorMapIdCard";
 import { OpenPublicAction } from "@/app/(dashboard)/components/OpenPublicAction";
+import { SavedRoutesCard } from "./SavedRoutesCard";
 
 interface Props {
   orgId: string;
@@ -62,34 +63,7 @@ export default function CampusMapPageClient({ orgId: _orgId, mapId }: Props) {
       </div>
 
       <section className="mt-6">
-        <Panel className="rounded-2xl p-6">
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold text-text-primary">
-                Saved routes
-              </h2>
-              <p className="mt-0.5 text-xs text-text-tertiary">
-                Pre-computed From → To routes that students can share via QR
-                or deep link.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-accent">
-              <Route size={18} strokeWidth={1.6} aria-hidden />
-            </div>
-            <p className="text-sm font-medium text-text-primary">
-              No saved routes yet
-            </p>
-            <p className="max-w-sm text-xs text-text-tertiary">
-              Curate a route — Library → Main Cafeteria, say — and we&rsquo;ll
-              generate a QR code students can scan from a printed sign.
-            </p>
-            <span className="mt-2 text-[10px] font-medium uppercase tracking-[0.18em] text-text-tertiary">
-              Coming next
-            </span>
-          </div>
-        </Panel>
+        <SavedRoutesCard mapId={mapId} />
       </section>
     </div>
   );

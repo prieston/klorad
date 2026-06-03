@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp, Compass, Search, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Compass,
+  Route,
+  Search,
+  X,
+} from "lucide-react";
 // Lucide's `X` is also imported here for the building header's close
 // chip. Renamed to disambiguate from the search-clear button below.
 import {
@@ -28,6 +35,7 @@ import {
   type PickerOption,
 } from "@/lib/consumer/RouteEndpointPicker";
 import type { SpaceOption } from "@/lib/mappedin/WayfindingControls";
+import { routeLabel, type SavedRoute } from "@/lib/saved-routes";
 
 interface Props {
   venue: MappedinVenue;
@@ -38,6 +46,9 @@ interface Props {
   projectId: string;
   campusName: string;
   klioHref: string;
+  /** Rector-defined saved routes — rendered as chips below the
+   *  search bar. Empty when none are configured. */
+  savedRoutes?: SavedRoute[];
 }
 
 const PLACEHOLDER: Record<Locale, string> = {
@@ -104,6 +115,7 @@ export function MapPageClient({
   accentColor,
   projectId,
   campusName,
+  savedRoutes = [],
 }: Props) {
   const viewerRef = useRef<MappedinViewerHandle | null>(null);
   const [buildings, setBuildings] = useState<BuildingsListItem[]>([]);
@@ -455,6 +467,36 @@ export function MapPageClient({
               </button>
             ) : null}
           </div>
+          {savedRoutes.length > 0 ? (
+            <div
+              className="mt-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              role="list"
+              aria-label="Saved routes"
+            >
+              {savedRoutes.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  role="listitem"
+                  onClick={() => {
+                    setFromId(r.from.refId);
+                    setToId(r.to.refId);
+                    setAccessible(r.accessible);
+                    setRouteMode(true);
+                  }}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-[var(--brand-text)] shadow-sm transition-opacity hover:opacity-80"
+                >
+                  <Route
+                    size={12}
+                    strokeWidth={1.75}
+                    aria-hidden
+                    className="text-[var(--brand-primary)]"
+                  />
+                  {routeLabel(r, locale)}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       )}
 
