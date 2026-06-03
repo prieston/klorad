@@ -56,22 +56,19 @@
 
 | # | Step | Status | Notes |
 |---|---|---|---|
-| 1 | Rector picks campus location (address or map pin) | ❌ | **Real gap.** No dedicated form anywhere. Location is read from `sceneData.mapboxScene.center` — only set as a side-effect of using the Workbench 3D editor's camera, and not every campus uses the Workbench |
-| 2 | Location appears as a pin on the org-tier world map | ✅ | `OrgWorldMap.tsx` (org dashboard) — but only when `mapboxScene.center` is non-zero |
-| 3 | Empty state for "no location yet" with CTA to set it | ❌ | World map silently drops the campus pin instead of nudging |
+| 1 | Rector picks campus location (address or map pin) | ✅ | Location panel on `/identity` — Mapbox geocoder + draggable pin + click-to-set. Writes `sceneData.mapboxScene.center` |
+| 2 | Location appears as a pin on the org-tier world map | ✅ | `OrgWorldMap.tsx` (org dashboard) |
+| 3 | Empty state for "no location yet" with CTA to set it | ❌ | World map silently drops campuses with no location — next pass |
 | 4 | Location used by the public viewer for "near me" / outdoor map default centre | ✅ | Public map reads the same `sceneData` |
-
-> 🛠 **Proposed fix.** Add a "Location" panel to `/identity` with a small Mapbox preview, address geocoder, and a draggable pin. Write to `sceneData.mapboxScene.center`. Add an empty-state CTA on the org-tier world map.
 
 ### A6. Set the campus thumbnail (used by the campus list + world map tooltip)
 
 | # | Step | Status | Notes |
 |---|---|---|---|
-| 1 | Rector uploads a campus thumbnail / card image | ❌ | **Real gap.** `Project.thumbnail` is read by `MapsPageClient` (campus list) and used as the public viewer fallback hero, but the only writer is the legacy `PATCH /api/maps/[mapId]` body that no UI currently sends. |
+| 1 | Rector uploads a campus thumbnail / card image | ✅ | "Card image" field on `/identity` (next to Logo + Hero). Writes `Project.thumbnail` |
 | 2 | Thumbnail shown on the campus list card | ✅ | `MapsPageClient` reads it |
-| 3 | Thumbnail shown on the world map pin tooltip | ❌ | Tooltip text only; no image |
-
-> 🛠 **Proposed fix.** Add a "Card image" upload to `/identity` next to logo + hero. Auto-derive from `heroImage` if the rector doesn't set a dedicated one.
+| 3 | Thumbnail shown on the world map pin tooltip | ❌ | Tooltip is text-only today — next pass |
+| 4 | Fallback to hero image when no dedicated card image is set | ✅ | Preview in the Identity form mirrors this behaviour |
 
 ### A7. Author content — news / events / clubs / dining
 
@@ -242,10 +239,11 @@ Roughly in shipping order; "S" = size (S/M/L), "U" = user impact (low/med/high).
 ### V1 MVP blockers
 | S | U | Item | Pointer |
 |---|---|---|---|
-| S | High | Wire push-subscribers stat card | A11.3 — done in this PR |
-| S | High | Add a "Card image" (campus thumbnail) field to `/identity` | A6 |
-| M | High | Add a "Location" panel to `/identity` (Mapbox preview + geocoder + pin) | A5 |
-| M | High | Empty-state CTA on the org world map for campuses with no location | A5.3 |
+| S | High | Wire push-subscribers stat card | A11.3 — shipped |
+| S | High | Add a "Card image" (campus thumbnail) field to `/identity` | A6 — shipped |
+| M | High | Add a "Location" panel to `/identity` (Mapbox preview + geocoder + pin) | A5 — shipped |
+| M | Med | Empty-state CTA on the org world map for campuses with no location | A5.3 |
+| S | Med | World map pin tooltips that show the campus card image | A6.3 |
 | S | Med | Remove `SKIP_ENV_VALIDATION=1` from `apps/campus/vercel.json` | A14.3 |
 | M | Med | Sentry: server + client + edge config, DSN-gated | A14.4 |
 | S | Med | Wire Resend so org invites send a real email | A1.4 / A12.2 |
