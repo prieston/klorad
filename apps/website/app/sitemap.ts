@@ -1,16 +1,8 @@
 import { MetadataRoute } from "next";
-import { journalPosts } from "@/lib/journalPosts";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://klorad.com";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const journalEntries: MetadataRoute.Sitemap = journalPosts.map((post) => ({
-    url: `${siteUrl}/journal/${post.slug}`,
-    lastModified: new Date(post.date),
-    changeFrequency: "monthly" as const,
-    priority: 0.7,
-  }));
-
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: siteUrl,
@@ -62,6 +54,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  return [...staticPages, ...journalEntries];
+  return staticPages;
 }
 

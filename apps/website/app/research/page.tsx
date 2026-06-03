@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
@@ -84,6 +85,69 @@ export default function ResearchPage() {
                 </p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Peer-reviewed ──────────────────────────────────── */}
+      <section className="border-t border-line-soft py-24 md:py-32">
+        <div className="mx-auto max-w-container px-6 md:px-8">
+          <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start">
+            <div>
+              <Eyebrow>Peer-reviewed</Eyebrow>
+              <h2 className="mt-5 text-3xl font-light leading-[1.12] text-text-primary md:text-[42px]">
+                The architecture, published.
+              </h2>
+              <p className="mt-5 text-base leading-relaxed text-text-secondary md:text-lg">
+                The model beneath Klorad is not internal lore — it is
+                peer-reviewed and public. In{" "}
+                <em>ISPRS International Journal of Geo-Information</em>, the
+                team set out a system model that puts geospatial data at the
+                core of virtual worlds, organised into three layers — access,
+                world, and integration — that bring together digital twins,
+                real-time sensor data, and multi-user interaction in one
+                architecture. It is the formal foundation every Klorad world is
+                built on.
+              </p>
+              <p className="mt-6 text-xs leading-relaxed text-text-tertiary">
+                Papadopoulos, T., Evangelidis, K., Kaskalis, T. H., &amp;
+                Evangelidis, G. (2025).{" "}
+                <em>
+                  The Metaverse Is Geospatial: A System Model Architecture
+                  Integrating Spatial Computing, Digital Twins, and Virtual
+                  Worlds.
+                </em>{" "}
+                ISPRS Int. J. Geo-Inf. 14(3), 126.
+              </p>
+              <a
+                href="https://www.mdpi.com/2220-9964/14/3/126"
+                target="_blank"
+                rel="noopener"
+                className={`mt-7 ${btnPrimary}`}
+              >
+                Read the paper
+                <ArrowIcon className="ml-1.5" />
+              </a>
+            </div>
+            <figure className="glass-panel overflow-hidden rounded-2xl p-4 md:p-6">
+              <Image
+                src="/research/klorad-system-model.png"
+                alt="Klorad system model architecture — the access, world, and integration layers."
+                width={1882}
+                height={965}
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className="h-auto w-full rounded-xl"
+                priority={false}
+              />
+              <figcaption className="mt-4 text-xs leading-relaxed text-text-tertiary">
+                The three-layer system model — access, world, and integration —
+                that underpins every Klorad world.{" "}
+                <em>
+                  Figure from Papadopoulos et al. (2025), ISPRS Int. J.
+                  Geo-Inf., CC BY 4.0.
+                </em>
+              </figcaption>
+            </figure>
           </div>
         </div>
       </section>
