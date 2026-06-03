@@ -41,8 +41,28 @@ interface PushStats {
   subscribers: number;
 }
 
+interface BroadcastHistoryItem {
+  id: string;
+  title: string;
+  body: string;
+  targetPath: string | null;
+  attempted: number;
+  delivered: number;
+  pruned: number;
+  sentAt: string;
+  senderName: string | null;
+}
+
+interface BroadcastsResponse {
+  items: BroadcastHistoryItem[];
+}
+
 const mapFetcher = (url: string): Promise<MapResponse> =>
   fetch(url).then((r) => r.json());
+
+const broadcastsFetcher = (
+  url: string,
+): Promise<BroadcastsResponse> => fetch(url).then((r) => r.json());
 
 const pushFetcher = (url: string): Promise<PushStats> =>
   fetch(url).then((r) => r.json());
@@ -92,6 +112,11 @@ export default function CampusReachPageClient({
     `/api/maps/${mapId}/push-stats`,
     pushFetcher,
     { refreshInterval: 30_000 },
+  );
+  const { data: broadcasts } = useSWR<BroadcastsResponse>(
+    `/api/maps/${mapId}/broadcasts`,
+    broadcastsFetcher,
+    { revalidateOnFocus: true },
   );
 
   const [target, setTarget] = useState<(typeof DEEPLINK_TARGETS)[number]["key"]>(
@@ -212,7 +237,10 @@ export default function CampusReachPageClient({
       setBody("");
       // Subscriber count may have shrunk if any endpoints were
       // pruned — refresh so the rector sees the live number.
-      await globalMutate(`/api/maps/${mapId}/push-stats`);
+      await Promise.all([
+        globalMutate(`/api/maps/${mapId}/push-stats`),
+        globalMutate(`/api/maps/${mapId}/broadcasts`),
+      ]);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't send");
     } finally {
@@ -351,7 +379,7 @@ export default function CampusReachPageClient({
             </div>
           </Panel>
 
-          {/* ─ History placeholder ───────────────────────────────── */}
+          {/* ─ History ────────────────────────────────────────────── */}
           <Panel className="rounded-2xl p-6">
             <div className="mb-4 flex items-start gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
@@ -362,13 +390,13 @@ export default function CampusReachPageClient({
                   Broadcast history
                 </h2>
                 <p className="mt-0.5 text-xs text-text-tertiary">
-                  Past broadcasts and their delivered / CTR counts.
+                  Past broadcasts with delivered / attempted counts.
+                  Open-rate tracking lands once the service worker
+                  reports back-clicks.
                 </p>
               </div>
             </div>
-            <div className="rounded-xl border border-dashed border-line-soft bg-surface-2/40 px-4 py-6 text-center text-xs text-text-tertiary">
-              History lands once we persist broadcasts to a model.
-            </div>
+            <BroadcastHistoryList items={broadcasts?.items ?? null} />
           </Panel>
         </div>
 
@@ -459,4 +487,126 @@ export default function CampusReachPageClient({
       </div>
     </div>
   );
+}
+
+/**
+ * Broadcast history rows — one per past send, newest first. Three
+ * states: cold (null, render skeleton), empty (zero broadcasts ever),
+ * populated. Delivery-rate pill highlights when a send underperformed
+ * — anything below 80% is amber, below 50% is red — so a sudden drop
+ * is obvious without parsing the raw counts.
+ */
+function BroadcastHistoryList({
+  items,
+}: {
+  items: BroadcastHistoryItem[] | null;
+}) {
+  if (items === null) {
+    return (
+      <ul className="space-y-2">
+        {[0, 1, 2].map((i) => (
+          <li
+            key={i}
+            className="h-16 animate-pulse rounded-xl bg-surface-2/60"
+          />
+        ))}
+      </ul>
+    );
+  }
+  if (items.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-line-soft bg-surface-2/40 px-4 py-6 text-center text-xs text-text-tertiary">
+        No broadcasts yet. The next one you send will show up here.
+      </div>
+    );
+  }
+  return (
+    <ul className="space-y-2">
+      {items.map((b) => (
+        <BroadcastHistoryRow key={b.id} item={b} />
+      ))}
+    </ul>
+  );
+}
+
+function BroadcastHistoryRow({ item }: { item: BroadcastHistoryItem }) {
+  const rate =
+    item.attempted > 0
+      ? Math.round((item.delivered / item.attempted) * 100)
+      : null;
+  const ratePill =
+    rate === null
+      ? "bg-text-tertiary/10 text-text-tertiary"
+      : rate >= 80
+        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+        : rate >= 50
+          ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+          : "bg-red-500/10 text-red-700 dark:text-red-300";
+
+  return (
+    <li className="rounded-xl border border-line-soft bg-surface-2/30 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-text-primary">
+            {item.title}
+          </p>
+          <p className="mt-0.5 line-clamp-2 text-xs text-text-tertiary">
+            {item.body}
+          </p>
+        </div>
+        <span
+          className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-medium ${ratePill}`}
+        >
+          {item.delivered.toLocaleString()} / {item.attempted.toLocaleString()}
+          {rate !== null ? <> &middot; {rate}%</> : null}
+        </span>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-text-tertiary">
+        <time dateTime={item.sentAt}>{relative(item.sentAt)}</time>
+        {item.targetPath ? (
+          <>
+            <span aria-hidden>&middot;</span>
+            <span>
+              <span className="text-text-secondary">target</span>{" "}
+              <code className="font-mono">{item.targetPath}</code>
+            </span>
+          </>
+        ) : null}
+        {item.pruned > 0 ? (
+          <>
+            <span aria-hidden>&middot;</span>
+            <span>{item.pruned} pruned</span>
+          </>
+        ) : null}
+        {item.senderName ? (
+          <>
+            <span aria-hidden>&middot;</span>
+            <span>by {item.senderName}</span>
+          </>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+/** Compact "Nm / Nh / Nd" relative time. Falls back to a localised
+ *  date for anything older than a month. Mirrors the dashboard
+ *  changes feed so the two surfaces read the same. */
+function relative(iso: string): string {
+  const ageMs = Date.now() - new Date(iso).getTime();
+  if (ageMs < 60_000) return "just now";
+  if (ageMs < 60 * 60_000) return `${Math.floor(ageMs / 60_000)}m`;
+  if (ageMs < 24 * 60 * 60_000) {
+    return `${Math.floor(ageMs / (60 * 60_000))}h`;
+  }
+  if (ageMs < 7 * 24 * 60 * 60_000) {
+    return `${Math.floor(ageMs / (24 * 60 * 60_000))}d`;
+  }
+  if (ageMs < 30 * 24 * 60 * 60_000) {
+    return `${Math.floor(ageMs / (7 * 24 * 60 * 60_000))}w`;
+  }
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 }

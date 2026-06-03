@@ -55,6 +55,7 @@ model User {
   organizationMembers     OrganizationMember[]
   organizationInvitesSent OrganizationInvite[] @relation("InvitesSent") // Invitations sent by this user
   activities              Activity[] // Activities performed by this user (as actor)
+  broadcastsSent          Broadcast[]          @relation("BroadcastsSent") // Push broadcasts triggered by this user
 }
 
 model VerificationToken {
@@ -182,6 +183,8 @@ model Project {
   diningLocations DiningLocation[]
   // Anonymous push-notification subscribers — see lib/push.ts.
   pushSubscriptions PushSubscription[]
+  // Per-campus push broadcast history — see lib/broadcasts.ts.
+  broadcasts        Broadcast[]
 
   // Showcase Relation
   showcaseWorld ShowcaseWorld?
@@ -586,6 +589,38 @@ model DiningLocation {
 }
 
 /// Anonymous web-push subscription. No PII — just the endpoint URL +
+/// One row per push broadcast the rector sends from the Reach screen.
+/// Stores enough context to render the history feed (title/body/target
+/// + counts) without keeping the literal device endpoint list around.
+/// `senderId` is nullable so deleting a user doesn't orphan or lose
+/// historic broadcasts they triggered.
+model Broadcast {
+  id         String   @id @default(cuid())
+  projectId  String
+  /// Notification title shown on the device.
+  title      String
+  /// Notification body shown on the device.
+  body       String
+  /// Path relative to the campus root, e.g. "/events". Stored without
+  /// the `/campus/<mapId>` prefix so deep-links don't break if the
+  /// consumer URL scheme changes.
+  targetPath String?
+  /// The user that triggered the broadcast.
+  senderId   String?
+  /// How many subscriptions we attempted to deliver to.
+  attempted  Int      @default(0)
+  /// How many succeeded (non-failure responses).
+  delivered  Int      @default(0)
+  /// How many subscriptions were pruned (404/410) during this send.
+  pruned     Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sender  User?   @relation("BroadcastsSent", fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+}
+
 /// the two keys the Push API hands the browser, scoped to a Project.
 /// Per Project so notifications go to the right campus's visitors.
 model PushSubscription {

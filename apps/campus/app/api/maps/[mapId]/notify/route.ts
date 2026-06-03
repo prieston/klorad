@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { requireCampusAccess } from "@/lib/authz";
+import { prisma } from "@/lib/prisma";
 import { pushEnabled, sendPushToProject } from "@/lib/push";
 
 type Params = Promise<{ mapId: string }>;
@@ -11,8 +13,13 @@ type Params = Promise<{ mapId: string }>;
  *   { title: string, body: string, url?: string, icon?: string }
  *
  * Returns counts: `{ attempted, delivered, pruned }`. Subscriptions
- * that respond 404 / 410 are pruned in-line — anything else is logged
- * and the row stays in case it was transient.
+ * that respond 404 / 410 are pruned in-line — anything else is
+ * logged and the row stays in case it was transient.
+ *
+ * On success we also persist a `Broadcast` row so the Reach screen
+ * can render history. We store the *campus-relative* path (e.g.
+ * `/events`) rather than the absolute URL so deep-links survive a
+ * change to the public URL scheme.
  */
 export async function POST(req: Request, { params }: { params: Params }) {
   const { mapId } = await params;
@@ -51,6 +58,29 @@ export async function POST(req: Request, { params }: { params: Params }) {
       url,
       icon,
     });
+
+    // Persist a history row. We deliberately *don't* fail the send
+    // when the DB write fails — the notification already reached the
+    // devices, missing history is recoverable.
+    const session = await auth();
+    await prisma.broadcast
+      .create({
+        data: {
+          projectId: mapId,
+          title,
+          body: message,
+          targetPath: extractCampusRelativePath(url, mapId),
+          senderId:
+            (session?.user?.id as string | undefined) ?? null,
+          attempted: result.attempted,
+          delivered: result.delivered,
+          pruned: result.pruned,
+        },
+      })
+      .catch((err) => {
+        console.error("[notify] history insert failed", err);
+      });
+
     return NextResponse.json({ ok: true, result });
   } catch (err) {
     console.error("[notify]", err);
@@ -59,4 +89,33 @@ export async function POST(req: Request, { params }: { params: Params }) {
       { status: 500 },
     );
   }
+}
+
+/**
+ * The Reach composer sends an absolute-or-campus-prefixed URL like
+ * `/campus/<mapId>/events`. We store the campus-relative tail so
+ * future history rows stay valid if the public URL scheme moves
+ * (e.g. custom domains). Returns `null` when the URL doesn't look
+ * like a campus link — there's nothing safe to deep-link to from
+ * the history list in that case.
+ */
+function extractCampusRelativePath(
+  url: string | undefined,
+  mapId: string,
+): string | null {
+  if (!url) return null;
+  // Accept either an absolute URL or a path. We only care about the
+  // pathname for the relative tail.
+  let path = url;
+  try {
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      path = new URL(url).pathname;
+    }
+  } catch {
+    return null;
+  }
+  const prefix = `/campus/${mapId}`;
+  if (!path.startsWith(prefix)) return null;
+  const tail = path.slice(prefix.length);
+  return tail || "/";
 }
