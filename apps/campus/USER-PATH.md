@@ -262,4 +262,4 @@ Roughly in shipping order; "S" = size (S/M/L), "U" = user impact (low/med/high).
 | M | Low | Klio: tool toggles, persona sliders, suggestion chip editor | A9.3–5 — shipped |
 | L | Med | Virtual tour authoring + playback | B4.4 |
 | M | Med | Saved routes authoring (predefined walking directions on top of MappedIn) | A8 follow-up |
-| S | Low | Backoffice MUI retirement (still-pending Phase 6) | tech debt |
+| S | Low | Drop MUI from `apps/campus/package.json` once `@klorad/ui` is migrated (toast / OrgSwitcher / ThemeProvider currently pull it transitively) | tech debt — direct usage in Campus source already zero |

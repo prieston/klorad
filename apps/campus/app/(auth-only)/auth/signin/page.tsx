@@ -1,12 +1,11 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import GitHubIcon from "@mui/icons-material/GitHub";
 import { Button, KloradMark, Panel } from "@klorad/design-system";
 
 const PROVIDERS = [
   { id: "google", label: "Google", icon: <GoogleIcon /> },
-  { id: "github", label: "GitHub", icon: <GitHubIcon sx={{ fontSize: 18 }} /> },
+  { id: "github", label: "GitHub", icon: <GitHubIcon /> },
 ];
 
 export default function SignInPage() {
@@ -42,6 +41,26 @@ export default function SignInPage() {
         </p>
       </Panel>
     </div>
+  );
+}
+
+function GitHubIcon() {
+  // Inline GitHub octocat — lucide-react@1 doesn't ship a Github
+  // icon, and pulling a tiny SVG inline is lighter than adding a
+  // dependency or upgrading the whole lucide-react surface.
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <path
+        fill="currentColor"
+        d="M12 1a11 11 0 0 0-3.48 21.44c.55.1.75-.24.75-.53v-2c-3.07.67-3.72-1.31-3.72-1.31-.5-1.28-1.23-1.62-1.23-1.62-1-.69.08-.67.08-.67 1.11.08 1.7 1.14 1.7 1.14.99 1.7 2.6 1.21 3.23.93.1-.72.39-1.21.7-1.49-2.45-.28-5.03-1.23-5.03-5.46 0-1.21.43-2.2 1.13-2.97-.11-.28-.49-1.4.11-2.92 0 0 .93-.3 3.05 1.14a10.65 10.65 0 0 1 5.55 0c2.11-1.44 3.04-1.14 3.04-1.14.61 1.52.22 2.64.11 2.92.71.77 1.13 1.76 1.13 2.97 0 4.25-2.58 5.18-5.04 5.45.4.34.76 1.02.76 2.05v3.04c0 .29.2.64.76.53A11 11 0 0 0 12 1Z"
+      />
+    </svg>
   );
 }
 

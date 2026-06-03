@@ -1,7 +1,7 @@
 "use client";
 
 import { signOut } from "next-auth/react";
-import LogoutIcon from "@mui/icons-material/Logout";
+import { LogOut } from "lucide-react";
 import { Button } from "@klorad/design-system";
 
 export default function SignOutLink() {
@@ -10,7 +10,7 @@ export default function SignOutLink() {
       variant="secondary"
       onClick={() => signOut({ callbackUrl: "/auth/signin" })}
     >
-      <LogoutIcon fontSize="small" />
+      <LogOut size={16} strokeWidth={1.75} aria-hidden />
       Sign out
     </Button>
   );
