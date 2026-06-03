@@ -229,3 +229,50 @@ main[data-mappedin] {
   --text-secondary: var(--brand-text);
   --text-tertiary: var(--brand-text-muted);
 }
+
+/*
+ * OrgWorldMap pin hover popup — a Mapbox popup that renders a small
+ * card (thumbnail + name) you can click through to the campus
+ * dashboard. Mapbox owns the surrounding `.mapboxgl-popup-content`
+ * box; we strip its default padding/shadow and re-style the inner
+ * card to match the design system.
+ */
+.klorad-pin-popup .mapboxgl-popup-content {
+  padding: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 24px rgba(8, 12, 18, 0.18);
+  background: var(--surface-1);
+  border: 1px solid var(--line-soft);
+}
+.klorad-pin-popup .mapboxgl-popup-tip {
+  border-top-color: var(--surface-1);
+  border-bottom-color: var(--surface-1);
+}
+.klorad-pin-card {
+  display: block;
+  text-decoration: none;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  width: 200px;
+}
+.klorad-pin-thumb {
+  display: block;
+  width: 100%;
+  height: 88px;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+.klorad-pin-thumb--empty {
+  background: linear-gradient(
+    135deg,
+    var(--accent-soft),
+    var(--surface-2)
+  );
+}
+.klorad-pin-name {
+  display: block;
+  padding: 8px 12px;
+  line-height: 1.3;
+}

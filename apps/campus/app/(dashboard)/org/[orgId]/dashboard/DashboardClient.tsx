@@ -83,7 +83,7 @@ export default function DashboardClient({ orgId }: Props) {
         }
       />
 
-      <OrgWorldMap maps={maps} />
+      <OrgWorldMap maps={maps} orgId={orgId} />
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
