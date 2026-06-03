@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { Prisma, type ClubColor } from "@prisma/client";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireOrgAccess } from "@/lib/authz";
+import { recordAudit } from "@/lib/audit";
 import { revalidateTag } from "next/cache";
 import { publicCampusTag } from "@/lib/public-campus";
 
@@ -119,8 +121,20 @@ export async function PATCH(req: Request, { params }: { params: Params }) {
     data.anchors = parseAnchors(body.anchors) as unknown as Prisma.InputJsonValue;
   }
 
-  await prisma.club.update({ where: { id }, data });
+  const updated = await prisma.club.update({ where: { id }, data });
   revalidateTag(publicCampusTag(existing.projectId));
+
+  const session = await auth();
+  await recordAudit({
+    organizationId: existing.organizationId,
+    projectId: existing.projectId,
+    actorId: (session?.user?.id as string | undefined) ?? null,
+    entityType: "CLUB",
+    entityId: id,
+    action: "UPDATED",
+    message: `Club "${updated.name}"`,
+  });
+
   return NextResponse.json({ ok: true });
 }
 
@@ -128,7 +142,11 @@ export async function DELETE(_req: Request, { params }: { params: Params }) {
   const { id } = await params;
   const club = await prisma.club.findUnique({
     where: { id },
-    select: { organizationId: true, projectId: true },
+    select: {
+      organizationId: true,
+      projectId: true,
+      name: true,
+    },
   });
   if (!club) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -137,5 +155,17 @@ export async function DELETE(_req: Request, { params }: { params: Params }) {
   if (denied) return denied;
   await prisma.club.delete({ where: { id } });
   revalidateTag(publicCampusTag(club.projectId));
+
+  const session = await auth();
+  await recordAudit({
+    organizationId: club.organizationId,
+    projectId: club.projectId,
+    actorId: (session?.user?.id as string | undefined) ?? null,
+    entityType: "CLUB",
+    entityId: id,
+    action: "DELETED",
+    message: `Club "${club.name}"`,
+  });
+
   return NextResponse.json({ ok: true });
 }

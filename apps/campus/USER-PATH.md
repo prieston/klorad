@@ -123,7 +123,7 @@ Campus authors **don't** edit a 3D scene in the Klorad app any more — MappedIn
 | 3 | Stat: Push subscribers | ⚠️ → ✅ | Wired in **this** PR using existing `/push-stats` |
 | 4 | Stat: POIs across N buildings | ✅ | From `campus-health` |
 | 5 | Stat: Accessibility % | ✅ | From `campus-health` |
-| 6 | What Changed feed (audit timeline) | ✅ | Synthesised from satellite `updatedAt` columns (news / events / clubs / dining / campus settings) + a rolled-up subscriber tally — no audit-log schema needed. `GET /api/maps/<mapId>/changes` |
+| 6 | What Changed feed (audit timeline) | ✅ | Backed by the `Activity` table — every write through `/api/...` drops an attributed row via `lib/audit.ts`. Subscribers stay synthesised (push subs are anonymous, no audit row makes sense) |
 | 7 | Jump-back tiles to recent CRUD | ✅ | `JumpBackInTiles` |
 
 ### A12. Manage organisation members
@@ -255,7 +255,7 @@ Roughly in shipping order; "S" = size (S/M/L), "U" = user impact (low/med/high).
 | M | Med | Campus-tier "Settings" screen (publish + danger zone) | A13.2 — shipped |
 | S | Med | Wire `sceneData.defaultLocale` from Settings through the 10 public routes that today fall back to platform default | A13 follow-up — shipped |
 | M | Med | "Open now" structured hours for dining | A7.6 — shipped |
-| L | Med | Real audit log (per-write trail with actor + diff) | A11.6 — feed shipped synthesised from `updatedAt`; richer trail TBD |
+| L | Med | Real audit log (per-write trail with actor + diff) | A11.6 — actor + entity-typed action shipped; richer field-level diffs TBD |
 | M | Med | Broadcast model + history with CTR on `/reach` | A10.5 — history + CTR shipped |
 | S | Med | Org-level "New organisation" form | A2.2 |
 | S | Med | Org-level "Enable Campus app" toggle | A2.4 |

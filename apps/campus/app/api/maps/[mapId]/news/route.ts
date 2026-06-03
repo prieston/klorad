@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireCampusAccess } from "@/lib/authz";
+import { recordAudit } from "@/lib/audit";
 import {
   listNewsForAdmin,
   type NewsAnchor,
@@ -129,6 +130,17 @@ export async function POST(req: Request, { params }: { params: Params }) {
   // Public surface caches per token — bust this campus's tag so the
   // new post shows up immediately without waiting for the 60 s TTL.
   revalidateTag(publicCampusTag(mapId));
+
+  await recordAudit({
+    organizationId: project.organizationId,
+    projectId: mapId,
+    actorId: session.user.id as string,
+    entityType: "NEWS_POST",
+    entityId: created.id,
+    action: "CREATED",
+    message: `News post "${title}"`,
+    metadata: { category, title },
+  });
 
   return NextResponse.json({ id: created.id });
 }

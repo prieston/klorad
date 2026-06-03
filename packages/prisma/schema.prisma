@@ -312,6 +312,13 @@ enum ActivityEntityType {
   CESIUM_ASSET
   SHOWCASE_WORLD
   SHOWCASE_TAG
+  // Campus-app entities — see apps/campus/lib/audit.ts.
+  NEWS_POST
+  EVENT_POST
+  CLUB
+  DINING_LOCATION
+  BROADCAST
+  PROJECT_MEMBER
 }
 
 enum ActivityActionType {

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import type { OrganizationRole } from "@prisma/client";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireCampusAccess } from "@/lib/authz";
+import { recordAudit } from "@/lib/audit";
 
 type Params = Promise<{ mapId: string; userId: string }>;
 
@@ -79,7 +81,7 @@ export async function PUT(req: Request, { params }: { params: Params }) {
     );
   }
 
-  await prisma.projectMember.upsert({
+  const upserted = await prisma.projectMember.upsert({
     where: { projectId_userId: { projectId: mapId, userId } },
     create: {
       projectId: mapId,
@@ -87,9 +89,41 @@ export async function PUT(req: Request, { params }: { params: Params }) {
       role: role as OrganizationRole | null,
     },
     update: { role: role as OrganizationRole | null },
+    include: {
+      user: { select: { name: true, email: true } },
+    },
+  });
+
+  const session = await auth();
+  const targetName =
+    upserted.user.name?.trim() ||
+    upserted.user.email?.split("@")[0] ||
+    "a member";
+  await recordAudit({
+    organizationId: project.organizationId,
+    projectId: mapId,
+    actorId: (session?.user?.id as string | undefined) ?? null,
+    entityType: "PROJECT_MEMBER",
+    entityId: upserted.id,
+    action: role === null ? "REMOVED" : "UPDATED",
+    message:
+      role === null
+        ? `Blocked ${targetName} from this campus`
+        : `Set ${targetName}'s role to ${humanRole(role as OrganizationRole)}`,
+    metadata: { targetUserId: userId, role: role as string | null },
   });
 
   return NextResponse.json({ ok: true });
+}
+
+const ROLE_LABEL: Record<OrganizationRole, string> = {
+  owner: "Owner",
+  admin: "Admin",
+  member: "Editor",
+  publicViewer: "Viewer",
+};
+function humanRole(role: OrganizationRole): string {
+  return ROLE_LABEL[role];
 }
 
 /**
@@ -105,11 +139,44 @@ export async function DELETE(
   const denied = await requireCampusAccess(mapId, "manage");
   if (denied) return denied;
 
+  const existing = await prisma.projectMember
+    .findUnique({
+      where: { projectId_userId: { projectId: mapId, userId } },
+      include: {
+        user: { select: { name: true, email: true } },
+      },
+    })
+    .catch(() => null);
+
   await prisma.projectMember
     .delete({
       where: { projectId_userId: { projectId: mapId, userId } },
     })
     .catch(() => undefined);
+
+  if (existing) {
+    const project = await prisma.project.findUnique({
+      where: { id: mapId },
+      select: { organizationId: true },
+    });
+    if (project) {
+      const session = await auth();
+      const targetName =
+        existing.user.name?.trim() ||
+        existing.user.email?.split("@")[0] ||
+        "a member";
+      await recordAudit({
+        organizationId: project.organizationId,
+        projectId: mapId,
+        actorId: (session?.user?.id as string | undefined) ?? null,
+        entityType: "PROJECT_MEMBER",
+        entityId: existing.id,
+        action: "REMOVED",
+        message: `Reverted ${targetName} to organisation role`,
+        metadata: { targetUserId: userId },
+      });
+    }
+  }
 
   return NextResponse.json({ ok: true });
 }

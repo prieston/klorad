@@ -4,8 +4,10 @@ import {
   Bell,
   Calendar,
   History,
+  Megaphone,
   Newspaper,
   Palette,
+  Shield,
   Users,
   Utensils,
 } from "lucide-react";
@@ -99,6 +101,12 @@ function ChangeRow({ item }: { item: CampusChange }) {
         </div>
         <div className="mt-0.5 flex items-center gap-2 text-[11px] text-text-tertiary">
           <time dateTime={item.at}>{relative(item.at)}</time>
+          {item.actor ? (
+            <>
+              <span aria-hidden>·</span>
+              <span>by {item.actor}</span>
+            </>
+          ) : null}
           {item.detail ? (
             <>
               <span aria-hidden>·</span>
@@ -141,14 +149,20 @@ const ICONS: Record<ChangeKind, typeof Newspaper> = {
   club: Users,
   dining: Utensils,
   campus: Palette,
+  broadcast: Megaphone,
+  member: Shield,
   subscribers: Bell,
 };
 
 /** Verb phrase used as the row's eyebrow. Kept short — the entity's
- *  own title carries the specifics. */
+ *  own title carries the specifics. Audit-derived rows often pre-
+ *  render the verb inside `title` already (e.g. "Published Foo"), so
+ *  this is the eyebrow that contextualises the entity bucket. */
 function verbFor(item: CampusChange): string {
   if (item.kind === "subscribers") return "Subscribers";
   if (item.kind === "campus") return item.isNew ? "Created" : "Updated";
+  if (item.kind === "broadcast") return "Broadcast";
+  if (item.kind === "member") return "Members";
   const verb = item.isNew ? "New" : "Updated";
   const noun = {
     news: "news",
@@ -156,6 +170,8 @@ function verbFor(item: CampusChange): string {
     club: "club",
     dining: "dining",
     campus: "",
+    broadcast: "",
+    member: "",
     subscribers: "",
   }[item.kind];
   return `${verb} ${noun}`;

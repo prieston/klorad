@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { Prisma, type ClubColor } from "@prisma/client";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireCampusAccess } from "@/lib/authz";
+import { recordAudit } from "@/lib/audit";
 import {
   deriveInitials,
   listClubsForAdmin,
@@ -125,5 +127,17 @@ export async function POST(req: Request, { params }: { params: Params }) {
   });
 
   revalidateTag(publicCampusTag(mapId));
+
+  const session = await auth();
+  await recordAudit({
+    organizationId: project.organizationId,
+    projectId: mapId,
+    actorId: (session?.user?.id as string | undefined) ?? null,
+    entityType: "CLUB",
+    entityId: created.id,
+    action: "CREATED",
+    message: `Club "${name}"`,
+  });
+
   return NextResponse.json({ id: created.id });
 }

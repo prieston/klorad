@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { auth } from "@/auth";
 import { requireCampusAccess } from "@/lib/authz";
+import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { pushEnabled, sendPushToProject } from "@/lib/push";
 
@@ -95,6 +96,30 @@ export async function POST(req: Request, { params }: { params: Params }) {
       .catch((err) => {
         console.error("[notify] count update failed", err);
       });
+
+    // Audit row: piggybacks on the project lookup the authz helper
+    // already did. We do an extra `findUnique` to get the org id —
+    // tiny cost vs. accurate attribution on the "What Changed" feed.
+    const project = await prisma.project.findUnique({
+      where: { id: mapId },
+      select: { organizationId: true },
+    });
+    if (project) {
+      await recordAudit({
+        organizationId: project.organizationId,
+        projectId: mapId,
+        actorId: (session?.user?.id as string | undefined) ?? null,
+        entityType: "BROADCAST",
+        entityId: broadcast.id,
+        action: "CREATED",
+        message: `Broadcast "${title}" — sent to ${result.delivered} of ${result.attempted}`,
+        metadata: {
+          attempted: result.attempted,
+          delivered: result.delivered,
+          pruned: result.pruned,
+        },
+      });
+    }
 
     return NextResponse.json({ ok: true, result });
   } catch (err) {
