@@ -133,7 +133,8 @@
 |---|---|---|---|
 | 1 | List members, change role, remove | ✅ | `/org/[orgId]/settings/members` |
 | 2 | Send invite email | ✅ (env-gated) | Sends via Resend when configured, otherwise hands the owner the link (see A1.4) |
-| 3 | Per-campus member assignment (some campuses for some members) | ❌ | Role is org-wide today |
+| 3 | See "who can edit this campus" from the campus IA | ✅ | Campus-tier `/members` screen — read-only roll, separates editors from viewers, deep-link to the org-tier screen for management |
+| 4 | Per-campus role overrides (some campuses for some members) | ❌ | Role is still org-wide today; the campus-tier screen acknowledges this |
 
 ### A13. Organisation tier
 
@@ -251,8 +252,9 @@ Roughly in shipping order; "S" = size (S/M/L), "U" = user impact (low/med/high).
 ### Post-MVP, useful
 | S | U | Item | Pointer |
 |---|---|---|---|
-| M | Med | Campus-tier "Members" screen (per-campus access) | A12.3 |
-| M | Med | Campus-tier "Settings" screen (publish + danger zone) | A13.2 |
+| M | Med | Campus-tier "Members" screen (per-campus access) | A12.3 — read-only view shipped; per-campus *overrides* are the bigger arc still queued |
+| M | Med | Campus-tier "Settings" screen (publish + danger zone) | A13.2 — shipped |
+| S | Med | Wire `sceneData.defaultLocale` from Settings through the 10 public routes that today fall back to platform default | A13 follow-up |
 | M | Med | "Open now" structured hours for dining | A7.6 |
 | L | Med | Real audit log (per-write trail with actor + diff) | A11.6 — feed shipped synthesised from `updatedAt`; richer trail TBD |
 | M | Med | Broadcast model + history with CTR on `/reach` | A10.5 |
