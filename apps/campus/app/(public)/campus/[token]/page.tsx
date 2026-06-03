@@ -116,6 +116,7 @@ export default async function CampusHomePage({
   const home = readHomePage(map.sceneData);
   const headline = pickText(home.headline, locale) || undefined;
   const subheading = pickText(home.tagline, locale) || undefined;
+  const ctaLabel = pickText(home.ctaLabel, locale) || undefined;
 
   // News rail: combine the new `NewsPost` rows with legacy posts in
   // `sceneData.posts` so existing tenants don't lose what's there
@@ -256,6 +257,7 @@ export default async function CampusHomePage({
       locale={locale}
       headline={headline}
       subheading={subheading}
+      ctaLabel={ctaLabel}
       mapThumbnailUrl={map.thumbnail ?? undefined}
       heroImageUrl={home.heroImage ?? map.thumbnail ?? undefined}
       news={news}

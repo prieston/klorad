@@ -24,6 +24,11 @@ interface Props {
   href: string;
   /** Compact mode shrinks the banner height — used in dense grids. */
   compact?: boolean;
+  /** Optional card image. When set, replaces the gradient banner with
+   *  the rector's uploaded campus hero. Falls back to the gradient
+   *  when null / undefined so an unbranded campus still has a
+   *  coloured banner. */
+  thumbnail?: string | null;
 }
 
 /**
@@ -42,6 +47,7 @@ export function CampusCard({
   updatedAt,
   href,
   compact = false,
+  thumbnail,
 }: Props) {
   const updated = updatedAt
     ? new Date(updatedAt).toLocaleDateString(undefined, {
@@ -59,25 +65,35 @@ export function CampusCard({
     >
       <div
         className={`${bannerHeight} relative flex items-end justify-between p-3`}
-        style={{
-          background: bannerGradient(id),
-          backgroundImage: `${bannerOverlay()}, ${bannerGradient(id)}`,
-          backgroundSize: "12px 12px, auto",
-        }}
+        style={
+          thumbnail
+            ? {
+                backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.45) 100%), url("${thumbnail}")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
+            : {
+                background: bannerGradient(id),
+                backgroundImage: `${bannerOverlay()}, ${bannerGradient(id)}`,
+                backgroundSize: "12px 12px, auto",
+              }
+        }
         aria-hidden
       >
         {kind ? (
-          <span className="inline-flex items-center rounded-md bg-black/30 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
+          <span className="inline-flex items-center rounded-md bg-black/40 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white backdrop-blur-sm">
             {kind}
           </span>
         ) : (
           <span />
         )}
-        <MapPin
-          size={18}
-          strokeWidth={1.75}
-          className="text-white/90 drop-shadow-sm"
-        />
+        {thumbnail ? null : (
+          <MapPin
+            size={18}
+            strokeWidth={1.75}
+            className="text-white/90 drop-shadow-sm"
+          />
+        )}
       </div>
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-2">

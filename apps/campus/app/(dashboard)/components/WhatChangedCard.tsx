@@ -69,7 +69,7 @@ export function WhatChangedCard({ items, isLoading }: Props) {
           </p>
         </div>
       ) : (
-        <ul className="space-y-1.5">
+        <ul className="list-none space-y-1.5">
           {items.map((item) => (
             <ChangeRow key={item.id} item={item} />
           ))}

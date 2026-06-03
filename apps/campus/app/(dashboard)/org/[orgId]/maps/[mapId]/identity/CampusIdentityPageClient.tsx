@@ -671,7 +671,7 @@ function LangToggle({
     <div
       role="tablist"
       aria-label="Language"
-      className="inline-flex rounded-full border border-line-soft p-0.5"
+      className="inline-flex rounded-full bg-surface-2 p-0.5"
     >
       {(["en", "el"] as const).map((l) => {
         const active = l === lang;

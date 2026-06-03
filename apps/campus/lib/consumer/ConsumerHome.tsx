@@ -23,11 +23,14 @@ export interface ConsumerHomeProps {
   accentColor?: string;
   logoUrl?: string;
   locale: Locale;
-  /** Optional org-set hero copy — unused in the new mobile layout but
-   *  kept on the props so the home `page.tsx` can keep passing it
-   *  while the schema settles. */
+  /** Rector-defined hero copy from the Home admin screen. Optional
+   *  — when set, overrides the platform defaults in `GreetingCard`. */
   headline?: string;
+  /** Tagline (eyebrow) — when set, replaces the time-of-day greeting. */
   subheading?: string;
+  /** CTA copy for the Klio search chip — when set, replaces the
+   *  locale-specific default placeholder. */
+  ctaLabel?: string;
   /** Real venue thumbnail — currently unused; kept for future hero variants. */
   mapThumbnailUrl?: string;
   /** Background image painted behind the greeting hero. Falls back
@@ -115,6 +118,9 @@ export function ConsumerHome({
   dining,
   heroImageUrl,
   vapidPublicKey,
+  headline,
+  subheading,
+  ctaLabel,
 }: ConsumerHomeProps) {
   const copy = COPY[locale];
   const eventItems = events?.length ? events : SAMPLE_EVENTS;
@@ -143,6 +149,9 @@ export function ConsumerHome({
         klioHref={klioHref}
         locale={locale}
         backgroundImageUrl={heroImageUrl}
+        headline={headline}
+        tagline={subheading}
+        ctaLabel={ctaLabel}
       />
 
       {/* Bell + 4 action tiles. */}
