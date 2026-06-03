@@ -23,7 +23,7 @@
 | 1 | Visit `/auth/signin`, pick Google or GitHub OAuth | ✅ | `app/auth/signin/page.tsx` |
 | 2 | First sign-in lands on `/onboarding` (welcome screen w/ contact-us CTA if no org) | ✅ | `app/onboarding/page.tsx` |
 | 3 | Email/password sign-in (alternative to OAuth) | ⚠️ | Auth model has `password` column but no UI; OAuth-only in practice |
-| 4 | Invite by email + accept invite → land in org | ⚠️ | Invite *row* is created, but no email is sent. Rector copy-pastes the link manually. See `app/api/organizations/[orgId]/invites/route.ts:17` ("TODO: port Resend integration") |
+| 4 | Invite by email + accept invite → land in org | ✅ (env-gated) | Wired via `lib/email.ts → sendOrgInviteEmail`. Sends a branded Resend email when `RESEND_API_KEY` + `EMAIL_FROM` are set; falls back to handing the owner the shareable link otherwise. The response's `emailed` flag tells the UI which happened. |
 
 ### A2. Create an organisation
 
@@ -132,7 +132,7 @@
 | # | Step | Status | Where |
 |---|---|---|---|
 | 1 | List members, change role, remove | ✅ | `/org/[orgId]/settings/members` |
-| 2 | Send invite email | ⚠️ | Invite row created; email never sent (see A1.4) |
+| 2 | Send invite email | ✅ (env-gated) | Sends via Resend when configured, otherwise hands the owner the link (see A1.4) |
 | 3 | Per-campus member assignment (some campuses for some members) | ❌ | Role is org-wide today |
 
 ### A13. Organisation tier
@@ -242,11 +242,11 @@ Roughly in shipping order; "S" = size (S/M/L), "U" = user impact (low/med/high).
 | S | High | Wire push-subscribers stat card | A11.3 — shipped |
 | S | High | Add a "Card image" (campus thumbnail) field to `/identity` | A6 — shipped |
 | M | High | Add a "Location" panel to `/identity` (Mapbox preview + geocoder + pin) | A5 — shipped |
-| M | Med | Empty-state CTA on the org world map for campuses with no location | A5.3 |
-| S | Med | World map pin tooltips that show the campus card image | A6.3 |
+| M | Med | Empty-state CTA on the org world map for campuses with no location | A5.3 — shipped |
+| S | Med | World map pin tooltips that show the campus card image | A6.3 — shipped |
 | S | Med | Remove `SKIP_ENV_VALIDATION=1` from `apps/campus/vercel.json` | A14.3 |
 | M | Med | Sentry: server + client + edge config, DSN-gated | A14.4 |
-| S | Med | Wire Resend so org invites send a real email | A1.4 / A12.2 |
+| S | Med | Wire Resend so org invites send a real email | A1.4 / A12.2 — already wired (env-gated) |
 
 ### Post-MVP, useful
 | S | U | Item | Pointer |
