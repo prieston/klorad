@@ -36,12 +36,17 @@ export async function approveAsNews(
     throw new Error("Missing title or body");
   }
   const publishedAt = parseIsoDate(payload.publishedAt) ?? new Date();
+  const sourceFooter = `— Source: ${ctx.sourceUrl}`;
   const created = await prisma.newsPost.create({
     data: {
       organizationId: ctx.organizationId,
       projectId: ctx.projectId,
       title: payload.title.slice(0, 200),
-      body: `${payload.body}\n\n— Source: ${ctx.sourceUrl}`,
+      titleEl: payload.titleEl?.trim() ? payload.titleEl.slice(0, 200) : null,
+      body: `${payload.body}\n\n${sourceFooter}`,
+      bodyEl: payload.bodyEl?.trim()
+        ? `${payload.bodyEl}\n\n${sourceFooter}`
+        : null,
       category: "news",
       publishedAt,
       imageUrl: payload.imageUrl ?? null,
@@ -69,20 +74,26 @@ export async function approveAsEvent(
   const endsAt =
     parseIsoDate(payload.endsAt) ??
     new Date(startsAt.getTime() + 2 * 60 * 60 * 1000);
-  const description = [
+  const description = composeEventDescription(
     payload.description,
-    payload.location ? `Location: ${payload.location}` : "",
-    "",
-    `— Source: ${ctx.sourceUrl}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+    payload.location,
+    ctx.sourceUrl,
+  );
+  const descriptionEl = payload.descriptionEl?.trim()
+    ? composeEventDescription(
+        payload.descriptionEl,
+        payload.location,
+        ctx.sourceUrl,
+      )
+    : null;
   const created = await prisma.eventPost.create({
     data: {
       organizationId: ctx.organizationId,
       projectId: ctx.projectId,
       title: payload.title.slice(0, 200),
+      titleEl: payload.titleEl?.trim() ? payload.titleEl.slice(0, 200) : null,
       description,
+      descriptionEl,
       startsAt,
       endsAt,
       registrationUrl: payload.registrationUrl ?? null,
@@ -93,6 +104,21 @@ export async function approveAsEvent(
     },
   });
   return { id: created.id };
+}
+
+function composeEventDescription(
+  body: string,
+  location: string | undefined,
+  sourceUrl: string,
+): string {
+  return [
+    body,
+    location ? `Location: ${location}` : "",
+    "",
+    `— Source: ${sourceUrl}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function parseIsoDate(value: string | undefined): Date | null {

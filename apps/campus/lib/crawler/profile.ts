@@ -13,12 +13,22 @@ const NEWS_ITEM_SCHEMA = {
     title: {
       type: "string",
       description:
-        "Headline of the news item. Keep close to what the page actually says.",
+        "Headline in ENGLISH. If the page is Greek, translate; if the page is already English, use it verbatim. Keep close to what the page actually says — do not editorialise.",
+    },
+    titleEl: {
+      type: "string",
+      description:
+        "Headline in GREEK. If the page is English, translate; if the page is already Greek, use it verbatim.",
     },
     body: {
       type: "string",
       description:
-        "One to three short paragraphs summarising the item in the page's own voice. Do not invent details.",
+        "Body in ENGLISH — one to three short paragraphs summarising the item in the page's own voice. Translate if the source is Greek. Do not invent details.",
+    },
+    bodyEl: {
+      type: "string",
+      description:
+        "Body in GREEK — the same content as `body`, translated to Greek (or verbatim when the source is Greek).",
     },
     publishedAt: {
       type: "string",
@@ -31,18 +41,32 @@ const NEWS_ITEM_SCHEMA = {
         "Absolute URL of the hero image, if the page has one. Omit otherwise.",
     },
   },
-  required: ["title", "body"],
+  required: ["title", "titleEl", "body", "bodyEl"],
   additionalProperties: false,
 } as const;
 
 const EVENT_ITEM_SCHEMA = {
   type: "object",
   properties: {
-    title: { type: "string", description: "Event name." },
+    title: {
+      type: "string",
+      description:
+        "Event name in ENGLISH. Translate if the source is Greek, verbatim if already English.",
+    },
+    titleEl: {
+      type: "string",
+      description:
+        "Event name in GREEK. Translate if the source is English, verbatim if already Greek.",
+    },
     description: {
       type: "string",
       description:
-        "Short description of the event in the page's own voice. Do not invent details.",
+        "Description in ENGLISH — short, in the page's own voice. Translate if source is Greek. Do not invent details.",
+    },
+    descriptionEl: {
+      type: "string",
+      description:
+        "Description in GREEK — same content as `description`, translated to Greek (or verbatim when source is Greek).",
     },
     startsAt: {
       type: "string",
@@ -57,7 +81,7 @@ const EVENT_ITEM_SCHEMA = {
     location: {
       type: "string",
       description:
-        "Free-text venue (building, room, address). Omit if not stated.",
+        "Free-text venue (building, room, address). Omit if not stated. Render in the language it appears on the page — locations are usually proper nouns.",
     },
     organizer: {
       type: "string",
@@ -74,14 +98,17 @@ const EVENT_ITEM_SCHEMA = {
         "Absolute URL of a hero image for the event. Omit otherwise.",
     },
   },
-  required: ["title", "description"],
+  required: ["title", "titleEl", "description", "descriptionEl"],
   additionalProperties: false,
 } as const;
 
 export const campusExtractorProfile: ExtractorProfile = {
   appKey: "campus",
-  systemPrompt:
-    "Domain: a Greek higher-education campus consumer surface (news + events). The audience is students and visitors. Greek source text is fine — extract the title and body in the source language; do not translate.",
+  systemPrompt: [
+    "Domain: a Greek higher-education campus consumer surface (news + events). Audience is students and visitors.",
+    "Bilingual output is required on every item — emit both an English (`title`, `body`/`description`) and a Greek (`titleEl`, `bodyEl`/`descriptionEl`) version. If the source is Greek, translate to English for the English fields; if the source is English, translate to Greek for the Greek fields. Keep the same factual content on both sides — translation, not summarisation.",
+    "Translate idiomatically (not word-for-word). University-specific jargon (department names, building codes, programme abbreviations) should stay in their canonical form on both sides.",
+  ].join("\n\n"),
   schemas: {
     news: {
       type: "object",
@@ -117,14 +144,18 @@ export const campusExtractorProfile: ExtractorProfile = {
  *  call site, but we narrow again here for type safety. */
 export interface CampusNewsExtraction {
   title: string;
+  titleEl: string;
   body: string;
+  bodyEl: string;
   publishedAt?: string;
   imageUrl?: string;
 }
 
 export interface CampusEventExtraction {
   title: string;
+  titleEl: string;
   description: string;
+  descriptionEl: string;
   startsAt?: string;
   endsAt?: string;
   location?: string;

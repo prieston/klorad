@@ -108,7 +108,11 @@ export async function extractFromMarkdown(
   try {
     response = await client.messages.create({
       model: MODEL,
-      max_tokens: 2048,
+      // Doubled vs. monolingual to leave room for translated copies
+      // — apps can ask Claude to fill EN + EL fields on every item
+      // (campus profile does). 4096 fits ~6-8 bilingual news items
+      // per page; that's plenty of headroom.
+      max_tokens: 4096,
       system,
       tools,
       tool_choice: { type: "any" },

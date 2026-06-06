@@ -310,11 +310,19 @@ function DiscoveredCard({
 }) {
   const payload = item.extracted as Record<string, unknown>;
   const title = typeof payload.title === "string" ? payload.title : "(no title)";
+  const titleEl =
+    typeof payload.titleEl === "string" ? payload.titleEl : null;
   const body =
     typeof payload.body === "string"
       ? payload.body
       : typeof payload.description === "string"
         ? payload.description
+        : "";
+  const bodyEl =
+    typeof payload.bodyEl === "string"
+      ? payload.bodyEl
+      : typeof payload.descriptionEl === "string"
+        ? payload.descriptionEl
         : "";
   const when =
     typeof payload.startsAt === "string"
@@ -326,7 +334,17 @@ function DiscoveredCard({
     <article className="rounded-2xl border border-line-soft bg-white p-5">
       <header className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h3 className="text-base font-medium text-text-primary">{title}</h3>
+          <h3 className="text-base font-medium text-text-primary" lang="en">
+            {title}
+          </h3>
+          {titleEl ? (
+            <h4
+              className="mt-0.5 text-sm font-normal text-text-secondary"
+              lang="el"
+            >
+              {titleEl}
+            </h4>
+          ) : null}
           {when ? (
             <p className="mt-1 text-xs text-text-tertiary">{when}</p>
           ) : null}
@@ -342,8 +360,19 @@ function DiscoveredCard({
         </a>
       </header>
       {body ? (
-        <p className="mt-3 line-clamp-4 text-sm leading-relaxed text-text-secondary">
+        <p
+          className="mt-3 line-clamp-3 text-sm leading-relaxed text-text-secondary"
+          lang="en"
+        >
           {body}
+        </p>
+      ) : null}
+      {bodyEl ? (
+        <p
+          className="mt-2 line-clamp-3 text-sm leading-relaxed text-text-tertiary"
+          lang="el"
+        >
+          {bodyEl}
         </p>
       ) : null}
       <div className="mt-4 flex items-center gap-2">
