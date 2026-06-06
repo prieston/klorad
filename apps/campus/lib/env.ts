@@ -54,6 +54,7 @@ const serverSchema = z.object({
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
+  FIRECRAWL_API_KEY: z.string().optional(),
 
   // ─ Mode ───────────────────────────────────────────────────────
   NODE_ENV: z
@@ -143,6 +144,12 @@ export const features = {
    *  pair is obvious from the outside. */
   sentry: Boolean(
     serverEnv.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN,
+  ),
+  /** Agentic crawler (Firecrawl + Claude). Needs both a Firecrawl
+   *  key and the same ANTHROPIC_API_KEY Klio uses — extraction goes
+   *  through Claude's tool-use. */
+  crawler: Boolean(
+    serverEnv.FIRECRAWL_API_KEY && serverEnv.ANTHROPIC_API_KEY,
   ),
 } as const;
 

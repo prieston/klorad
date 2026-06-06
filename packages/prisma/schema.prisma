@@ -189,6 +189,10 @@ model Project {
   // Per-campus role overrides — when set, supersede the user's
   // organization role for this specific campus. See lib/authz.ts.
   memberOverrides   ProjectMember[]
+  // Agentic crawler jobs scoped to this campus — see @klorad/crawler.
+  crawlJobs         CrawlJob[]
+  // Discovered items pending rector review.
+  discoveredItems   DiscoveredItem[]
 
   // Showcase Relation
   showcaseWorld ShowcaseWorld?
@@ -688,4 +692,81 @@ model PushSubscription {
 
   @@unique([projectId, endpoint])
   @@index([projectId])
+}
+
+/// Agentic crawler — one job per "Start crawl" click. Phase 1 only
+/// tracks the per-job outcome; persistent CrawlSource rows land in
+/// Phase 2. The job row stays around after it finishes so the
+/// dashboard can show a history and a retry hook.
+model CrawlJob {
+  id           String         @id @default(cuid())
+  projectId    String
+  status       CrawlJobStatus @default(queued)
+  /// Free-text instructions the rector passed to the extractor.
+  /// Capped client- + server-side by CRAWLER_DEMO_LIMITS.
+  instructions String?        @db.Text
+  /// The URLs the rector queued for this job — JSON array of strings.
+  /// Re-stored on the row so a retry doesn't depend on the UI state.
+  urls         Json           @default("[]")
+  startedById  String?
+  startedAt    DateTime       @default(now())
+  finishedAt   DateTime?
+  /// Pages Firecrawl actually scraped (success + empty + failed).
+  pagesFetched Int            @default(0)
+  /// Items the LLM produced across all pages — sum across types.
+  itemsCreated Int            @default(0)
+  /// One-line message when status is `failed`.
+  errorMessage String?
+
+  project    Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  discovered DiscoveredItem[]
+
+  @@index([projectId, startedAt(sort: Desc)])
+}
+
+enum CrawlJobStatus {
+  queued
+  running
+  done
+  failed
+}
+
+/// One item the extractor surfaced — sits in the "Needs approval"
+/// inbox until the rector approves (creating a real NewsPost /
+/// EventPost) or rejects (soft-delete via status). `extracted`
+/// holds the raw JSON the LLM returned, narrowed by content type at
+/// approval time.
+model DiscoveredItem {
+  id          String                @id @default(cuid())
+  projectId   String
+  jobId       String
+  /// Where the page lived — kept so the rector can click through
+  /// to source even after approval.
+  sourceUrl   String
+  /// `news` | `event` — matches ContentType in @klorad/crawler.
+  contentType String
+  /// Raw structured payload — shape depends on contentType, narrowed
+  /// at approval time by the per-app mapper.
+  extracted   Json
+  status      DiscoveredItemStatus @default(pending)
+  /// When status moves off `pending`, who did it.
+  reviewedById String?
+  reviewedAt   DateTime?
+  /// FK back to the row this was approved into — `NewsPost.id` /
+  /// `EventPost.id`. Free-form so adding new content types in later
+  /// phases doesn't require schema changes here.
+  publishedAs  String?
+  createdAt    DateTime              @default(now())
+
+  project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  job     CrawlJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status, createdAt(sort: Desc)])
+  @@index([jobId])
+}
+
+enum DiscoveredItemStatus {
+  pending
+  approved
+  rejected
 }

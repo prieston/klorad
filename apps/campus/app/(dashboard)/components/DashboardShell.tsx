@@ -24,6 +24,7 @@ import {
   Settings,
   Sparkles,
   Sun,
+  Telescope,
   Users,
   Utensils,
 } from "lucide-react";
@@ -237,6 +238,12 @@ function campusNavGroups(
           href: `${prefix}/klio`,
           icon: <Sparkles size={16} strokeWidth={1.7} />,
           active: is("/klio"),
+        },
+        {
+          label: "Discovered",
+          href: `${prefix}/discovered`,
+          icon: <Telescope size={16} strokeWidth={1.7} />,
+          active: is("/discovered"),
         },
       ],
     },
