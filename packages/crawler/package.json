@@ -1,0 +1,34 @@
+{
+  "name": "@klorad/crawler",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist/**"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./limits": {
+      "import": "./dist/limits.js",
+      "types": "./dist/limits.d.ts"
+    }
+  },
+  "scripts": {
+    "clean": "rimraf dist *.tsbuildinfo",
+    "build": "tsup",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mendable/firecrawl-js": "^1.20.0"
+  },
+  "peerDependencies": {
+    "@anthropic-ai/sdk": ">=0.98.0"
+  }
+}

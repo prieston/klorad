@@ -21,6 +21,7 @@
     "@auth/prisma-adapter": "^2.11.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@klorad/crawler": "workspace:*",
     "@klorad/design-system": "workspace:^",
     "@klorad/prisma": "workspace:*",
     "@klorad/storage": "workspace:^",
