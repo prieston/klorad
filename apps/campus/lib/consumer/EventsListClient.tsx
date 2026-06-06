@@ -97,17 +97,29 @@ export function EventsListClient({
             href={href}
             className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--brand-line)] bg-white transition-colors hover:border-[var(--brand-primary)]"
           >
-            <div
-              className="flex h-20 items-end justify-start p-4"
-              style={stripedBanner(accent)}
-            >
-              <Calendar
-                size={24}
-                strokeWidth={1.5}
-                style={{ color: accent }}
-                aria-hidden
-              />
-            </div>
+            {e.imageUrl ? (
+              <div className="relative aspect-[16/9] w-full overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={e.imageUrl}
+                  alt=""
+                  loading="lazy"
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                />
+              </div>
+            ) : (
+              <div
+                className="flex h-20 items-end justify-start p-4"
+                style={stripedBanner(accent)}
+              >
+                <Calendar
+                  size={24}
+                  strokeWidth={1.5}
+                  style={{ color: accent }}
+                  aria-hidden
+                />
+              </div>
+            )}
             <div className="flex flex-1 flex-col gap-2 p-5">
               <h2 className="text-base font-medium text-[var(--brand-text)]">
                 {e.title}

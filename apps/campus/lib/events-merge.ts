@@ -30,6 +30,7 @@ export function eventPostToConsumer(e: EventPost): ConsumerEvent {
     endsAt: e.endsAt,
     bannerColor: e.bannerColor,
     bannerIcon: e.bannerIcon,
+    imageUrl: e.imageUrl,
     anchors: e.anchors.map((a) => ({
       kind: a.kind,
       refId: a.refId,
@@ -49,6 +50,7 @@ export function icsToConsumer(e: CampusEvent): ConsumerEvent {
     endsAt: e.end,
     bannerColor: "teal",
     bannerIcon: "calendar",
+    imageUrl: null,
     anchors: e.location
       ? [{ kind: "building", refId: "", refName: e.location }]
       : [],

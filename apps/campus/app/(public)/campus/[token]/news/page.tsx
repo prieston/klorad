@@ -90,6 +90,7 @@ export default async function NewsPage({
     title: pickText(p.title, locale) || "",
     body: pickText(p.body, locale) || "",
     publishedAt: p.publishedAt,
+    imageUrl: null,
     anchors: p.place
       ? [
           {

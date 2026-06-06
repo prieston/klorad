@@ -38,6 +38,9 @@ export interface ConsumerEvent {
   bannerColor: AccentName;
   /** Lucide icon name used on the banner. */
   bannerIcon: "music" | "trophy" | "sprout" | "calendar";
+  /** Optional hero image — rendered above the title when present;
+   *  falls back to the striped banner + icon when null. */
+  imageUrl?: string | null;
   anchors: ConsumerAnchor[];
   /** Vanity admin-set "expected attendance" — see [[campus-consumer-pivot]]. */
   expectedAttendance?: number;
