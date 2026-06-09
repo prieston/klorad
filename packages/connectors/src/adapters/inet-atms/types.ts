@@ -26,30 +26,46 @@ export type InetSubsystem = (typeof INET_SUBSYSTEMS)[number];
 
 /** Per-tenant config persisted with credentials encrypted at rest via
  *  @klorad/secrets. The HTTP `password` field is the only sensitive
- *  one; everything else is plaintext. */
-export const InetAtmsConfigSchema = z.object({
-  /** Base URL of the ATMS host, no trailing slash. */
-  host: z.string().url().refine((u) => !u.endsWith("/"), {
-    message: "host must not end with '/'",
-  }),
-  /** HTTP Basic auth. v1 only supports basic; bearer / api-key
-   *  branches added in a later phase. */
-  username: z.string().min(1),
-  password: z.string().min(1),
-  /** Subsystems the tenant has enabled. Empty array = no devices
-   *  surfaced; the UI surfaces a clear "enable a subsystem" hint. */
-  subsystems: z.array(z.enum(INET_SUBSYSTEMS)).default([]),
-  /** Fixture mode serves seeded Thessaloniki demo data instead of
-   *  hitting the live host. Flipping to "live" requires only valid
-   *  credentials, no code change. */
-  mode: z.enum(["fixture", "live"]).default("fixture"),
-  /** Optional friendly label shown alongside the host in the UI. */
-  displayName: z.string().max(80).optional(),
-  /** Poll interval for the sync runner (seconds). Defaults to 5
-   *  minutes — short enough for status freshness, long enough that
-   *  a tenant with 10 sources doesn't hammer the API. */
-  pollIntervalSeconds: z.number().int().min(30).max(3600).default(300),
-});
+ *  one; everything else is plaintext.
+ *
+ *  Username + password are optional at parse time so Fixture-mode
+ *  sources can be created without credentials. A refine enforces
+ *  them only when `mode === "live"` so the runner never tries to
+ *  base64-encode `undefined:undefined`. */
+export const InetAtmsConfigSchema = z
+  .object({
+    /** Base URL of the ATMS host, no trailing slash. */
+    host: z.string().url().refine((u) => !u.endsWith("/"), {
+      message: "host must not end with '/'",
+    }),
+    /** HTTP Basic auth username (live mode only). */
+    username: z.string().optional(),
+    /** HTTP Basic auth password (live mode only). */
+    password: z.string().optional(),
+    /** Subsystems the tenant has enabled. Empty array = no devices
+     *  surfaced; the UI surfaces a clear "enable a subsystem" hint. */
+    subsystems: z.array(z.enum(INET_SUBSYSTEMS)).default([]),
+    /** Fixture mode serves seeded Thessaloniki demo data instead of
+     *  hitting the live host. Flipping to "live" requires only valid
+     *  credentials, no code change. */
+    mode: z.enum(["fixture", "live"]).default("fixture"),
+    /** Optional friendly label shown alongside the host in the UI. */
+    displayName: z.string().max(80).optional(),
+    /** Poll interval for the sync runner (seconds). Defaults to 5
+     *  minutes — short enough for status freshness, long enough that
+     *  a tenant with 10 sources doesn't hammer the API. */
+    pollIntervalSeconds: z.number().int().min(30).max(3600).default(300),
+  })
+  .refine(
+    (data) =>
+      data.mode === "fixture" ||
+      ((data.username?.length ?? 0) > 0 && (data.password?.length ?? 0) > 0),
+    {
+      message:
+        "username and password are required when mode is 'live'",
+      path: ["username"],
+    },
+  );
 
 export type InetAtmsConfig = z.infer<typeof InetAtmsConfigSchema>;
 

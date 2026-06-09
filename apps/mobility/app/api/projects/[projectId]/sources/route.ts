@@ -93,9 +93,13 @@ export async function POST(
   };
   const adapterParsed = factory.configSchema.safeParse(merged);
   if (!adapterParsed.success) {
+    const first = adapterParsed.error.issues[0];
+    const detail = first
+      ? `${first.path.join(".") || "config"}: ${first.message}`
+      : "Invalid adapter config";
     return NextResponse.json(
       {
-        error: "Invalid adapter config",
+        error: `Invalid adapter config — ${detail}`,
         issues: adapterParsed.error.issues,
       },
       { status: 400 },
