@@ -17,7 +17,7 @@
     },
     "./inet-atms": {
       "import": "./dist/inet-atms.js",
-      "types": "./dist/inet-atms.d.ts"
+      "types": "./dist/adapters/inet-atms/index.d.ts"
     }
   },
   "scripts": {
