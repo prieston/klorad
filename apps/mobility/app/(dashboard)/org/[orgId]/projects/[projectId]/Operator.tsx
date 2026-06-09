@@ -87,12 +87,23 @@ export function Operator({
   useEffect(() => {
     if (!mapboxToken || !mapEl.current || mapRef.current) return;
     mapboxgl.accessToken = mapboxToken;
-    mapRef.current = new mapboxgl.Map({
+    const map = new mapboxgl.Map({
       container: mapEl.current,
       style: "mapbox://styles/mapbox/dark-v11",
       center: THESS_CENTER,
       zoom: 11,
     });
+    mapRef.current = map;
+    // Mapbox captures container dimensions at init. If the layout
+    // hadn't settled (first paint, flex sizing still computing,
+    // tab swap), the map is born with 0 size and never recovers.
+    // A ResizeObserver tied to the container forces .resize() any
+    // time the actual dimensions change.
+    const ro = new ResizeObserver(() => map.resize());
+    ro.observe(mapEl.current);
+    return () => {
+      ro.disconnect();
+    };
   }, [mapboxToken]);
 
   useEffect(() => {
@@ -137,10 +148,10 @@ export function Operator({
   }, [devices]);
 
   return (
-    <div className="flex h-[100dvh] flex-col md:flex-row">
-      <div className="relative min-h-[55dvh] flex-1 md:min-h-0">
+    <div className="flex h-screen flex-col md:flex-row">
+      <div className="relative h-[55dvh] overflow-hidden md:h-full md:flex-1">
         {mapboxToken ? (
-          <div ref={mapEl} className="absolute inset-0" />
+          <div ref={mapEl} className="h-full w-full" />
         ) : (
           <div className="flex h-full items-center justify-center bg-surface-2 p-8 text-center text-sm text-text-tertiary">
             Set <code>NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN</code> in this environment
