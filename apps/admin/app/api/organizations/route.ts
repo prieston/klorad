@@ -3,6 +3,13 @@ import { auth } from "@/auth";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isGodUser } from "@/lib/config/godusers";
+import { KLORAD_APPS, type KloradApp } from "@/app/dashboard/components/appsConfig";
+
+/** Single source of truth — adding a new entry to `appsConfig.ts`
+ *  automatically widens both the UI dialog and the API allowlist. */
+const KNOWN_APP_KEYS: ReadonlySet<KloradApp> = new Set(
+  KLORAD_APPS.map((a) => a.key),
+);
 
 /**
  * GET: List all organizations
@@ -72,16 +79,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { name, slug, apps } = body as { name?: string; slug?: string; apps?: unknown };
-    const KNOWN_APPS = ["editor", "campus", "culture"] as const;
-    type KnownApp = (typeof KNOWN_APPS)[number];
-    const normalizedApps: KnownApp[] = Array.isArray(apps)
+    const normalizedApps: KloradApp[] = Array.isArray(apps)
       ? Array.from(
           new Set(
-            apps.filter((v): v is KnownApp =>
-              typeof v === "string" &&
-              (KNOWN_APPS as readonly string[]).includes(v)
-            )
-          )
+            apps.filter(
+              (v): v is KloradApp =>
+                typeof v === "string" && KNOWN_APP_KEYS.has(v as KloradApp),
+            ),
+          ),
         )
       : [];
 
