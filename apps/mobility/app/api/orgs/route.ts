@@ -1,10 +1,14 @@
 /**
- * GET /api/orgs — list organisations the caller is a member of.
- * Used by the sidebar's OrganizationSwitcher.
+ * GET /api/orgs — list organisations the caller is a member of, filtered
+ * to those that have Klorad Mobility enabled. The Klorad admin app
+ * controls `Organization.apps`; Mobility surfaces only the
+ * subset tagged with `"mobility"`. Personal orgs are excluded.
  */
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+
+const APP_KEY = "mobility";
 
 export async function GET(): Promise<NextResponse> {
   const session = await auth();
@@ -15,10 +19,26 @@ export async function GET(): Promise<NextResponse> {
     where: { userId: session.user.id },
     orderBy: { createdAt: "asc" },
     select: {
-      organization: { select: { id: true, name: true, slug: true } },
+      organization: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          isPersonal: true,
+          apps: true,
+        },
+      },
     },
   });
-  return NextResponse.json({
-    organizations: rows.map((r) => r.organization),
-  });
+  const organizations = rows
+    .filter((r) => {
+      if (r.organization.isPersonal) return false;
+      return (r.organization.apps ?? []).includes(APP_KEY);
+    })
+    .map((r) => ({
+      id: r.organization.id,
+      name: r.organization.name,
+      slug: r.organization.slug,
+    }));
+  return NextResponse.json({ organizations });
 }
