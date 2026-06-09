@@ -148,7 +148,7 @@ export function Operator({
   }, [devices]);
 
   return (
-    <div className="flex h-screen flex-col md:flex-row">
+    <div className="flex h-full flex-col md:flex-row">
       <div className="relative h-[55dvh] overflow-hidden md:h-full md:flex-1">
         {mapboxToken ? (
           <div ref={mapEl} className="h-full w-full" />
