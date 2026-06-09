@@ -23,7 +23,7 @@
  * `ConnectorRegistry` at boot. The framework knows nothing about
  * any specific system — that's the whole point.
  */
-import type { ZodSchema } from "zod";
+import type { ZodTypeAny } from "zod";
 
 export interface ConnectionTestResult {
   ok: boolean;
@@ -113,8 +113,12 @@ export interface ConnectorFactory<
   /** Authentication style — drives the credential form. */
   readonly authType: ConnectorAuthType;
   /** Zod schema for the connector config (auth + tunables). Apps
-   *  validate user input through this before calling `create()`. */
-  readonly configSchema: ZodSchema<TConfig>;
+   *  validate user input through this before calling `create()`.
+   *  Typed as `ZodTypeAny` (rather than `ZodSchema<TConfig>`) so
+   *  adapters can use `.default()` / `.optional()` without input /
+   *  output variance complaints; the parse output is still narrowed
+   *  by the adapter when it implements `configure(input: TConfig)`. */
+  readonly configSchema: ZodTypeAny;
   /** Build a fresh connector instance. */
   create(): KloradConnector<TConfig, TEntity, TStatus>;
 }

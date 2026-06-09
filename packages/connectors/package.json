@@ -14,6 +14,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./inet-atms": {
+      "import": "./dist/inet-atms.js",
+      "types": "./dist/inet-atms.d.ts"
     }
   },
   "scripts": {

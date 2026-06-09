@@ -1,0 +1,307 @@
+/**
+ * iNET ATMS adapter — the first @klorad/connectors implementation.
+ *
+ * Two modes share one code path:
+ *   - fixture: yields the seeded Thessaloniki devices so the whole
+ *     Mobility UI works offline before credentials arrive.
+ *   - live: makes real HTTP calls against the configured host.
+ *
+ * One adapter instance serves all enabled subsystems for the tenant
+ * (cctv + dms today; the union in `types.ts` is the source of truth
+ * for what's supported). `listEntities` walks each subsystem in
+ * turn, paginates via the ATMS `start_id` cursor, and yields one
+ * page at a time so the caller persists as data arrives.
+ *
+ * The connector framework's single-id contract (`getEntity(id)` /
+ * `getStatus(ids)`) is honoured by packing the subsystem into the
+ * id (`cctv:24432`), so the framework stays subsystem-agnostic.
+ */
+import type {
+  ConnectionTestResult,
+  EntityPage,
+  KloradConnector,
+  ListParams,
+} from "../../types.js";
+import {
+  FIXTURE_DEVICES,
+  FIXTURE_STATUSES,
+} from "./fixture.js";
+import { createInetHttpClient, type InetHttpClient } from "./client.js";
+import {
+  InetAtmsConfigSchema,
+  RawCctvDeviceSchema,
+  RawDmsDeviceSchema,
+  RawStatusSchema,
+  type InetAtmsConfig,
+  type InetDevice,
+  type InetMedia,
+  type InetStatus,
+  type InetSubsystem,
+  type RawCctvDevice,
+  type RawDmsDevice,
+  type RawStatus,
+} from "./types.js";
+
+const DEFAULT_PAGE_SIZE = 100;
+
+export const INET_ATMS_CONNECTOR_ID = "inet-atms";
+
+/** Pack / unpack the subsystem-tagged id. */
+function packId(subsystem: InetSubsystem, externalId: string): string {
+  return `${subsystem}:${externalId}`;
+}
+function unpackId(deviceId: string): {
+  subsystem: InetSubsystem;
+  externalId: string;
+} | null {
+  const [subsystem, externalId, ...rest] = deviceId.split(":");
+  if (
+    rest.length > 0 ||
+    !subsystem ||
+    !externalId ||
+    !(subsystem === "cctv" || subsystem === "dms")
+  ) {
+    return null;
+  }
+  return { subsystem, externalId };
+}
+
+function normaliseCctv(raw: RawCctvDevice): InetDevice {
+  const externalId = raw.deviceId;
+  const stream = raw.streamingUrl ?? raw.cameraIpAddr ?? null;
+  const media: InetMedia | null = stream
+    ? {
+        kind: "cctv-stream",
+        url: stream,
+        streamType: stream.includes(".m3u8") ? "hls" : "mp4",
+      }
+    : null;
+  return {
+    deviceId: packId("cctv", externalId),
+    externalId,
+    subsystem: "cctv",
+    type: raw.cameraType ?? null,
+    lat: raw.latitude ?? null,
+    lng: raw.longitude ?? null,
+    mileMarker: raw.mileMarker ?? null,
+    primaryRoad: raw.primaryRoad ?? null,
+    crossRoad: raw.crossRoad ?? null,
+    direction: raw.direction ?? null,
+    routeId: raw.routeId ?? null,
+    agency: raw.agency ?? null,
+    name: raw.deviceName ?? `CCTV ${externalId}`,
+    media,
+  };
+}
+
+function normaliseDms(raw: RawDmsDevice): InetDevice {
+  const externalId = raw.deviceId;
+  return {
+    deviceId: packId("dms", externalId),
+    externalId,
+    subsystem: "dms",
+    type: raw.signType ?? null,
+    lat: raw.latitude ?? null,
+    lng: raw.longitude ?? null,
+    mileMarker: raw.mileMarker ?? null,
+    primaryRoad: raw.primaryRoad ?? null,
+    crossRoad: raw.crossRoad ?? null,
+    direction: raw.direction ?? null,
+    routeId: raw.routeId ?? null,
+    agency: raw.agency ?? null,
+    name: raw.deviceName ?? `DMS ${externalId}`,
+    media: null,
+  };
+}
+
+function normaliseStatus(deviceId: string, raw: RawStatus): InetStatus {
+  return {
+    deviceId,
+    online: Boolean(raw.connectable ?? raw.viewable),
+    alarm:
+      typeof raw.alarmStatus === "string" && raw.alarmStatus.length > 0
+        ? raw.alarmStatus
+        : null,
+    observedAt: raw.timestamp ?? new Date().toISOString(),
+    raw,
+  };
+}
+
+/** The connector type the registry binds to. */
+export type InetAtmsConnector = KloradConnector<
+  InetAtmsConfig,
+  InetDevice,
+  InetStatus
+>;
+
+export function createInetAtmsConnector(): InetAtmsConnector {
+  let config: InetAtmsConfig | null = null;
+  let client: InetHttpClient | null = null;
+
+  function requireConfig(): InetAtmsConfig {
+    if (!config) {
+      throw new Error("[inet-atms] connector used before configure()");
+    }
+    return config;
+  }
+
+  async function* listLive(
+    subsystem: InetSubsystem,
+    params: ListParams | undefined,
+  ): AsyncIterable<EntityPage<InetDevice>> {
+    const live = client;
+    if (!live) throw new Error("[inet-atms] live client not initialised");
+    const limit = params?.limit ?? DEFAULT_PAGE_SIZE;
+    let cursor: string | undefined = params?.cursor;
+    while (true) {
+      const search = new URLSearchParams();
+      search.set("limit", String(limit));
+      if (cursor) search.set("start_id", cursor);
+      if (params?.query) search.set("query", params.query);
+      if (params?.near) {
+        search.set("lat", String(params.near.lat));
+        search.set("lng", String(params.near.lng));
+      }
+      for (const s of params?.sort ?? []) search.append("sort_by", s);
+      const raw = (await live.getJson<unknown[]>(
+        subsystem,
+        "",
+        search,
+      )) as unknown[];
+      const items: InetDevice[] = [];
+      for (const entry of raw) {
+        if (subsystem === "cctv") {
+          const parsed = RawCctvDeviceSchema.safeParse(entry);
+          if (parsed.success) items.push(normaliseCctv(parsed.data));
+        } else if (subsystem === "dms") {
+          const parsed = RawDmsDeviceSchema.safeParse(entry);
+          if (parsed.success) items.push(normaliseDms(parsed.data));
+        }
+      }
+      const nextCursor =
+        items.length === limit ? items[items.length - 1]?.externalId ?? null : null;
+      yield { items, nextCursor };
+      if (!nextCursor) break;
+      cursor = nextCursor;
+    }
+  }
+
+  async function* listFixture(
+    subsystem: InetSubsystem,
+  ): AsyncIterable<EntityPage<InetDevice>> {
+    yield { items: FIXTURE_DEVICES[subsystem], nextCursor: null };
+  }
+
+  return {
+    id: INET_ATMS_CONNECTOR_ID,
+
+    async configure(input: InetAtmsConfig): Promise<void> {
+      config = InetAtmsConfigSchema.parse(input);
+      client = config.mode === "live" ? createInetHttpClient(config) : null;
+    },
+
+    async testConnection(): Promise<ConnectionTestResult> {
+      const c = requireConfig();
+      if (c.mode === "fixture") {
+        return {
+          ok: true,
+          meta: { mode: "fixture", subsystems: c.subsystems },
+        };
+      }
+      if (!client) {
+        return { ok: false, error: "live client not initialised" };
+      }
+      try {
+        // Probe each enabled subsystem with a single-item list — the
+        // cheapest call that proves auth + reachability.
+        for (const subsystem of c.subsystems) {
+          const probe = new URLSearchParams({ limit: "1" });
+          await client.getJson<unknown[]>(subsystem, "", probe);
+        }
+        return { ok: true, meta: { subsystems: c.subsystems } };
+      } catch (err) {
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : "Unknown error",
+        };
+      }
+    },
+
+    async *listEntities(
+      params?: ListParams,
+    ): AsyncIterable<EntityPage<InetDevice>> {
+      const c = requireConfig();
+      for (const subsystem of c.subsystems) {
+        const stream =
+          c.mode === "fixture"
+            ? listFixture(subsystem)
+            : listLive(subsystem, params);
+        for await (const page of stream) {
+          yield page;
+        }
+      }
+    },
+
+    async getEntity(deviceId: string): Promise<InetDevice | null> {
+      const c = requireConfig();
+      const unpacked = unpackId(deviceId);
+      if (!unpacked) return null;
+      if (c.mode === "fixture") {
+        return (
+          FIXTURE_DEVICES[unpacked.subsystem].find(
+            (d) => d.deviceId === deviceId,
+          ) ?? null
+        );
+      }
+      if (!client) return null;
+      try {
+        const raw = await client.getJson<unknown>(
+          unpacked.subsystem,
+          `/${unpacked.externalId}`,
+        );
+        if (unpacked.subsystem === "cctv") {
+          const parsed = RawCctvDeviceSchema.safeParse(raw);
+          return parsed.success ? normaliseCctv(parsed.data) : null;
+        }
+        const parsed = RawDmsDeviceSchema.safeParse(raw);
+        return parsed.success ? normaliseDms(parsed.data) : null;
+      } catch {
+        return null;
+      }
+    },
+
+    async getStatus(deviceIds: string[]): Promise<Record<string, InetStatus>> {
+      const c = requireConfig();
+      const out: Record<string, InetStatus> = {};
+      if (c.mode === "fixture") {
+        for (const id of deviceIds) {
+          const s = FIXTURE_STATUSES[id];
+          if (s) out[id] = s;
+        }
+        return out;
+      }
+      if (!client) return out;
+      // The ATMS REST surface is one-id-per-call for status; fan out
+      // in parallel. Caller is expected to chunk to a sensible batch.
+      await Promise.all(
+        deviceIds.map(async (id) => {
+          const unpacked = unpackId(id);
+          if (!unpacked) return;
+          try {
+            const raw = await client!.getJson<unknown>(
+              unpacked.subsystem,
+              `/${unpacked.externalId}/status`,
+            );
+            const parsed = RawStatusSchema.safeParse(raw);
+            if (parsed.success) {
+              out[id] = normaliseStatus(id, parsed.data);
+            }
+          } catch {
+            // Skip — the row simply won't appear in the result.
+          }
+        }),
+      );
+      return out;
+    },
+  };
+}
