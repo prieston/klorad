@@ -8,7 +8,7 @@ import { z } from "zod";
  * permissive feature-gating optional vars, `features` object that
  * boolean-summarises what's lit. Mobility-specific entries:
  *
- *   - `NEXT_PUBLIC_MAPBOX_TOKEN`: the operator console runs on
+ *   - `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN`: the operator console runs on
  *     Mapbox GL; null disables the map and shows a friendly placeholder
  *     instead. Read raw client-side via process.env per the same NEXT_PUBLIC
  *     reasoning Campus uses.
@@ -87,7 +87,7 @@ export const features = {
       (serverEnv.GITHUB_CLIENT_ID && serverEnv.GITHUB_CLIENT_SECRET),
   ),
   /** Mapbox client token — gates the operator console map. */
-  map: Boolean(process.env.NEXT_PUBLIC_MAPBOX_TOKEN),
+  map: Boolean(process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN),
 } as const;
 
 export type FeatureFlags = typeof features;

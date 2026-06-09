@@ -143,7 +143,7 @@ export function Operator({
           <div ref={mapEl} className="absolute inset-0" />
         ) : (
           <div className="flex h-full items-center justify-center bg-surface-2 p-8 text-center text-sm text-text-tertiary">
-            Set <code>NEXT_PUBLIC_MAPBOX_TOKEN</code> in this environment
+            Set <code>NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN</code> in this environment
             to render the map.
           </div>
         )}

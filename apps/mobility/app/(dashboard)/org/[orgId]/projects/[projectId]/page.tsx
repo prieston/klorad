@@ -43,7 +43,7 @@ export default async function OperatorPage({
   return (
     <Operator
       projectId={projectId}
-      mapboxToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? null}
+      mapboxToken={process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ?? null}
       sourcesHref={`/org/${orgId}/projects/${projectId}/sources`}
     />
   );
