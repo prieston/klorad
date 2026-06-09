@@ -137,8 +137,8 @@ export function Operator({
   }, [devices]);
 
   return (
-    <div className="grid h-[calc(100dvh-1px)] grid-cols-1 md:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="relative">
+    <div className="flex h-[100dvh] flex-col md:flex-row">
+      <div className="relative min-h-[55dvh] flex-1 md:min-h-0">
         {mapboxToken ? (
           <div ref={mapEl} className="absolute inset-0" />
         ) : (
@@ -149,7 +149,7 @@ export function Operator({
         )}
         <Legend devices={devices} sourcesHref={sourcesHref} />
       </div>
-      <aside className="overflow-y-auto border-l border-line-soft bg-bg p-6">
+      <aside className="w-full shrink-0 overflow-y-auto border-t border-line-soft bg-bg p-6 md:w-[360px] md:border-l md:border-t-0">
         {selected ? (
           <DeviceDrawer
             device={selected}
