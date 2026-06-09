@@ -4,18 +4,19 @@ import { Ban } from "lucide-react";
 import { Panel } from "@klorad/design-system";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import DashboardShell from "../../components/DashboardShell";
+import { AccessGateLogoutButton } from "./AccessGateActions";
 
 const APP_KEY = "mobility";
 
 /**
- * Per-org gate. Mobility is enabled per-organisation by an admin
- * (Klorad admin app updates `Organization.apps`). When a user lands
- * on `/org/<id>/…` for an org that doesn't have Mobility in its
- * `apps` array, we render an in-shell "not enabled" panel instead of
- * 404'ing — so they can use the sidebar's org switcher to jump to
- * one that does. The DashboardShell from the parent layout still
- * wraps this output, keeping nav + the switcher + the user menu in
- * reach.
+ * Per-org access gate. Mobility is enabled per-organisation by an
+ * admin (Klorad admin app updates `Organization.apps`). When access
+ * is granted, the page is wrapped in the `DashboardShell` sidebar.
+ * When access is denied — or the user is not a member of the org —
+ * we render a **bare panel** (no shell, no sidebar) so the user has
+ * a clean recovery surface with Contact admin + Log out, rather
+ * than nav rails to dead routes.
  */
 export default async function OrgScopeLayout({
   children,
@@ -39,8 +40,8 @@ export default async function OrgScopeLayout({
 
   if (!hasAccess) {
     return (
-      <div className="mx-auto flex w-full max-w-[640px] flex-col items-center px-6 py-12 text-center">
-        <Panel className="w-full rounded-2xl p-8">
+      <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-bg px-6 py-12 text-center">
+        <Panel className="w-full max-w-[560px] rounded-2xl p-8">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-surface-2 text-text-secondary">
             <Ban size={24} strokeWidth={1.75} aria-hidden />
           </div>
@@ -49,27 +50,28 @@ export default async function OrgScopeLayout({
           </h1>
           <p className="mx-auto mt-2 max-w-md text-sm text-text-secondary">
             {member
-              ? `"${member.organization.name}" doesn't have access to the Mobility app. Ask your Klorad admin to enable it, or pick another organisation from the sidebar.`
+              ? `"${member.organization.name}" doesn't have access to the Mobility app. Ask your Klorad admin to enable it, or sign out and switch accounts.`
               : "You are not a member of this organisation, or it doesn't exist."}
           </p>
-          <div className="mt-6 flex items-center justify-center gap-2">
-            <Link
-              href="/org"
-              className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
-            >
-              Back to my workspaces
-            </Link>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
             <a
               href="mailto:support@klorad.com?subject=Enable%20Klorad%20Mobility"
-              className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-surface-1 px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:border-accent"
+              className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
             >
               Contact admin
             </a>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-surface-1 px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:border-accent hover:text-accent"
+            >
+              Back to home
+            </Link>
+            <AccessGateLogoutButton />
           </div>
         </Panel>
       </div>
     );
   }
 
-  return <>{children}</>;
+  return <DashboardShell>{children}</DashboardShell>;
 }

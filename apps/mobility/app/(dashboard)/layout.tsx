@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { auth } from "@/auth";
-import DashboardShell from "./components/DashboardShell";
 
 /**
- * Dashboard shell — auth-gates everything under `/org/...` and
- * wraps the page in the AppShell sidebar so org + project nav is
- * always one click away.
+ * Auth-gates everything under `/org/...`. The AppShell sidebar is
+ * wrapped inside the per-org layout so the access gate (when the
+ * org isn't enabled for Mobility) can render bare — without the
+ * shell — and the user gets a clean recovery surface instead of
+ * nav rails to dead routes.
  */
 export default async function DashboardLayout({
   children,
@@ -17,5 +18,5 @@ export default async function DashboardLayout({
   if (!session?.user) {
     redirect("/auth/signin");
   }
-  return <DashboardShell>{children}</DashboardShell>;
+  return <>{children}</>;
 }
