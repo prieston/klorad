@@ -1,4 +1,7 @@
-import { ComingSoon } from "@/app/(dashboard)/components/ComingSoon";
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+import { AlertsClient } from "./AlertsClient";
 
 type Params = Promise<{ orgId: string; projectId: string }>;
 
@@ -10,13 +13,28 @@ export default async function AlertsPage({
   params: Params;
 }) {
   const { orgId, projectId } = await params;
+  const session = await auth();
+  if (!session?.user?.id) notFound();
+  const membership = await prisma.organizationMember.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: orgId,
+        userId: session.user.id,
+      },
+    },
+    select: { role: true },
+  });
+  if (!membership) notFound();
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, organizationId: orgId },
+    select: { id: true, title: true },
+  });
+  if (!project) notFound();
   return (
-    <ComingSoon
-      eyebrow="Alerts"
-      title="Operational alert feed."
-      description="Devices offline past threshold, sustained alarm states, ack workflow. Pushed to subscribed operators via web push."
-      backHref={`/org/${orgId}/projects/${projectId}`}
-      backLabel="Back to operator console"
+    <AlertsClient
+      orgId={orgId}
+      projectId={projectId}
+      projectTitle={project.title}
     />
   );
 }
