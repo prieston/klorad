@@ -20,6 +20,10 @@ const PatchBody = z.object({
   title: z.string().min(1).max(120).optional(),
   isPublished: z.boolean().optional(),
   isPublic: z.boolean().optional(),
+  /** Public-facing logo / hero. Persisted on the Project row, not in
+   *  sceneData, so the public surface can read it without parsing
+   *  the engine blob. */
+  thumbnail: z.string().url().nullable().optional(),
   sceneData: z.record(z.unknown()).optional(),
 });
 
@@ -39,6 +43,7 @@ export async function GET(
       title: true,
       isPublished: true,
       isPublic: true,
+      thumbnail: true,
       sceneData: true,
       createdAt: true,
       updatedAt: true,
@@ -77,6 +82,7 @@ export async function PATCH(
     data.isPublished = parsed.data.isPublished;
   }
   if (parsed.data.isPublic !== undefined) data.isPublic = parsed.data.isPublic;
+  if (parsed.data.thumbnail !== undefined) data.thumbnail = parsed.data.thumbnail;
   if (parsed.data.sceneData !== undefined) {
     data.sceneData = parsed.data.sceneData as Prisma.InputJsonValue;
   }
