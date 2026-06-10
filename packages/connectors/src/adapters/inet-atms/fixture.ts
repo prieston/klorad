@@ -22,15 +22,32 @@ function packId(subsystem: InetSubsystem, externalId: string): string {
   return `${subsystem}:${externalId}`;
 }
 
-const THESS = { lat: 40.6401, lng: 22.9444 };
+/**
+ * Synthetic device positions — hand-picked along the actual
+ * Thessaloniki road network instead of randomly jittered (the
+ * previous Math.sin approach used the same seed for lat and lng,
+ * so every neighbour ended up on a single NE-SW diagonal line).
+ *
+ * Roads:
+ *   • Egnatia Odos (A2) — east-west motorway, north of the city,
+ *     passes Eleftherio Kordelio → Stavroupoli → Polichni → Pylaia
+ *     → exits eastward toward the Halkidiki turn-off.
+ *   • PATHE (A1) — connects Athens to Thessaloniki on the coastal
+ *     approach via Mikra airport + Pylaia junction.
+ *   • Tsimiski / Egnatia (in-city) — central arterials in the
+ *     historic centre.
+ */
+const CCTV_NEIGHBOURS: Array<{ lat: number; lng: number; road: string }> = [
+  { lat: 40.6818, lng: 22.8956, road: "Egnatia Odos · Eleftherio Kordelio" },
+  { lat: 40.6720, lng: 22.9358, road: "Egnatia Odos · Stavroupoli" },
+  { lat: 40.6651, lng: 22.9709, road: "Egnatia Odos · Pylaia junction" },
+  { lat: 40.6505, lng: 23.0105, road: "Egnatia Odos · Thermi exit" },
+];
 
-/** Spread synthetic devices in a small ring around the city centre
- *  so the map clusters look natural. */
-function jitter(seed: number, kind: "lat" | "lng"): number {
-  const base = kind === "lat" ? THESS.lat : THESS.lng;
-  const r = (Math.sin(seed * 9301 + 49297) * 233280) % 1;
-  return base + r * 0.04;
-}
+const DMS_NEIGHBOURS: Array<{ lat: number; lng: number; road: string }> = [
+  { lat: 40.6014, lng: 22.9994, road: "PATHE · Mikra approach" },
+  { lat: 40.6585, lng: 22.9533, road: "Polichni junction" },
+];
 
 export const FIXTURE_CCTV_DEVICES: InetDevice[] = [
   {
@@ -53,18 +70,18 @@ export const FIXTURE_CCTV_DEVICES: InetDevice[] = [
       streamType: "hls",
     },
   },
-  ...Array.from({ length: 4 }, (_, i) => ({
+  ...CCTV_NEIGHBOURS.map((n, i) => ({
     deviceId: packId("cctv", `99${i + 1}`),
     externalId: `99${i + 1}`,
     subsystem: "cctv" as const,
     type: "Overhead",
-    lat: jitter(i + 1, "lat"),
-    lng: jitter(i + 1, "lng"),
+    lat: n.lat,
+    lng: n.lng,
     mileMarker: null,
-    primaryRoad: ["Tsimiski", "Mitropoleos", "Egnatia Odos", "Nikis"][i] ?? null,
+    primaryRoad: n.road,
     crossRoad: null,
-    direction: null,
-    routeId: null,
+    direction: i % 2 === 0 ? "EB" : "WB",
+    routeId: "A2",
     agency: "DEMO",
     name: `Demo-CCTV-${i + 1}`,
     media: null,
@@ -88,18 +105,18 @@ export const FIXTURE_DMS_DEVICES: InetDevice[] = [
     name: "PATHE-DMS-01",
     media: null,
   },
-  ...Array.from({ length: 2 }, (_, i) => ({
+  ...DMS_NEIGHBOURS.map((n, i) => ({
     deviceId: packId("dms", `89${i + 1}`),
     externalId: `89${i + 1}`,
     subsystem: "dms" as const,
     type: "Overhead",
-    lat: jitter(i + 10, "lat"),
-    lng: jitter(i + 10, "lng"),
+    lat: n.lat,
+    lng: n.lng,
     mileMarker: null,
-    primaryRoad: ["Egnatia Odos", "PATHE"][i] ?? null,
+    primaryRoad: n.road,
     crossRoad: null,
-    direction: null,
-    routeId: null,
+    direction: i === 0 ? "NB" : "SB",
+    routeId: i === 0 ? "A1" : null,
     agency: "DEMO",
     name: `Demo-DMS-${i + 1}`,
     media: null,
