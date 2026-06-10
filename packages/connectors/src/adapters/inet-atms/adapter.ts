@@ -68,28 +68,43 @@ function unpackId(deviceId: string): {
 
 function normaliseCctv(raw: RawCctvDevice): InetDevice {
   const externalId = raw.deviceId;
-  const stream = raw.streamingUrl ?? raw.cameraIpAddr ?? null;
+  // Stream priority: explicit hlsUri (when hlsInd is on), then dashUri,
+  // then cameraIpAddr (which in the live Parsons demo *is* the m3u8 URL),
+  // then multicastAddr / channelUri as final fallbacks.
+  const stream =
+    (raw.hlsInd && raw.hlsUri) ||
+    raw.hlsUri ||
+    raw.dashUri ||
+    raw.cameraIpAddr ||
+    raw.multicastAddr ||
+    raw.channelUri ||
+    null;
   const media: InetMedia | null = stream
     ? {
         kind: "cctv-stream",
         url: stream,
-        streamType: stream.includes(".m3u8") ? "hls" : "mp4",
+        streamType: stream.includes(".m3u8")
+          ? "hls"
+          : stream.includes(".mpd")
+            ? "hls" // dash labelled as hls for the player picker; v1 doesn't have a dash branch
+            : "mp4",
       }
     : null;
   return {
     deviceId: packId("cctv", externalId),
     externalId,
     subsystem: "cctv",
-    type: raw.cameraType ?? null,
+    type: raw.type ?? null,
     lat: raw.latitude ?? null,
     lng: raw.longitude ?? null,
-    mileMarker: raw.mileMarker ?? null,
+    mileMarker:
+      raw.mileMarker != null ? String(raw.mileMarker) : null,
     primaryRoad: raw.primaryRoad ?? null,
     crossRoad: raw.crossRoad ?? null,
     direction: raw.direction ?? null,
-    routeId: raw.routeId ?? null,
+    routeId: raw.routeId != null ? String(raw.routeId) : null,
     agency: raw.agency ?? null,
-    name: raw.deviceName ?? `CCTV ${externalId}`,
+    name: raw.name ?? `CCTV ${externalId}`,
     media,
   };
 }
@@ -100,30 +115,50 @@ function normaliseDms(raw: RawDmsDevice): InetDevice {
     deviceId: packId("dms", externalId),
     externalId,
     subsystem: "dms",
-    type: raw.signType ?? null,
+    type: raw.type ?? (raw.signType != null ? `signType ${raw.signType}` : null),
     lat: raw.latitude ?? null,
     lng: raw.longitude ?? null,
-    mileMarker: raw.mileMarker ?? null,
+    mileMarker:
+      raw.mileMarker != null ? String(raw.mileMarker) : null,
     primaryRoad: raw.primaryRoad ?? null,
     crossRoad: raw.crossRoad ?? null,
     direction: raw.direction ?? null,
-    routeId: raw.routeId ?? null,
+    routeId: null, // DMS records don't carry a routeId in the live API.
     agency: raw.agency ?? null,
-    name: raw.deviceName ?? `DMS ${externalId}`,
+    name: raw.name ?? `DMS ${externalId}`,
     media: null,
   };
 }
 
+/** Decode the NTCIP short-status bitfield into a single human-facing
+ *  alarm string. Zero is healthy. Anything else collapses to "Fault
+ *  bits: 0x…" in v1 — a per-bit lookup table can land later once
+ *  we know which bits we want operator-visible. */
+function shortStatusToAlarm(s: number | null | undefined): string | null {
+  if (typeof s !== "number" || s === 0) return null;
+  return `Fault bits 0x${s.toString(16).toUpperCase()}`;
+}
+
 function normaliseStatus(deviceId: string, raw: RawStatus): InetStatus {
+  const observedAt =
+    typeof raw.timestamp === "number"
+      ? new Date(raw.timestamp).toISOString()
+      : new Date().toISOString();
   return {
     deviceId,
-    online: Boolean(raw.connectable ?? raw.viewable),
-    alarm:
-      typeof raw.alarmStatus === "string" && raw.alarmStatus.length > 0
-        ? raw.alarmStatus
-        : null,
-    observedAt: raw.timestamp ?? new Date().toISOString(),
-    raw,
+    online: raw.connectable === true,
+    alarm: shortStatusToAlarm(raw.shortStatus ?? null),
+    observedAt,
+    // Flatten the brightness + photocell levels into the surface
+    // shape the dashboard already reads (`raw.brightness`,
+    // `raw.photocell`). The DMS face renderer pulls from `.brightness`
+    // — saves changing the consumer in this pass.
+    raw: {
+      ...raw,
+      brightness: raw.brightnessLevel?.current ?? null,
+      photocell: raw.photocellLevel?.current ?? null,
+      lightOutput: raw.lightOutput?.current ?? null,
+    },
   };
 }
 
@@ -283,16 +318,26 @@ export function createInetAtmsConnector(): InetAtmsConnector {
       if (!client) return out;
       // The ATMS REST surface is one-id-per-call for status; fan out
       // in parallel. Caller is expected to chunk to a sensible batch.
+      // CCTV records don't carry status on the device GET (the field is
+      // null) and there's no documented per-id CCTV status endpoint,
+      // so for CCTV we synthesise a minimal `online: true` from the
+      // device record's `active` flag fetched on getEntity. For now
+      // CCTV status is just an empty record; the dashboard treats
+      // missing entries as "no live data" and the drawer still shows
+      // the device's static fields.
       await Promise.all(
         deviceIds.map(async (id) => {
           const unpacked = unpackId(id);
-          if (!unpacked) return;
+          if (!unpacked || unpacked.subsystem !== "dms") return;
           try {
             const raw = await client!.getJson<unknown>(
               unpacked.subsystem,
               `/${unpacked.externalId}/status`,
             );
-            const parsed = RawStatusSchema.safeParse(raw);
+            // The /status endpoint returns either the object directly
+            // or an array of one entry — tolerate both.
+            const candidate = Array.isArray(raw) ? raw[0] : raw;
+            const parsed = RawStatusSchema.safeParse(candidate);
             if (parsed.success) {
               out[id] = normaliseStatus(id, parsed.data);
             }

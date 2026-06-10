@@ -66,7 +66,9 @@ export const FIXTURE_CCTV_DEVICES: InetDevice[] = [
     name: "Thessaloniki-CCTV01",
     media: {
       kind: "cctv-stream",
-      url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
+      // Same NYSDOT camera the live Parsons demo proxies on
+      // CCTV 24432 → faithful demo, faithful video.
+      url: "https://s9.nysdot.skyvdn.com:443/rtplive/R8_214/playlist.m3u8",
       streamType: "hls",
     },
   },
@@ -128,9 +130,9 @@ export const FIXTURE_DEVICES: Record<InetSubsystem, InetDevice[]> = {
   dms: FIXTURE_DMS_DEVICES,
 };
 
-/** Seed status keyed by `deviceId`. Most devices online; one in
- *  each subsystem alarmed so the dashboard's alert feed has
- *  something to surface in fixture mode. */
+/** Seed status keyed by `deviceId`. Shapes mirror the live Parsons
+ *  iNET response (verified against the demo docs for DMS 21413), so
+ *  the dashboard renders identical fields in fixture and live mode. */
 export const FIXTURE_STATUSES: Record<string, InetStatus> = {
   [packId("cctv", "24432")]: {
     deviceId: packId("cctv", "24432"),
@@ -139,8 +141,6 @@ export const FIXTURE_STATUSES: Record<string, InetStatus> = {
     observedAt: new Date("2026-06-08T08:00:00Z").toISOString(),
     raw: {
       connectable: true,
-      viewable: true,
-      controllable: true,
       ptz: { pan: 12, tilt: -4, zoom: 1.2 },
     },
   },
@@ -149,17 +149,35 @@ export const FIXTURE_STATUSES: Record<string, InetStatus> = {
     online: false,
     alarm: "Camera offline",
     observedAt: new Date("2026-06-08T08:00:00Z").toISOString(),
-    raw: { connectable: false, viewable: false },
+    raw: { connectable: false },
   },
   [packId("dms", "21413")]: {
     deviceId: packId("dms", "21413"),
     online: true,
     alarm: null,
-    observedAt: new Date("2026-06-08T08:00:00Z").toISOString(),
+    observedAt: new Date(1776950067084).toISOString(),
     raw: {
-      message: "[pb0][jp3][cf9]THESSALONIKI[nl]TEST[nl]MESSAGE",
-      brightness: 70,
-      photocell: 4200,
+      // Exact NTCIP MULTI the live Parsons demo returns for 21413,
+      // including the on/off-time controls in `[pt30o0]`.
+      message:
+        "[pb0][jp3][pt30o0][jl3][cf9]THESSALONIKI[nl][jl3][cf9]TEST[nl][jl3][cf9]MESSAGE",
+      source: 8,
+      beacon: false,
+      timestamp: 1776950067084,
+      connectable: true,
+      shortStatus: 0,
+      controlMode: "photocell",
+      manualLevel: 10,
+      signId: 21413,
+      // Nested level objects exactly as the live API returns them…
+      photocellLevel: { min: 0, max: 20, current: 5 },
+      brightnessLevel: { min: 0, max: 15, current: 10 },
+      lightOutput: { min: 0, max: 65535, current: 1000 },
+      graphic: false,
+      // …plus the flattened conveniences the DMS face renderer reads
+      // (`raw.brightness`, `raw.photocell`, sign-grid bounds).
+      brightness: 10,
+      photocell: 5,
       maxLinesPerPage: 3,
       maxCharsPerLine: 16,
     },
@@ -167,8 +185,8 @@ export const FIXTURE_STATUSES: Record<string, InetStatus> = {
   [packId("dms", "891")]: {
     deviceId: packId("dms", "891"),
     online: false,
-    alarm: "Sign unreachable",
+    alarm: "Fault bits 0x10",
     observedAt: new Date("2026-06-08T08:00:00Z").toISOString(),
-    raw: {},
+    raw: { connectable: false, shortStatus: 16 },
   },
 };

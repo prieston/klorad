@@ -135,65 +135,114 @@ export interface InetStatus {
   raw: Record<string, unknown>;
 }
 
+/** Nested level object used by DMS status (brightness, photocell,
+ *  light output). All three share the same min/max/current triple. */
+const LevelSchema = z
+  .object({
+    min: z.number().nullish(),
+    max: z.number().nullish(),
+    current: z.number().nullish(),
+  })
+  .passthrough();
+
+/** Raw status object as returned by the live ATMS. Verified against the
+ *  Parsons iNET demo response (DMS 21413). CCTV's `status` is null on
+ *  the device record; only DMS embeds this object. */
+export const RawStatusSchema = z
+  .object({
+    /** DMS encodes its id inside status as `signId` (number). */
+    signId: z.union([z.string(), z.number()]).nullish(),
+    /** Whether the controller is reachable. */
+    connectable: z.boolean().nullish(),
+    /** NTCIP short-status bitfield. 0 = healthy, non-zero = at least
+     *  one fault condition. */
+    shortStatus: z.number().int().nullish(),
+    /** "photocell" | "manual" | … */
+    controlMode: z.string().nullish(),
+    /** Free-text brightness fault when present. */
+    brightnessError: z.string().nullish(),
+    /** Server epoch (ms) the status was sampled. */
+    timestamp: z.number().nullish(),
+    /** NTCIP 1203 MULTI message currently displayed. */
+    message: z.string().nullish(),
+    source: z.number().nullish(),
+    beacon: z.boolean().nullish(),
+    manualLevel: z.number().nullish(),
+    graphic: z.boolean().nullish(),
+    photocellLevel: LevelSchema.nullish(),
+    brightnessLevel: LevelSchema.nullish(),
+    lightOutput: LevelSchema.nullish(),
+  })
+  .passthrough();
+
+export type RawStatus = z.infer<typeof RawStatusSchema>;
+
 /** Raw shape of one CCTV device from the API. Loose schema — we
  *  narrow what we render and pass the rest through. */
 export const RawCctvDeviceSchema = z
   .object({
     deviceId: z.union([z.string(), z.number()]).transform(String),
-    deviceName: z.string().nullish(),
+    externalId: z.string().nullish(),
+    name: z.string().nullish(),
     description: z.string().nullish(),
+    type: z.string().nullish(),
+    agency: z.string().nullish(),
+    active: z.boolean().nullish(),
     latitude: z.number().nullish(),
     longitude: z.number().nullish(),
-    mileMarker: z.string().nullish(),
+    /** Numeric in the live API (e.g. 0.0). */
+    mileMarker: z.number().nullish(),
     primaryRoad: z.string().nullish(),
     crossRoad: z.string().nullish(),
     direction: z.string().nullish(),
-    routeId: z.string().nullish(),
-    agency: z.string().nullish(),
-    cameraType: z.string().nullish(),
+    /** Numeric on CCTV (e.g. 24432). */
+    routeId: z.number().nullish(),
+    /** Whether the source advertises an HLS stream. */
+    hlsInd: z.boolean().nullish(),
+    dashInd: z.boolean().nullish(),
+    hlsUri: z.string().nullish(),
+    dashUri: z.string().nullish(),
+    /** In the live demo this **is** the m3u8 URL, not a raw IP — kept
+     *  as final fallback for the stream source. */
     cameraIpAddr: z.string().nullish(),
-    streamingUrl: z.string().nullish(),
+    multicastAddr: z.string().nullish(),
+    channelUri: z.string().nullish(),
+    /** "not specified" / "status" / "status and command" */
+    controlType: z.string().nullish(),
   })
   .passthrough();
 
 export type RawCctvDevice = z.infer<typeof RawCctvDeviceSchema>;
 
-/** Raw shape of one DMS device. */
+/** Raw shape of one DMS device. Live API embeds a full `status`
+ *  object on each device record (no separate /status call needed for
+ *  the list endpoint), so we parse it inline here. */
 export const RawDmsDeviceSchema = z
   .object({
     deviceId: z.union([z.string(), z.number()]).transform(String),
-    deviceName: z.string().nullish(),
+    externalId: z.string().nullish(),
+    name: z.string().nullish(),
     description: z.string().nullish(),
+    type: z.string().nullish(),
+    agency: z.string().nullish(),
+    active: z.boolean().nullish(),
     latitude: z.number().nullish(),
     longitude: z.number().nullish(),
-    mileMarker: z.string().nullish(),
+    mileMarker: z.number().nullish(),
     primaryRoad: z.string().nullish(),
     crossRoad: z.string().nullish(),
     direction: z.string().nullish(),
-    routeId: z.string().nullish(),
-    agency: z.string().nullish(),
-    signType: z.string().nullish(),
+    /** NTCIP sign-type code (1 = full matrix, etc.). */
+    signType: z.number().int().nullish(),
+    beaconType: z.number().int().nullish(),
+    pixelWidth: z.number().int().nullish(),
+    pixelHeight: z.number().int().nullish(),
+    maxPages: z.number().int().nullish(),
     maxLinesPerPage: z.number().int().nullish(),
     maxCharsPerLine: z.number().int().nullish(),
+    defaultFont: z.number().int().nullish(),
+    status: RawStatusSchema.nullish(),
   })
   .passthrough();
 
 export type RawDmsDevice = z.infer<typeof RawDmsDeviceSchema>;
-
-/** Raw status shape. Same skeleton for both subsystems; subsystem-
- *  specific fields are tolerated via passthrough. */
-export const RawStatusSchema = z
-  .object({
-    deviceId: z.union([z.string(), z.number()]).transform(String),
-    connectable: z.boolean().nullish(),
-    viewable: z.boolean().nullish(),
-    controllable: z.boolean().nullish(),
-    alarmStatus: z.string().nullish(),
-    timestamp: z.string().nullish(),
-    message: z.string().nullish(),
-    brightness: z.number().nullish(),
-    photocell: z.number().nullish(),
-  })
-  .passthrough();
-
-export type RawStatus = z.infer<typeof RawStatusSchema>;
