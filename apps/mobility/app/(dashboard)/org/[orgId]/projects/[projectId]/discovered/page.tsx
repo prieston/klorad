@@ -1,4 +1,7 @@
-import { ComingSoon } from "@/app/(dashboard)/components/ComingSoon";
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+import { DiscoveredClient } from "./DiscoveredClient";
 
 type Params = Promise<{ orgId: string; projectId: string }>;
 
@@ -10,13 +13,28 @@ export default async function DiscoveredPage({
   params: Params;
 }) {
   const { orgId, projectId } = await params;
+  const session = await auth();
+  if (!session?.user?.id) notFound();
+  const membership = await prisma.organizationMember.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: orgId,
+        userId: session.user.id,
+      },
+    },
+    select: { role: true },
+  });
+  if (!membership) notFound();
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, organizationId: orgId },
+    select: { id: true, title: true },
+  });
+  if (!project) notFound();
   return (
-    <ComingSoon
-      eyebrow="Discovered devices"
-      title="Inbox for newly-synced devices."
-      description="Every re-sync surfaces new devices here for triage. Bulk include / publish / reject before they reach the operator console."
-      backHref={`/org/${orgId}/projects/${projectId}`}
-      backLabel="Back to operator console"
+    <DiscoveredClient
+      orgId={orgId}
+      projectId={projectId}
+      projectTitle={project.title}
     />
   );
 }

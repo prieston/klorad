@@ -22,6 +22,10 @@ const Body = z.object({
     "private",
     "reviewed",
     "unreviewed",
+    /** Discovered queue: stay in catalog but excluded and reviewed —
+     *  "no thanks" without losing the row in case a re-sync brings
+     *  it back. */
+    "reject",
   ]),
 });
 
@@ -35,6 +39,7 @@ const ACTION_PATCH: Record<
   private: { isPublic: false },
   reviewed: { needsReview: false },
   unreviewed: { needsReview: true },
+  reject: { included: false, isPublic: false, needsReview: false },
 };
 
 export async function POST(
