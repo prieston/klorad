@@ -251,6 +251,9 @@ importers:
       '@klorad/prisma':
         specifier: workspace:*
         version: link:../../packages/prisma
+      '@klorad/secrets':
+        specifier: workspace:*
+        version: link:../../packages/secrets
       '@klorad/storage':
         specifier: workspace:^
         version: link:../../packages/storage
@@ -287,9 +290,6 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.0
         version: 19.2.3(@types/react@19.2.7)
-      culori:
-        specifier: ^4.0.2
-        version: 4.0.2
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@19.2.1)
@@ -336,9 +336,6 @@ importers:
         specifier: ^5.0.3
         version: 5.0.8(@types/react@19.2.7)(react@19.2.1)(use-sync-external-store@1.6.0(react@19.2.1))
     devDependencies:
-      '@types/culori':
-        specifier: ^4.0.1
-        version: 4.0.1
       '@types/qrcode':
         specifier: ^1.5.6
         version: 1.5.6
@@ -608,6 +605,91 @@ importers:
         specifier: ^9.0.8
         version: 9.0.8
 
+  apps/mobility:
+    dependencies:
+      '@auth/prisma-adapter':
+        specifier: ^2.11.1
+        version: 2.11.1(@prisma/client@5.22.0(prisma@5.22.0))
+      '@klorad/connectors':
+        specifier: workspace:*
+        version: link:../../packages/connectors
+      '@klorad/design-system':
+        specifier: workspace:^
+        version: link:../../packages/design-system
+      '@klorad/prisma':
+        specifier: workspace:*
+        version: link:../../packages/prisma
+      '@klorad/secrets':
+        specifier: workspace:*
+        version: link:../../packages/secrets
+      '@klorad/storage':
+        specifier: workspace:^
+        version: link:../../packages/storage
+      '@klorad/ui':
+        specifier: workspace:^
+        version: link:../../packages/ui
+      '@prisma/client':
+        specifier: ^5.22.0
+        version: 5.22.0(prisma@5.22.0)
+      '@prisma/extension-accelerate':
+        specifier: ^1.0.0
+        version: 1.3.0(@prisma/client@5.22.0(prisma@5.22.0))
+      '@types/node':
+        specifier: ^20.11.30
+        version: 20.19.24
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.7
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.3(@types/react@19.2.7)
+      lucide-react:
+        specifier: ^1.16.0
+        version: 1.16.0(react@19.2.1)
+      mapbox-gl:
+        specifier: ^3.9.4
+        version: 3.20.0
+      next:
+        specifier: ^15.1.9
+        version: 15.5.7(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      next-auth:
+        specifier: 5.0.0-beta.30
+        version: 5.0.0-beta.30(next@15.5.7(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react@19.2.1)
+      react:
+        specifier: ^19.2.1
+        version: 19.2.1
+      react-dom:
+        specifier: ^19.2.1
+        version: 19.2.1(react@19.2.1)
+      react-toastify:
+        specifier: ^11.0.5
+        version: 11.0.5(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      swr:
+        specifier: ^2.3.6
+        version: 2.3.6(react@19.2.1)
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
+    devDependencies:
+      autoprefixer:
+        specifier: 10.4.20
+        version: 10.4.20(postcss@8.4.47)
+      eslint:
+        specifier: ^8.56.0
+        version: 8.57.1
+      eslint-config-next:
+        specifier: ^15.1.9
+        version: 15.5.7(eslint@8.57.1)(typescript@5.9.3)
+      postcss:
+        specifier: 8.4.47
+        version: 8.4.47
+      tailwindcss:
+        specifier: 3.4.14
+        version: 3.4.14
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
   apps/website:
     dependencies:
       '@klorad/design-system':
@@ -727,6 +809,12 @@ importers:
         specifier: ^19.2.1
         version: 19.2.1
 
+  packages/connectors:
+    dependencies:
+      zod:
+        specifier: ^3.0.0
+        version: 3.25.76
+
   packages/core:
     dependencies:
       '@types/react-toastify':
@@ -771,6 +859,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      culori:
+        specifier: ^4.0.2
+        version: 4.0.2
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -784,6 +875,9 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
     devDependencies:
+      '@types/culori':
+        specifier: ^4.0.1
+        version: 4.0.1
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.7
@@ -1019,6 +1113,8 @@ importers:
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
+
+  packages/secrets: {}
 
   packages/storage:
     dependencies:
@@ -13419,12 +13515,12 @@ snapshots:
 
   css-loader@7.1.2(webpack@5.102.1(esbuild@0.25.12)):
     dependencies:
-      icss-utils: 5.1.0(postcss@8.5.6)
-      postcss: 8.5.6
-      postcss-modules-extract-imports: 3.1.0(postcss@8.5.6)
-      postcss-modules-local-by-default: 4.2.0(postcss@8.5.6)
-      postcss-modules-scope: 3.2.1(postcss@8.5.6)
-      postcss-modules-values: 4.0.0(postcss@8.5.6)
+      icss-utils: 5.1.0(postcss@8.4.47)
+      postcss: 8.4.47
+      postcss-modules-extract-imports: 3.1.0(postcss@8.4.47)
+      postcss-modules-local-by-default: 4.2.0(postcss@8.4.47)
+      postcss-modules-scope: 3.2.1(postcss@8.4.47)
+      postcss-modules-values: 4.0.0(postcss@8.4.47)
       postcss-value-parser: 4.2.0
       semver: 7.7.3
     optionalDependencies:
@@ -14073,7 +14169,7 @@ snapshots:
   eslint-plugin-tailwindcss@3.18.2(tailwindcss@3.4.18(tsx@4.20.6)(yaml@2.8.1)):
     dependencies:
       fast-glob: 3.3.3
-      postcss: 8.5.6
+      postcss: 8.4.47
       tailwindcss: 3.4.18(tsx@4.20.6)(yaml@2.8.1)
 
   eslint-scope@5.1.1:
@@ -14712,9 +14808,9 @@ snapshots:
 
   husky@9.1.7: {}
 
-  icss-utils@5.1.0(postcss@8.5.6):
+  icss-utils@5.1.0(postcss@8.4.47):
     dependencies:
-      postcss: 8.5.6
+      postcss: 8.4.47
 
   idb@7.1.1: {}
 
@@ -15803,26 +15899,26 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  postcss-modules-extract-imports@3.1.0(postcss@8.5.6):
+  postcss-modules-extract-imports@3.1.0(postcss@8.4.47):
     dependencies:
-      postcss: 8.5.6
+      postcss: 8.4.47
 
-  postcss-modules-local-by-default@4.2.0(postcss@8.5.6):
+  postcss-modules-local-by-default@4.2.0(postcss@8.4.47):
     dependencies:
-      icss-utils: 5.1.0(postcss@8.5.6)
-      postcss: 8.5.6
+      icss-utils: 5.1.0(postcss@8.4.47)
+      postcss: 8.4.47
       postcss-selector-parser: 7.1.0
       postcss-value-parser: 4.2.0
 
-  postcss-modules-scope@3.2.1(postcss@8.5.6):
+  postcss-modules-scope@3.2.1(postcss@8.4.47):
     dependencies:
-      postcss: 8.5.6
+      postcss: 8.4.47
       postcss-selector-parser: 7.1.0
 
-  postcss-modules-values@4.0.0(postcss@8.5.6):
+  postcss-modules-values@4.0.0(postcss@8.4.47):
     dependencies:
-      icss-utils: 5.1.0(postcss@8.5.6)
-      postcss: 8.5.6
+      icss-utils: 5.1.0(postcss@8.4.47)
+      postcss: 8.4.47
 
   postcss-nested@6.2.0(postcss@8.4.47):
     dependencies:
