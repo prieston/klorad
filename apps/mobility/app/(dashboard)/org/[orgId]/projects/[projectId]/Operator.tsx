@@ -63,8 +63,6 @@ const fetcher = (url: string) =>
     return r.json();
   });
 
-const THESS_CENTER: [number, number] = [22.9444, 40.6401];
-
 const MARKER_LEGEND = [
   { tone: "review", colour: "#facc15", label: "Needs review" },
   { tone: "public", colour: "#34d399", label: "On public map" },
@@ -83,10 +81,14 @@ export function Operator({
   projectId,
   mapboxToken,
   sourcesHref,
+  defaultCentre,
+  defaultZoom,
 }: {
   projectId: string;
   mapboxToken: string | null;
   sourcesHref: string;
+  defaultCentre: { lat: number; lng: number };
+  defaultZoom: number;
 }) {
   const { data, mutate } = useSWR<DevicesResponse>(
     `/api/projects/${projectId}/devices`,
@@ -111,8 +113,8 @@ export function Operator({
     const map = new mapboxgl.Map({
       container: mapEl.current,
       style: "mapbox://styles/mapbox/dark-v11",
-      center: THESS_CENTER,
-      zoom: 11,
+      center: [defaultCentre.lng, defaultCentre.lat],
+      zoom: defaultZoom,
       attributionControl: false,
     });
     map.addControl(
@@ -124,6 +126,10 @@ export function Operator({
     const ro = new ResizeObserver(() => map.resize());
     ro.observe(mapEl.current);
     return () => ro.disconnect();
+    // We intentionally don't react to defaultCentre/defaultZoom changes
+    // post-mount — the map is for steering, not constant recentering;
+    // an Identity save takes effect on next page load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapboxToken]);
 
   // Sync markers with the device set on every refresh + curation change.
