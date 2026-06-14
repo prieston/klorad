@@ -1,0 +1,150 @@
+/**
+ * Shared map environment settings — style + light preset + terrain +
+ * 3D buildings — applied to both the operator console and the public
+ * world viewer. Centralised so the two surfaces stay in lockstep when
+ * a style ships new config keys or a fourth preset lands.
+ *
+ * Mapbox Standard + Standard Satellite expose dynamic `basemap`
+ * config properties (`lightPreset`, `show3dObjects`); classic styles
+ * like `dark-v11` don't, so the panel UI grays those controls out
+ * when the active style doesn't support them. Terrain is independent
+ * of style — every style can drape the `mapbox-terrain-dem-v1`
+ * source.
+ */
+import type { Map as MapboxMap } from "mapbox-gl";
+
+/** Stable keys for the style picker. Keep narrow — adding a new
+ *  entry is a deliberate design + cost decision per Mapbox tile
+ *  pricing. */
+export type MapStyleKey = "standard" | "satellite" | "minimal";
+
+export type LightPreset = "day" | "dawn" | "dusk" | "night";
+
+export interface MapStyleDef {
+  label: string;
+  url: string;
+  description: string;
+  /** Whether the style exposes the dynamic Standard `basemap` config
+   *  surface. False for classic styles like dark-v11. */
+  supportsLightPreset: boolean;
+  /** Whether `show3dObjects` toggles on this style. False outside
+   *  Standard / Standard Satellite. */
+  supports3dObjects: boolean;
+}
+
+export const MAP_STYLES: Record<MapStyleKey, MapStyleDef> = {
+  standard: {
+    label: "Standard",
+    url: "mapbox://styles/mapbox/standard",
+    description: "Civic, full detail.",
+    supportsLightPreset: true,
+    supports3dObjects: true,
+  },
+  satellite: {
+    label: "Satellite",
+    url: "mapbox://styles/mapbox/standard-satellite",
+    description: "Aerial imagery.",
+    supportsLightPreset: true,
+    supports3dObjects: true,
+  },
+  minimal: {
+    label: "Minimal",
+    url: "mapbox://styles/mapbox/dark-v11",
+    description: "Dark, low-contrast.",
+    supportsLightPreset: false,
+    supports3dObjects: false,
+  },
+};
+
+export const MAP_STYLE_LIST: Array<{ key: MapStyleKey; def: MapStyleDef }> = (
+  Object.entries(MAP_STYLES) as Array<[MapStyleKey, MapStyleDef]>
+).map(([key, def]) => ({ key, def }));
+
+export interface MapEnvSettings {
+  mapStyle: MapStyleKey;
+  lightPreset: LightPreset;
+  showTerrain: boolean;
+  show3dBuildings: boolean;
+}
+
+const TERRAIN_SOURCE_ID = "mapbox-dem";
+
+/**
+ * Project current settings onto the map. Safe to call any time after
+ * `style.load`; every operation is idempotent. Setting `lightPreset` /
+ * `show3dObjects` on a style that doesn't define them throws
+ * internally, so we swallow the throw rather than gate on style key
+ * (cheaper at runtime and resilient to Mapbox renaming).
+ */
+export function applyMapEnvSettings(
+  map: MapboxMap,
+  settings: MapEnvSettings,
+): void {
+  const style = MAP_STYLES[settings.mapStyle];
+
+  if (style.supportsLightPreset) {
+    try {
+      map.setConfigProperty("basemap", "lightPreset", settings.lightPreset);
+    } catch {
+      /* style not Standard-flavoured — ignore */
+    }
+  }
+  if (style.supports3dObjects) {
+    try {
+      map.setConfigProperty(
+        "basemap",
+        "show3dObjects",
+        settings.show3dBuildings,
+      );
+    } catch {
+      /* same */
+    }
+  }
+
+  if (settings.showTerrain) {
+    if (!map.getSource(TERRAIN_SOURCE_ID)) {
+      map.addSource(TERRAIN_SOURCE_ID, {
+        type: "raster-dem",
+        url: "mapbox://mapbox.mapbox-terrain-dem-v1",
+        tileSize: 512,
+        maxzoom: 14,
+      });
+    }
+    map.setTerrain({ source: TERRAIN_SOURCE_ID, exaggeration: 1.5 });
+  } else {
+    map.setTerrain(null);
+  }
+}
+
+/** Hydrate settings from localStorage, falling back to defaults. */
+export function loadMapEnvSettings(
+  storageKey: string,
+  defaults: MapEnvSettings,
+): MapEnvSettings {
+  if (typeof window === "undefined") return defaults;
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw) as Partial<MapEnvSettings>;
+    // Reject unknown style keys — if a saved style was removed from
+    // MAP_STYLES, snap back to the default rather than crash on init.
+    if (parsed.mapStyle && !(parsed.mapStyle in MAP_STYLES)) {
+      delete parsed.mapStyle;
+    }
+    return { ...defaults, ...parsed };
+  } catch {
+    return defaults;
+  }
+}
+
+export function saveMapEnvSettings(
+  storageKey: string,
+  settings: MapEnvSettings,
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(settings));
+  } catch {
+    /* quota exceeded or storage disabled */
+  }
+}

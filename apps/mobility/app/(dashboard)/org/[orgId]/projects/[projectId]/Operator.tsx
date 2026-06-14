@@ -13,6 +13,7 @@ import { toast } from "react-toastify";
 import {
   ArrowUpRight,
   Bell,
+  Box,
   Camera,
   CheckCircle2,
   Compass,
@@ -22,13 +23,28 @@ import {
   ExternalLink,
   Layers,
   MapPin,
+  Moon,
+  Mountain,
   Radio,
   RefreshCcw,
+  Settings,
   Signpost,
+  Sun,
+  Sunrise,
+  Sunset,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { DmsFace } from "@/lib/mobility/dms-render";
+import {
+  applyMapEnvSettings,
+  loadMapEnvSettings,
+  saveMapEnvSettings,
+  MAP_STYLES,
+  MAP_STYLE_LIST,
+  type MapEnvSettings,
+  type MapStyleKey,
+} from "@/lib/mobility/map-settings";
 
 interface DeviceRow {
   id: string;
@@ -136,13 +152,43 @@ export function Operator({
   const mapEl = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
   const layersReadyRef = useRef(false);
+  /** Re-attachable layer setup — populated inside the init useEffect
+   *  and re-invoked from the style-swap effect after `setStyle` wipes
+   *  the previous style's user layers. */
+  const setupLayersRef = useRef<(() => void) | null>(null);
+  /** Latest style key the map is showing — keyed off settings so we
+   *  only fire `setStyle` when the operator actually picks a new
+   *  style, not on every light / terrain toggle. */
+  const activeStyleRef = useRef<MapStyleKey>("standard");
+
+  /** Console settings — lazy-init from localStorage so the first paint
+   *  uses the operator's last picks, then mirrors back to storage on
+   *  every change. SSR returns defaults; client picks up the saved
+   *  state on mount via useState's initialiser. */
+  const [settings, setSettings] = useState<ConsoleSettings>(
+    DEFAULT_CONSOLE_SETTINGS,
+  );
+  // Hydrate from localStorage after mount (SSR safety).
+  useEffect(() => {
+    setSettings(
+      loadMapEnvSettings(settingsStorageKey(projectId), DEFAULT_CONSOLE_SETTINGS),
+    );
+  }, [projectId]);
+  useEffect(() => {
+    saveMapEnvSettings(settingsStorageKey(projectId), settings);
+  }, [settings, projectId]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     if (!mapboxToken || !mapEl.current || mapRef.current) return;
     mapboxgl.accessToken = mapboxToken;
+    // Initial style is read from the latest saved settings — Standard
+    // by default, but the operator may have switched to Satellite or
+    // Minimal on a prior session. Subsequent toggles flip via
+    // `setStyle` in the style-swap effect below.
     const map = new mapboxgl.Map({
       container: mapEl.current,
-      style: "mapbox://styles/mapbox/dark-v11",
+      style: MAP_STYLES[latestSettingsRef.current.mapStyle].url,
       center: [defaultCentre.lng, defaultCentre.lat],
       zoom: defaultZoom,
       pitch: 30,
@@ -162,85 +208,17 @@ export function Operator({
     );
     mapRef.current = map;
 
-    /** Add the GeoJSON source + cluster + point + selected layers once
-     *  the style is loaded. GPU-rendered circles instead of HTML
-     *  markers — fixes the "1000+ DOM nodes is slow" + "markers drift
-     *  on projection change" pair. Native clustering means visitors
-     *  see thousands of devices summarised at low zoom and the
-     *  individual rows when they zoom in. */
-    const onLoad = () => {
-      // Terrain — mapbox-dem raster source + setTerrain. Modest
-      // exaggeration so the relief is visible without distorting
-      // device positions. Re-applies idempotently if the style hot-
-      // reloads (Mapbox v3 doesn't expose hasTerrain so we guard on
-      // the source id).
-      if (!map.getSource(TERRAIN_SOURCE_ID)) {
-        map.addSource(TERRAIN_SOURCE_ID, {
-          type: "raster-dem",
-          url: "mapbox://mapbox.mapbox-terrain-dem-v1",
-          tileSize: 512,
-          maxzoom: 14,
-        });
-        map.setTerrain({ source: TERRAIN_SOURCE_ID, exaggeration: 1.5 });
-      }
-      // Sky atmosphere — `setFog` is Mapbox's atmosphere API for
-      // mercator / globe projections. Dark palette to match the
-      // dark-v11 style.
-      map.setFog({
-        color: "rgb(16, 22, 35)",
-        "high-color": "rgb(32, 60, 110)",
-        "horizon-blend": 0.04,
-        "space-color": "rgb(11, 11, 25)",
-        "star-intensity": 0.5,
-      });
-
-      // 3D building extrusions. The dark-v11 style ships a
-      // `composite` source with a `building` source-layer; we drape
-      // a fill-extrusion over it at zoom 15+ so the operator gets
-      // skyline context when they tilt the map. We insert this
-      // layer *before* the first symbol layer so road labels stay
-      // legible on top of the buildings, and before the device
-      // circle layers so dots stay on top.
-      if (!map.getLayer(BUILDINGS_LAYER_ID)) {
-        const layers = map.getStyle()?.layers ?? [];
-        const firstSymbolLayer = layers.find(
-          (l) => l.type === "symbol" && (l.layout as { "text-field"?: unknown })?.["text-field"],
-        );
-        map.addLayer(
-          {
-            id: BUILDINGS_LAYER_ID,
-            source: "composite",
-            "source-layer": "building",
-            filter: ["==", "extrude", "true"],
-            type: "fill-extrusion",
-            minzoom: 14,
-            paint: {
-              "fill-extrusion-color": "#1d2738",
-              "fill-extrusion-height": [
-                "interpolate",
-                ["linear"],
-                ["zoom"],
-                15,
-                0,
-                15.05,
-                ["get", "height"],
-              ],
-              "fill-extrusion-base": [
-                "interpolate",
-                ["linear"],
-                ["zoom"],
-                15,
-                0,
-                15.05,
-                ["get", "min_height"],
-              ],
-              "fill-extrusion-opacity": 0.8,
-            },
-          },
-          firstSymbolLayer?.id,
-        );
-      }
-
+    /** Re-attachable source + layer + handler bundle. Idempotent at
+     *  the source level so calling it twice (init + post-`setStyle`)
+     *  is safe; the handler attachments are re-bound on each call
+     *  because `setStyle` clears the layer-id event registry.
+     *
+     *  GPU-rendered circles instead of HTML markers — fixes the
+     *  "1000+ DOM nodes is slow" + "markers drift on projection
+     *  change" pair. Native clustering means visitors see thousands of
+     *  devices summarised at low zoom and the individual rows when
+     *  they zoom in. */
+    const setupLayers = () => {
       if (map.getSource(SOURCE_ID)) return;
       map.addSource(SOURCE_ID, {
         type: "geojson",
@@ -361,12 +339,22 @@ export function Operator({
       const source = map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
       source?.setData(toGeoJSON(latestDevicesRef.current));
     };
+    setupLayersRef.current = setupLayers;
+
+    /** Initial style ready hook — apply env settings, then bring up
+     *  the device layers. Subsequent style swaps go through the
+     *  effect below. */
+    const onLoad = () => {
+      applyConsoleSettings(map, latestSettingsRef.current);
+      setupLayers();
+    };
 
     if (map.isStyleLoaded()) {
       onLoad();
     } else {
       map.once("load", onLoad);
     }
+    activeStyleRef.current = latestSettingsRef.current.mapStyle;
 
     const ro = new ResizeObserver(() => map.resize());
     ro.observe(mapEl.current);
@@ -380,6 +368,39 @@ export function Operator({
   // Keep latest devices accessible from the init effect's late onLoad.
   const latestDevicesRef = useRef<DeviceRow[]>(devices);
   latestDevicesRef.current = devices;
+
+  // Same trick for settings — onLoad fires asynchronously after the
+  // settings effect first runs, so it needs the latest value not the
+  // initial closure.
+  const latestSettingsRef = useRef<ConsoleSettings>(settings);
+  latestSettingsRef.current = settings;
+
+  // Re-apply settings to the map whenever the operator changes them.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (!map.isStyleLoaded()) {
+      map.once("idle", () => applyConsoleSettings(map, settings));
+      return;
+    }
+    applyConsoleSettings(map, settings);
+  }, [settings]);
+
+  /** Style swap — heavier than a config-property update; `setStyle`
+   *  wipes user layers, so we re-attach via `setupLayersRef`. Gated
+   *  on the diff to avoid re-running on every light / terrain toggle. */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (activeStyleRef.current === settings.mapStyle) return;
+    activeStyleRef.current = settings.mapStyle;
+    layersReadyRef.current = false;
+    map.setStyle(MAP_STYLES[settings.mapStyle].url);
+    map.once("style.load", () => {
+      applyConsoleSettings(map, latestSettingsRef.current);
+      setupLayersRef.current?.();
+    });
+  }, [settings.mapStyle]);
 
   // Push device updates into the GeoJSON source.
   useEffect(() => {
@@ -425,7 +446,15 @@ export function Operator({
           </div>
         )}
         <Legend devices={devices} />
-        <SourcesChip href={sourcesHref} />
+        <div className="pointer-events-auto absolute right-4 top-4 flex flex-col items-end gap-2">
+          <SourcesChip href={sourcesHref} />
+          <ConsoleSettingsChip
+            settings={settings}
+            onChange={setSettings}
+            open={settingsOpen}
+            onOpenChange={setSettingsOpen}
+          />
+        </div>
       </div>
       <aside className="w-full shrink-0 overflow-y-auto border-t border-line-soft bg-bg md:w-[360px] md:border-l md:border-t-0">
         {selected ? (
@@ -450,8 +479,23 @@ const CLUSTER_COUNT_LAYER_ID = "devices-cluster-count";
 const POINT_LAYER_ID = "devices-points";
 const SELECTED_LAYER_ID = "devices-selected";
 const NO_SELECTION_SENTINEL = "__none__";
-const TERRAIN_SOURCE_ID = "mapbox-dem";
-const BUILDINGS_LAYER_ID = "3d-buildings";
+
+/* ─── Console settings (per-project, localStorage) ─────────────────── */
+
+/** Reuse the shared map env shape so the public viewer and the
+ *  operator console stay in lockstep when new style options ship. */
+type ConsoleSettings = MapEnvSettings;
+
+const DEFAULT_CONSOLE_SETTINGS: ConsoleSettings = {
+  mapStyle: "standard",
+  lightPreset: "night",
+  showTerrain: true,
+  show3dBuildings: true,
+};
+
+function settingsStorageKey(projectId: string): string {
+  return `klorad-mobility-console-settings:${projectId}`;
+}
 
 /** Convert devices to a GeoJSON FeatureCollection. Properties carry
  *  the booleans the colour expression switches on plus the id the
@@ -546,13 +590,217 @@ function SourcesChip({ href }: { href: string }) {
   return (
     <Link
       href={href}
-      className="pointer-events-auto absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-bg/95 px-3.5 py-2 text-xs font-medium text-text-primary shadow-sm backdrop-blur transition-colors hover:border-accent hover:text-accent"
+      className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-bg/95 px-3.5 py-2 text-xs font-medium text-text-primary shadow-sm backdrop-blur transition-colors hover:border-accent hover:text-accent"
     >
       <Database size={12} strokeWidth={1.8} aria-hidden />
       Data sources
       <ArrowUpRight size={11} strokeWidth={1.8} aria-hidden />
     </Link>
   );
+}
+
+/* ─── Console settings chip + popover ──────────────────────────────── */
+
+function ConsoleSettingsChip({
+  settings,
+  onChange,
+  open,
+  onOpenChange,
+}: {
+  settings: ConsoleSettings;
+  onChange: (s: ConsoleSettings) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        aria-expanded={open}
+        className={`inline-flex items-center gap-1.5 rounded-full border bg-bg/95 px-3.5 py-2 text-xs font-medium shadow-sm backdrop-blur transition-colors ${
+          open
+            ? "border-accent text-accent"
+            : "border-line-soft text-text-primary hover:border-accent hover:text-accent"
+        }`}
+      >
+        <Settings size={12} strokeWidth={1.8} aria-hidden />
+        Console
+      </button>
+      {open ? (
+        <div className="mt-2 w-[280px] rounded-2xl border border-line-soft bg-bg/95 p-4 text-xs shadow-md backdrop-blur">
+          {/* Map style */}
+          <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.22em] text-text-tertiary">
+            <Layers size={11} strokeWidth={1.8} aria-hidden />
+            Style
+          </p>
+          <div className="grid grid-cols-3 gap-1">
+            {MAP_STYLE_LIST.map(({ key, def }) => {
+              const active = settings.mapStyle === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => onChange({ ...settings, mapStyle: key })}
+                  className={`rounded-md px-1.5 py-2 text-[10px] font-medium transition-colors ${
+                    active
+                      ? "bg-accent text-accent-contrast"
+                      : "text-text-secondary hover:bg-surface-2 hover:text-text-primary"
+                  }`}
+                >
+                  <span className="block">{def.label}</span>
+                  <span
+                    className={`mt-0.5 block text-[9px] font-normal ${
+                      active ? "opacity-80" : "text-text-tertiary"
+                    }`}
+                  >
+                    {def.description}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Light preset */}
+          <p className="mt-4 mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.22em] text-text-tertiary">
+            <Sun size={11} strokeWidth={1.8} aria-hidden />
+            Light
+            {!MAP_STYLES[settings.mapStyle].supportsLightPreset ? (
+              <span className="ml-1 text-[8px] font-normal normal-case tracking-normal text-text-tertiary">
+                (Standard / Satellite only)
+              </span>
+            ) : null}
+          </p>
+          <div className="grid grid-cols-4 gap-1">
+            {(
+              [
+                { value: "day", label: "Day", Icon: Sun },
+                { value: "dawn", label: "Dawn", Icon: Sunrise },
+                { value: "dusk", label: "Dusk", Icon: Sunset },
+                { value: "night", label: "Night", Icon: Moon },
+              ] as const
+            ).map(({ value, label, Icon }) => {
+              const active = settings.lightPreset === value;
+              const disabled = !MAP_STYLES[settings.mapStyle].supportsLightPreset;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={active}
+                  disabled={disabled}
+                  onClick={() =>
+                    onChange({ ...settings, lightPreset: value })
+                  }
+                  className={`flex flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-2 text-[10px] font-medium transition-colors enabled:hover:bg-surface-2 enabled:hover:text-text-primary disabled:opacity-40 ${
+                    active && !disabled
+                      ? "bg-accent text-accent-contrast"
+                      : "text-text-secondary"
+                  }`}
+                >
+                  <Icon size={14} strokeWidth={1.8} aria-hidden />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Toggles */}
+          <div className="mt-4 space-y-2">
+            <SettingsToggleRow
+              icon={Mountain}
+              label="Terrain"
+              checked={settings.showTerrain}
+              onChange={(showTerrain) =>
+                onChange({ ...settings, showTerrain })
+              }
+            />
+            <SettingsToggleRow
+              icon={Box}
+              label="3D buildings"
+              checked={settings.show3dBuildings}
+              onChange={(show3dBuildings) =>
+                onChange({ ...settings, show3dBuildings })
+              }
+              disabled={!MAP_STYLES[settings.mapStyle].supports3dObjects}
+              disabledHint="Standard / Satellite only"
+            />
+          </div>
+
+          {/* Reset */}
+          <button
+            type="button"
+            onClick={() => onChange(DEFAULT_CONSOLE_SETTINGS)}
+            className="mt-4 w-full rounded-md border border-line-soft px-3 py-1.5 text-[11px] font-medium text-text-tertiary transition-colors hover:border-line-strong hover:text-text-primary"
+          >
+            Reset to defaults
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SettingsToggleRow({
+  icon: Icon,
+  label,
+  checked,
+  onChange,
+  disabled,
+  disabledHint,
+}: {
+  icon: LucideIcon;
+  label: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+  disabledHint?: string;
+}) {
+  return (
+    <label
+      className={`flex items-center justify-between rounded-md px-2 py-1.5 transition-colors ${
+        disabled ? "opacity-40" : "cursor-pointer hover:bg-surface-2"
+      }`}
+    >
+      <span className="inline-flex items-center gap-2 text-text-primary">
+        <Icon size={12} strokeWidth={1.8} aria-hidden />
+        {label}
+        {disabled && disabledHint ? (
+          <span className="text-[9px] text-text-tertiary">({disabledHint})</span>
+        ) : null}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+          checked ? "bg-accent" : "border border-line-strong bg-bg"
+        }`}
+      >
+        <span
+          aria-hidden
+          className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+            checked ? "translate-x-4" : "translate-x-0.5"
+          }`}
+        />
+      </button>
+    </label>
+  );
+}
+
+/* ─── Map settings application ─────────────────────────────────────── */
+
+/** Project the current `ConsoleSettings` onto the Mapbox style.
+ *  Delegates to the shared `applyMapEnvSettings` so the operator
+ *  console and the public world viewer stay in lockstep when style
+ *  options grow. */
+function applyConsoleSettings(
+  map: MapboxMap,
+  settings: ConsoleSettings,
+): void {
+  applyMapEnvSettings(map, settings);
 }
 
 /* ─── Empty / idle drawer ──────────────────────────────────────────── */
