@@ -147,45 +147,35 @@ export function Operator({
             ? "#60a5fa"
             : "#94a3b8";
       const isSelected = d.id === selectedId;
+
       const existing = markersRef.current.get(d.id);
-      const el = document.createElement("div");
-      el.style.position = "relative";
-      el.style.cursor = "pointer";
-      el.title = d.customLabel ?? d.name;
-      el.innerHTML = `
-        <span style="
-          position:absolute; inset:0; margin:auto;
-          width:${isSelected ? 26 : 18}px; height:${isSelected ? 26 : 18}px;
-          background:${colour}33; border-radius:9999px;
-          transform: translate(-${isSelected ? 13 : 9}px, -${isSelected ? 13 : 9}px);
-        "></span>
-        <span style="
-          position:relative;
-          display:block;
-          width:${isSelected ? 12 : 10}px; height:${isSelected ? 12 : 10}px;
-          background:${colour};
-          border-radius:9999px;
-          box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.65);
-          transform: translate(-${isSelected ? 6 : 5}px, -${isSelected ? 6 : 5}px);
-        "></span>
-      `;
+      if (existing) {
+        // Just move + refresh the element's inner HTML so the marker
+        // stays the same DOM node Mapbox is tracking. Swapping the
+        // whole element (the previous approach) was creating ghost
+        // markers + offset halos because Mapbox kept anchoring the
+        // original.
+        existing.setLngLat([d.lng, d.lat]);
+        paintMarkerEl(existing.getElement(), colour, isSelected, d.customLabel ?? d.name);
+        next.set(d.id, existing);
+        continue;
+      }
+      const el = buildMarkerEl(colour, isSelected, d.customLabel ?? d.name);
       el.addEventListener("click", (e) => {
         e.stopPropagation();
         setSelectedId(d.id);
       });
-      const marker = (
-        existing ?? new mapboxgl.Marker({ element: el }).setLngLat([d.lng, d.lat])
-      ).addTo(map);
-      if (existing) {
-        existing.setLngLat([d.lng, d.lat]);
-        // Replace inner DOM to refresh selection / curation colour without
-        // remounting the marker (avoids visual flicker on every SWR poll).
-        existing.getElement().replaceWith(el);
-        next.set(d.id, new mapboxgl.Marker({ element: el }).setLngLat([d.lng, d.lat]).addTo(map));
-        existing.remove();
-      } else {
-        next.set(d.id, marker);
-      }
+      // `anchor: "center"` makes Mapbox place the *element centre* on
+      // the lat/lng, which is what the visual design assumes. Default
+      // is "bottom" — that's why the dots drifted when zooming /
+      // rotating: the bottom of the box was pinned, not the dot.
+      const marker = new mapboxgl.Marker({
+        element: el,
+        anchor: "center",
+      })
+        .setLngLat([d.lng, d.lat])
+        .addTo(map);
+      next.set(d.id, marker);
     }
     for (const [id, marker] of markersRef.current) {
       if (!next.has(id)) marker.remove();
@@ -231,6 +221,59 @@ export function Operator({
       </aside>
     </div>
   );
+}
+
+/* ─── Marker helpers ───────────────────────────────────────────────── */
+
+/** Build a fresh marker element. The container is sized to the halo so
+ *  Mapbox's `anchor: "center"` puts the visual centre on the lat/lng.
+ *  Both halo + dot are absolute-centred children → they always render
+ *  on top of each other, no drift on zoom / rotate. */
+function buildMarkerEl(
+  colour: string,
+  isSelected: boolean,
+  title: string,
+): HTMLElement {
+  const el = document.createElement("div");
+  el.style.cursor = "pointer";
+  paintMarkerEl(el, colour, isSelected, title);
+  return el;
+}
+
+/** Re-paint an existing marker element with a new colour / selection
+ *  state. Keeps Mapbox's DOM node stable so the anchor stays correct
+ *  and the marker doesn't flicker on every SWR poll. */
+function paintMarkerEl(
+  el: HTMLElement,
+  colour: string,
+  isSelected: boolean,
+  title: string,
+): void {
+  const halo = isSelected ? 26 : 18;
+  const dot = isSelected ? 12 : 10;
+  el.style.width = `${halo}px`;
+  el.style.height = `${halo}px`;
+  el.style.position = "relative";
+  el.title = title;
+  el.innerHTML = `
+    <span style="
+      position:absolute; top:0; left:0;
+      width:${halo}px; height:${halo}px;
+      background:${colour}33;
+      border-radius:9999px;
+      pointer-events:none;
+    "></span>
+    <span style="
+      position:absolute;
+      top:50%; left:50%;
+      transform: translate(-50%, -50%);
+      width:${dot}px; height:${dot}px;
+      background:${colour};
+      border-radius:9999px;
+      box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.65);
+      pointer-events:none;
+    "></span>
+  `;
 }
 
 /* ─── Floating top-left legend ─────────────────────────────────────── */
