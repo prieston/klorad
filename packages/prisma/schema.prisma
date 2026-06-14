@@ -808,6 +808,16 @@ model MobilityDataSource {
   lastSyncedAt DateTime?
   /// One-line message when the last sync failed.
   lastError    String?
+  /// Live state of an in-flight sync. NULL = idle.
+  ///   "running" | "done" | "failed"
+  /// Written by the sync runner; read by the polling UI so the
+  /// operator sees pages tick by while the source is large + slow.
+  syncStatus    String?
+  syncStartedAt DateTime?
+  /// JSON: { subsystem, page, seen, inserted, updated, message? }
+  /// Updated after every page so the dashboard can render a real
+  /// progress card instead of a spinner with no signal.
+  syncProgress  Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

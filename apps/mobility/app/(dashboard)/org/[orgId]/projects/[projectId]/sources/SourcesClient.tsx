@@ -1,9 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { toast } from "react-toastify";
 import type { ConnectorDescriptor } from "@klorad/connectors";
+
+interface SyncProgress {
+  subsystem: string | null;
+  page: number;
+  seen: number;
+  inserted: number;
+  updated: number;
+  message?: string;
+}
 
 interface SourceRow {
   id: string;
@@ -14,6 +23,9 @@ interface SourceRow {
   pollIntervalSeconds: number;
   lastSyncedAt: Date | string | null;
   lastError: string | null;
+  syncStatus: string | null;
+  syncStartedAt: string | null;
+  syncProgress: SyncProgress | null;
 }
 
 interface Props {
@@ -52,7 +64,13 @@ export function SourcesClient({
   const { data, mutate } = useSWR<ListResponse>(
     `/api/projects/${projectId}/sources`,
     fetcher,
-    { fallbackData: { sources: initialSources } },
+    {
+      fallbackData: { sources: initialSources },
+      // Bump poll cadence whenever a sync is in flight so the
+      // progress card feels live; back off otherwise.
+      refreshInterval: (latest) =>
+        latest?.sources.some((s) => s.syncStatus === "running") ? 1500 : 0,
+    },
   );
   const sources = data?.sources ?? initialSources;
 
@@ -129,6 +147,7 @@ function SourceRowItem({
   onChanged: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const isRunning = row.syncStatus === "running";
 
   const test = async () => {
     setBusy(true);
@@ -151,17 +170,16 @@ function SourceRowItem({
         method: "POST",
       });
       const json = (await res.json()) as {
-        devicesSeen?: number;
-        devicesInserted?: number;
-        devicesUpdated?: number;
+        started?: boolean;
+        reason?: string;
         error?: string;
       };
       if (res.ok) {
-        toast.success(
-          `Sync done: ${json.devicesSeen ?? 0} seen, ${
-            json.devicesInserted ?? 0
-          } new, ${json.devicesUpdated ?? 0} updated`,
-        );
+        if (json.started === false) {
+          toast.info(json.reason ?? "Sync already running");
+        } else {
+          toast.success("Sync scheduled — progress below");
+        }
         onChanged();
       } else {
         toast.error(json.error ?? "Sync failed");
@@ -193,55 +211,165 @@ function SourceRowItem({
     : "never";
 
   return (
-    <li className="grid gap-3 py-4 md:grid-cols-[1fr_auto] md:items-center">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-baseline gap-2">
-          <span className="text-base font-medium text-text-primary">
-            {row.label}
-          </span>
-          <span className="text-xs text-text-tertiary">
-            {row.connectorId}
-          </span>
-          {!row.enabled && (
-            <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
-              Disabled
+    <li className="py-4">
+      <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span className="text-base font-medium text-text-primary">
+              {row.label}
             </span>
-          )}
+            <span className="text-xs text-text-tertiary">
+              {row.connectorId}
+            </span>
+            {!row.enabled && (
+              <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
+                Disabled
+              </span>
+            )}
+            {row.syncStatus === "done" && (
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-emerald-600">
+                Synced
+              </span>
+            )}
+            {row.syncStatus === "failed" && (
+              <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-red-600">
+                Failed
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-text-tertiary">
+            Last sync: {lastSyncedDisplay}
+            {row.lastError && !isRunning && (
+              <span className="ml-3 text-red-500">{row.lastError}</span>
+            )}
+          </p>
         </div>
-        <p className="mt-1 text-xs text-text-tertiary">
-          Last sync: {lastSyncedDisplay}
-          {row.lastError && (
-            <span className="ml-3 text-red-500">{row.lastError}</span>
-          )}
-        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busy || isRunning}
+            onClick={test}
+            className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+          >
+            Test
+          </button>
+          <button
+            type="button"
+            disabled={busy || isRunning}
+            onClick={sync}
+            className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-50"
+          >
+            {isRunning ? "Syncing…" : "Sync now"}
+          </button>
+          <button
+            type="button"
+            disabled={busy || isRunning}
+            onClick={remove}
+            className="rounded-md border border-line-soft px-3 py-1.5 text-xs font-medium text-text-tertiary transition-colors hover:border-red-500 hover:text-red-500 disabled:opacity-50"
+          >
+            Delete
+          </button>
+        </div>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={test}
-          className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
-        >
-          Test
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={sync}
-          className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-50"
-        >
-          Sync now
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={remove}
-          className="rounded-md border border-line-soft px-3 py-1.5 text-xs font-medium text-text-tertiary transition-colors hover:border-red-500 hover:text-red-500 disabled:opacity-50"
-        >
-          Delete
-        </button>
-      </div>
+
+      {isRunning && (
+        <SyncProgressCard
+          row={row}
+          baseUrl={`https://demobe.parsonsinet.com/atms/${row.syncProgress?.subsystem ?? "{subsystem}"}-rest/rest/${row.syncProgress?.subsystem ?? "{subsystem}"}/`}
+        />
+      )}
     </li>
+  );
+}
+
+/* ─── Live progress card ─────────────────────────────────────────── */
+
+function SyncProgressCard({
+  row,
+  baseUrl,
+}: {
+  row: SourceRow;
+  baseUrl: string;
+}) {
+  const startedAtMs = row.syncStartedAt
+    ? Date.parse(row.syncStartedAt)
+    : null;
+  const elapsed = useMemo(() => {
+    if (!startedAtMs) return null;
+    const sec = Math.floor((Date.now() - startedAtMs) / 1000);
+    if (sec < 60) return `${sec}s`;
+    return `${Math.floor(sec / 60)}m ${sec % 60}s`;
+  }, [startedAtMs, row.syncProgress?.page, row.syncProgress?.seen]);
+  const p = row.syncProgress;
+  // Indeterminate progress (no totalPages from the API) — animate a
+  // pulsing accent bar to communicate liveness without lying about %.
+  return (
+    <div className="mt-3 rounded-xl border border-accent/40 bg-accent-soft/40 p-4">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-accent" aria-hidden />
+        <span className="text-xs font-medium uppercase tracking-[0.18em] text-accent">
+          Syncing
+        </span>
+        {p?.subsystem && (
+          <span className="rounded-full bg-bg px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-text-secondary">
+            {p.subsystem}
+          </span>
+        )}
+        <span className="ml-auto text-[11px] text-text-tertiary">
+          {elapsed ? `elapsed ${elapsed}` : "starting…"}
+        </span>
+      </div>
+
+      {/* Indeterminate progress strip */}
+      <div className="relative mb-3 h-1 w-full overflow-hidden rounded-full bg-bg/60">
+        <div className="animate-[slide_1.4s_ease-in-out_infinite] absolute inset-y-0 w-1/3 rounded-full bg-accent/60" />
+        <style>{`
+          @keyframes slide {
+            0%   { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+          }
+        `}</style>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 text-xs md:grid-cols-4">
+        <Counter label="Pages" value={p?.page ?? 0} />
+        <Counter label="Devices seen" value={p?.seen ?? 0} />
+        <Counter label="New" value={p?.inserted ?? 0} tone="success" />
+        <Counter label="Updated" value={p?.updated ?? 0} />
+      </div>
+
+      {p?.message && (
+        <p className="mt-3 truncate text-[11px] text-text-secondary">
+          {p.message}
+        </p>
+      )}
+
+      <p className="mt-2 truncate font-mono text-[10px] text-text-tertiary">
+        {baseUrl}
+      </p>
+    </div>
+  );
+}
+
+function Counter({
+  label,
+  value,
+  tone = "primary",
+}: {
+  label: string;
+  value: number;
+  tone?: "primary" | "success";
+}) {
+  const cls = tone === "success" ? "text-emerald-600" : "text-text-primary";
+  return (
+    <div className="rounded-md bg-bg/70 px-2.5 py-2">
+      <div className="text-[9px] font-medium uppercase tracking-[0.18em] text-text-tertiary">
+        {label}
+      </div>
+      <div className={`mt-0.5 font-mono text-base font-medium ${cls}`}>
+        {value.toLocaleString()}
+      </div>
+    </div>
   );
 }
 

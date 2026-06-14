@@ -54,16 +54,38 @@ export default async function SourcesPage({
       pollIntervalSeconds: true,
       lastSyncedAt: true,
       lastError: true,
+      syncStatus: true,
+      syncStartedAt: true,
+      syncProgress: true,
     },
   });
 
   const availableConnectors = mobilityConnectors.list();
 
+  // Marshal Date / JSON fields into the client-friendly shape the
+  // SourcesClient expects (Date → ISO string; JSON value → typed
+  // SyncProgress shape).
+  const serialised = initialSources.map((s) => ({
+    ...s,
+    syncStartedAt: s.syncStartedAt ? s.syncStartedAt.toISOString() : null,
+    syncProgress:
+      s.syncProgress && typeof s.syncProgress === "object"
+        ? (s.syncProgress as unknown as {
+            subsystem: string | null;
+            page: number;
+            seen: number;
+            inserted: number;
+            updated: number;
+            message?: string;
+          })
+        : null,
+  }));
+
   return (
     <SourcesClient
       projectId={projectId}
       projectTitle={project.title}
-      initialSources={initialSources}
+      initialSources={serialised}
       availableConnectors={availableConnectors}
     />
   );

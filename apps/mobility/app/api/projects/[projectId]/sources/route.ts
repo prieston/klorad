@@ -47,6 +47,11 @@ export async function GET(
       pollIntervalSeconds: true,
       lastSyncedAt: true,
       lastError: true,
+      // Live-sync state so the client can render a progress card +
+      // poll for updates while a sync is in flight.
+      syncStatus: true,
+      syncStartedAt: true,
+      syncProgress: true,
       createdAt: true,
       updatedAt: true,
     },
