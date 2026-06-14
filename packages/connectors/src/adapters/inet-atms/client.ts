@@ -5,8 +5,11 @@
  */
 import type { InetAtmsConfig, InetSubsystem } from "./types.js";
 
-/** Hard cap so a hung ATMS doesn't tie up a sync job forever. */
-const REQUEST_TIMEOUT_MS = 15_000;
+/** Hard cap so a hung ATMS doesn't tie up a sync job forever. List
+ *  endpoints can be slow on first warm-up (cold caches) — 30s is the
+ *  pragmatic upper bound; the sync runner separately wraps every
+ *  call in a 60s function-budget umbrella. */
+const REQUEST_TIMEOUT_MS = 30_000;
 
 export interface InetHttpClient {
   /** GET {host}/atms/{subsystem}-rest/rest/{subsystem}{path}, parsed as JSON. */
@@ -27,7 +30,12 @@ export function createInetHttpClient(config: InetAtmsConfig): InetHttpClient {
     path: string,
     searchParams?: URLSearchParams,
   ): string {
-    const base = `${config.host}/atms/${subsystem}-rest/rest/${subsystem}${path}`;
+    // The Parsons servlet treats `/cctv` and `/cctv/` differently —
+    // requests without the trailing slash 301 to the slash variant.
+    // Append the slash on the list endpoint (empty `path`) so basic
+    // auth doesn't get dropped through the redirect.
+    const root = `${config.host}/atms/${subsystem}-rest/rest/${subsystem}`;
+    const base = path ? `${root}${path}` : `${root}/`;
     return searchParams && searchParams.size > 0
       ? `${base}?${searchParams.toString()}`
       : base;

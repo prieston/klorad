@@ -13,9 +13,10 @@ import { runSync } from "@/lib/mobility/sync";
 
 type Params = Promise<{ sourceId: string }>;
 
-/** ATMS catalogs of a few hundred devices fit comfortably in a
- *  minute; the cap is the safety net, not the design budget. */
-export const maxDuration = 60;
+/** ATMS catalogs of a few hundred devices fit comfortably in three
+ *  minutes; the cap is the safety net, not the design budget. Larger
+ *  fleets graduate to background Inngest jobs in a follow-up arc. */
+export const maxDuration = 180;
 
 export async function POST(
   _req: Request,

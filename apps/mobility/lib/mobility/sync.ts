@@ -49,6 +49,14 @@ export async function runSync(sourceId: string): Promise<SyncResult> {
   let updated = 0;
   let seen = 0;
 
+  // Intentional server-side progress trace; sync jobs are bounded
+  // and noisy by design so the operator can see them moving in the
+  // dev console. `console.warn` is allowed by our eslint config.
+  const log = (msg: string) =>
+    console.warn(`[mobility:sync ${source.id}] ${msg}`);
+  log(`starting sync via ${source.connectorId}`);
+  const startedAt = Date.now();
+
   try {
     const connector = await buildConnector({
       connectorId: source.connectorId,
@@ -56,7 +64,10 @@ export async function runSync(sourceId: string): Promise<SyncResult> {
       credentials: decryptCredentials(source.credentialsEncrypted),
     });
 
+    let pageIdx = 0;
     for await (const page of connector.listEntities()) {
+      pageIdx += 1;
+      log(`page ${pageIdx}: ${page.items.length} items returned`);
       for (const item of page.items as ReadonlyArray<{
         deviceId: string;
         externalId: string;
@@ -124,6 +135,10 @@ export async function runSync(sourceId: string): Promise<SyncResult> {
       where: { id: source.id },
       data: { lastSyncedAt: new Date(), lastError: null },
     });
+    const took = ((Date.now() - startedAt) / 1000).toFixed(1);
+    log(
+      `done in ${took}s: ${seen} seen / ${inserted} new / ${updated} updated`,
+    );
 
     return {
       sourceId: source.id,
@@ -133,6 +148,7 @@ export async function runSync(sourceId: string): Promise<SyncResult> {
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    log(`error: ${message}`);
     await prisma.mobilityDataSource.update({
       where: { id: source.id },
       data: { lastError: message.slice(0, 500) },

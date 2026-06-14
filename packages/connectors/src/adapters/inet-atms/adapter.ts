@@ -42,7 +42,11 @@ import {
   type RawStatus,
 } from "./types.js";
 
-const DEFAULT_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 200;
+/** Safety brake — stop walking pages after this many round-trips even
+ *  if the API claims more remain. Protects against APIs that ignore
+ *  `start_id` and keep returning the same set. */
+const MAX_PAGES = 20;
 
 export const INET_ATMS_CONNECTOR_ID = "inet-atms";
 
@@ -188,7 +192,11 @@ export function createInetAtmsConnector(): InetAtmsConnector {
     if (!live) throw new Error("[inet-atms] live client not initialised");
     const limit = params?.limit ?? DEFAULT_PAGE_SIZE;
     let cursor: string | undefined = params?.cursor;
-    while (true) {
+    // Across-page de-dup: some iNET deployments ignore `start_id` and
+    // keep returning the same payload. We bail when a page brings
+    // nothing new, and hard-cap at MAX_PAGES regardless.
+    const seenExternalIds = new Set<string>();
+    for (let page = 0; page < MAX_PAGES; page += 1) {
       const search = new URLSearchParams();
       search.set("limit", String(limit));
       if (cursor) search.set("start_id", cursor);
@@ -204,17 +212,27 @@ export function createInetAtmsConnector(): InetAtmsConnector {
         search,
       )) as unknown[];
       const items: InetDevice[] = [];
+      let freshThisPage = 0;
       for (const entry of raw) {
+        let device: InetDevice | null = null;
         if (subsystem === "cctv") {
           const parsed = RawCctvDeviceSchema.safeParse(entry);
-          if (parsed.success) items.push(normaliseCctv(parsed.data));
+          if (parsed.success) device = normaliseCctv(parsed.data);
         } else if (subsystem === "dms") {
           const parsed = RawDmsDeviceSchema.safeParse(entry);
-          if (parsed.success) items.push(normaliseDms(parsed.data));
+          if (parsed.success) device = normaliseDms(parsed.data);
         }
+        if (!device) continue;
+        if (!seenExternalIds.has(device.externalId)) {
+          seenExternalIds.add(device.externalId);
+          freshThisPage += 1;
+        }
+        items.push(device);
       }
+      const wasFullPage = raw.length === limit;
+      const lastId = items[items.length - 1]?.externalId ?? null;
       const nextCursor =
-        items.length === limit ? items[items.length - 1]?.externalId ?? null : null;
+        wasFullPage && freshThisPage > 0 && lastId ? lastId : null;
       yield { items, nextCursor };
       if (!nextCursor) break;
       cursor = nextCursor;
