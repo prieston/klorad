@@ -160,8 +160,20 @@ export function PushOptIn({ slug, primary }: Props) {
       onClick={onClick}
       disabled={busy}
       aria-pressed={subscribed}
-      className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm backdrop-blur transition-colors hover:bg-white/20 disabled:opacity-60"
-      style={subscribed ? { borderColor: primary, color: primary } : undefined}
+      className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium shadow-sm backdrop-blur transition-colors disabled:opacity-60"
+      style={
+        subscribed
+          ? {
+              borderColor: primary,
+              color: primary,
+              backgroundColor: "var(--w-accent-soft)",
+            }
+          : {
+              borderColor: "var(--w-border-strong)",
+              color: "var(--w-fg)",
+              backgroundColor: "var(--w-overlay)",
+            }
+      }
     >
       <Icon size={12} strokeWidth={1.8} aria-hidden />
       {label}
