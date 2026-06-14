@@ -31,6 +31,13 @@ const serverSchema = z.object({
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
 
+  /// Web Push (VAPID) — gates per-world push notifications. Set all
+  /// three to light it up; missing any disables the feature without
+  /// breaking the rest of the app. Generate keys once with
+  /// `npx web-push generate-vapid-keys --json`.
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().optional(),
+
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
@@ -88,6 +95,12 @@ export const features = {
   ),
   /** Mapbox client token — gates the operator console map. */
   map: Boolean(process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN),
+  /** VAPID configured — gates the per-world push opt-in + fanout. */
+  push: Boolean(
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY &&
+      serverEnv.VAPID_PRIVATE_KEY &&
+      serverEnv.VAPID_SUBJECT,
+  ),
 } as const;
 
 export type FeatureFlags = typeof features;
