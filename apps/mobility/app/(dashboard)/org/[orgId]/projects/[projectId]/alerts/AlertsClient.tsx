@@ -186,7 +186,7 @@ export function AlertsClient({
               <AlertItem
                 key={a.deviceId + a.observedAt}
                 alert={a}
-                openHref={`/org/${orgId}/projects/${projectId}`}
+                openHref={`/org/${orgId}/projects/${projectId}?device=${a.deviceId}`}
               />
             ))}
           </ul>

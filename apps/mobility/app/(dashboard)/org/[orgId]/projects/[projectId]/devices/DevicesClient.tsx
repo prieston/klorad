@@ -425,7 +425,7 @@ function DeviceRow({
         )}
       </div>
       <Link
-        href={`/org/${orgId}/projects/${projectId}`}
+        href={`/org/${orgId}/projects/${projectId}?device=${device.id}`}
         className="inline-flex h-7 w-16 items-center justify-end gap-1 text-xs font-medium text-accent hover:text-accent-hover"
       >
         Open

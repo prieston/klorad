@@ -27,7 +27,10 @@ export async function GET(
     where: { id: deviceId },
     select: {
       projectId: true,
+      subsystem: true,
       externalDeviceId: true,
+      payload: true,
+      lastSeenAt: true,
       source: {
         select: {
           connectorId: true,
@@ -43,14 +46,41 @@ export async function GET(
   const denied = await requireProjectAccess(device.projectId, "read");
   if (denied) return denied;
 
+  // CCTV — iNET exposes no per-id status endpoint. The "live" signal
+  // is the video stream itself plus the device's `active` flag from
+  // the last sync; synthesise a status from the cached payload so
+  // the drawer doesn't show "No live data" for every camera.
+  if (device.subsystem === "cctv") {
+    const payload = device.payload as Record<string, unknown> | null;
+    const active =
+      payload && typeof payload.active === "boolean"
+        ? (payload.active as boolean)
+        : true;
+    return NextResponse.json({
+      status: {
+        online: active,
+        alarm: null,
+        observedAt: device.lastSeenAt.toISOString(),
+        raw: {
+          active,
+          note:
+            "CCTV has no per-device status endpoint; live signal is the stream.",
+        },
+      },
+    });
+  }
+
+  // DMS — call the connector's getStatus. The adapter keys results
+  // by the *packed* id (e.g. `dms:21413`), so build that explicitly.
   try {
     const connector = await buildConnector({
       connectorId: device.source.connectorId,
       config: device.source.config as DataSourceConfigJson,
       credentials: decryptCredentials(device.source.credentialsEncrypted),
     });
-    const statuses = await connector.getStatus([device.externalDeviceId]);
-    const status = statuses[device.externalDeviceId] ?? null;
+    const packed = `${device.subsystem}:${device.externalDeviceId}`;
+    const statuses = await connector.getStatus([packed]);
+    const status = statuses[packed] ?? null;
     return NextResponse.json({ status });
   } catch (err) {
     return NextResponse.json(

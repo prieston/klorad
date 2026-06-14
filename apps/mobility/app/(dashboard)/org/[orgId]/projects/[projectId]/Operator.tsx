@@ -8,6 +8,7 @@ import mapboxgl, {
   type MapMouseEvent,
 } from "mapbox-gl";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { toast } from "react-toastify";
 import {
   ArrowUpRight,
@@ -101,7 +102,20 @@ export function Operator({
   );
   const devices = useMemo(() => data?.devices ?? [], [data]);
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Optional `?device=<id>` deeplink — set the selection on first
+  // arrival from the Devices table, the Alerts feed, or a shared URL.
+  const searchParams = useSearchParams();
+  const focusId = searchParams?.get("device") ?? null;
+  const [selectedId, setSelectedId] = useState<string | null>(focusId);
+  useEffect(() => {
+    if (focusId && focusId !== selectedId) {
+      setSelectedId(focusId);
+    }
+    // We don't include `selectedId` in deps — this effect should only
+    // fire when the deeplink changes, never when the user navigates
+    // around within the console.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusId]);
   const selected = useMemo(
     () => devices.find((d) => d.id === selectedId) ?? null,
     [devices, selectedId],
