@@ -83,6 +83,13 @@ function normaliseCctv(raw: RawCctvDevice): InetDevice {
     raw.multicastAddr ||
     raw.channelUri ||
     null;
+  // No stream — fall back to a snapshot image when the device record's
+  // top-level `url` is a JPG/PNG. Some iNET tenants don't expose
+  // streams at all; the snapshot is still a useful live signal.
+  const isImageUrl = (u: string | null | undefined): u is string =>
+    typeof u === "string" &&
+    u.length > 0 &&
+    /\.(?:png|jpe?g|webp|gif)(?:\?|$)/i.test(u);
   const media: InetMedia | null = stream
     ? {
         kind: "cctv-stream",
@@ -93,7 +100,9 @@ function normaliseCctv(raw: RawCctvDevice): InetDevice {
             ? "hls" // dash labelled as hls for the player picker; v1 doesn't have a dash branch
             : "mp4",
       }
-    : null;
+    : isImageUrl(raw.url)
+      ? { kind: "cctv-snapshot", url: raw.url as string }
+      : null;
   return {
     deviceId: packId("cctv", externalId),
     externalId,

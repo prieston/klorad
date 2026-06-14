@@ -113,6 +113,13 @@ export type InetMedia =
       streamType: "hls" | "mp4";
     }
   | {
+      kind: "cctv-snapshot";
+      /** Snapshot image URL — JPG/PNG that updates on the source's
+       *  cadence. Some iNET deployments expose only a snapshot
+       *  (no streaming) so we render it as a refreshable <img>. */
+      url: string;
+    }
+  | {
       kind: "dms-image-list";
       /** Path the snapshot endpoint serves. */
       path: string;
@@ -207,8 +214,15 @@ export const RawCctvDeviceSchema = z
     cameraIpAddr: z.string().nullish(),
     multicastAddr: z.string().nullish(),
     channelUri: z.string().nullish(),
+    /** Many iNET deployments expose a snapshot JPG/PNG in this field
+     *  instead of (or alongside) a stream. */
+    url: z.string().nullish(),
     /** "not specified" / "status" / "status and command" */
     controlType: z.string().nullish(),
+    /** Aux details surfaced in the drawer's "Camera details" panel. */
+    make: z.string().nullish(),
+    model: z.string().nullish(),
+    vendorId: z.string().nullish(),
   })
   .passthrough();
 

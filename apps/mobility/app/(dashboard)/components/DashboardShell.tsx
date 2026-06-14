@@ -4,13 +4,38 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import useSWR from "swr";
 import {
   AppShell,
   KloradMark,
   type NavGroup,
 } from "@klorad/design-system";
-import { OrganizationSwitcher, UserAccountMenu } from "@klorad/ui";
+
+/** OrganizationSwitcher + UserAccountMenu are MUI-backed components.
+ *  Emotion's stable-but-not-quite class-name generation drifts between
+ *  server and client paint, so SSR'ing them produces hydration
+ *  mismatch errors. Loading them client-only sidesteps the drift
+ *  entirely; the brief skeleton matches their footprint so the
+ *  sidebar doesn't reflow when they pop in. */
+const OrganizationSwitcher = dynamic(
+  () => import("@klorad/ui").then((m) => m.OrganizationSwitcher),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-12 animate-pulse rounded-lg bg-surface-2" aria-hidden />
+    ),
+  },
+);
+const UserAccountMenu = dynamic(
+  () => import("@klorad/ui").then((m) => m.UserAccountMenu),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-14 animate-pulse rounded-lg bg-surface-2" aria-hidden />
+    ),
+  },
+);
 import {
   Bell,
   Building2,

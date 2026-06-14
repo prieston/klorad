@@ -557,8 +557,10 @@ function DeviceDrawer({
   const payload = device.payload as {
     media?:
       | { kind: "cctv-stream"; url: string; streamType: "hls" | "mp4" }
+      | { kind: "cctv-snapshot"; url: string }
       | { kind: "dms-image-list"; path: string }
       | null;
+    [key: string]: unknown;
   };
 
   const subsystemIcon: LucideIcon =
@@ -702,7 +704,32 @@ function DeviceDrawer({
                   />
                 </div>
               )}
+
+            {/* CCTV snapshot — refresh every 5 s with a cache-busting
+                query so the still updates without a manual reload. */}
+            {device.subsystem === "cctv" &&
+              payload.media?.kind === "cctv-snapshot" && (
+                <CctvSnapshot url={payload.media.url} alt={device.name} />
+              )}
+
+            {/* CCTV without any media URL — say so explicitly instead
+                of leaving a blank panel below the status. */}
+            {device.subsystem === "cctv" && !payload.media && (
+              <div className="rounded-xl border border-line-soft bg-surface-2 p-5 text-center text-xs text-text-tertiary">
+                No live stream or snapshot URL is configured for this
+                camera on the source.
+              </div>
+            )}
           </div>
+        )}
+
+        {/* DMS sign details — surface the rich status data the
+            renderer doesn't show otherwise. */}
+        {device.subsystem === "dms" && live?.status && (
+          <DmsSignDetails
+            status={live.status.raw as Record<string, unknown>}
+            payload={payload as Record<string, unknown>}
+          />
         )}
       </section>
 
@@ -743,6 +770,191 @@ function DeviceDrawer({
         Last seen {relativeFrom(device.lastSeenAt)}
       </footer>
     </div>
+  );
+}
+
+/* ─── CCTV snapshot with auto-refresh ──────────────────────────────── */
+
+function CctvSnapshot({ url, alt }: { url: string; alt: string }) {
+  // Cache-bust on a 5 s tick. Initial render uses 0 so SSR + first
+  // client paint stay deterministic (no hydration mismatch); the real
+  // ticking starts after mount.
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    setTick(Date.now());
+    const id = window.setInterval(() => setTick(Date.now()), 5_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const src =
+    tick === 0
+      ? url
+      : `${url}${url.includes("?") ? "&" : "?"}t=${tick}`;
+  return (
+    <div className="overflow-hidden rounded-xl border border-line-soft bg-black">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        className="aspect-video w-full object-cover"
+      />
+      <p className="px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
+        Snapshot · refreshing every 5 s
+      </p>
+    </div>
+  );
+}
+
+/* ─── DMS sign details panel ───────────────────────────────────────── */
+
+function DmsSignDetails({
+  status,
+  payload,
+}: {
+  status: Record<string, unknown>;
+  payload: Record<string, unknown>;
+}) {
+  const num = (v: unknown): number | null =>
+    typeof v === "number" ? v : null;
+  const str = (v: unknown): string | null =>
+    typeof v === "string" && v.length > 0 ? v : null;
+
+  // Pull from both status (current state) and payload (device
+  // capabilities) so the panel is one coherent block.
+  const brightness = status.brightnessLevel as
+    | { min?: number; max?: number; current?: number }
+    | undefined;
+  const photocell = status.photocellLevel as
+    | { min?: number; max?: number; current?: number }
+    | undefined;
+  const lightOutput = status.lightOutput as
+    | { min?: number; max?: number; current?: number }
+    | undefined;
+
+  const shortStatus = num(status.shortStatus);
+  const controlMode = str(status.controlMode);
+  const manualLevel = num(status.manualLevel);
+  const beacon = typeof status.beacon === "boolean" ? status.beacon : null;
+  const graphic = typeof status.graphic === "boolean" ? status.graphic : null;
+  const brightnessError = str(status.brightnessError);
+  const signId = num(status.signId);
+
+  const signType = num(payload.signType);
+  const beaconType = num(payload.beaconType);
+  const pixelHeight = num(payload.pixelHeight);
+  const pixelWidth = num(payload.pixelWidth);
+  const maxPages = num(payload.maxPages);
+  const maxLinesPerPage = num(payload.maxLinesPerPage);
+  const maxCharsPerLine = num(payload.maxCharsPerLine);
+
+  return (
+    <div className="mt-3 rounded-xl border border-line-soft bg-surface-2 p-4">
+      <SectionEyebrow icon={Signpost}>Sign details</SectionEyebrow>
+
+      {/* Capabilities */}
+      <div className="mt-3">
+        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.22em] text-text-tertiary">
+          Capabilities
+        </p>
+        <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+          {signType != null && <KV label="Sign type">{signType}</KV>}
+          {beaconType != null && <KV label="Beacon type">{beaconType}</KV>}
+          {pixelWidth != null && pixelHeight != null && (
+            <KV label="Pixels">
+              {pixelWidth} × {pixelHeight}
+            </KV>
+          )}
+          {(maxPages != null ||
+            maxLinesPerPage != null ||
+            maxCharsPerLine != null) && (
+            <KV label="Grid">
+              {maxPages ?? "?"} pg · {maxLinesPerPage ?? "?"} ln ·{" "}
+              {maxCharsPerLine ?? "?"} ch
+            </KV>
+          )}
+          {signId != null && <KV label="Sign ID">{signId}</KV>}
+        </dl>
+      </div>
+
+      {/* Current state */}
+      <div className="mt-4">
+        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.22em] text-text-tertiary">
+          State
+        </p>
+        <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+          {controlMode && <KV label="Mode">{controlMode}</KV>}
+          {brightness?.current != null && brightness.max != null && (
+            <KV label="Brightness">
+              {brightness.current} / {brightness.max}
+            </KV>
+          )}
+          {photocell?.current != null && photocell.max != null && (
+            <KV label="Photocell">
+              {photocell.current} / {photocell.max}
+            </KV>
+          )}
+          {lightOutput?.current != null && lightOutput.max != null && (
+            <KV label="Light output">
+              {lightOutput.current.toLocaleString()} /{" "}
+              {lightOutput.max.toLocaleString()}
+            </KV>
+          )}
+          {manualLevel != null && <KV label="Manual level">{manualLevel}</KV>}
+          {beacon != null && <KV label="Beacon">{beacon ? "On" : "Off"}</KV>}
+          {graphic != null && (
+            <KV label="Graphic">{graphic ? "On" : "Off"}</KV>
+          )}
+        </dl>
+      </div>
+
+      {/* Health */}
+      <div className="mt-4">
+        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.22em] text-text-tertiary">
+          Health
+        </p>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {shortStatus != null && (
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] ${
+                shortStatus === 0
+                  ? "bg-emerald-500/10 text-emerald-600"
+                  : "bg-red-500/10 text-red-600"
+              }`}
+            >
+              {shortStatus === 0
+                ? "shortStatus 0 (OK)"
+                : `shortStatus 0x${shortStatus.toString(16).toUpperCase()}`}
+            </span>
+          )}
+          {brightnessError && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-red-600">
+              {brightnessError}
+            </span>
+          )}
+          {brightnessError == null && shortStatus === 0 && (
+            <span className="text-[11px] text-text-tertiary">
+              No fault flags raised.
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KV({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      <dt className="text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
+        {label}
+      </dt>
+      <dd className="text-text-primary">{children}</dd>
+    </>
   );
 }
 
