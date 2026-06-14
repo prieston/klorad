@@ -363,8 +363,8 @@ export function WorldViewer({
   if (!mapboxToken) {
     return (
       <main
-        className="flex h-[100dvh] w-full items-center justify-center p-8 text-center text-sm text-white"
-        style={{ backgroundColor: bg }}
+        className="flex w-full items-center justify-center p-8 text-center text-sm text-white"
+        style={{ height: "100dvh", backgroundColor: bg }}
       >
         Map is unavailable.
       </main>
@@ -373,10 +373,19 @@ export function WorldViewer({
 
   return (
     <main
-      className="relative h-[100dvh] w-full overflow-hidden"
-      style={{ backgroundColor: bg }}
+      className="relative w-full overflow-hidden"
+      // Inline `height` so the layout doesn't depend on Tailwind's
+      // arbitrary-value JIT picking up `h-[100dvh]` for this route.
+      // Mapbox needs a measurable container before init, and any
+      // height-purge causes the canvas to collapse to 0 — symptom is
+      // a blank screen with the html/body background showing through.
+      style={{ height: "100dvh", backgroundColor: bg }}
     >
-      <div ref={mapEl} className="absolute inset-0" />
+      <div
+        ref={mapEl}
+        className="absolute inset-0"
+        style={{ width: "100%", height: "100%" }}
+      />
 
       {/* World title — top-left card. Kept compact so it doesn't
           dominate the map; the install prompt + drawer live elsewhere. */}
