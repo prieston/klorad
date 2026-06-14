@@ -16,8 +16,10 @@ import {
   Camera,
   CheckCircle2,
   Compass,
+  Copy,
   Database,
   Eye,
+  ExternalLink,
   Layers,
   MapPin,
   Radio,
@@ -60,6 +62,16 @@ interface LiveResponse {
     observedAt: string;
     raw: Record<string, unknown>;
   } | null;
+  source?: {
+    label: string;
+    connectorId: string;
+    host: string | null;
+    urls: {
+      list: string | null;
+      device: string | null;
+      status: string | null;
+    };
+  };
 }
 
 const fetcher = (url: string) =>
@@ -615,6 +627,9 @@ function DeviceDrawer({
         </dl>
       </section>
 
+      {/* ── Source URLs (debug) ─────────────────────────────────────── */}
+      {live?.source ? <SourceSection source={live.source} /> : null}
+
       {/* ── Live status ─────────────────────────────────────────────── */}
       <section className="border-b border-line-soft p-6">
         <div className="mb-3 flex items-center justify-between gap-2">
@@ -732,6 +747,83 @@ function DeviceDrawer({
 }
 
 /* ─── Small primitives reused across the drawer ────────────────────── */
+
+function SourceSection({
+  source,
+}: {
+  source: NonNullable<LiveResponse["source"]>;
+}) {
+  return (
+    <section className="border-b border-line-soft bg-surface-2 p-6">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <SectionEyebrow icon={Database}>Source</SectionEyebrow>
+        <span className="rounded-full bg-bg px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-text-tertiary">
+          {source.connectorId}
+        </span>
+      </div>
+      <p className="mb-3 truncate text-xs text-text-primary">
+        {source.label}
+      </p>
+      <div className="space-y-2">
+        <UrlRow label="Device" url={source.urls.device} />
+        <UrlRow label="Status" url={source.urls.status} />
+        <UrlRow label="List" url={source.urls.list} />
+      </div>
+      <p className="mt-3 text-[10px] leading-relaxed text-text-tertiary">
+        Endpoints the connector hits. Hit them with the same basic-auth
+        creds to verify the data matches.
+      </p>
+    </section>
+  );
+}
+
+function UrlRow({ label, url }: { label: string; url: string | null }) {
+  if (!url) {
+    return (
+      <div className="grid grid-cols-[60px_1fr] items-center gap-2">
+        <span className="text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
+          {label}
+        </span>
+        <span className="text-[11px] italic text-text-tertiary">
+          (none for this device)
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-[60px_1fr_auto_auto] items-center gap-2">
+      <span className="text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
+        {label}
+      </span>
+      <code
+        className="overflow-hidden truncate rounded-md bg-bg px-2 py-1 font-mono text-[10px] text-text-secondary"
+        title={url}
+      >
+        {url}
+      </code>
+      <button
+        type="button"
+        onClick={() => {
+          void navigator.clipboard.writeText(url);
+          toast.success("Copied");
+        }}
+        aria-label={`Copy ${label} URL`}
+        className="flex h-7 w-7 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-bg hover:text-text-primary"
+      >
+        <Copy size={11} strokeWidth={1.8} />
+      </button>
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener"
+        aria-label={`Open ${label} URL`}
+        className="flex h-7 w-7 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-bg hover:text-text-primary"
+      >
+        <ExternalLink size={11} strokeWidth={1.8} />
+      </a>
+    </div>
+  );
+}
 
 function SectionEyebrow({
   children,

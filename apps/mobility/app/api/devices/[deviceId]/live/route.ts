@@ -33,6 +33,7 @@ export async function GET(
       lastSeenAt: true,
       source: {
         select: {
+          label: true,
           connectorId: true,
           config: true,
           credentialsEncrypted: true,
@@ -45,6 +46,41 @@ export async function GET(
   }
   const denied = await requireProjectAccess(device.projectId, "read");
   if (denied) return denied;
+
+  /** Build the upstream URLs the connector hits for this device so the
+   *  drawer can show them as a debug aid. Currently iNET-specific; if
+   *  we add more connector types the pattern moves into a connector
+   *  method (`describeUrls()` or similar). */
+  function describeSource() {
+    const config = device!.source.config as { host?: string } | null;
+    const host = (config?.host ?? "").replace(/\/$/, "");
+    if (device!.source.connectorId !== "inet-atms" || !host) {
+      return {
+        label: device!.source.label,
+        connectorId: device!.source.connectorId,
+        host: host || null,
+        urls: { device: null, status: null, list: null },
+      };
+    }
+    const subsystem = device!.subsystem;
+    const base = `${host}/atms/${subsystem}-rest/rest/${subsystem}`;
+    return {
+      label: device!.source.label,
+      connectorId: device!.source.connectorId,
+      host,
+      urls: {
+        list: `${base}/`,
+        device: `${base}/${device!.externalDeviceId}/`,
+        // CCTV has no per-id /status endpoint in iNET; null signals
+        // that to the UI.
+        status:
+          subsystem === "dms"
+            ? `${base}/${device!.externalDeviceId}/status`
+            : null,
+      },
+    };
+  }
+  const source = describeSource();
 
   // CCTV — iNET exposes no per-id status endpoint. The "live" signal
   // is the video stream itself plus the device's `active` flag from
@@ -67,6 +103,7 @@ export async function GET(
             "CCTV has no per-device status endpoint; live signal is the stream.",
         },
       },
+      source,
     });
   }
 
@@ -81,10 +118,10 @@ export async function GET(
     const packed = `${device.subsystem}:${device.externalDeviceId}`;
     const statuses = await connector.getStatus([packed]);
     const status = statuses[packed] ?? null;
-    return NextResponse.json({ status });
+    return NextResponse.json({ status, source });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown" },
+      { error: err instanceof Error ? err.message : "Unknown", source },
       { status: 502 },
     );
   }
