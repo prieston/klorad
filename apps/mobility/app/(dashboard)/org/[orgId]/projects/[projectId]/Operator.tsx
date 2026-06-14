@@ -145,13 +145,21 @@ export function Operator({
       style: "mapbox://styles/mapbox/dark-v11",
       center: [defaultCentre.lng, defaultCentre.lat],
       zoom: defaultZoom,
+      pitch: 30,
+      maxPitch: 85,
       attributionControl: false,
     });
     map.addControl(
       new mapboxgl.AttributionControl({ compact: true }),
       "bottom-right",
     );
-    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "bottom-right");
+    // showCompass keeps the pitch/bearing reset button — useful now
+    // that the operator can tilt + rotate to look at terrain + 3D
+    // buildings.
+    map.addControl(
+      new mapboxgl.NavigationControl({ visualizePitch: true }),
+      "bottom-right",
+    );
     mapRef.current = map;
 
     /** Add the GeoJSON source + cluster + point + selected layers once
@@ -161,6 +169,78 @@ export function Operator({
      *  see thousands of devices summarised at low zoom and the
      *  individual rows when they zoom in. */
     const onLoad = () => {
+      // Terrain — mapbox-dem raster source + setTerrain. Modest
+      // exaggeration so the relief is visible without distorting
+      // device positions. Re-applies idempotently if the style hot-
+      // reloads (Mapbox v3 doesn't expose hasTerrain so we guard on
+      // the source id).
+      if (!map.getSource(TERRAIN_SOURCE_ID)) {
+        map.addSource(TERRAIN_SOURCE_ID, {
+          type: "raster-dem",
+          url: "mapbox://mapbox.mapbox-terrain-dem-v1",
+          tileSize: 512,
+          maxzoom: 14,
+        });
+        map.setTerrain({ source: TERRAIN_SOURCE_ID, exaggeration: 1.5 });
+      }
+      // Sky atmosphere — `setFog` is Mapbox's atmosphere API for
+      // mercator / globe projections. Dark palette to match the
+      // dark-v11 style.
+      map.setFog({
+        color: "rgb(16, 22, 35)",
+        "high-color": "rgb(32, 60, 110)",
+        "horizon-blend": 0.04,
+        "space-color": "rgb(11, 11, 25)",
+        "star-intensity": 0.5,
+      });
+
+      // 3D building extrusions. The dark-v11 style ships a
+      // `composite` source with a `building` source-layer; we drape
+      // a fill-extrusion over it at zoom 15+ so the operator gets
+      // skyline context when they tilt the map. We insert this
+      // layer *before* the first symbol layer so road labels stay
+      // legible on top of the buildings, and before the device
+      // circle layers so dots stay on top.
+      if (!map.getLayer(BUILDINGS_LAYER_ID)) {
+        const layers = map.getStyle()?.layers ?? [];
+        const firstSymbolLayer = layers.find(
+          (l) => l.type === "symbol" && (l.layout as { "text-field"?: unknown })?.["text-field"],
+        );
+        map.addLayer(
+          {
+            id: BUILDINGS_LAYER_ID,
+            source: "composite",
+            "source-layer": "building",
+            filter: ["==", "extrude", "true"],
+            type: "fill-extrusion",
+            minzoom: 14,
+            paint: {
+              "fill-extrusion-color": "#1d2738",
+              "fill-extrusion-height": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                15,
+                0,
+                15.05,
+                ["get", "height"],
+              ],
+              "fill-extrusion-base": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                15,
+                0,
+                15.05,
+                ["get", "min_height"],
+              ],
+              "fill-extrusion-opacity": 0.8,
+            },
+          },
+          firstSymbolLayer?.id,
+        );
+      }
+
       if (map.getSource(SOURCE_ID)) return;
       map.addSource(SOURCE_ID, {
         type: "geojson",
@@ -370,6 +450,8 @@ const CLUSTER_COUNT_LAYER_ID = "devices-cluster-count";
 const POINT_LAYER_ID = "devices-points";
 const SELECTED_LAYER_ID = "devices-selected";
 const NO_SELECTION_SENTINEL = "__none__";
+const TERRAIN_SOURCE_ID = "mapbox-dem";
+const BUILDINGS_LAYER_ID = "3d-buildings";
 
 /** Convert devices to a GeoJSON FeatureCollection. Properties carry
  *  the booleans the colour expression switches on plus the id the
