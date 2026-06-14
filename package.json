@@ -7,6 +7,7 @@
     "apps/editor",
     "apps/admin",
     "apps/campus",
+    "apps/mobility",
     "packages/*"
   ],
   "scripts": {
@@ -16,6 +17,7 @@
     "dev:admin": "cd apps/admin && pnpm dev",
     "dev:campus": "cd apps/campus && pnpm dev",
     "build:campus": "pnpm build:packages && cd apps/campus && pnpm build",
+    "build:mobility": "pnpm build:packages && cd apps/mobility && pnpm build",
     "clean": "node scripts/clean.mjs",
     "build": "pnpm -r build --if-present",
     "build:packages": "pnpm -r --filter './packages/*' --workspace-concurrency=1 run build",
@@ -57,6 +59,8 @@
     "vercel:build:website": "pnpm build:website",
     "vercel:build:admin": "pnpm prisma:generate && pnpm --filter @klorad/prisma prisma migrate deploy && pnpm clean && pnpm build:packages && cd apps/admin && pnpm build",
     "vercel:build:campus": "pnpm prisma:generate && pnpm --filter @klorad/prisma prisma migrate deploy && pnpm clean && pnpm build:packages && cd apps/campus && pnpm build",
+    "vercel:build:mobility": "pnpm prisma:generate && pnpm --filter @klorad/prisma prisma migrate deploy && pnpm clean && pnpm build:packages && cd apps/mobility && pnpm build",
+    "dev:mobility": "cd apps/mobility && pnpm dev",
     "postinstall": "pnpm prisma:generate",
     "prepare": "husky || true"
   },
