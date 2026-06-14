@@ -17,9 +17,13 @@ import {
  *  server and client paint, so SSR'ing them produces hydration
  *  mismatch errors. Loading them client-only sidesteps the drift
  *  entirely; the brief skeleton matches their footprint so the
- *  sidebar doesn't reflow when they pop in. */
+ *  sidebar doesn't reflow when they pop in.
+ *
+ *  Imports go through the local `MuiSidebarSlots` wrapper so webpack
+ *  can resolve a stable module specifier — pointing `next/dynamic`
+ *  straight at `@klorad/ui` trips its pnpm-symlinked exports map. */
 const OrganizationSwitcher = dynamic(
-  () => import("@klorad/ui").then((m) => m.OrganizationSwitcher),
+  () => import("./MuiSidebarSlots").then((m) => m.OrganizationSwitcher),
   {
     ssr: false,
     loading: () => (
@@ -28,7 +32,7 @@ const OrganizationSwitcher = dynamic(
   },
 );
 const UserAccountMenu = dynamic(
-  () => import("@klorad/ui").then((m) => m.UserAccountMenu),
+  () => import("./MuiSidebarSlots").then((m) => m.UserAccountMenu),
   {
     ssr: false,
     loading: () => (
