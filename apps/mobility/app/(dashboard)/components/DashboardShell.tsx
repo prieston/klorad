@@ -52,6 +52,7 @@ import {
   ListTodo,
   Megaphone,
   Moon,
+  Radio,
   Settings,
   Sun,
   Users,
@@ -225,6 +226,17 @@ function projectNavGroups(
           href: `${prefix}/alerts`,
           icon: <Bell size={16} strokeWidth={1.7} />,
           active: is("/alerts"),
+        },
+      ],
+    },
+    {
+      label: "Publish",
+      items: [
+        {
+          label: "Worlds",
+          href: `${prefix}/worlds`,
+          icon: <Radio size={16} strokeWidth={1.7} />,
+          active: is("/worlds"),
         },
       ],
     },
