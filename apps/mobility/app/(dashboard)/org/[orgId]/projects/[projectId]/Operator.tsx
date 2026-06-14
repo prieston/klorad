@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
-import mapboxgl, { type Map as MapboxMap, type Marker } from "mapbox-gl";
+import mapboxgl, {
+  type GeoJSONSource,
+  type Map as MapboxMap,
+  type MapMouseEvent,
+} from "mapbox-gl";
 import Link from "next/link";
 import { toast } from "react-toastify";
 import {
@@ -105,7 +109,7 @@ export function Operator({
 
   const mapEl = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
-  const markersRef = useRef<Map<string, Marker>>(new Map());
+  const layersReadyRef = useRef(false);
 
   useEffect(() => {
     if (!mapboxToken || !mapEl.current || mapRef.current) return;
@@ -123,6 +127,141 @@ export function Operator({
     );
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "bottom-right");
     mapRef.current = map;
+
+    /** Add the GeoJSON source + cluster + point + selected layers once
+     *  the style is loaded. GPU-rendered circles instead of HTML
+     *  markers — fixes the "1000+ DOM nodes is slow" + "markers drift
+     *  on projection change" pair. Native clustering means visitors
+     *  see thousands of devices summarised at low zoom and the
+     *  individual rows when they zoom in. */
+    const onLoad = () => {
+      if (map.getSource(SOURCE_ID)) return;
+      map.addSource(SOURCE_ID, {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+        cluster: true,
+        clusterMaxZoom: 14,
+        clusterRadius: 50,
+      });
+      map.addLayer({
+        id: CLUSTER_LAYER_ID,
+        type: "circle",
+        source: SOURCE_ID,
+        filter: ["has", "point_count"],
+        paint: {
+          "circle-color": [
+            "step",
+            ["get", "point_count"],
+            "rgba(96, 165, 250, 0.7)",
+            10,
+            "rgba(52, 211, 153, 0.75)",
+            50,
+            "rgba(250, 204, 21, 0.8)",
+          ],
+          "circle-radius": [
+            "step",
+            ["get", "point_count"],
+            18,
+            10,
+            24,
+            50,
+            32,
+          ],
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "rgba(15, 23, 42, 0.7)",
+        },
+      });
+      map.addLayer({
+        id: CLUSTER_COUNT_LAYER_ID,
+        type: "symbol",
+        source: SOURCE_ID,
+        filter: ["has", "point_count"],
+        layout: {
+          "text-field": ["get", "point_count_abbreviated"],
+          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+          "text-size": 12,
+        },
+        paint: { "text-color": "#ffffff" },
+      });
+      map.addLayer({
+        id: POINT_LAYER_ID,
+        type: "circle",
+        source: SOURCE_ID,
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-color": curationColourExpr(),
+          "circle-radius": 6,
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "rgba(15, 23, 42, 0.7)",
+        },
+      });
+      // Selected highlight: same source, filtered to one id, painted
+      // larger with a white halo for emphasis.
+      map.addLayer({
+        id: SELECTED_LAYER_ID,
+        type: "circle",
+        source: SOURCE_ID,
+        filter: ["==", ["get", "id"], NO_SELECTION_SENTINEL],
+        paint: {
+          "circle-color": curationColourExpr(),
+          "circle-radius": 11,
+          "circle-stroke-width": 3,
+          "circle-stroke-color": "#ffffff",
+        },
+      });
+
+      // Cluster click → zoom to its expansion zoom.
+      map.on("click", CLUSTER_LAYER_ID, (e) => {
+        const features = map.queryRenderedFeatures(e.point, {
+          layers: [CLUSTER_LAYER_ID],
+        });
+        const first = features[0];
+        if (!first?.properties) return;
+        const clusterId = first.properties.cluster_id as number;
+        const source = map.getSource(SOURCE_ID) as GeoJSONSource;
+        source.getClusterExpansionZoom(
+          clusterId,
+          (err: Error | null | undefined, zoom?: number | null) => {
+            if (err || zoom == null) return;
+            const geom = first.geometry as GeoJSON.Geometry;
+            if (geom.type !== "Point") return;
+            const coords = geom.coordinates as [number, number];
+            map.easeTo({ center: coords, zoom });
+          },
+        );
+      });
+
+      // Unclustered point click → select.
+      map.on("click", POINT_LAYER_ID, (e: MapMouseEvent & { features?: unknown[] }) => {
+        const f = e.features?.[0] as
+          | { properties?: { id?: string } }
+          | undefined;
+        const id = f?.properties?.id;
+        if (typeof id === "string") setSelectedId(id);
+      });
+
+      // Cursor affordances on hover.
+      for (const layer of [CLUSTER_LAYER_ID, POINT_LAYER_ID, SELECTED_LAYER_ID]) {
+        map.on("mouseenter", layer, () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", layer, () => {
+          map.getCanvas().style.cursor = "";
+        });
+      }
+
+      layersReadyRef.current = true;
+      // Push initial data in case devices loaded before layers did.
+      const source = map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
+      source?.setData(toGeoJSON(latestDevicesRef.current));
+    };
+
+    if (map.isStyleLoaded()) {
+      onLoad();
+    } else {
+      map.once("load", onLoad);
+    }
+
     const ro = new ResizeObserver(() => map.resize());
     ro.observe(mapEl.current);
     return () => ro.disconnect();
@@ -132,56 +271,30 @@ export function Operator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapboxToken]);
 
-  // Sync markers with the device set on every refresh + curation change.
+  // Keep latest devices accessible from the init effect's late onLoad.
+  const latestDevicesRef = useRef<DeviceRow[]>(devices);
+  latestDevicesRef.current = devices;
+
+  // Push device updates into the GeoJSON source.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    const next = new Map<string, Marker>();
-    for (const d of devices) {
-      if (d.lat == null || d.lng == null) continue;
-      const colour = d.needsReview
-        ? "#facc15"
-        : d.isPublic
-          ? "#34d399"
-          : d.included
-            ? "#60a5fa"
-            : "#94a3b8";
-      const isSelected = d.id === selectedId;
+    if (!map || !layersReadyRef.current) return;
+    const source = map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
+    if (!source) return;
+    source.setData(toGeoJSON(devices));
+  }, [devices]);
 
-      const existing = markersRef.current.get(d.id);
-      if (existing) {
-        // Just move + refresh the element's inner HTML so the marker
-        // stays the same DOM node Mapbox is tracking. Swapping the
-        // whole element (the previous approach) was creating ghost
-        // markers + offset halos because Mapbox kept anchoring the
-        // original.
-        existing.setLngLat([d.lng, d.lat]);
-        paintMarkerEl(existing.getElement(), colour, isSelected, d.customLabel ?? d.name);
-        next.set(d.id, existing);
-        continue;
-      }
-      const el = buildMarkerEl(colour, isSelected, d.customLabel ?? d.name);
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        setSelectedId(d.id);
-      });
-      // `anchor: "center"` makes Mapbox place the *element centre* on
-      // the lat/lng, which is what the visual design assumes. Default
-      // is "bottom" — that's why the dots drifted when zooming /
-      // rotating: the bottom of the box was pinned, not the dot.
-      const marker = new mapboxgl.Marker({
-        element: el,
-        anchor: "center",
-      })
-        .setLngLat([d.lng, d.lat])
-        .addTo(map);
-      next.set(d.id, marker);
-    }
-    for (const [id, marker] of markersRef.current) {
-      if (!next.has(id)) marker.remove();
-    }
-    markersRef.current = next;
-  }, [devices, selectedId]);
+  // Move the selected-highlight filter when selection changes.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !layersReadyRef.current) return;
+    if (!map.getLayer(SELECTED_LAYER_ID)) return;
+    map.setFilter(SELECTED_LAYER_ID, [
+      "==",
+      ["get", "id"],
+      selectedId ?? NO_SELECTION_SENTINEL,
+    ]);
+  }, [selectedId]);
 
   // Pan the map smoothly to a selected marker the first time it lands.
   useEffect(() => {
@@ -223,57 +336,56 @@ export function Operator({
   );
 }
 
-/* ─── Marker helpers ───────────────────────────────────────────────── */
+/* ─── GeoJSON helpers ──────────────────────────────────────────────── */
 
-/** Build a fresh marker element. The container is sized to the halo so
- *  Mapbox's `anchor: "center"` puts the visual centre on the lat/lng.
- *  Both halo + dot are absolute-centred children → they always render
- *  on top of each other, no drift on zoom / rotate. */
-function buildMarkerEl(
-  colour: string,
-  isSelected: boolean,
-  title: string,
-): HTMLElement {
-  const el = document.createElement("div");
-  el.style.cursor = "pointer";
-  paintMarkerEl(el, colour, isSelected, title);
-  return el;
+const SOURCE_ID = "devices";
+const CLUSTER_LAYER_ID = "devices-clusters";
+const CLUSTER_COUNT_LAYER_ID = "devices-cluster-count";
+const POINT_LAYER_ID = "devices-points";
+const SELECTED_LAYER_ID = "devices-selected";
+const NO_SELECTION_SENTINEL = "__none__";
+
+/** Convert devices to a GeoJSON FeatureCollection. Properties carry
+ *  the booleans the colour expression switches on plus the id the
+ *  click handler reads. */
+function toGeoJSON(
+  devices: DeviceRow[],
+): GeoJSON.FeatureCollection<GeoJSON.Point> {
+  return {
+    type: "FeatureCollection",
+    features: devices
+      .filter((d) => d.lat != null && d.lng != null)
+      .map((d) => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [d.lng as number, d.lat as number],
+        },
+        properties: {
+          id: d.id,
+          name: d.customLabel ?? d.name,
+          subsystem: d.subsystem,
+          included: d.included,
+          isPublic: d.isPublic,
+          needsReview: d.needsReview,
+        },
+      })),
+  };
 }
 
-/** Re-paint an existing marker element with a new colour / selection
- *  state. Keeps Mapbox's DOM node stable so the anchor stays correct
- *  and the marker doesn't flicker on every SWR poll. */
-function paintMarkerEl(
-  el: HTMLElement,
-  colour: string,
-  isSelected: boolean,
-  title: string,
-): void {
-  const halo = isSelected ? 26 : 18;
-  const dot = isSelected ? 12 : 10;
-  el.style.width = `${halo}px`;
-  el.style.height = `${halo}px`;
-  el.style.position = "relative";
-  el.title = title;
-  el.innerHTML = `
-    <span style="
-      position:absolute; top:0; left:0;
-      width:${halo}px; height:${halo}px;
-      background:${colour}33;
-      border-radius:9999px;
-      pointer-events:none;
-    "></span>
-    <span style="
-      position:absolute;
-      top:50%; left:50%;
-      transform: translate(-50%, -50%);
-      width:${dot}px; height:${dot}px;
-      background:${colour};
-      border-radius:9999px;
-      box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.65);
-      pointer-events:none;
-    "></span>
-  `;
+/** Mapbox case expression: yellow → green → blue → slate based on
+ *  the same precedence the legend documents. */
+function curationColourExpr(): mapboxgl.ExpressionSpecification {
+  return [
+    "case",
+    ["get", "needsReview"],
+    "#facc15",
+    ["get", "isPublic"],
+    "#34d399",
+    ["get", "included"],
+    "#60a5fa",
+    "#94a3b8",
+  ];
 }
 
 /* ─── Floating top-left legend ─────────────────────────────────────── */
