@@ -24,6 +24,7 @@
     "@klorad/crawler": "workspace:*",
     "@klorad/design-system": "workspace:^",
     "@klorad/prisma": "workspace:*",
+    "@klorad/secrets": "workspace:*",
     "@klorad/storage": "workspace:^",
     "@klorad/ui": "workspace:^",
     "@mappedin/mappedin-js": "^6.19.0",
@@ -36,7 +37,6 @@
     "@types/node": "^20.11.30",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "culori": "^4.0.2",
     "lucide-react": "^1.16.0",
     "mapbox-gl": "^3.9.4",
     "next": "^15.1.9",
@@ -54,7 +54,6 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@types/culori": "^4.0.1",
     "@types/qrcode": "^1.5.6",
     "@types/uuid": "^9.0.8",
     "@types/web-push": "^3.6.4",

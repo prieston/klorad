@@ -3,13 +3,17 @@ import { auth } from "@/auth";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isGodUser } from "@/lib/config/godusers";
+import { KLORAD_APPS, type KloradApp } from "@/app/dashboard/components/appsConfig";
 
 interface RouteParams {
   params: Promise<{ orgId: string }>;
 }
 
-const KNOWN_APPS = ["editor", "campus", "culture"] as const;
-type KnownApp = (typeof KNOWN_APPS)[number];
+/** Single source of truth — adding a new entry to `appsConfig.ts`
+ *  automatically widens both the UI dialog and the API allowlist. */
+const KNOWN_APP_KEYS: ReadonlySet<KloradApp> = new Set(
+  KLORAD_APPS.map((a) => a.key),
+);
 
 /**
  * PATCH: Update organization (currently only the `apps` tag list).
@@ -35,10 +39,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const apps = Array.from(
     new Set(
-      body.apps.filter((v): v is KnownApp =>
-        typeof v === "string" && (KNOWN_APPS as readonly string[]).includes(v)
-      )
-    )
+      body.apps.filter(
+        (v): v is KloradApp =>
+          typeof v === "string" && KNOWN_APP_KEYS.has(v as KloradApp),
+      ),
+    ),
   );
 
   try {

@@ -1,0 +1,47 @@
+{
+  "name": "@klorad/mobility",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20 <23",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "dev": "NODE_ENV=development NEXT_TELEMETRY_DISABLED=1 next dev -p 3004",
+    "build": "next build",
+    "start": "next start -p 3004",
+    "lint": "next lint --fix --dir app"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "^2.11.1",
+    "@klorad/connectors": "workspace:*",
+    "@klorad/design-system": "workspace:^",
+    "@klorad/prisma": "workspace:*",
+    "@klorad/secrets": "workspace:*",
+    "@klorad/storage": "workspace:^",
+    "@klorad/ui": "workspace:^",
+    "@prisma/client": "^5.22.0",
+    "@prisma/extension-accelerate": "^1.0.0",
+    "@types/node": "^20.11.30",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "lucide-react": "^1.16.0",
+    "mapbox-gl": "^3.9.4",
+    "next": "^15.1.9",
+    "next-auth": "5.0.0-beta.30",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "react-toastify": "^11.0.5",
+    "swr": "^2.3.6",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "10.4.20",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "^15.1.9",
+    "postcss": "8.4.47",
+    "tailwindcss": "3.4.14",
+    "typescript": "^5.9.0"
+  }
+}

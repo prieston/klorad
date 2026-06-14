@@ -191,6 +191,12 @@ model Project {
   memberOverrides   ProjectMember[]
   // Agentic crawler jobs scoped to this campus — see @klorad/crawler.
   crawlJobs         CrawlJob[]
+  // Mobility (iNET ATMS, etc.) — per-tenant data sources + their
+  // discovered devices, status history, and operator alerts.
+  mobilityDataSources MobilityDataSource[]
+  mobilityDevices     MobilityDevice[]
+  mobilityDeviceStatuses MobilityDeviceStatus[]
+  mobilityAlerts      MobilityAlert[]
   // Discovered items pending rector review.
   discoveredItems   DiscoveredItem[]
 
@@ -769,4 +775,168 @@ enum DiscoveredItemStatus {
   pending
   approved
   rejected
+}
+
+/// Mobility data source — one per tenant ATMS connection. Holds the
+/// connector id (e.g. "inet-atms"), encrypted credentials, and the
+/// adapter-specific config payload. Configuration that changes the
+/// shape of what's surfaced (enabled subsystems, host) lives here;
+/// per-device curation lives on MobilityDevice.
+///
+/// Credentials are AES-256-GCM ciphertext from @klorad/secrets.
+/// Plaintext never touches the DB or client.
+model MobilityDataSource {
+  id           String   @id @default(cuid())
+  projectId    String
+  /// Connector id the @klorad/connectors registry resolves at runtime.
+  connectorId  String
+  /// Friendly label shown in the data-sources list.
+  label        String
+  /// Adapter-specific config (host, subsystems, mode, etc.) minus
+  /// credentials. Validated against the adapter's Zod schema at
+  /// read time.
+  config       Json     @default("{}")
+  /// AES-256-GCM ciphertext of the credentials payload (JSON-encoded).
+  /// Null when the adapter is in fixture mode and no creds are needed.
+  credentialsEncrypted String?  @db.Text
+  /// Operator toggle — false silences the sync runner.
+  enabled      Boolean  @default(true)
+  /// Seconds between sync runs. Mirrors the adapter config; lifted
+  /// up to the source row so the runner doesn't need to parse `config`
+  /// for the schedule.
+  pollIntervalSeconds Int @default(300)
+  lastSyncedAt DateTime?
+  /// One-line message when the last sync failed.
+  lastError    String?
+  /// Live state of an in-flight sync. NULL = idle.
+  ///   "running" | "done" | "failed"
+  /// Written by the sync runner; read by the polling UI so the
+  /// operator sees pages tick by while the source is large + slow.
+  syncStatus    String?
+  syncStartedAt DateTime?
+  /// JSON: { subsystem, page, seen, inserted, updated, message? }
+  /// Updated after every page so the dashboard can render a real
+  /// progress card instead of a spinner with no signal.
+  syncProgress  Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  devices MobilityDevice[]
+
+  @@index([projectId])
+}
+
+/// A device from a Mobility data source. This is the **catalog cache** —
+/// what the source returned at last sync, plus the tenant's curation
+/// state. Live status + media are pulled on demand and not stored here;
+/// see MobilityDeviceStatus for rolling history.
+///
+/// `(sourceId, externalDeviceId)` is unique so re-syncs upsert instead
+/// of inserting duplicates.
+model MobilityDevice {
+  id               String   @id @default(cuid())
+  projectId        String
+  sourceId         String
+  /// The connector's packed id (e.g. "cctv:24432"). Stable across
+  /// re-syncs, opaque to the framework.
+  externalDeviceId String
+  /// Loose subsystem tag from the adapter (cctv | dms | ...).
+  subsystem        String
+  /// Display name from the source — falls back to the external id.
+  name             String
+  type             String?
+  /// WGS84 coordinates. Null when the source hasn't placed the device.
+  /// The map filters out unplaced rows.
+  lat              Float?
+  lng              Float?
+  primaryRoad      String?
+  crossRoad        String?
+  mileMarker       String?
+  direction        String?
+  routeId          String?
+  agency           String?
+  /// Full normalised payload from the connector, persisted for the
+  /// device drawer (media hints, raw extras) without re-fetching.
+  payload          Json     @default("{}")
+
+  /// Curation — operator decisions, not source data.
+  /// `included` = synced + visible in the operator console.
+  /// `isPublic` = surfaced on the public traveller map.
+  /// Custom label / route override the source-supplied name / routeId.
+  included         Boolean  @default(false)
+  isPublic         Boolean  @default(false)
+  customLabel      String?
+  customRoute      String?
+  groupKey         String?
+
+  /// Sync bookkeeping.
+  lastSeenAt       DateTime @default(now())
+  /// True when the row was returned by the latest sync but the
+  /// operator has not yet curated it. Cleared on first curation
+  /// action (include / reject / public toggle).
+  needsReview      Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project  Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  source   MobilityDataSource   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  statuses MobilityDeviceStatus[]
+  alerts   MobilityAlert[]
+
+  @@unique([sourceId, externalDeviceId])
+  @@index([projectId, included, isPublic])
+  @@index([projectId, needsReview])
+  @@index([sourceId, lastSeenAt])
+}
+
+/// Time-series cache of device status. The ATMS gives us only the
+/// current value, with no history endpoint; this table is what feeds
+/// "offline for N minutes", uptime trends, and the alert heuristics.
+/// Pruned out-of-band by a retention job; the runner only inserts.
+model MobilityDeviceStatus {
+  id          String   @id @default(cuid())
+  projectId   String
+  deviceId    String
+  observedAt  DateTime
+  /// Connectable / viewable / controllable folded into one boolean.
+  online      Boolean
+  /// Free-text alarm description from the source; null when no alarm.
+  alarm       String?
+  /// Adapter-specific extras (DMS message + brightness, CCTV PTZ pos).
+  raw         Json     @default("{}")
+
+  project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  device  MobilityDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, observedAt(sort: Desc)])
+  @@index([projectId, observedAt(sort: Desc)])
+}
+
+/// Operator-visible alert. Derived from MobilityDeviceStatus by the
+/// alert engine (offline-for-X, sustained alarm). Persisted so a
+/// flap doesn't bury a real outage and so acknowledgements survive.
+model MobilityAlert {
+  id              String         @id @default(cuid())
+  projectId       String
+  deviceId        String
+  kind            MobilityAlertKind
+  /// Short, operator-readable summary.
+  message         String
+  openedAt        DateTime       @default(now())
+  /// Set when the device recovers or operator manually clears it.
+  closedAt        DateTime?
+  acknowledgedAt  DateTime?
+  acknowledgedById String?
+
+  project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  device  MobilityDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, closedAt, openedAt(sort: Desc)])
+  @@index([deviceId, openedAt(sort: Desc)])
+}
+
+enum MobilityAlertKind {
+  offline
+  alarmed
 }
