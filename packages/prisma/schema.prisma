@@ -143,62 +143,65 @@ model OrganizationInvite {
 }
 
 model Project {
-  id             String   @id @default(cuid())
-  organizationId String
-  title          String
-  description    String?
+  id                       String   @id @default(cuid())
+  organizationId           String
+  title                    String
+  description              String?
   // sceneData stores your scene's configuration in JSON format.
-  sceneData      Json
-  engine         Engine   @default(three)
+  sceneData                Json
+  engine                   Engine   @default(three)
   // isPublished indicates whether the project is published (can be toggled on/off).
-  isPublished    Boolean  @default(false)
+  isPublished              Boolean  @default(false)
   // isPublic indicates whether the published project requires authentication (false) or is publicly accessible (true).
   // For personal organizations, this is always true (cannot be changed).
-  isPublic       Boolean  @default(true)
+  isPublic                 Boolean  @default(true)
   // publishedUrl could be generated based on the project ID or a slug.
-  publishedUrl   String?
+  publishedUrl             String?
   // thumbnail URL for the project preview image
-  thumbnail      String?
-  thumbnailSize  BigInt? // File size in bytes (for storage calculation)
+  thumbnail                String?
+  thumbnailSize            BigInt? // File size in bytes (for storage calculation)
   /// Per-campus Anthropic API key — AES-256-GCM ciphertext from
   /// lib/secrets.ts. Server reads + decrypts on every /api/assistant
   /// call; falls back to the platform `ANTHROPIC_API_KEY` env var
   /// when null. Never returned to the client — see ai-settings API.
   anthropicApiKeyEncrypted String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
   // A project is owned by an organization.
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization           Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   // Optional relation to assets (if you attach models to a project).
-  assets       Asset[]
+  assets                 Asset[]
   // Activities related to this project
-  activities   Activity[]
+  activities             Activity[]
   // Campus news posts scoped to this project — see lib/news.ts.
-  newsPosts    NewsPost[]
+  newsPosts              NewsPost[]
   // Campus events scoped to this project — see lib/events-db.ts.
-  eventPosts   EventPost[]
+  eventPosts             EventPost[]
   // Student clubs scoped to this project — see lib/clubs-db.ts.
-  clubs        Club[]
+  clubs                  Club[]
   // Cafeterias / cafes scoped to this project — see lib/dining-db.ts.
-  diningLocations DiningLocation[]
+  diningLocations        DiningLocation[]
   // Anonymous push-notification subscribers — see lib/push.ts.
-  pushSubscriptions PushSubscription[]
+  pushSubscriptions      PushSubscription[]
   // Per-campus push broadcast history — see lib/broadcasts.ts.
-  broadcasts        Broadcast[]
+  broadcasts             Broadcast[]
   // Per-campus role overrides — when set, supersede the user's
   // organization role for this specific campus. See lib/authz.ts.
-  memberOverrides   ProjectMember[]
+  memberOverrides        ProjectMember[]
   // Agentic crawler jobs scoped to this campus — see @klorad/crawler.
-  crawlJobs         CrawlJob[]
+  crawlJobs              CrawlJob[]
   // Mobility (iNET ATMS, etc.) — per-tenant data sources + their
   // discovered devices, status history, and operator alerts.
-  mobilityDataSources MobilityDataSource[]
-  mobilityDevices     MobilityDevice[]
+  mobilityDataSources    MobilityDataSource[]
+  mobilityDevices        MobilityDevice[]
   mobilityDeviceStatuses MobilityDeviceStatus[]
-  mobilityAlerts      MobilityAlert[]
+  mobilityAlerts         MobilityAlert[]
+  // Publishable per-stakeholder PWAs — each carves a curated subset
+  // of project devices, with its own slug, theme, and visibility.
+  mobilityWorlds         MobilityWorld[]
   // Discovered items pending rector review.
-  discoveredItems   DiscoveredItem[]
+  discoveredItems        DiscoveredItem[]
 
   // Showcase Relation
   showcaseWorld ShowcaseWorld?
@@ -474,34 +477,34 @@ enum NewsCategory {
 /// EventPost is for admin-authored one-offs and (later) for ICS rows
 /// that get materialised on sync. Anchors mirror NewsPost.
 model EventPost {
-  id              String      @id @default(cuid())
-  organizationId  String
-  projectId       String
-  title           String
+  id                 String      @id @default(cuid())
+  organizationId     String
+  projectId          String
+  title              String
   /// Greek translation of `title`, optional.
-  titleEl         String?
-  description     String      @db.Text
+  titleEl            String?
+  description        String      @db.Text
   /// Greek translation of `description`, optional.
-  descriptionEl   String?     @db.Text
-  imageUrl        String?
-  startsAt        DateTime
-  endsAt          DateTime
-  registrationUrl String?
-  organizer       String?
+  descriptionEl      String?     @db.Text
+  imageUrl           String?
+  startsAt           DateTime
+  endsAt             DateTime
+  registrationUrl    String?
+  organizer          String?
   /// Banner colour for the consumer card — see ConsumerEvent.
-  bannerColor     EventBanner @default(purple)
+  bannerColor        EventBanner @default(purple)
   /// Lucide icon name for the banner.
-  bannerIcon      EventIcon   @default(calendar)
+  bannerIcon         EventIcon   @default(calendar)
   /// Vanity "expected attendance" — admin-set. See campus-consumer-pivot.
   expectedAttendance Int?
-  anchors         Json        @default("[]")
+  anchors            Json        @default("[]")
   /// External id from the source feed — `<feedUrl>::<isoStart>` for ICS rows,
   /// null for admin-authored ones. Used by the sync job to upsert idempotently.
-  externalId      String?
+  externalId         String?
   /// Where the row came from — "ics" / "manual" / null (legacy = manual).
-  source          String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  source             String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -510,7 +513,6 @@ model EventPost {
   /// uniques the (project, externalId) pair only for non-null rows —
   /// exactly the "no double-import" semantics the sync wants.
   @@unique([projectId, externalId])
-
   @@index([projectId, startsAt])
   @@index([organizationId])
 }
@@ -535,19 +537,19 @@ enum EventIcon {
 /// the public site — no auth, no "join," just a View that opens an
 /// external link (Discord / Insta / group chat).
 model Club {
-  id              String     @id @default(cuid())
+  id              String    @id @default(cuid())
   organizationId  String
   projectId       String
   name            String
   /// Greek translation of `name`, optional.
   nameEl          String?
-  description     String     @db.Text
+  description     String    @db.Text
   /// Greek translation of `description`, optional.
-  descriptionEl   String?    @db.Text
+  descriptionEl   String?   @db.Text
   /// Two-letter avatar, e.g. "DS" for Data Science Society.
   initials        String
-  avatarColor     ClubColor  @default(purple)
-  memberCount     Int        @default(0)
+  avatarColor     ClubColor @default(purple)
+  memberCount     Int       @default(0)
   /// Free-text frequency, "Meets Wednesdays at 6 pm."
   meetsCadence    String?
   /// External link the View button opens — Discord, Insta, etc.
@@ -556,10 +558,10 @@ model Club {
   /// Admin-tunable rank for the "most active this week" sort. No
   /// tracking; admin sets the number. Anonymous "interested" signals
   /// in a phase-2 primitive could update this automatically.
-  popularityScore Int        @default(0)
-  anchors         Json       @default("[]")
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  popularityScore Int       @default(0)
+  anchors         Json      @default("[]")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -581,34 +583,34 @@ enum ClubColor {
 /// link + optional cuisine + anchors. No detail page per location;
 /// the public /dining route renders the whole list as cards.
 model DiningLocation {
-  id              String   @id @default(cuid())
-  organizationId  String
-  projectId       String
-  name            String
+  id             String   @id @default(cuid())
+  organizationId String
+  projectId      String
+  name           String
   /// Greek translation of `name`, optional.
-  nameEl          String?
-  description     String   @db.Text
+  nameEl         String?
+  description    String   @db.Text
   /// Greek translation of `description`, optional.
-  descriptionEl   String?  @db.Text
+  descriptionEl  String?  @db.Text
   /// Free-text caveat shown alongside the structured hours below —
   /// e.g. "Closed for finals week" or "Patio seasonal". When the
   /// structured `hours` is null we still display this as the
   /// fallback status copy on the public surface.
-  hoursText       String?
+  hoursText      String?
   /// Structured weekly schedule. Array of
   /// `{ day: 0-6 (Sun..Sat), open: "HH:mm", close: "HH:mm" }`
   /// shifts. Multiple entries per day model split shifts (lunch +
   /// dinner). Drives the "Open now" badge on the public dining list
   /// — see `lib/dining-hours.ts`.
-  hours           Json?
+  hours          Json?
   /// Free text — "Pizza, Salads, Coffee".
-  cuisine         String?
+  cuisine        String?
   /// External link to the menu (PDF, Google Doc, restaurant site).
-  menuUrl         String?
-  imageUrl        String?
-  anchors         Json     @default("[]")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  menuUrl        String?
+  imageUrl       String?
+  anchors        Json     @default("[]")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -743,18 +745,18 @@ enum CrawlJobStatus {
 /// holds the raw JSON the LLM returned, narrowed by content type at
 /// approval time.
 model DiscoveredItem {
-  id          String                @id @default(cuid())
-  projectId   String
-  jobId       String
+  id           String               @id @default(cuid())
+  projectId    String
+  jobId        String
   /// Where the page lived — kept so the rector can click through
   /// to source even after approval.
-  sourceUrl   String
+  sourceUrl    String
   /// `news` | `event` — matches ContentType in @klorad/crawler.
-  contentType String
+  contentType  String
   /// Raw structured payload — shape depends on contentType, narrowed
   /// at approval time by the per-app mapper.
-  extracted   Json
-  status      DiscoveredItemStatus @default(pending)
+  extracted    Json
+  status       DiscoveredItemStatus @default(pending)
   /// When status moves off `pending`, who did it.
   reviewedById String?
   reviewedAt   DateTime?
@@ -762,7 +764,7 @@ model DiscoveredItem {
   /// `EventPost.id`. Free-form so adding new content types in later
   /// phases doesn't require schema changes here.
   publishedAs  String?
-  createdAt    DateTime              @default(now())
+  createdAt    DateTime             @default(now())
 
   project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   job     CrawlJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
@@ -786,40 +788,40 @@ enum DiscoveredItemStatus {
 /// Credentials are AES-256-GCM ciphertext from @klorad/secrets.
 /// Plaintext never touches the DB or client.
 model MobilityDataSource {
-  id           String   @id @default(cuid())
-  projectId    String
+  id                   String    @id @default(cuid())
+  projectId            String
   /// Connector id the @klorad/connectors registry resolves at runtime.
-  connectorId  String
+  connectorId          String
   /// Friendly label shown in the data-sources list.
-  label        String
+  label                String
   /// Adapter-specific config (host, subsystems, mode, etc.) minus
   /// credentials. Validated against the adapter's Zod schema at
   /// read time.
-  config       Json     @default("{}")
+  config               Json      @default("{}")
   /// AES-256-GCM ciphertext of the credentials payload (JSON-encoded).
   /// Null when the adapter is in fixture mode and no creds are needed.
-  credentialsEncrypted String?  @db.Text
+  credentialsEncrypted String?   @db.Text
   /// Operator toggle — false silences the sync runner.
-  enabled      Boolean  @default(true)
+  enabled              Boolean   @default(true)
   /// Seconds between sync runs. Mirrors the adapter config; lifted
   /// up to the source row so the runner doesn't need to parse `config`
   /// for the schedule.
-  pollIntervalSeconds Int @default(300)
-  lastSyncedAt DateTime?
+  pollIntervalSeconds  Int       @default(300)
+  lastSyncedAt         DateTime?
   /// One-line message when the last sync failed.
-  lastError    String?
+  lastError            String?
   /// Live state of an in-flight sync. NULL = idle.
   ///   "running" | "done" | "failed"
   /// Written by the sync runner; read by the polling UI so the
   /// operator sees pages tick by while the source is large + slow.
-  syncStatus    String?
-  syncStartedAt DateTime?
+  syncStatus           String?
+  syncStartedAt        DateTime?
   /// JSON: { subsystem, page, seen, inserted, updated, message? }
   /// Updated after every page so the dashboard can render a real
   /// progress card instead of a spinner with no signal.
-  syncProgress  Json?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  syncProgress         Json?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   project Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   devices MobilityDevice[]
@@ -835,7 +837,7 @@ model MobilityDataSource {
 /// `(sourceId, externalDeviceId)` is unique so re-syncs upsert instead
 /// of inserting duplicates.
 model MobilityDevice {
-  id               String   @id @default(cuid())
+  id               String  @id @default(cuid())
   projectId        String
   sourceId         String
   /// The connector's packed id (e.g. "cctv:24432"). Stable across
@@ -858,31 +860,34 @@ model MobilityDevice {
   agency           String?
   /// Full normalised payload from the connector, persisted for the
   /// device drawer (media hints, raw extras) without re-fetching.
-  payload          Json     @default("{}")
+  payload          Json    @default("{}")
 
   /// Curation — operator decisions, not source data.
   /// `included` = synced + visible in the operator console.
   /// `isPublic` = surfaced on the public traveller map.
   /// Custom label / route override the source-supplied name / routeId.
-  included         Boolean  @default(false)
-  isPublic         Boolean  @default(false)
-  customLabel      String?
-  customRoute      String?
-  groupKey         String?
+  included    Boolean @default(false)
+  isPublic    Boolean @default(false)
+  customLabel String?
+  customRoute String?
+  groupKey    String?
 
   /// Sync bookkeeping.
-  lastSeenAt       DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
   /// True when the row was returned by the latest sync but the
   /// operator has not yet curated it. Cleared on first curation
   /// action (include / reject / public toggle).
-  needsReview      Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  needsReview Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  project  Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  source   MobilityDataSource   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  statuses MobilityDeviceStatus[]
-  alerts   MobilityAlert[]
+  project          Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  source           MobilityDataSource     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  statuses         MobilityDeviceStatus[]
+  alerts           MobilityAlert[]
+  /// Per-world memberships — the same device can appear in any number
+  /// of worlds, so the relation lives in a join table.
+  worldMemberships MobilityWorldDevice[]
 
   @@unique([sourceId, externalDeviceId])
   @@index([projectId, included, isPublic])
@@ -895,16 +900,16 @@ model MobilityDevice {
 /// "offline for N minutes", uptime trends, and the alert heuristics.
 /// Pruned out-of-band by a retention job; the runner only inserts.
 model MobilityDeviceStatus {
-  id          String   @id @default(cuid())
-  projectId   String
-  deviceId    String
-  observedAt  DateTime
+  id         String   @id @default(cuid())
+  projectId  String
+  deviceId   String
+  observedAt DateTime
   /// Connectable / viewable / controllable folded into one boolean.
-  online      Boolean
+  online     Boolean
   /// Free-text alarm description from the source; null when no alarm.
-  alarm       String?
+  alarm      String?
   /// Adapter-specific extras (DMS message + brightness, CCTV PTZ pos).
-  raw         Json     @default("{}")
+  raw        Json     @default("{}")
 
   project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   device  MobilityDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
@@ -917,16 +922,16 @@ model MobilityDeviceStatus {
 /// alert engine (offline-for-X, sustained alarm). Persisted so a
 /// flap doesn't bury a real outage and so acknowledgements survive.
 model MobilityAlert {
-  id              String         @id @default(cuid())
-  projectId       String
-  deviceId        String
-  kind            MobilityAlertKind
+  id               String            @id @default(cuid())
+  projectId        String
+  deviceId         String
+  kind             MobilityAlertKind
   /// Short, operator-readable summary.
-  message         String
-  openedAt        DateTime       @default(now())
+  message          String
+  openedAt         DateTime          @default(now())
   /// Set when the device recovers or operator manually clears it.
-  closedAt        DateTime?
-  acknowledgedAt  DateTime?
+  closedAt         DateTime?
+  acknowledgedAt   DateTime?
   acknowledgedById String?
 
   project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -939,4 +944,142 @@ model MobilityAlert {
 enum MobilityAlertKind {
   offline
   alarmed
+}
+
+/// Mobility "world" — a publishable, stakeholder-facing PWA that
+/// surfaces a curated subset of a project's devices. One project may
+/// fan out into many worlds (e.g. winter ops, public traveller,
+/// internal control room), each with its own slug, theme, visibility,
+/// and (in PR3) its own push-subscription pool.
+///
+/// `slug` is unique within a project and forms the public URL at
+/// `mobility.klorad.com/w/<slug>`. Devices are attached through
+/// MobilityWorldDevice rather than a JSON array so we can filter +
+/// index off the join without scanning every world row.
+model MobilityWorld {
+  id          String                  @id @default(cuid())
+  projectId   String
+  /// URL slug for the public PWA. Stable once published — renaming
+  /// later breaks installed PWAs + push subscriptions, so the operator
+  /// UI gates the field.
+  slug        String
+  /// Display name surfaced in operator console and (default) public
+  /// manifest. Per-world theming may override the public name.
+  name        String
+  /// Short description / pitch shown on the world's home screen.
+  description String?
+  /// Drives visibility checks at `/w/<slug>`. PR4 wires the rules:
+  ///   public         — anyone with the URL
+  ///   linkOnly       — anyone with the URL (default for now)
+  ///   authenticated  — must sign in; org/world membership enforced
+  visibility  MobilityWorldVisibility @default(linkOnly)
+  /// Draft worlds are operator-only. Once `isPublished`, the public
+  /// route + per-world manifest go live per visibility rules.
+  isPublished Boolean                 @default(false)
+  publishedAt DateTime?
+  /// JSON theme bag: { logoUrl, primaryColor, accentColor, copy, ... }.
+  /// Authoritative for the per-world manifest + public chrome. Kept
+  /// loose so PR4 can extend without a migration.
+  theme       Json                    @default("{}")
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  project           Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  devices           MobilityWorldDevice[]
+  /// Anonymous push-notification subscribers — one row per installed
+  /// PWA + per-browser. See lib/mobility/world-push.ts.
+  pushSubscriptions MobilityWorldPushSubscription[]
+  /// Append-only stream of visitor + operator events for the analytics
+  /// panel. See lib/mobility/world-events.ts.
+  events            MobilityWorldEvent[]
+
+  @@unique([projectId, slug])
+  @@index([projectId])
+}
+
+/// Anonymous push-subscription registry for a single world. One row
+/// per browser per device: `endpoint` is unique, so re-subscribing
+/// after a session refresh upserts the same row. The subscription is
+/// scoped to the world's service-worker registration (`/w/<slug>/`),
+/// so unsubscribing from one world doesn't affect any other world the
+/// same browser may have installed.
+///
+/// No PII: `userAgent` is the only metadata we capture, and only so
+/// the operator can see a rough device breakdown in PR5 analytics.
+model MobilityWorldPushSubscription {
+  id             String    @id @default(cuid())
+  worldId        String
+  /// The browser-issued push endpoint URL. Unique across all worlds
+  /// so the same browser can subscribe to many worlds independently.
+  endpoint       String    @unique
+  /// Encryption keys returned by `subscription.getKey(...)` — base64-url
+  /// encoded. Required by RFC 8291 / web-push.
+  p256dh         String
+  auth           String
+  /// Captured from the `User-Agent` header at subscribe time. Loose
+  /// string; never parsed for routing decisions.
+  userAgent      String?
+  createdAt      DateTime  @default(now())
+  /// Bumped whenever a push delivery succeeds. Used by PR5 analytics
+  /// to flag dormant subscriptions for pruning.
+  lastNotifiedAt DateTime?
+
+  world MobilityWorld @relation(fields: [worldId], references: [id], onDelete: Cascade)
+
+  @@index([worldId, createdAt])
+}
+
+/// Join row binding a MobilityDevice into a MobilityWorld. Composite
+/// PK so re-adding is a no-op and removal is a clean two-key delete.
+/// The device side carries no per-membership state today; PR4 may add
+/// per-world overrides (custom label/copy in this world).
+model MobilityWorldDevice {
+  worldId  String
+  deviceId String
+  addedAt  DateTime @default(now())
+
+  world  MobilityWorld  @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  device MobilityDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@id([worldId, deviceId])
+  @@index([deviceId])
+}
+
+enum MobilityWorldVisibility {
+  public
+  linkOnly
+  authenticated
+}
+
+/// Append-only event stream per world. Powers the operator analytics
+/// panel — subscriber counts, install / view trends, broadcast log.
+/// Pruned out-of-band by a retention job once the table grows.
+///
+/// `anonId` is a per-visitor opaque id generated client-side and held
+/// in localStorage — used only for deduping uniques within the
+/// dashboard's "last 7 days" rollups, never for tracking.
+model MobilityWorldEvent {
+  id        String                 @id @default(cuid())
+  worldId   String
+  kind      MobilityWorldEventKind
+  /// Opaque visitor id; null for server-side events like broadcasts.
+  anonId    String?
+  /// Free-form payload — broadcast metadata (attempted / delivered),
+  /// user-agent slice on installs, etc. Kept loose so PR-N can grow
+  /// the schema without a migration.
+  meta      Json?
+  createdAt DateTime               @default(now())
+
+  world MobilityWorld @relation(fields: [worldId], references: [id], onDelete: Cascade)
+
+  @@index([worldId, createdAt(sort: Desc)])
+  @@index([worldId, kind, createdAt(sort: Desc)])
+}
+
+enum MobilityWorldEventKind {
+  view
+  install
+  push_subscribe
+  push_unsubscribe
+  broadcast_sent
 }
