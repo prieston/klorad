@@ -63,6 +63,13 @@ export async function GET(
       };
     }
     const subsystem = device!.subsystem;
+    // Defensive: older rows still hold the packed id `cctv:24432`
+    // from before the runner was fixed. Strip the prefix at URL
+    // build time so the URL panel works even for not-yet-resynced
+    // catalogues.
+    const externalId = device!.externalDeviceId.startsWith(`${subsystem}:`)
+      ? device!.externalDeviceId.slice(subsystem.length + 1)
+      : device!.externalDeviceId;
     const base = `${host}/atms/${subsystem}-rest/rest/${subsystem}`;
     return {
       label: device!.source.label,
@@ -70,13 +77,10 @@ export async function GET(
       host,
       urls: {
         list: `${base}/`,
-        device: `${base}/${device!.externalDeviceId}/`,
+        device: `${base}/${externalId}`,
         // CCTV has no per-id /status endpoint in iNET; null signals
         // that to the UI.
-        status:
-          subsystem === "dms"
-            ? `${base}/${device!.externalDeviceId}/status`
-            : null,
+        status: subsystem === "dms" ? `${base}/${externalId}/status` : null,
       },
     };
   }
@@ -115,7 +119,11 @@ export async function GET(
       config: device.source.config as DataSourceConfigJson,
       credentials: decryptCredentials(device.source.credentialsEncrypted),
     });
-    const packed = `${device.subsystem}:${device.externalDeviceId}`;
+    // Same defensive strip — pre-fix rows have the prefix already.
+    const externalId = device.externalDeviceId.startsWith(`${device.subsystem}:`)
+      ? device.externalDeviceId.slice(device.subsystem.length + 1)
+      : device.externalDeviceId;
+    const packed = `${device.subsystem}:${externalId}`;
     const statuses = await connector.getStatus([packed]);
     const status = statuses[packed] ?? null;
     return NextResponse.json({ status, source });

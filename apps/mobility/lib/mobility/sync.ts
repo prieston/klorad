@@ -152,11 +152,17 @@ export async function runSync(sourceId: string): Promise<SyncResult> {
         agency: string | null;
       }>) {
         seen += 1;
+        // `item.deviceId` is the connector's packed id ("cctv:24432").
+        // `item.externalId` is the raw id ("24432") the upstream API
+        // accepts in its single-device endpoints. Store the raw one
+        // so source-URL building + per-device API calls work out of
+        // the box — the connector framework re-packs on demand.
+        const externalDeviceId = item.externalId;
         const existing = await prisma.mobilityDevice.findUnique({
           where: {
             sourceId_externalDeviceId: {
               sourceId: source.id,
-              externalDeviceId: item.deviceId,
+              externalDeviceId,
             },
           },
           select: { id: true },
@@ -188,7 +194,7 @@ export async function runSync(sourceId: string): Promise<SyncResult> {
               ...data,
               projectId: source.projectId,
               sourceId: source.id,
-              externalDeviceId: item.deviceId,
+              externalDeviceId,
               needsReview: true,
               included: false,
               isPublic: false,
