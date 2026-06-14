@@ -547,39 +547,50 @@ function Legend({ devices }: { devices: DeviceRow[] }) {
   const needsReview = devices.filter((d) => d.needsReview).length;
   const publicCount = devices.filter((d) => d.isPublic).length;
   return (
-    <div className="pointer-events-auto absolute left-4 top-4 max-w-[260px] rounded-2xl border border-line-soft bg-bg/95 p-3 text-xs shadow-sm backdrop-blur">
-      <div className="mb-2 flex items-center gap-2">
-        <Layers size={12} strokeWidth={1.8} className="text-text-tertiary" aria-hidden />
-        <span className="font-medium text-text-primary">
-          {placed.length} / {devices.length} placed
-        </span>
-        {needsReview > 0 && (
-          <span className="rounded-full bg-yellow-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-yellow-600">
-            {needsReview} new
-          </span>
-        )}
-      </div>
-      <ul className="space-y-1">
-        {MARKER_LEGEND.map((row) => (
-          <li
-            key={row.tone}
-            className="flex items-center gap-2 text-[11px] text-text-secondary"
+    <div className="pointer-events-auto absolute left-4 top-4 max-w-[260px] overflow-hidden rounded-2xl border border-line-strong bg-surface-1/95 shadow-[0_8px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+      <div className="border-b border-line-soft bg-accent-soft/40 px-3 py-2">
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-accent text-accent-contrast"
           >
-            <span
-              aria-hidden
-              className="h-2 w-2 shrink-0 rounded-full"
-              style={{
-                backgroundColor: row.colour,
-                boxShadow: `0 0 0 2px ${row.colour}33`,
-              }}
-            />
-            <span className="truncate">{row.label}</span>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-3 border-t border-line-soft pt-2 text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
-        {publicCount} on traveller map
-      </p>
+            <Layers size={11} strokeWidth={2} />
+          </span>
+          <span className="text-xs font-semibold text-text-primary">
+            {placed.length}
+            <span className="text-text-tertiary"> / {devices.length}</span>{" "}
+            <span className="text-text-secondary">placed</span>
+          </span>
+          {needsReview > 0 && (
+            <span className="ml-auto rounded-full bg-yellow-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-700 dark:text-yellow-400">
+              {needsReview} new
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="px-3 py-2.5">
+        <ul className="space-y-1.5">
+          {MARKER_LEGEND.map((row) => (
+            <li
+              key={row.tone}
+              className="flex items-center gap-2 text-[11px] text-text-secondary"
+            >
+              <span
+                aria-hidden
+                className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-bg"
+                style={{
+                  backgroundColor: row.colour,
+                  boxShadow: `0 0 0 1px ${row.colour}80, 0 0 8px ${row.colour}55`,
+                }}
+              />
+              <span className="truncate">{row.label}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 border-t border-line-soft pt-2 text-[10px] font-medium uppercase tracking-[0.2em] text-text-tertiary">
+          <span className="text-text-secondary">{publicCount}</span> on traveller map
+        </p>
+      </div>
     </div>
   );
 }
@@ -590,11 +601,11 @@ function SourcesChip({ href }: { href: string }) {
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-bg/95 px-3.5 py-2 text-xs font-medium text-text-primary shadow-sm backdrop-blur transition-colors hover:border-accent hover:text-accent"
+      className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface-1/95 px-3.5 py-2 text-xs font-semibold text-text-primary shadow-[0_4px_14px_rgba(0,0,0,0.16)] backdrop-blur-xl transition-all hover:border-accent hover:bg-accent-soft hover:text-accent"
     >
-      <Database size={12} strokeWidth={1.8} aria-hidden />
+      <Database size={12} strokeWidth={2} aria-hidden />
       Data sources
-      <ArrowUpRight size={11} strokeWidth={1.8} aria-hidden />
+      <ArrowUpRight size={11} strokeWidth={2} aria-hidden />
     </Link>
   );
 }
@@ -618,17 +629,17 @@ function ConsoleSettingsChip({
         type="button"
         onClick={() => onOpenChange(!open)}
         aria-expanded={open}
-        className={`inline-flex items-center gap-1.5 rounded-full border bg-bg/95 px-3.5 py-2 text-xs font-medium shadow-sm backdrop-blur transition-colors ${
+        className={`inline-flex items-center gap-1.5 rounded-full border bg-surface-1/95 px-3.5 py-2 text-xs font-semibold shadow-[0_4px_14px_rgba(0,0,0,0.16)] backdrop-blur-xl transition-all ${
           open
-            ? "border-accent text-accent"
-            : "border-line-soft text-text-primary hover:border-accent hover:text-accent"
+            ? "border-accent bg-accent-soft text-accent"
+            : "border-line-strong text-text-primary hover:border-accent hover:bg-accent-soft hover:text-accent"
         }`}
       >
-        <Settings size={12} strokeWidth={1.8} aria-hidden />
+        <Settings size={12} strokeWidth={2} aria-hidden />
         Console
       </button>
       {open ? (
-        <div className="mt-2 w-[280px] rounded-2xl border border-line-soft bg-bg/95 p-4 text-xs shadow-md backdrop-blur">
+        <div className="mt-2 w-[280px] overflow-hidden rounded-2xl border border-line-strong bg-surface-1/95 text-xs shadow-[0_12px_36px_rgba(0,0,0,0.22)] backdrop-blur-xl"><div className="p-4">
           {/* Map style */}
           <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.22em] text-text-tertiary">
             <Layers size={11} strokeWidth={1.8} aria-hidden />
@@ -727,14 +738,18 @@ function ConsoleSettingsChip({
             />
           </div>
 
-          {/* Reset */}
-          <button
-            type="button"
-            onClick={() => onChange(DEFAULT_CONSOLE_SETTINGS)}
-            className="mt-4 w-full rounded-md border border-line-soft px-3 py-1.5 text-[11px] font-medium text-text-tertiary transition-colors hover:border-line-strong hover:text-text-primary"
-          >
-            Reset to defaults
-          </button>
+          </div>
+          {/* Reset — sits in its own subtly-tinted footer so the
+              destructive action reads as separate from the toggles. */}
+          <div className="border-t border-line-soft bg-surface-2/40 px-4 py-2.5">
+            <button
+              type="button"
+              onClick={() => onChange(DEFAULT_CONSOLE_SETTINGS)}
+              className="w-full rounded-md px-3 py-1.5 text-[11px] font-semibold text-text-tertiary transition-colors hover:bg-accent-soft hover:text-accent"
+            >
+              Reset to defaults
+            </button>
+          </div>
         </div>
       ) : null}
     </div>

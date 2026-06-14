@@ -70,6 +70,67 @@ function pickHex(value: unknown, fallback: string): string {
   return fallback;
 }
 
+/** Expand `#rgb` → `#rrggbb` so the channel reads below stay uniform. */
+function expandHex(hex: string): string {
+  if (hex.length === 7) return hex;
+  const body = hex.slice(1);
+  return `#${body[0]}${body[0]}${body[1]}${body[1]}${body[2]}${body[2]}`;
+}
+
+interface RGB {
+  r: number;
+  g: number;
+  b: number;
+}
+
+function hexToRgb(hex: string): RGB {
+  const h = expandHex(hex).slice(1);
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+  };
+}
+
+function rgba({ r, g, b }: RGB, a: number): string {
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+/** Perceived brightness — drives the fg/border choice so the operator
+ *  can paint a world bright or dark and the chrome reads either way. */
+function isLight({ r, g, b }: RGB): boolean {
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55;
+}
+
+/**
+ * Derive every chrome colour from the operator's two picks. Returned
+ * as a flat record of CSS custom properties so the viewer can drop
+ * them onto a single style block on `<main>` and every descendant
+ * info-box / button reads them via `var(--w-*)` instead of hard-coded
+ * `text-white` / `bg-black` classes that fight a bright theme.
+ */
+function deriveWorldPalette(bg: string, primary: string): Record<string, string> {
+  const bgRgb = hexToRgb(bg);
+  const primaryRgb = hexToRgb(primary);
+  const light = isLight(bgRgb);
+  const fgBase: RGB = light ? { r: 11, g: 18, b: 32 } : { r: 245, g: 247, b: 250 };
+  const accentContrast: RGB = isLight(primaryRgb)
+    ? { r: 11, g: 18, b: 32 }
+    : { r: 255, g: 255, b: 255 };
+  return {
+    "--w-bg": bg,
+    "--w-fg": rgba(fgBase, 0.95),
+    "--w-fg-soft": rgba(fgBase, 0.72),
+    "--w-fg-muted": rgba(fgBase, 0.5),
+    "--w-border": rgba(fgBase, light ? 0.14 : 0.16),
+    "--w-border-strong": rgba(fgBase, light ? 0.22 : 0.28),
+    "--w-overlay": rgba(fgBase, light ? 0.06 : 0.08),
+    "--w-accent": primary,
+    "--w-accent-soft": rgba(primaryRgb, 0.18),
+    "--w-accent-contrast": rgba(accentContrast, 1),
+  };
+}
+
 function fitToDevices(map: MapboxMap, devices: PublicWorldDevice[]): void {
   const located = devices.filter(
     (d): d is PublicWorldDevice & { lat: number; lng: number } =>
@@ -203,6 +264,10 @@ export function WorldViewer({
   const bg = pickHex(theme.backgroundColor, DEFAULT_BG);
   const logoUrl = typeof theme.logoUrl === "string" ? theme.logoUrl : null;
   const tagline = typeof theme.tagline === "string" ? theme.tagline : null;
+  /** Operator-driven palette as CSS variables. Set once on `<main>`
+   *  so every info box can read `var(--w-fg)` etc. instead of fighting
+   *  hard-coded text-white / bg-black classes. */
+  const paletteStyle = useMemo(() => deriveWorldPalette(bg, primary), [bg, primary]);
 
   const mapEl = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
@@ -363,8 +428,13 @@ export function WorldViewer({
   if (!mapboxToken) {
     return (
       <main
-        className="flex h-[100dvh] w-full items-center justify-center p-8 text-center text-sm text-white"
-        style={{ backgroundColor: bg }}
+        className="flex w-full items-center justify-center p-8 text-center text-sm"
+        style={{
+          height: "100dvh",
+          backgroundColor: bg,
+          color: "var(--w-fg)",
+          ...paletteStyle,
+        }}
       >
         Map is unavailable.
       </main>
@@ -373,16 +443,34 @@ export function WorldViewer({
 
   return (
     <main
-      className="relative h-[100dvh] w-full overflow-hidden"
-      style={{ backgroundColor: bg }}
+      className="relative w-full overflow-hidden"
+      // Inline `height` so the layout doesn't depend on Tailwind's
+      // arbitrary-value JIT picking up `h-[100dvh]` for this route.
+      // Mapbox needs a measurable container before init, and any
+      // height-purge causes the canvas to collapse to 0 — symptom is
+      // a blank screen with the html/body background showing through.
+      //
+      // The `--w-*` palette is plumbed once here so every floating
+      // info box can theme off it without hard-coded colours.
+      style={{ height: "100dvh", backgroundColor: bg, ...paletteStyle }}
     >
-      <div ref={mapEl} className="absolute inset-0" />
+      <div
+        ref={mapEl}
+        className="absolute inset-0"
+        style={{ width: "100%", height: "100%" }}
+      />
 
       {/* World title — top-left card. Kept compact so it doesn't
-          dominate the map; the install prompt + drawer live elsewhere. */}
+          dominate the map; the install prompt + drawer live elsewhere.
+          All colours read from the `--w-*` palette so a light theme
+          renders dark text on a bright card and vice versa. */}
       <header
-        className="pointer-events-none absolute left-4 top-4 max-w-[min(86%,360px)] rounded-2xl border border-white/10 bg-[var(--world-bg)]/85 px-4 py-3 text-white shadow-lg backdrop-blur"
-        style={{ ["--world-bg" as string]: bg }}
+        className="pointer-events-none absolute left-4 top-4 max-w-[min(86%,360px)] rounded-2xl border px-4 py-3 shadow-lg backdrop-blur"
+        style={{
+          borderColor: "var(--w-border)",
+          backgroundColor: "color-mix(in srgb, var(--w-bg) 85%, transparent)",
+          color: "var(--w-fg)",
+        }}
       >
         <div className="flex items-center gap-2">
           {logoUrl ? (
@@ -396,17 +484,23 @@ export function WorldViewer({
               className="h-7 w-7 shrink-0 rounded-md object-cover"
             />
           ) : null}
-          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/60">
+          <p
+            className="text-[10px] font-medium uppercase tracking-[0.22em]"
+            style={{ color: "var(--w-fg-muted)" }}
+          >
             Klorad Mobility
           </p>
         </div>
         <h1 className="mt-1 text-base font-semibold">{name}</h1>
         {tagline || description ? (
-          <p className="mt-1 line-clamp-2 text-xs text-white/70">
+          <p
+            className="mt-1 line-clamp-2 text-xs"
+            style={{ color: "var(--w-fg-soft)" }}
+          >
             {tagline || description}
           </p>
         ) : null}
-        <p className="mt-1.5 text-[11px] text-white/50">
+        <p className="mt-1.5 text-[11px]" style={{ color: "var(--w-fg-muted)" }}>
           <span style={{ color: primary }}>{devices.length}</span> devices ·{" "}
           <code className="font-mono">/w/{slug}</code>
         </p>
@@ -426,7 +520,6 @@ export function WorldViewer({
       <DeviceDrawer
         device={selected}
         primary={primary}
-        bg={bg}
         onClose={() => setSelectedId(null)}
       />
     </main>
@@ -463,8 +556,14 @@ function MapSettingsButton({
         onClick={() => onOpenChange(!open)}
         aria-expanded={open}
         aria-label="Map settings"
-        className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white shadow-lg backdrop-blur transition-colors hover:bg-black/75"
-        style={open ? { borderColor: primary, color: primary } : undefined}
+        className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur transition-colors"
+        style={{
+          borderColor: open ? primary : "var(--w-border-strong)",
+          backgroundColor: open
+            ? "var(--w-accent-soft)"
+            : "color-mix(in srgb, var(--w-bg) 78%, transparent)",
+          color: open ? primary : "var(--w-fg)",
+        }}
         title={`Style: ${styleDef.label}`}
       >
         <Settings size={16} strokeWidth={1.8} aria-hidden />
@@ -484,9 +583,20 @@ function MapSettingsPanel({
 }) {
   const activeStyle = MAP_STYLES[settings.mapStyle];
   return (
-    <div className="pointer-events-auto w-[280px] rounded-2xl border border-white/15 bg-[#0b1220]/95 p-4 text-xs text-white shadow-2xl backdrop-blur">
+    <div
+      className="pointer-events-auto w-[280px] rounded-2xl border p-4 text-xs shadow-2xl backdrop-blur"
+      style={{
+        borderColor: "var(--w-border-strong)",
+        backgroundColor:
+          "color-mix(in srgb, var(--w-bg) 92%, transparent)",
+        color: "var(--w-fg)",
+      }}
+    >
       {/* Style */}
-      <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.22em] text-white/60">
+      <p
+        className="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.22em]"
+        style={{ color: "var(--w-fg-muted)" }}
+      >
         <LayersIcon size={11} strokeWidth={1.8} aria-hidden />
         Style
       </p>
@@ -499,15 +609,29 @@ function MapSettingsPanel({
               type="button"
               aria-pressed={active}
               onClick={() => onChange({ ...settings, mapStyle: key })}
-              className="rounded-md px-1.5 py-2 text-[10px] font-medium text-white/80 transition-colors hover:bg-white/10"
+              className="rounded-md px-1.5 py-2 text-[10px] font-medium transition-colors"
               style={
                 active
-                  ? { backgroundColor: primary, color: "#0b1220" }
-                  : undefined
+                  ? {
+                      backgroundColor: primary,
+                      color: "var(--w-accent-contrast)",
+                    }
+                  : {
+                      color: "var(--w-fg-soft)",
+                      backgroundColor: "transparent",
+                    }
               }
             >
               <span className="block">{def.label}</span>
-              <span className="mt-0.5 block text-[9px] font-normal opacity-70">
+              <span
+                className="mt-0.5 block text-[9px] font-normal"
+                style={{
+                  color: active
+                    ? "var(--w-accent-contrast)"
+                    : "var(--w-fg-muted)",
+                  opacity: active ? 0.85 : 1,
+                }}
+              >
                 {def.description}
               </span>
             </button>
@@ -517,14 +641,21 @@ function MapSettingsPanel({
 
       {/* Light */}
       <p
-        className={`mt-4 mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.22em] ${
-          activeStyle.supportsLightPreset ? "text-white/60" : "text-white/30"
-        }`}
+        className="mt-4 mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.22em]"
+        style={{
+          color: activeStyle.supportsLightPreset
+            ? "var(--w-fg-muted)"
+            : "var(--w-fg-muted)",
+          opacity: activeStyle.supportsLightPreset ? 1 : 0.55,
+        }}
       >
         <Sun size={11} strokeWidth={1.8} aria-hidden />
         Light
         {!activeStyle.supportsLightPreset ? (
-          <span className="ml-1 text-[8px] font-normal normal-case tracking-normal text-white/40">
+          <span
+            className="ml-1 text-[8px] font-normal normal-case tracking-normal"
+            style={{ color: "var(--w-fg-muted)", opacity: 0.75 }}
+          >
             (Standard / Satellite only)
           </span>
         ) : null}
@@ -547,11 +678,17 @@ function MapSettingsPanel({
               aria-pressed={active}
               disabled={disabled}
               onClick={() => onChange({ ...settings, lightPreset: value })}
-              className="flex flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-2 text-[10px] font-medium text-white/80 transition-colors enabled:hover:bg-white/10 disabled:opacity-40"
+              className="flex flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-2 text-[10px] font-medium transition-colors disabled:opacity-40"
               style={
                 active && !disabled
-                  ? { backgroundColor: primary, color: "#0b1220" }
-                  : undefined
+                  ? {
+                      backgroundColor: primary,
+                      color: "var(--w-accent-contrast)",
+                    }
+                  : {
+                      color: "var(--w-fg-soft)",
+                      backgroundColor: "transparent",
+                    }
               }
             >
               <Icon size={13} strokeWidth={1.8} aria-hidden />
@@ -586,7 +723,11 @@ function MapSettingsPanel({
       <button
         type="button"
         onClick={() => onChange(DEFAULT_SETTINGS)}
-        className="mt-3 w-full rounded-md border border-white/15 px-3 py-1.5 text-[11px] font-medium text-white/60 transition-colors hover:border-white/30 hover:text-white/85"
+        className="mt-3 w-full rounded-md border px-3 py-1.5 text-[11px] font-medium transition-colors"
+        style={{
+          borderColor: "var(--w-border)",
+          color: "var(--w-fg-muted)",
+        }}
       >
         Reset to defaults
       </button>
@@ -614,14 +755,22 @@ function PanelToggle({
   return (
     <label
       className={`flex items-center justify-between rounded-md px-2 py-1.5 transition-colors ${
-        disabled ? "opacity-40" : "cursor-pointer hover:bg-white/5"
+        disabled ? "opacity-40" : "cursor-pointer"
       }`}
     >
-      <span className="inline-flex items-center gap-2 text-white/90">
+      <span
+        className="inline-flex items-center gap-2"
+        style={{ color: "var(--w-fg)" }}
+      >
         <Icon size={12} strokeWidth={1.8} aria-hidden />
         {label}
         {disabled && disabledHint ? (
-          <span className="text-[9px] text-white/40">({disabledHint})</span>
+          <span
+            className="text-[9px]"
+            style={{ color: "var(--w-fg-muted)" }}
+          >
+            ({disabledHint})
+          </span>
         ) : null}
       </span>
       <button
@@ -630,16 +779,25 @@ function PanelToggle({
         aria-checked={checked}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-          checked ? "" : "border border-white/25 bg-transparent"
-        }`}
-        style={checked && !disabled ? { backgroundColor: primary } : undefined}
+        className="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors"
+        style={{
+          backgroundColor:
+            checked && !disabled ? primary : "transparent",
+          borderColor:
+            checked && !disabled ? primary : "var(--w-border-strong)",
+        }}
       >
         <span
           aria-hidden
-          className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+          className={`h-4 w-4 rounded-full shadow-sm transition-transform ${
             checked ? "translate-x-4" : "translate-x-0.5"
           }`}
+          style={{
+            backgroundColor:
+              checked && !disabled
+                ? "var(--w-accent-contrast)"
+                : "var(--w-fg-soft)",
+          }}
         />
       </button>
     </label>
@@ -651,12 +809,10 @@ function PanelToggle({
 function DeviceDrawer({
   device,
   primary,
-  bg,
   onClose,
 }: {
   device: PublicWorldDevice | null;
   primary: string;
-  bg: string;
   onClose: () => void;
 }) {
   if (!device) return null;
@@ -669,18 +825,25 @@ function DeviceDrawer({
 
   return (
     <aside
-      className="absolute bottom-0 left-0 right-0 z-10 mx-auto max-w-[640px] rounded-t-2xl border border-white/10 bg-[var(--world-bg)]/95 p-5 text-white shadow-2xl backdrop-blur md:bottom-4 md:left-4 md:right-auto md:w-[360px] md:rounded-2xl"
-      style={{ ["--world-bg" as string]: bg }}
+      className="absolute bottom-0 left-0 right-0 z-10 mx-auto max-w-[640px] rounded-t-2xl border p-5 shadow-2xl backdrop-blur md:bottom-4 md:left-4 md:right-auto md:w-[360px] md:rounded-2xl"
+      style={{
+        borderColor: "var(--w-border)",
+        backgroundColor: "color-mix(in srgb, var(--w-bg) 94%, transparent)",
+        color: "var(--w-fg)",
+      }}
     >
       <div className="flex items-start gap-3">
         <span
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-          style={{ backgroundColor: `${primary}33`, color: primary }}
+          style={{ backgroundColor: "var(--w-accent-soft)", color: primary }}
         >
           <Icon size={16} strokeWidth={1.8} aria-hidden />
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/50">
+          <p
+            className="text-[10px] font-medium uppercase tracking-[0.22em]"
+            style={{ color: "var(--w-fg-muted)" }}
+          >
             {device.subsystem.toUpperCase()}
           </p>
           <h2 className="mt-0.5 truncate text-sm font-semibold">{device.name}</h2>
@@ -689,7 +852,8 @@ function DeviceDrawer({
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="rounded-full p-1 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+          className="rounded-full p-1 transition-colors"
+          style={{ color: "var(--w-fg-muted)" }}
         >
           <ArrowLeft size={14} strokeWidth={1.8} aria-hidden />
         </button>
@@ -724,8 +888,10 @@ function DeviceDrawer({
 function Row({ label, value }: { label: React.ReactNode; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <dt className="text-white/50">{label}</dt>
-      <dd className="truncate font-medium text-white/90">{value}</dd>
+      <dt style={{ color: "var(--w-fg-muted)" }}>{label}</dt>
+      <dd className="truncate font-medium" style={{ color: "var(--w-fg)" }}>
+        {value}
+      </dd>
     </div>
   );
 }
