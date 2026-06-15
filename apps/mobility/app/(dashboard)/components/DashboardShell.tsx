@@ -42,6 +42,7 @@ const UserAccountMenu = dynamic(
 );
 import {
   Bell,
+  Brush,
   Building2,
   ChevronLeft,
   Compass,
@@ -254,6 +255,12 @@ function projectNavGroups(
           href: `${prefix}/identity`,
           icon: <Globe2 size={16} strokeWidth={1.7} />,
           active: is("/identity"),
+        },
+        {
+          label: "Device styles",
+          href: `${prefix}/styles`,
+          icon: <Brush size={16} strokeWidth={1.7} />,
+          active: is("/styles"),
         },
         {
           label: "Members",
