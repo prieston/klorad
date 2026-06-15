@@ -17,7 +17,11 @@ import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireProjectAccess } from "@/lib/authz";
-import { markSyncStarted, runSync } from "@/lib/mobility/sync";
+import {
+  markSyncStarted,
+  recoverStaleSync,
+  runSync,
+} from "@/lib/mobility/sync";
 
 type Params = Promise<{ sourceId: string }>;
 
@@ -44,8 +48,18 @@ export async function POST(
     );
   }
   if (row.syncStatus === "running") {
-    // Idempotent — don't kick off a second sync on top.
-    return NextResponse.json({ started: false, reason: "already running" });
+    // The runner could have died mid-page (Vercel after() budget,
+    // process restart, network drop). When that happens the row
+    // stays "running" forever and the operator's stuck. Detect the
+    // stale state + reset before we treat the second click as "no-op
+    // because already running".
+    const recovered = await recoverStaleSync(sourceId);
+    if (!recovered) {
+      return NextResponse.json({
+        started: false,
+        reason: "already running",
+      });
+    }
   }
   const denied = await requireProjectAccess(row.projectId, "write");
   if (denied) return denied;
