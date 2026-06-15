@@ -65,6 +65,9 @@ export interface MapEnvSettings {
   lightPreset: LightPreset;
   showTerrain: boolean;
   show3dBuildings: boolean;
+  /** Phase 3 — render devices as 3D meshes through the Three.js
+   *  custom layer. When off, the 2D symbol layer carries on. */
+  show3dDevices: boolean;
 }
 
 const TERRAIN_SOURCE_ID = "mapbox-dem";
@@ -130,6 +133,12 @@ export function loadMapEnvSettings(
     // MAP_STYLES, snap back to the default rather than crash on init.
     if (parsed.mapStyle && !(parsed.mapStyle in MAP_STYLES)) {
       delete parsed.mapStyle;
+    }
+    // `show3dDevices` is a Phase-3 addition — older persisted blobs
+    // won't have it. Coerce undefined → false so existing operators
+    // don't get 3D forced on without opting in.
+    if (typeof parsed.show3dDevices !== "boolean") {
+      parsed.show3dDevices = defaults.show3dDevices ?? false;
     }
     return { ...defaults, ...parsed };
   } catch {

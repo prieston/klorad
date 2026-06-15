@@ -69,6 +69,7 @@ export default async function OperatorPage({
       defaultZoom={defaultZoom}
       styleIcons={styleMap.icons}
       customIcons={styleMap.customIcons}
+      styleModels={styleMap.models}
     />
   );
 }
