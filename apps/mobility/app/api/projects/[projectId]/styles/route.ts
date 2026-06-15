@@ -19,11 +19,18 @@ import {
   STOCK_DEVICE_ICONS,
   defaultIconKeyForSubsystem,
 } from "@/lib/mobility/device-icons";
+import {
+  STOCK_DEVICE_MODELS,
+  defaultModelKeyForSubsystem,
+} from "@/lib/mobility/device-models";
 import { listProjectSubsystems } from "@/lib/mobility/device-style-resolver";
 
 type Params = Promise<{ projectId: string }>;
 
 const STOCK_KEYS = new Set(STOCK_DEVICE_ICONS.map((entry) => entry.key));
+const STOCK_MODEL_KEYS = new Set(
+  STOCK_DEVICE_MODELS.map((entry) => entry.key),
+);
 
 export async function GET(
   _req: Request,
@@ -37,15 +44,23 @@ export async function GET(
     listProjectSubsystems(projectId),
     prisma.mobilityDeviceStyle.findMany({
       where: { projectId },
-      select: { subsystem: true, iconKey: true },
+      select: { subsystem: true, iconKey: true, modelKey: true },
     }),
   ]);
 
-  const overrides = new Map(rows.map((r) => [r.subsystem, r.iconKey]));
+  const iconOverrides = new Map(rows.map((r) => [r.subsystem, r.iconKey]));
+  const modelOverrides = new Map(
+    rows
+      .filter((r): r is typeof r & { modelKey: string } => Boolean(r.modelKey))
+      .map((r) => [r.subsystem, r.modelKey]),
+  );
   const styles = subsystems.map((subsystem) => ({
     subsystem,
-    iconKey: overrides.get(subsystem) ?? defaultIconKeyForSubsystem(subsystem),
-    isOverride: overrides.has(subsystem),
+    iconKey:
+      iconOverrides.get(subsystem) ?? defaultIconKeyForSubsystem(subsystem),
+    modelKey:
+      modelOverrides.get(subsystem) ?? defaultModelKeyForSubsystem(subsystem),
+    isOverride: iconOverrides.has(subsystem) || modelOverrides.has(subsystem),
   }));
 
   return NextResponse.json({ styles });
@@ -57,6 +72,9 @@ const PutBody = z.object({
       z.object({
         subsystem: z.string().min(1).max(40),
         iconKey: z.string().min(1).max(60),
+        /** Phase 3 — optional 3D model assignment. Stock-only keys
+         *  in this PR; custom uploads land in Phase 3.5. */
+        modelKey: z.string().min(1).max(60).nullable().optional(),
       }),
     )
     .max(200),
@@ -116,6 +134,16 @@ export async function PUT(
       );
     }
   }
+  // Model keys are stock-only in Phase 3; null clears the assignment.
+  for (const s of parsed.data.styles) {
+    if (s.modelKey === undefined || s.modelKey === null) continue;
+    if (!STOCK_MODEL_KEYS.has(s.modelKey)) {
+      return NextResponse.json(
+        { error: `Unknown modelKey "${s.modelKey}".` },
+        { status: 400 },
+      );
+    }
+  }
 
   await prisma.$transaction([
     prisma.mobilityDeviceStyle.deleteMany({ where: { projectId } }),
@@ -124,6 +152,7 @@ export async function PUT(
         projectId,
         subsystem: s.subsystem,
         iconKey: s.iconKey,
+        modelKey: s.modelKey ?? null,
       })),
     }),
   ]);

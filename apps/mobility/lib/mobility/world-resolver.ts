@@ -47,6 +47,9 @@ export interface PublicWorld {
   /// Subsystem → iconKey resolved from the operator's project-level
   /// `MobilityDeviceStyle` rows. Used by the viewer's symbol layer.
   styleIcons: Record<string, string>;
+  /// Subsystem → 3D modelKey. Used when the visitor turns on the
+  /// "3D devices" toggle.
+  styleModels: Record<string, string>;
   /// Per-id descriptor of every custom upload referenced by the
   /// project's styles. Lets the viewer's loader resolve `custom:<id>`
   /// keys without a second round-trip.
@@ -137,6 +140,7 @@ async function toPublicWorld(world: WorldRecord): Promise<PublicWorld> {
         direction: d.direction,
       })),
     styleIcons: styleMap.icons,
+    styleModels: styleMap.models,
     customIcons: styleMap.customIcons,
   };
 }

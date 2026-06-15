@@ -13,6 +13,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import { defaultIconKeyForSubsystem } from "./device-icons";
+import { defaultModelKeyForSubsystem } from "./device-models";
 
 export interface CustomIconRef {
   id: string;
@@ -24,6 +25,8 @@ export interface CustomIconRef {
 export interface DeviceStyleMap {
   /** Lowercased subsystem → resolved iconKey. */
   icons: Record<string, string>;
+  /** Lowercased subsystem → resolved 3D modelKey. Phase 3. */
+  models: Record<string, string>;
   /** Per-id descriptor of every custom icon currently referenced.
    *  The client loader resolves `custom:<id>` keys against this. */
   customIcons: Record<string, CustomIconRef>;
@@ -53,14 +56,22 @@ export async function resolveDeviceStyles(
     listProjectSubsystems(projectId),
     prisma.mobilityDeviceStyle.findMany({
       where: { projectId },
-      select: { subsystem: true, iconKey: true },
+      select: { subsystem: true, iconKey: true, modelKey: true },
     }),
   ]);
-  const overrides = new Map(rows.map((r) => [r.subsystem, r.iconKey]));
+  const iconOverrides = new Map(rows.map((r) => [r.subsystem, r.iconKey]));
+  const modelOverrides = new Map(
+    rows
+      .filter((r): r is typeof r & { modelKey: string } => Boolean(r.modelKey))
+      .map((r) => [r.subsystem, r.modelKey]),
+  );
   const icons: Record<string, string> = {};
+  const models: Record<string, string> = {};
   for (const subsystem of subsystems) {
     icons[subsystem] =
-      overrides.get(subsystem) ?? defaultIconKeyForSubsystem(subsystem);
+      iconOverrides.get(subsystem) ?? defaultIconKeyForSubsystem(subsystem);
+    models[subsystem] =
+      modelOverrides.get(subsystem) ?? defaultModelKeyForSubsystem(subsystem);
   }
 
   const customIds = Array.from(
@@ -88,5 +99,5 @@ export async function resolveDeviceStyles(
     }
   }
 
-  return { icons, customIcons };
+  return { icons, models, customIcons };
 }
