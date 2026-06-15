@@ -84,10 +84,31 @@ export async function PUT(
     );
   }
 
-  // Phase 1: stock keys only. Phase 2 will widen this when custom
-  // uploads land — we'll resolve `custom:<id>` against an upload
-  // table and accept those too.
+  // Stock keys are accepted as-is. `custom:<id>` references must
+  // resolve to a MobilityCustomIcon row owned by this project — block
+  // any attempt to point at another project's icon.
+  const customRefs = parsed.data.styles
+    .filter((s) => s.iconKey.startsWith("custom:"))
+    .map((s) => s.iconKey.slice("custom:".length));
+  const validCustomIds = new Set<string>();
+  if (customRefs.length) {
+    const rows = await prisma.mobilityCustomIcon.findMany({
+      where: { projectId, id: { in: customRefs } },
+      select: { id: true },
+    });
+    for (const r of rows) validCustomIds.add(r.id);
+  }
   for (const s of parsed.data.styles) {
+    if (s.iconKey.startsWith("custom:")) {
+      const id = s.iconKey.slice("custom:".length);
+      if (!validCustomIds.has(id)) {
+        return NextResponse.json(
+          { error: `Custom icon "${id}" is not part of this project.` },
+          { status: 400 },
+        );
+      }
+      continue;
+    }
     if (!STOCK_KEYS.has(s.iconKey)) {
       return NextResponse.json(
         { error: `Unknown iconKey "${s.iconKey}".` },
