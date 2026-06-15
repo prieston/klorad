@@ -54,6 +54,39 @@ export interface SyncProgress {
   message?: string;
 }
 
+/** Any sync still marked `running` after this many ms is assumed
+ *  dead (Vercel `after()` budget exceeded mid-page). The route resets
+ *  it before kicking off a fresh run instead of leaving the operator
+ *  permanently stuck. */
+export const STALE_SYNC_AFTER_MS = 10 * 60 * 1000;
+
+/**
+ * Treat a source's sync as stale if it has been "running" longer than
+ * the after() budget could plausibly cover. Flips the row back to
+ * `failed` so the caller can start a fresh run.
+ */
+export async function recoverStaleSync(sourceId: string): Promise<boolean> {
+  const row = await prisma.mobilityDataSource.findUnique({
+    where: { id: sourceId },
+    select: { syncStatus: true, syncStartedAt: true },
+  });
+  if (row?.syncStatus !== "running") return false;
+  if (
+    row.syncStartedAt &&
+    Date.now() - row.syncStartedAt.getTime() < STALE_SYNC_AFTER_MS
+  ) {
+    return false;
+  }
+  await prisma.mobilityDataSource.update({
+    where: { id: sourceId },
+    data: {
+      syncStatus: "failed",
+      lastError: "Previous sync was killed mid-run (server budget exceeded).",
+    },
+  });
+  return true;
+}
+
 /**
  * Mark a source as starting a sync. Returns immediately so the POST
  * endpoint can hand control back to the client before the actual work
@@ -136,8 +169,12 @@ export async function runSync(sourceId: string): Promise<SyncResult> {
         (page.items as ReadonlyArray<{ subsystem: string }>)[0]?.subsystem ??
         null;
 
-      for (const item of page.items as ReadonlyArray<{
-        deviceId: string;
+      // Bulk-upsert the page: 1 query to discover what already exists,
+      // 1 `createMany` for new rows, parallel chunked updates for the
+      // rest. Drops per-page cost from O(N) sequential roundtrips
+      // (~30s for 200 items via Accelerate) to ~1s, so subsequent
+      // pages + subsystems actually finish inside the after() budget.
+      type PageItem = {
         externalId: string;
         subsystem: string;
         name: string;
@@ -150,23 +187,39 @@ export async function runSync(sourceId: string): Promise<SyncResult> {
         direction: string | null;
         routeId: string | null;
         agency: string | null;
-      }>) {
-        seen += 1;
-        // `item.deviceId` is the connector's packed id ("cctv:24432").
-        // `item.externalId` is the raw id ("24432") the upstream API
-        // accepts in its single-device endpoints. Store the raw one
-        // so source-URL building + per-device API calls work out of
-        // the box — the connector framework re-packs on demand.
-        const externalDeviceId = item.externalId;
-        const existing = await prisma.mobilityDevice.findUnique({
-          where: {
-            sourceId_externalDeviceId: {
-              sourceId: source.id,
-              externalDeviceId,
-            },
-          },
-          select: { id: true },
+      };
+      const items = page.items as ReadonlyArray<PageItem>;
+      seen += items.length;
+      if (items.length === 0) {
+        await writeProgress({
+          subsystem: subsystemOfPage,
+          page: pageIdx,
+          seen,
+          inserted,
+          updated,
+          message: `Page ${pageIdx} · 0 items`,
         });
+        continue;
+      }
+
+      const externalIds = items.map((i) => i.externalId);
+      const existingRows = await prisma.mobilityDevice.findMany({
+        where: {
+          sourceId: source.id,
+          externalDeviceId: { in: externalIds },
+        },
+        select: { id: true, externalDeviceId: true },
+      });
+      const existingIdByExternal = new Map(
+        existingRows.map((r) => [r.externalDeviceId, r.id]),
+      );
+
+      const toCreate: Array<Prisma.MobilityDeviceCreateManyInput> = [];
+      const toUpdate: Array<{
+        id: string;
+        data: Prisma.MobilityDeviceUpdateInput;
+      }> = [];
+      for (const item of items) {
         const data = {
           name: item.name,
           type: item.type,
@@ -182,26 +235,53 @@ export async function runSync(sourceId: string): Promise<SyncResult> {
           payload: item as unknown as Prisma.InputJsonValue,
           lastSeenAt: new Date(),
         };
-        if (existing) {
-          await prisma.mobilityDevice.update({
-            where: { id: existing.id },
-            data,
-          });
-          updated += 1;
+        const existingId = existingIdByExternal.get(item.externalId);
+        if (existingId) {
+          // Re-sync rule: refresh source-driven fields, never touch
+          // operator decisions (included / isPublic / customLabel /
+          // customRoute / groupKey / needsReview). The latter stays
+          // sticky across syncs by design.
+          toUpdate.push({ id: existingId, data });
         } else {
-          await prisma.mobilityDevice.create({
-            data: {
-              ...data,
-              projectId: source.projectId,
-              sourceId: source.id,
-              externalDeviceId,
-              needsReview: true,
-              included: false,
-              isPublic: false,
-            },
+          toCreate.push({
+            ...data,
+            projectId: source.projectId,
+            sourceId: source.id,
+            // `item.deviceId` is the connector's packed id
+            // ("cctv:24432"). We store the raw one so source-URL
+            // building + per-device API calls work out of the box —
+            // the connector framework re-packs on demand.
+            externalDeviceId: item.externalId,
+            needsReview: true,
+            included: false,
+            isPublic: false,
           });
-          inserted += 1;
         }
+      }
+
+      if (toCreate.length) {
+        await prisma.mobilityDevice.createMany({
+          data: toCreate,
+          skipDuplicates: true,
+        });
+        inserted += toCreate.length;
+      }
+      if (toUpdate.length) {
+        // Chunk parallel updates so we don't blow past Accelerate's
+        // connection pool on a wide page.
+        const CHUNK = 25;
+        for (let i = 0; i < toUpdate.length; i += CHUNK) {
+          const slice = toUpdate.slice(i, i + CHUNK);
+          await Promise.all(
+            slice.map((u) =>
+              prisma.mobilityDevice.update({
+                where: { id: u.id },
+                data: u.data,
+              }),
+            ),
+          );
+        }
+        updated += toUpdate.length;
       }
 
       // Per-page progress write — cheap enough at one row per ~30s.
