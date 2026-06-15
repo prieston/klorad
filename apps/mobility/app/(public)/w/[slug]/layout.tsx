@@ -26,10 +26,30 @@ export async function generateMetadata({
   const { slug } = await params;
   const world = await loadPublicWorldBySlug(slug);
   if (!world) return { title: "Not found" };
+
+  // iOS ignores manifest icons for home-screen installs — it reads
+  // `<link rel="apple-touch-icon">` instead. Without an explicit
+  // apple entry, Next.js falls back to `app/icon.png` (the PSMdt
+  // mark) and the world's branded logo never lands. Plumb the
+  // world's logoUrl into both icon channels so Android (manifest +
+  // browser tab) and iOS (apple-touch-icon + home screen) all paint
+  // the same brand. SVG vs PNG is handled in the manifest route;
+  // the apple channel accepts either.
+  const logoUrl =
+    typeof world.theme.logoUrl === "string" ? world.theme.logoUrl : null;
+  const icons: Metadata["icons"] = logoUrl
+    ? {
+        icon: [{ url: logoUrl }],
+        shortcut: [{ url: logoUrl }],
+        apple: [{ url: logoUrl, sizes: "180x180" }],
+      }
+    : undefined;
+
   return {
     title: world.name,
     description: world.description ?? `${world.name} — live traffic + transit.`,
     manifest: `/w/${slug}/manifest.webmanifest`,
+    icons,
     appleWebApp: {
       capable: true,
       statusBarStyle: "default",

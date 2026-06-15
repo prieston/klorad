@@ -19,6 +19,18 @@ function truncate(value: string, max: number): string {
   return value.length <= max ? value : value.slice(0, max - 1).trimEnd() + "…";
 }
 
+/** Strip query string / fragment and take the extension for MIME
+ *  detection. URLs from DO Spaces sometimes carry signed-URL params,
+ *  but the file extension is stable. */
+function mimeFromUrl(url: string): string | null {
+  const cleaned = url.split(/[?#]/)[0].toLowerCase();
+  if (cleaned.endsWith(".svg")) return "image/svg+xml";
+  if (cleaned.endsWith(".png")) return "image/png";
+  if (cleaned.endsWith(".jpg") || cleaned.endsWith(".jpeg")) return "image/jpeg";
+  if (cleaned.endsWith(".webp")) return "image/webp";
+  return null;
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: Params },
@@ -37,20 +49,47 @@ export async function GET(
     : "#0b1220";
   const logo = typeof world.theme.logoUrl === "string" ? world.theme.logoUrl : null;
 
-  // Browsers want at least one ≥192px icon for the install prompt.
-  // The world's uploaded logo (if any) is preferred; we declare
-  // `sizes: "any"` so a non-square upload still installs. The Klorad
-  // mark stays as a fallback so installability holds before the
-  // operator uploads custom branding (theming arrives in PR4).
+  // Chrome's install checker silently drops icons that don't declare
+  // a `type` matching the file, and `sizes: "any"` is only valid for
+  // SVG. Without those, the world's uploaded logo gets skipped and
+  // the install falls through to the PSM fallback — which is exactly
+  // the regression operators have been hitting after switching from
+  // SVG to PNG uploads.
+  //
+  // We claim space-separated 192x192/512x512 on raster uploads so
+  // Chrome picks the right size for both the install prompt and the
+  // splash screen, regardless of the upload's actual pixel dims.
+  // `purpose: "any maskable"` lets Android use it as an adaptive icon
+  // (Pixel/Samsung rounded squircles) without rejecting non-square
+  // sources.
   const icons: Array<{ src: string; sizes: string; type?: string; purpose?: string }> = [];
   if (logo) {
-    icons.push({ src: logo, sizes: "any", purpose: "any" });
+    const mime = mimeFromUrl(logo);
+    if (mime === "image/svg+xml") {
+      icons.push({
+        src: logo,
+        sizes: "any",
+        type: mime,
+        purpose: "any maskable",
+      });
+    } else if (mime) {
+      icons.push({
+        src: logo,
+        sizes: "192x192 512x512",
+        type: mime,
+        purpose: "any maskable",
+      });
+    } else {
+      // Unknown extension — give the browser something to try; Chrome
+      // is forgiving when `type` is omitted on a generic entry.
+      icons.push({ src: logo, sizes: "192x192 512x512", purpose: "any" });
+    }
   }
   icons.push({
     src: "/psm-mark.png",
-    sizes: "any",
+    sizes: "192x192 512x512",
     type: "image/png",
-    purpose: "any",
+    purpose: "any maskable",
   });
 
   const manifest = {
