@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import mapboxgl, {
   type GeoJSONSource,
@@ -46,6 +46,11 @@ import {
   type MapStyleKey,
 } from "@/lib/mobility/map-settings";
 import { loadDeviceIconsIntoMap } from "@/lib/mobility/load-device-icons";
+import {
+  createThreeDeviceLayer,
+  THREE_DEVICE_LAYER_ID,
+  type ThreeDeviceLayer,
+} from "@/lib/mobility/three-device-layer";
 
 interface DeviceRow {
   id: string;
@@ -119,6 +124,7 @@ export function Operator({
   defaultZoom,
   styleIcons,
   customIcons,
+  styleModels,
 }: {
   projectId: string;
   mapboxToken: string | null;
@@ -131,6 +137,8 @@ export function Operator({
   /** Per-id descriptor of the project's custom uploads, so the
    *  icon loader can fetch + rasterise them on map init. */
   customIcons: Record<string, import("@/lib/mobility/device-style-resolver").CustomIconRef>;
+  /** Subsystem → 3D modelKey, pre-resolved server-side. Phase 3. */
+  styleModels: Record<string, string>;
 }) {
   const { data, mutate } = useSWR<DevicesResponse>(
     `/api/projects/${projectId}/devices`,
@@ -179,6 +187,13 @@ export function Operator({
    *  upload reaches the next map init without a remount. */
   const customIconsRef = useRef(customIcons);
   customIconsRef.current = customIcons;
+  /** Persistent reference to the Three.js custom layer so we can
+   *  push device updates without rebuilding the WebGL context. */
+  const threeLayerRef = useRef<ThreeDeviceLayer | null>(null);
+  /** Latest subsystem → modelKey mapping, read inside the layer's
+   *  resolver callback. */
+  const modelMapRef = useRef<Record<string, string>>(styleModels);
+  modelMapRef.current = styleModels;
   /** Latest style key the map is showing — keyed off settings so we
    *  only fire `setStyle` when the operator actually picks a new
    *  style, not on every light / terrain toggle. */
@@ -448,6 +463,73 @@ export function Operator({
     }
   }, [styleIcons]);
 
+  /** Three.js device layer — mount when the operator turns
+   *  `show3dDevices` on, unmount when off. The layer reads device
+   *  data + the model resolver from refs so it stays in sync with
+   *  device updates without remounting WebGL. */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const want = settings.show3dDevices;
+    const have = Boolean(threeLayerRef.current);
+    if (want && !have) {
+      const apply = () => {
+        if (!map.isStyleLoaded()) {
+          map.once("idle", apply);
+          return;
+        }
+        const layer = createThreeDeviceLayer();
+        threeLayerRef.current = layer;
+        try {
+          map.addLayer(layer);
+        } catch {
+          /* race with style swap — re-mount on next idle */
+        }
+        pushDevicesToThreeLayer();
+      };
+      apply();
+    } else if (!want && have) {
+      try {
+        if (map.getLayer(THREE_DEVICE_LAYER_ID)) {
+          map.removeLayer(THREE_DEVICE_LAYER_ID);
+        }
+      } catch {
+        /* already gone */
+      }
+      threeLayerRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.show3dDevices]);
+
+  /** Push the latest curated devices into the 3D layer when devices
+   *  or the model mapping change. */
+  const pushDevicesToThreeLayer = useCallback(() => {
+    const layer = threeLayerRef.current;
+    if (!layer) return;
+    const located = latestDevicesRef.current.filter(
+      (d): d is DeviceRow & { lat: number; lng: number } =>
+        d.lat != null && d.lng != null,
+    );
+    layer.setDevices(
+      located.map((d) => ({
+        id: d.id,
+        lat: d.lat,
+        lng: d.lng,
+        subsystem: d.subsystem,
+      })),
+      (subsystem) =>
+        modelMapRef.current[subsystem] ?? "model-generic",
+    );
+  }, []);
+
+  useEffect(() => {
+    pushDevicesToThreeLayer();
+  }, [devices, styleModels, pushDevicesToThreeLayer]);
+
+  useEffect(() => {
+    threeLayerRef.current?.setHighlight(selectedId);
+  }, [selectedId]);
+
   /** Style swap — heavier than a config-property update; `setStyle`
    *  wipes user layers, so we re-attach via `setupLayersRef`. Gated
    *  on the diff to avoid re-running on every light / terrain toggle. */
@@ -555,6 +637,7 @@ const DEFAULT_CONSOLE_SETTINGS: ConsoleSettings = {
   lightPreset: "night",
   showTerrain: true,
   show3dBuildings: true,
+  show3dDevices: false,
 };
 
 function settingsStorageKey(projectId: string): string {
@@ -818,6 +901,14 @@ function ConsoleSettingsChip({
               }
               disabled={!MAP_STYLES[settings.mapStyle].supports3dObjects}
               disabledHint="Standard / Satellite only"
+            />
+            <SettingsToggleRow
+              icon={Compass}
+              label="3D devices"
+              checked={settings.show3dDevices}
+              onChange={(show3dDevices) =>
+                onChange({ ...settings, show3dDevices })
+              }
             />
           </div>
 

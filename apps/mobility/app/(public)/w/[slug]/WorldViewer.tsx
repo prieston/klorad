@@ -32,6 +32,11 @@ import {
   type MapStyleKey,
 } from "@/lib/mobility/map-settings";
 import { loadDeviceIconsIntoMap } from "@/lib/mobility/load-device-icons";
+import {
+  createThreeDeviceLayer,
+  THREE_DEVICE_LAYER_ID,
+  type ThreeDeviceLayer,
+} from "@/lib/mobility/three-device-layer";
 import { PushOptIn } from "./PushOptIn";
 
 interface Props {
@@ -46,6 +51,9 @@ interface Props {
   styleIcons: Record<string, string>;
   /** Per-id descriptor of custom uploads referenced by the project. */
   customIcons: Record<string, import("@/lib/mobility/device-style-resolver").CustomIconRef>;
+  /** Subsystem → 3D modelKey. Phase 3 — used when the visitor turns
+   *  on the "3D devices" toggle. */
+  styleModels: Record<string, string>;
 }
 
 const DEFAULT_PRIMARY = "#0ea5e9";
@@ -63,6 +71,7 @@ const DEFAULT_SETTINGS: MapEnvSettings = {
   lightPreset: "day",
   showTerrain: false,
   show3dBuildings: true,
+  show3dDevices: false,
 };
 
 function settingsStorageKey(slug: string): string {
@@ -303,6 +312,7 @@ export function WorldViewer({
   mapboxToken,
   styleIcons,
   customIcons,
+  styleModels,
 }: Props) {
   const primary = pickHex(theme.primaryColor, DEFAULT_PRIMARY);
   const bg = pickHex(theme.backgroundColor, DEFAULT_BG);
@@ -376,6 +386,30 @@ export function WorldViewer({
   latestIconExpressionRef.current = iconExpression;
   const customIconsRef = useRef(customIcons);
   customIconsRef.current = customIcons;
+  const styleModelsRef = useRef(styleModels);
+  styleModelsRef.current = styleModels;
+  const threeLayerRef = useRef<ThreeDeviceLayer | null>(null);
+
+  /** Push the world's curated devices into the Three.js layer using
+   *  the resolved per-subsystem model map. */
+  const pushDevicesTo3d = useCallback(() => {
+    const layer = threeLayerRef.current;
+    if (!layer) return;
+    const located = devices.filter(
+      (d): d is PublicWorldDevice & { lat: number; lng: number } =>
+        d.lat != null && d.lng != null,
+    );
+    layer.setDevices(
+      located.map((d) => ({
+        id: d.id,
+        lat: d.lat,
+        lng: d.lng,
+        subsystem: d.subsystem,
+      })),
+      (subsystem) => styleModelsRef.current[subsystem] ?? "model-generic",
+    );
+    layer.setAccent(primary);
+  }, [devices, primary]);
 
   const attachLayers = useCallback(
     (map: MapboxMap) => {
@@ -468,6 +502,49 @@ export function WorldViewer({
       /* style swap in-flight */
     }
   }, [iconExpression]);
+
+  /** 3D device layer — mount/unmount with the visitor's setting. */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const want = settings.show3dDevices;
+    const have = Boolean(threeLayerRef.current);
+    if (want && !have) {
+      const apply = () => {
+        if (!map.isStyleLoaded()) {
+          map.once("idle", apply);
+          return;
+        }
+        const layer = createThreeDeviceLayer();
+        threeLayerRef.current = layer;
+        try {
+          map.addLayer(layer);
+        } catch {
+          /* race with style swap — retry on next idle */
+        }
+        pushDevicesTo3d();
+      };
+      apply();
+    } else if (!want && have) {
+      try {
+        if (map.getLayer(THREE_DEVICE_LAYER_ID)) {
+          map.removeLayer(THREE_DEVICE_LAYER_ID);
+        }
+      } catch {
+        /* already gone */
+      }
+      threeLayerRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.show3dDevices]);
+
+  useEffect(() => {
+    pushDevicesTo3d();
+  }, [pushDevicesTo3d]);
+
+  useEffect(() => {
+    threeLayerRef.current?.setHighlight(selectedId);
+  }, [selectedId]);
 
   // Light + terrain + 3D — cheap config updates, no reload.
   useEffect(() => {
@@ -789,6 +866,15 @@ function MapSettingsPanel({
           }
           disabled={!activeStyle.supports3dObjects}
           disabledHint="Standard / Satellite only"
+          primary={primary}
+        />
+        <PanelToggle
+          icon={Box}
+          label="3D devices"
+          checked={settings.show3dDevices}
+          onChange={(show3dDevices) =>
+            onChange({ ...settings, show3dDevices })
+          }
           primary={primary}
         />
       </div>

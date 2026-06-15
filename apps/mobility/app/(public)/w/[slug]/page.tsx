@@ -47,6 +47,7 @@ export default async function WorldPublicPage({
       mapboxToken={process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ?? null}
       styleIcons={world.styleIcons}
       customIcons={world.customIcons}
+      styleModels={world.styleModels}
     />
   );
 }
