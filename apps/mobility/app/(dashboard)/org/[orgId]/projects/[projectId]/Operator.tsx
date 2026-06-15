@@ -45,6 +45,7 @@ import {
   type MapEnvSettings,
   type MapStyleKey,
 } from "@/lib/mobility/map-settings";
+import { loadDeviceIconsIntoMap } from "@/lib/mobility/load-device-icons";
 
 interface DeviceRow {
   id: string;
@@ -116,12 +117,16 @@ export function Operator({
   sourcesHref,
   defaultCentre,
   defaultZoom,
+  styleIcons,
 }: {
   projectId: string;
   mapboxToken: string | null;
   sourcesHref: string;
   defaultCentre: { lat: number; lng: number };
   defaultZoom: number;
+  /** Subsystem → iconKey, pre-resolved server-side so the symbol
+   *  layer's `icon-image` expression is ready before first paint. */
+  styleIcons: Record<string, string>;
 }) {
   const { data, mutate } = useSWR<DevicesResponse>(
     `/api/projects/${projectId}/devices`,
@@ -156,6 +161,16 @@ export function Operator({
    *  and re-invoked from the style-swap effect after `setStyle` wipes
    *  the previous style's user layers. */
   const setupLayersRef = useRef<(() => void) | null>(null);
+  /** `icon-image` expression rebuilt whenever the operator changes a
+   *  subsystem's icon. The layer setup reads it via the ref so a
+   *  re-attach after style swap picks up the latest mapping. */
+  const deviceIconExpressionRef = useRef<mapboxgl.ExpressionSpecification>(
+    buildIconExpression(styleIcons),
+  );
+  deviceIconExpressionRef.current = useMemo(
+    () => buildIconExpression(styleIcons),
+    [styleIcons],
+  );
   /** Latest style key the map is showing — keyed off settings so we
    *  only fire `setStyle` when the operator actually picks a new
    *  style, not on every light / terrain toggle. */
@@ -267,20 +282,8 @@ export function Operator({
         },
         paint: { "text-color": "#ffffff" },
       });
-      map.addLayer({
-        id: POINT_LAYER_ID,
-        type: "circle",
-        source: SOURCE_ID,
-        filter: ["!", ["has", "point_count"]],
-        paint: {
-          "circle-color": curationColourExpr(),
-          "circle-radius": 6,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "rgba(15, 23, 42, 0.7)",
-        },
-      });
-      // Selected highlight: same source, filtered to one id, painted
-      // larger with a white halo for emphasis.
+      // Selection halo — drawn *under* the symbol so the icon sits
+      // crisply inside a soft glow when the operator picks a device.
       map.addLayer({
         id: SELECTED_LAYER_ID,
         type: "circle",
@@ -288,9 +291,40 @@ export function Operator({
         filter: ["==", ["get", "id"], NO_SELECTION_SENTINEL],
         paint: {
           "circle-color": curationColourExpr(),
-          "circle-radius": 11,
-          "circle-stroke-width": 3,
-          "circle-stroke-color": "#ffffff",
+          "circle-radius": 14,
+          "circle-opacity": 0.25,
+          "circle-stroke-width": 2,
+          "circle-stroke-color": curationColourExpr(),
+        },
+      });
+      // Device markers — SDF icons tinted with the curation colour.
+      // Falls back to `device-generic` when the operator hasn't
+      // styled a subsystem yet, so unknown classes still render.
+      map.addLayer({
+        id: POINT_LAYER_ID,
+        type: "symbol",
+        source: SOURCE_ID,
+        filter: ["!", ["has", "point_count"]],
+        layout: {
+          "icon-image": deviceIconExpressionRef.current,
+          "icon-size": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            8,
+            0.18,
+            12,
+            0.28,
+            16,
+            0.42,
+          ],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+        },
+        paint: {
+          "icon-color": curationColourExpr(),
+          "icon-halo-color": "rgba(15, 23, 42, 0.55)",
+          "icon-halo-width": 1.5,
         },
       });
 
@@ -341,12 +375,12 @@ export function Operator({
     };
     setupLayersRef.current = setupLayers;
 
-    /** Initial style ready hook — apply env settings, then bring up
-     *  the device layers. Subsequent style swaps go through the
-     *  effect below. */
+    /** Initial style ready hook — apply env settings, register the
+     *  stock icon images, then bring up the device layers. Subsequent
+     *  style swaps go through the effect below. */
     const onLoad = () => {
       applyConsoleSettings(map, latestSettingsRef.current);
-      setupLayers();
+      void loadDeviceIconsIntoMap(map).then(() => setupLayers());
     };
 
     if (map.isStyleLoaded()) {
@@ -386,6 +420,24 @@ export function Operator({
     applyConsoleSettings(map, settings);
   }, [settings]);
 
+  /** Live-update the icon mapping if the operator edits their styles
+   *  on another tab and the SWR poll refreshes. Cheap layout swap, no
+   *  layer rebuild. */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !layersReadyRef.current) return;
+    if (!map.getLayer(POINT_LAYER_ID)) return;
+    try {
+      map.setLayoutProperty(
+        POINT_LAYER_ID,
+        "icon-image",
+        deviceIconExpressionRef.current,
+      );
+    } catch {
+      /* style swap is in-flight — the next setupLayers will rebind */
+    }
+  }, [styleIcons]);
+
   /** Style swap — heavier than a config-property update; `setStyle`
    *  wipes user layers, so we re-attach via `setupLayersRef`. Gated
    *  on the diff to avoid re-running on every light / terrain toggle. */
@@ -398,7 +450,7 @@ export function Operator({
     map.setStyle(MAP_STYLES[settings.mapStyle].url);
     map.once("style.load", () => {
       applyConsoleSettings(map, latestSettingsRef.current);
-      setupLayersRef.current?.();
+      void loadDeviceIconsIntoMap(map).then(() => setupLayersRef.current?.());
     });
   }, [settings.mapStyle]);
 
@@ -523,6 +575,25 @@ function toGeoJSON(
         },
       })),
   };
+}
+
+/** Build the `icon-image` match expression from the operator's
+ *  subsystem → iconKey map. Falls back to `device-generic` for any
+ *  subsystem the operator hasn't styled yet so unknown classes still
+ *  render. */
+function buildIconExpression(
+  styleIcons: Record<string, string>,
+): mapboxgl.ExpressionSpecification {
+  const pairs: Array<string> = [];
+  for (const [subsystem, iconKey] of Object.entries(styleIcons)) {
+    pairs.push(subsystem, `device-${iconKey}`);
+  }
+  return [
+    "match",
+    ["get", "subsystem"],
+    ...(pairs as [string, string, ...string[]]),
+    "device-generic",
+  ] as unknown as mapboxgl.ExpressionSpecification;
 }
 
 /** Mapbox case expression: yellow → green → blue → slate based on

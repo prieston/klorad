@@ -31,6 +31,7 @@ import {
   type MapEnvSettings,
   type MapStyleKey,
 } from "@/lib/mobility/map-settings";
+import { loadDeviceIconsIntoMap } from "@/lib/mobility/load-device-icons";
 import { PushOptIn } from "./PushOptIn";
 
 interface Props {
@@ -40,6 +41,9 @@ interface Props {
   devices: PublicWorldDevice[];
   theme: Record<string, unknown>;
   mapboxToken: string | null;
+  /** Subsystem → iconKey, resolved server-side from the operator's
+   *  project-level styles. */
+  styleIcons: Record<string, string>;
 }
 
 const DEFAULT_PRIMARY = "#0ea5e9";
@@ -152,11 +156,27 @@ function fitToDevices(map: MapboxMap, devices: PublicWorldDevice[]): void {
  * extra `style.load` after a no-op style swap). Re-invoked after
  * `map.setStyle` because changing the style wipes all custom layers.
  */
+function buildIconExpression(
+  styleIcons: Record<string, string>,
+): mapboxgl.ExpressionSpecification {
+  const pairs: Array<string> = [];
+  for (const [subsystem, iconKey] of Object.entries(styleIcons)) {
+    pairs.push(subsystem, `device-${iconKey}`);
+  }
+  return [
+    "match",
+    ["get", "subsystem"],
+    ...(pairs as [string, string, ...string[]]),
+    "device-generic",
+  ] as unknown as mapboxgl.ExpressionSpecification;
+}
+
 function setupDeviceLayers(
   map: MapboxMap,
   primary: string,
   selectedId: string | null,
   data: GeoJSON.FeatureCollection<GeoJSON.Point>,
+  iconExpression: mapboxgl.ExpressionSpecification,
   onClusterClick: (clusterId: number, coords: [number, number]) => void,
   onPointClick: (id: string) => void,
   onBackgroundClick: () => void,
@@ -196,28 +216,48 @@ function setupDeviceLayers(
     },
     paint: { "text-color": "#ffffff" },
   });
-  map.addLayer({
-    id: POINT_LAYER,
-    type: "circle",
-    source: SOURCE_ID,
-    filter: ["!", ["has", "point_count"]],
-    paint: {
-      "circle-radius": 6,
-      "circle-color": primary,
-      "circle-stroke-color": "#ffffff",
-      "circle-stroke-width": 2,
-    },
-  });
+  // Selection halo — drawn beneath the symbol so the icon sits on
+  // top crisply when a visitor picks a device.
   map.addLayer({
     id: SELECTED_LAYER,
     type: "circle",
     source: SOURCE_ID,
     filter: ["==", ["get", "id"], selectedId ?? NO_SELECTION],
     paint: {
-      "circle-radius": 10,
-      "circle-color": "#ffffff",
+      "circle-color": primary,
+      "circle-opacity": 0.28,
+      "circle-radius": 18,
       "circle-stroke-color": primary,
-      "circle-stroke-width": 3,
+      "circle-stroke-width": 2,
+    },
+  });
+  // Device markers — SDF icon, tinted with the world's primary
+  // colour so the operator's brand carries through.
+  map.addLayer({
+    id: POINT_LAYER,
+    type: "symbol",
+    source: SOURCE_ID,
+    filter: ["!", ["has", "point_count"]],
+    layout: {
+      "icon-image": iconExpression,
+      "icon-size": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        8,
+        0.2,
+        12,
+        0.3,
+        16,
+        0.46,
+      ],
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": true,
+    },
+    paint: {
+      "icon-color": primary,
+      "icon-halo-color": "rgba(0, 0, 0, 0.5)",
+      "icon-halo-width": 1.5,
     },
   });
 
@@ -259,6 +299,7 @@ export function WorldViewer({
   devices,
   theme,
   mapboxToken,
+  styleIcons,
 }: Props) {
   const primary = pickHex(theme.primaryColor, DEFAULT_PRIMARY);
   const bg = pickHex(theme.backgroundColor, DEFAULT_BG);
@@ -324,6 +365,13 @@ export function WorldViewer({
   const latestSettingsRef = useRef(settings);
   latestSettingsRef.current = settings;
 
+  const iconExpression = useMemo(
+    () => buildIconExpression(styleIcons),
+    [styleIcons],
+  );
+  const latestIconExpressionRef = useRef(iconExpression);
+  latestIconExpressionRef.current = iconExpression;
+
   const attachLayers = useCallback(
     (map: MapboxMap) => {
       setupDeviceLayers(
@@ -331,6 +379,7 @@ export function WorldViewer({
         primary,
         latestSelectedRef.current,
         latestDataRef.current,
+        latestIconExpressionRef.current,
         (clusterId, coords) => {
           const source = map.getSource(SOURCE_ID) as GeoJSONSource;
           source.getClusterExpansionZoom(clusterId, (err, zoom) => {
@@ -367,8 +416,10 @@ export function WorldViewer({
 
     map.on("load", () => {
       applyMapEnvSettings(map, latestSettingsRef.current);
-      attachLayers(map);
-      fitToDevices(map, devices);
+      void loadDeviceIconsIntoMap(map).then(() => {
+        attachLayers(map);
+        fitToDevices(map, devices);
+      });
     });
 
     return () => {
@@ -392,9 +443,24 @@ export function WorldViewer({
     map.setStyle(MAP_STYLES[settings.mapStyle].url);
     map.once("style.load", () => {
       applyMapEnvSettings(map, latestSettingsRef.current);
-      attachLayers(map);
+      void loadDeviceIconsIntoMap(map).then(() => attachLayers(map));
     });
   }, [settings.mapStyle, attachLayers]);
+
+  // Live icon-mapping swap — if the operator changes a style on
+  // another tab and the viewer is hot-reloaded (or PR2 of the next
+  // arc plumbs a live channel), update the layout without a layer
+  // rebuild.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !layersReadyRef.current) return;
+    if (!map.getLayer(POINT_LAYER)) return;
+    try {
+      map.setLayoutProperty(POINT_LAYER, "icon-image", iconExpression);
+    } catch {
+      /* style swap in-flight */
+    }
+  }, [iconExpression]);
 
   // Light + terrain + 3D — cheap config updates, no reload.
   useEffect(() => {
