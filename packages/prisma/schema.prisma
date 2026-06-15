@@ -203,6 +203,9 @@ model Project {
   // Per-subsystem visual styles (icons + reserved 3D fields). See
   // lib/mobility/device-style-resolver.ts.
   mobilityDeviceStyles   MobilityDeviceStyle[]
+  // Per-project library of operator-uploaded device icons (SVG/PNG).
+  // Referenced from MobilityDeviceStyle.iconKey via `custom:<id>`.
+  mobilityCustomIcons    MobilityCustomIcon[]
   // Discovered items pending rector review.
   discoveredItems        DiscoveredItem[]
 
@@ -1085,6 +1088,37 @@ enum MobilityWorldEventKind {
   push_subscribe
   push_unsubscribe
   broadcast_sent
+}
+
+/// Per-project library of operator-uploaded device icons. Phase 1
+/// only consumed the stock library; Phase 2 lets the operator drop
+/// their own SVG (rendered as SDF, tinted) or PNG (kept full-colour)
+/// into the same picker.
+///
+/// Referenced by `MobilityDeviceStyle.iconKey` via the prefix
+/// `custom:<id>`. When a custom icon is deleted, any styles that
+/// referenced it revert to the stock subsystem default; that's done
+/// in the DELETE route, not at the schema layer, so we don't need a
+/// brittle FK across a polymorphic string column.
+model MobilityCustomIcon {
+  id          String   @id @default(cuid())
+  projectId   String
+  /// Operator-facing label — derived from the upload filename, can
+  /// be renamed later.
+  label       String
+  /// Public URL on DO Spaces.
+  url         String
+  /// MIME type. `image/svg+xml` is tinted via SDF; raster types are
+  /// rendered full-colour through the symbol layer.
+  contentType String
+  /// Byte count from the upload — used for the eventual per-project
+  /// quota check.
+  bytes       Int
+  createdAt   DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
 }
 
 /// Per-project, per-subsystem device style. The operator picks an
