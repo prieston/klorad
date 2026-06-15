@@ -157,3 +157,76 @@ export function saveMapEnvSettings(
     /* quota exceeded or storage disabled */
   }
 }
+
+/**
+ * Decide if the *basemap* (what's painted under the overlays) reads
+ * as dark or bright. Used to flip floating overlays (legend, chips,
+ * popovers) between a glass-light and a glass-dark palette so the
+ * dashboard chrome doesn't go invisible when the operator switches
+ * from a day preset to a night preset on the same Standard map.
+ *
+ * Minimal (dark-v11) is hard-coded dark — it ignores `lightPreset`.
+ */
+export function isBasemapDark(
+  preset: LightPreset,
+  styleKey: MapStyleKey,
+): boolean {
+  if (!MAP_STYLES[styleKey].supportsLightPreset) return true;
+  return preset === "dusk" || preset === "night";
+}
+
+export interface MapOverlayPalette {
+  bg: string;
+  border: string;
+  borderStrong: string;
+  fg: string;
+  fgSoft: string;
+  fgMuted: string;
+  accentBadge: string;
+  accentBadgeFg: string;
+}
+
+const LIGHT_OVERLAY: MapOverlayPalette = {
+  bg: "rgba(255, 255, 255, 0.92)",
+  border: "rgba(15, 23, 42, 0.16)",
+  borderStrong: "rgba(15, 23, 42, 0.32)",
+  fg: "rgba(15, 23, 42, 0.95)",
+  fgSoft: "rgba(15, 23, 42, 0.7)",
+  fgMuted: "rgba(15, 23, 42, 0.5)",
+  accentBadge: "rgba(15, 23, 42, 0.06)",
+  accentBadgeFg: "rgba(15, 23, 42, 0.95)",
+};
+
+const DARK_OVERLAY: MapOverlayPalette = {
+  bg: "rgba(11, 18, 32, 0.92)",
+  border: "rgba(255, 255, 255, 0.16)",
+  borderStrong: "rgba(255, 255, 255, 0.34)",
+  fg: "rgba(245, 247, 250, 0.96)",
+  fgSoft: "rgba(245, 247, 250, 0.74)",
+  fgMuted: "rgba(245, 247, 250, 0.55)",
+  accentBadge: "rgba(245, 247, 250, 0.08)",
+  accentBadgeFg: "rgba(245, 247, 250, 0.96)",
+};
+
+/**
+ * Derive the overlay palette for the current map settings. Returns a
+ * record ready to spread onto a `style` block (the keys are CSS
+ * custom-property names, prefixed `--ov-*`).
+ */
+export function deriveMapOverlayCssVars(
+  settings: Pick<MapEnvSettings, "lightPreset" | "mapStyle">,
+): Record<string, string> {
+  const palette = isBasemapDark(settings.lightPreset, settings.mapStyle)
+    ? DARK_OVERLAY
+    : LIGHT_OVERLAY;
+  return {
+    "--ov-bg": palette.bg,
+    "--ov-border": palette.border,
+    "--ov-border-strong": palette.borderStrong,
+    "--ov-fg": palette.fg,
+    "--ov-fg-soft": palette.fgSoft,
+    "--ov-fg-muted": palette.fgMuted,
+    "--ov-accent-badge": palette.accentBadge,
+    "--ov-accent-badge-fg": palette.accentBadgeFg,
+  };
+}
