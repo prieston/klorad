@@ -38,6 +38,7 @@ import type { LucideIcon } from "lucide-react";
 import { DmsFace } from "@/lib/mobility/dms-render";
 import {
   applyMapEnvSettings,
+  deriveMapOverlayCssVars,
   loadMapEnvSettings,
   saveMapEnvSettings,
   MAP_STYLES,
@@ -580,9 +581,21 @@ export function Operator({
     });
   }, [selected?.id, selected?.lat, selected?.lng]);
 
+  /** Overlay palette is recomputed when the operator flips the light
+   *  preset or switches map style. CSS vars cascade to every floating
+   *  surface, so legend + chips + popover all read against the active
+   *  basemap luminance without per-element work. */
+  const overlayPaletteVars = useMemo(
+    () => deriveMapOverlayCssVars(settings),
+    [settings.lightPreset, settings.mapStyle], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   return (
     <div className="flex h-full flex-col md:flex-row">
-      <div className="relative h-[55dvh] overflow-hidden md:h-full md:flex-1">
+      <div
+        className="relative h-[55dvh] overflow-hidden md:h-full md:flex-1"
+        style={overlayPaletteVars}
+      >
         {mapboxToken ? (
           <div ref={mapEl} className="h-full w-full" />
         ) : (
@@ -713,8 +726,21 @@ function Legend({ devices }: { devices: DeviceRow[] }) {
   const needsReview = devices.filter((d) => d.needsReview).length;
   const publicCount = devices.filter((d) => d.isPublic).length;
   return (
-    <div className="pointer-events-auto absolute left-4 top-4 max-w-[260px] overflow-hidden rounded-2xl border border-line-strong bg-surface-1/95 shadow-[0_8px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl">
-      <div className="border-b border-line-soft bg-accent-soft/40 px-3 py-2">
+    <div
+      className="pointer-events-auto absolute left-4 top-4 max-w-[260px] overflow-hidden rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl"
+      style={{
+        backgroundColor: "var(--ov-bg)",
+        borderColor: "var(--ov-border-strong)",
+        color: "var(--ov-fg)",
+      }}
+    >
+      <div
+        className="px-3 py-2"
+        style={{
+          backgroundColor: "var(--ov-accent-badge)",
+          borderBottom: "1px solid var(--ov-border)",
+        }}
+      >
         <div className="flex items-center gap-2">
           <span
             aria-hidden
@@ -722,13 +748,18 @@ function Legend({ devices }: { devices: DeviceRow[] }) {
           >
             <Layers size={11} strokeWidth={2} />
           </span>
-          <span className="text-xs font-semibold text-text-primary">
+          <span
+            className="text-xs font-semibold"
+            style={{ color: "var(--ov-fg)" }}
+          >
             {placed.length}
-            <span className="text-text-tertiary"> / {devices.length}</span>{" "}
-            <span className="text-text-secondary">placed</span>
+            <span style={{ color: "var(--ov-fg-muted)" }}>
+              {" "}/ {devices.length}
+            </span>{" "}
+            <span style={{ color: "var(--ov-fg-soft)" }}>placed</span>
           </span>
           {needsReview > 0 && (
-            <span className="ml-auto rounded-full bg-yellow-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-700 dark:text-yellow-400">
+            <span className="ml-auto rounded-full bg-yellow-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-700 dark:text-yellow-400">
               {needsReview} new
             </span>
           )}
@@ -739,22 +770,29 @@ function Legend({ devices }: { devices: DeviceRow[] }) {
           {MARKER_LEGEND.map((row) => (
             <li
               key={row.tone}
-              className="flex items-center gap-2 text-[11px] text-text-secondary"
+              className="flex items-center gap-2 text-[11px]"
+              style={{ color: "var(--ov-fg-soft)" }}
             >
               <span
                 aria-hidden
-                className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-bg"
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{
                   backgroundColor: row.colour,
-                  boxShadow: `0 0 0 1px ${row.colour}80, 0 0 8px ${row.colour}55`,
+                  boxShadow: `0 0 0 2px var(--ov-bg), 0 0 0 3px ${row.colour}80, 0 0 8px ${row.colour}55`,
                 }}
               />
               <span className="truncate">{row.label}</span>
             </li>
           ))}
         </ul>
-        <p className="mt-3 border-t border-line-soft pt-2 text-[10px] font-medium uppercase tracking-[0.2em] text-text-tertiary">
-          <span className="text-text-secondary">{publicCount}</span> on traveller map
+        <p
+          className="mt-3 pt-2 text-[10px] font-medium uppercase tracking-[0.2em]"
+          style={{
+            color: "var(--ov-fg-muted)",
+            borderTop: "1px solid var(--ov-border)",
+          }}
+        >
+          <span style={{ color: "var(--ov-fg-soft)" }}>{publicCount}</span> on traveller map
         </p>
       </div>
     </div>
@@ -767,7 +805,12 @@ function SourcesChip({ href }: { href: string }) {
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface-1/95 px-3.5 py-2 text-xs font-semibold text-text-primary shadow-[0_4px_14px_rgba(0,0,0,0.16)] backdrop-blur-xl transition-all hover:border-accent hover:bg-accent-soft hover:text-accent"
+      className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold shadow-[0_4px_14px_rgba(0,0,0,0.16)] backdrop-blur-xl transition-all hover:border-accent hover:text-accent"
+      style={{
+        backgroundColor: "var(--ov-bg)",
+        borderColor: "var(--ov-border-strong)",
+        color: "var(--ov-fg)",
+      }}
     >
       <Database size={12} strokeWidth={2} aria-hidden />
       Data sources
@@ -795,19 +838,33 @@ function ConsoleSettingsChip({
         type="button"
         onClick={() => onOpenChange(!open)}
         aria-expanded={open}
-        className={`inline-flex items-center gap-1.5 rounded-full border bg-surface-1/95 px-3.5 py-2 text-xs font-semibold shadow-[0_4px_14px_rgba(0,0,0,0.16)] backdrop-blur-xl transition-all ${
-          open
-            ? "border-accent bg-accent-soft text-accent"
-            : "border-line-strong text-text-primary hover:border-accent hover:bg-accent-soft hover:text-accent"
-        }`}
+        className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold shadow-[0_4px_14px_rgba(0,0,0,0.16)] backdrop-blur-xl transition-all hover:border-accent hover:text-accent"
+        style={{
+          backgroundColor: open
+            ? "var(--ov-accent-badge)"
+            : "var(--ov-bg)",
+          borderColor: open ? "rgb(var(--accent))" : "var(--ov-border-strong)",
+          color: open ? "rgb(var(--accent))" : "var(--ov-fg)",
+        }}
       >
         <Settings size={12} strokeWidth={2} aria-hidden />
         Console
       </button>
       {open ? (
-        <div className="mt-2 w-[280px] overflow-hidden rounded-2xl border border-line-strong bg-surface-1/95 text-xs shadow-[0_12px_36px_rgba(0,0,0,0.22)] backdrop-blur-xl"><div className="p-4">
+        <div
+          className="mt-2 w-[280px] overflow-hidden rounded-2xl border text-xs shadow-[0_12px_36px_rgba(0,0,0,0.22)] backdrop-blur-xl"
+          style={{
+            backgroundColor: "var(--ov-bg)",
+            borderColor: "var(--ov-border-strong)",
+            color: "var(--ov-fg)",
+          }}
+        >
+          <div className="p-4">
           {/* Map style */}
-          <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.22em] text-text-tertiary">
+          <p
+            className="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.22em]"
+            style={{ color: "var(--ov-fg-muted)" }}
+          >
             <Layers size={11} strokeWidth={1.8} aria-hidden />
             Style
           </p>
@@ -820,17 +877,24 @@ function ConsoleSettingsChip({
                   type="button"
                   aria-pressed={active}
                   onClick={() => onChange({ ...settings, mapStyle: key })}
-                  className={`rounded-md px-1.5 py-2 text-[10px] font-medium transition-colors ${
+                  className="rounded-md px-1.5 py-2 text-[10px] font-medium transition-colors"
+                  style={
                     active
-                      ? "bg-accent text-accent-contrast"
-                      : "text-text-secondary hover:bg-surface-2 hover:text-text-primary"
-                  }`}
+                      ? {
+                          backgroundColor: "rgb(var(--accent))",
+                          color: "rgb(var(--accent-contrast))",
+                        }
+                      : { color: "var(--ov-fg-soft)" }
+                  }
                 >
                   <span className="block">{def.label}</span>
                   <span
-                    className={`mt-0.5 block text-[9px] font-normal ${
-                      active ? "opacity-80" : "text-text-tertiary"
-                    }`}
+                    className="mt-0.5 block text-[9px] font-normal"
+                    style={
+                      active
+                        ? { opacity: 0.85 }
+                        : { color: "var(--ov-fg-muted)" }
+                    }
                   >
                     {def.description}
                   </span>
@@ -840,11 +904,17 @@ function ConsoleSettingsChip({
           </div>
 
           {/* Light preset */}
-          <p className="mt-4 mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.22em] text-text-tertiary">
+          <p
+            className="mt-4 mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.22em]"
+            style={{ color: "var(--ov-fg-muted)" }}
+          >
             <Sun size={11} strokeWidth={1.8} aria-hidden />
             Light
             {!MAP_STYLES[settings.mapStyle].supportsLightPreset ? (
-              <span className="ml-1 text-[8px] font-normal normal-case tracking-normal text-text-tertiary">
+              <span
+                className="ml-1 text-[8px] font-normal normal-case tracking-normal"
+                style={{ color: "var(--ov-fg-muted)", opacity: 0.75 }}
+              >
                 (Standard / Satellite only)
               </span>
             ) : null}
@@ -869,11 +939,15 @@ function ConsoleSettingsChip({
                   onClick={() =>
                     onChange({ ...settings, lightPreset: value })
                   }
-                  className={`flex flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-2 text-[10px] font-medium transition-colors enabled:hover:bg-surface-2 enabled:hover:text-text-primary disabled:opacity-40 ${
+                  className="flex flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-2 text-[10px] font-medium transition-colors disabled:opacity-40"
+                  style={
                     active && !disabled
-                      ? "bg-accent text-accent-contrast"
-                      : "text-text-secondary"
-                  }`}
+                      ? {
+                          backgroundColor: "rgb(var(--accent))",
+                          color: "rgb(var(--accent-contrast))",
+                        }
+                      : { color: "var(--ov-fg-soft)" }
+                  }
                 >
                   <Icon size={14} strokeWidth={1.8} aria-hidden />
                   {label}
@@ -913,13 +987,20 @@ function ConsoleSettingsChip({
           </div>
 
           </div>
-          {/* Reset — sits in its own subtly-tinted footer so the
-              destructive action reads as separate from the toggles. */}
-          <div className="border-t border-line-soft bg-surface-2/40 px-4 py-2.5">
+          {/* Reset — subtle footer so the destructive action reads
+              as separate from the toggles. */}
+          <div
+            className="px-4 py-2.5"
+            style={{
+              borderTop: "1px solid var(--ov-border)",
+              backgroundColor: "var(--ov-accent-badge)",
+            }}
+          >
             <button
               type="button"
               onClick={() => onChange(DEFAULT_CONSOLE_SETTINGS)}
-              className="w-full rounded-md px-3 py-1.5 text-[11px] font-semibold text-text-tertiary transition-colors hover:bg-accent-soft hover:text-accent"
+              className="w-full rounded-md px-3 py-1.5 text-[11px] font-semibold transition-colors hover:text-accent"
+              style={{ color: "var(--ov-fg-muted)" }}
             >
               Reset to defaults
             </button>
@@ -948,14 +1029,22 @@ function SettingsToggleRow({
   return (
     <label
       className={`flex items-center justify-between rounded-md px-2 py-1.5 transition-colors ${
-        disabled ? "opacity-40" : "cursor-pointer hover:bg-surface-2"
+        disabled ? "opacity-40" : "cursor-pointer"
       }`}
     >
-      <span className="inline-flex items-center gap-2 text-text-primary">
+      <span
+        className="inline-flex items-center gap-2"
+        style={{ color: "var(--ov-fg)" }}
+      >
         <Icon size={12} strokeWidth={1.8} aria-hidden />
         {label}
         {disabled && disabledHint ? (
-          <span className="text-[9px] text-text-tertiary">({disabledHint})</span>
+          <span
+            className="text-[9px]"
+            style={{ color: "var(--ov-fg-muted)" }}
+          >
+            ({disabledHint})
+          </span>
         ) : null}
       </span>
       <button
@@ -964,15 +1053,24 @@ function SettingsToggleRow({
         aria-checked={checked}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-          checked ? "bg-accent" : "border border-line-strong bg-bg"
-        }`}
+        className="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors"
+        style={{
+          backgroundColor: checked ? "rgb(var(--accent))" : "transparent",
+          borderColor: checked
+            ? "rgb(var(--accent))"
+            : "var(--ov-border-strong)",
+        }}
       >
         <span
           aria-hidden
-          className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+          className={`h-4 w-4 rounded-full shadow-sm transition-transform ${
             checked ? "translate-x-4" : "translate-x-0.5"
           }`}
+          style={{
+            backgroundColor: checked
+              ? "rgb(var(--accent-contrast))"
+              : "var(--ov-fg-soft)",
+          }}
         />
       </button>
     </label>
