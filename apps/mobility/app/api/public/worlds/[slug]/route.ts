@@ -32,6 +32,7 @@ export async function GET(
         visibility: world.visibility,
         theme: world.theme,
         devices: world.devices,
+        styleIcons: world.styleIcons,
       },
     },
     {

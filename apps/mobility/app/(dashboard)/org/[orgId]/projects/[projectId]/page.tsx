@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveDeviceStyles } from "@/lib/mobility/device-style-resolver";
 import { Operator } from "./Operator";
 
 type Params = Promise<{ orgId: string; projectId: string }>;
@@ -57,6 +58,8 @@ export default async function OperatorPage({
   const defaultZoom =
     typeof branding.defaultZoom === "number" ? branding.defaultZoom : 11;
 
+  const styleMap = await resolveDeviceStyles(projectId);
+
   return (
     <Operator
       projectId={projectId}
@@ -64,6 +67,7 @@ export default async function OperatorPage({
       sourcesHref={`/org/${orgId}/projects/${projectId}/sources`}
       defaultCentre={defaultCentre}
       defaultZoom={defaultZoom}
+      styleIcons={styleMap.icons}
     />
   );
 }

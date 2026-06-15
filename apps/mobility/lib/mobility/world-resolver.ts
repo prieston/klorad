@@ -15,6 +15,7 @@
  * URLs and curation flags never leave the dashboard tier.
  */
 import { prisma } from "@/lib/prisma";
+import { resolveDeviceStyles } from "./device-style-resolver";
 
 export interface PublicWorldDevice {
   id: string;
@@ -43,6 +44,9 @@ export interface PublicWorld {
   projectId: string;
   projectTitle: string;
   devices: PublicWorldDevice[];
+  /// Subsystem → iconKey resolved from the operator's project-level
+  /// `MobilityDeviceStyle` rows. Used by the viewer's symbol layer.
+  styleIcons: Record<string, string>;
 }
 
 /**
@@ -101,8 +105,9 @@ type WorldRecord = NonNullable<
   Awaited<ReturnType<typeof prisma.mobilityWorld.findFirst<{ include: typeof worldInclude }>>>
 >;
 
-function toPublicWorld(world: WorldRecord): PublicWorld {
+async function toPublicWorld(world: WorldRecord): Promise<PublicWorld> {
   const themeRaw = (world.theme ?? {}) as Record<string, unknown>;
+  const styleMap = await resolveDeviceStyles(world.project.id);
   return {
     id: world.id,
     slug: world.slug,
@@ -127,6 +132,7 @@ function toPublicWorld(world: WorldRecord): PublicWorld {
         crossRoad: d.crossRoad,
         direction: d.direction,
       })),
+    styleIcons: styleMap.icons,
   };
 }
 
@@ -139,7 +145,7 @@ export async function loadPublicWorldBySlug(
   });
   if (!world) return null;
   if (world.visibility === "authenticated") return null;
-  return toPublicWorld(world);
+  return await toPublicWorld(world);
 }
 
 /**
@@ -158,7 +164,7 @@ export async function resolveWorldForViewer(
   });
   if (!world) return { kind: "not_found" };
   if (world.visibility !== "authenticated") {
-    return { kind: "ok", world: toPublicWorld(world) };
+    return { kind: "ok", world: await toPublicWorld(world) };
   }
   if (!viewerId) return { kind: "needs_signin" };
   const membership = await prisma.organizationMember.findUnique({
@@ -171,5 +177,5 @@ export async function resolveWorldForViewer(
     select: { role: true },
   });
   if (!membership) return { kind: "no_access" };
-  return { kind: "ok", world: toPublicWorld(world) };
+  return { kind: "ok", world: await toPublicWorld(world) };
 }
