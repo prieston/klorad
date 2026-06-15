@@ -314,23 +314,20 @@ export default function DashboardShell({
       brand={
         <Link
           href={orgId ? `/org/${orgId}` : "/"}
-          aria-label="PSMdt Mobility"
-          className="flex items-center gap-3 no-underline"
+          aria-label="PSMdt Digital Twins"
+          className="flex items-center no-underline"
         >
-          {/* Operator-side branding — horizontal PSMdt mark already
-              carries "DIGITAL TWINS" so the row stays clean without
-              the extra text column. Plain <img> instead of next/image
-              because the asset ships from /public on the same origin
-              and benefits from the simpler render path. */}
+          {/* Operator-side branding — the horizontal PSMdt mark
+              already carries "DIGITAL TWINS" so the row stays clean
+              on its own. Plain <img> instead of next/image because
+              the asset ships from /public on the same origin and
+              benefits from the simpler render path. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/psm-logo.png"
             alt="PSMdt Digital Twins"
             className="h-8 w-auto"
           />
-          <span className="text-[10px] font-medium uppercase tracking-[0.28em] text-text-tertiary">
-            Mobility
-          </span>
         </Link>
       }
       sidebarHeader={
