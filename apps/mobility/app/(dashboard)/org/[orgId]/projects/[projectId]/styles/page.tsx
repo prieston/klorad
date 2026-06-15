@@ -6,6 +6,7 @@ import {
   defaultIconKeyForSubsystem,
 } from "@/lib/mobility/device-icons";
 import { listProjectSubsystems } from "@/lib/mobility/device-style-resolver";
+import { features } from "@/lib/env";
 import { StylesClient } from "./StylesClient";
 
 type Params = Promise<{ orgId: string; projectId: string }>;
@@ -42,11 +43,23 @@ export default async function StylesPage({ params }: { params: Params }) {
   });
   if (!project) notFound();
 
-  const [subsystems, rows] = await Promise.all([
+  const [subsystems, rows, customRows] = await Promise.all([
     listProjectSubsystems(projectId),
     prisma.mobilityDeviceStyle.findMany({
       where: { projectId },
       select: { subsystem: true, iconKey: true },
+    }),
+    prisma.mobilityCustomIcon.findMany({
+      where: { projectId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        label: true,
+        url: true,
+        contentType: true,
+        bytes: true,
+        createdAt: true,
+      },
     }),
   ]);
   const overrides = new Map(rows.map((r) => [r.subsystem, r.iconKey]));
@@ -66,6 +79,11 @@ export default async function StylesPage({ params }: { params: Params }) {
         label: entry.label,
         description: entry.description,
       }))}
+      initialCustomIcons={customRows.map((r) => ({
+        ...r,
+        createdAt: r.createdAt.toISOString(),
+      }))}
+      uploadsEnabled={features.uploads}
     />
   );
 }
