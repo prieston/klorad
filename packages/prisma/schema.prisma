@@ -200,6 +200,9 @@ model Project {
   // Publishable per-stakeholder PWAs — each carves a curated subset
   // of project devices, with its own slug, theme, and visibility.
   mobilityWorlds         MobilityWorld[]
+  // Per-subsystem visual styles (icons + reserved 3D fields). See
+  // lib/mobility/device-style-resolver.ts.
+  mobilityDeviceStyles   MobilityDeviceStyle[]
   // Discovered items pending rector review.
   discoveredItems        DiscoveredItem[]
 
@@ -1082,4 +1085,36 @@ enum MobilityWorldEventKind {
   push_subscribe
   push_unsubscribe
   broadcast_sent
+}
+
+/// Per-project, per-subsystem device style. The operator picks an
+/// icon (stock or custom-uploaded) for each device class once; the
+/// map renders every device of that subsystem with that icon. Keeps
+/// device recognition consistent at low zoom.
+///
+/// Phase 1 only wires `iconKey`. `modelKey` / `scale` / `rotation`
+/// are reserved for Phase 3 (3D glTF models on the Mapbox model
+/// layer) so we can grow without another migration.
+model MobilityDeviceStyle {
+  id        String   @id @default(cuid())
+  projectId String
+  /// Subsystem the rule applies to (e.g. "cctv", "dms"). One row
+  /// per subsystem per project — that's what `@@unique` guarantees.
+  subsystem String
+  /// Stock icon key from the registry, or the storage key of a
+  /// custom upload (Phase 2). Resolved at render time.
+  iconKey   String
+  /// Phase 3 — glTF model key (stock or custom). Null in Phase 1.
+  modelKey  String?
+  /// Phase 3 — model scale tweak. Null in Phase 1.
+  scale     Float?
+  /// Phase 3 — Z-axis rotation in degrees. Null in Phase 1.
+  rotation  Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, subsystem])
+  @@index([projectId])
 }
