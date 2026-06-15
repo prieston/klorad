@@ -118,6 +118,7 @@ export function Operator({
   defaultCentre,
   defaultZoom,
   styleIcons,
+  customIcons,
 }: {
   projectId: string;
   mapboxToken: string | null;
@@ -127,6 +128,9 @@ export function Operator({
   /** Subsystem → iconKey, pre-resolved server-side so the symbol
    *  layer's `icon-image` expression is ready before first paint. */
   styleIcons: Record<string, string>;
+  /** Per-id descriptor of the project's custom uploads, so the
+   *  icon loader can fetch + rasterise them on map init. */
+  customIcons: Record<string, import("@/lib/mobility/device-style-resolver").CustomIconRef>;
 }) {
   const { data, mutate } = useSWR<DevicesResponse>(
     `/api/projects/${projectId}/devices`,
@@ -171,6 +175,10 @@ export function Operator({
     () => buildIconExpression(styleIcons),
     [styleIcons],
   );
+  /** Custom-icon manifest — read inside async loaders so a fresh
+   *  upload reaches the next map init without a remount. */
+  const customIconsRef = useRef(customIcons);
+  customIconsRef.current = customIcons;
   /** Latest style key the map is showing — keyed off settings so we
    *  only fire `setStyle` when the operator actually picks a new
    *  style, not on every light / terrain toggle. */
@@ -376,11 +384,13 @@ export function Operator({
     setupLayersRef.current = setupLayers;
 
     /** Initial style ready hook — apply env settings, register the
-     *  stock icon images, then bring up the device layers. Subsequent
-     *  style swaps go through the effect below. */
+     *  stock + custom icon images, then bring up the device layers.
+     *  Subsequent style swaps go through the effect below. */
     const onLoad = () => {
       applyConsoleSettings(map, latestSettingsRef.current);
-      void loadDeviceIconsIntoMap(map).then(() => setupLayers());
+      void loadDeviceIconsIntoMap(map, customIconsRef.current).then(() =>
+        setupLayers(),
+      );
     };
 
     if (map.isStyleLoaded()) {
@@ -450,7 +460,9 @@ export function Operator({
     map.setStyle(MAP_STYLES[settings.mapStyle].url);
     map.once("style.load", () => {
       applyConsoleSettings(map, latestSettingsRef.current);
-      void loadDeviceIconsIntoMap(map).then(() => setupLayersRef.current?.());
+      void loadDeviceIconsIntoMap(map, customIconsRef.current).then(() =>
+        setupLayersRef.current?.(),
+      );
     });
   }, [settings.mapStyle]);
 

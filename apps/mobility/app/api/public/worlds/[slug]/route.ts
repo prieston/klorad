@@ -33,6 +33,7 @@ export async function GET(
         theme: world.theme,
         devices: world.devices,
         styleIcons: world.styleIcons,
+        customIcons: world.customIcons,
       },
     },
     {

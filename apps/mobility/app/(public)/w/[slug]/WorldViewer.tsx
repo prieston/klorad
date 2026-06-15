@@ -44,6 +44,8 @@ interface Props {
   /** Subsystem → iconKey, resolved server-side from the operator's
    *  project-level styles. */
   styleIcons: Record<string, string>;
+  /** Per-id descriptor of custom uploads referenced by the project. */
+  customIcons: Record<string, import("@/lib/mobility/device-style-resolver").CustomIconRef>;
 }
 
 const DEFAULT_PRIMARY = "#0ea5e9";
@@ -300,6 +302,7 @@ export function WorldViewer({
   theme,
   mapboxToken,
   styleIcons,
+  customIcons,
 }: Props) {
   const primary = pickHex(theme.primaryColor, DEFAULT_PRIMARY);
   const bg = pickHex(theme.backgroundColor, DEFAULT_BG);
@@ -371,6 +374,8 @@ export function WorldViewer({
   );
   const latestIconExpressionRef = useRef(iconExpression);
   latestIconExpressionRef.current = iconExpression;
+  const customIconsRef = useRef(customIcons);
+  customIconsRef.current = customIcons;
 
   const attachLayers = useCallback(
     (map: MapboxMap) => {
@@ -416,7 +421,7 @@ export function WorldViewer({
 
     map.on("load", () => {
       applyMapEnvSettings(map, latestSettingsRef.current);
-      void loadDeviceIconsIntoMap(map).then(() => {
+      void loadDeviceIconsIntoMap(map, customIconsRef.current).then(() => {
         attachLayers(map);
         fitToDevices(map, devices);
       });
@@ -443,7 +448,9 @@ export function WorldViewer({
     map.setStyle(MAP_STYLES[settings.mapStyle].url);
     map.once("style.load", () => {
       applyMapEnvSettings(map, latestSettingsRef.current);
-      void loadDeviceIconsIntoMap(map).then(() => attachLayers(map));
+      void loadDeviceIconsIntoMap(map, customIconsRef.current).then(() =>
+        attachLayers(map),
+      );
     });
   }, [settings.mapStyle, attachLayers]);
 
