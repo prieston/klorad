@@ -47,14 +47,8 @@ export async function GET(
     icons.push({ src: logo, sizes: "any", purpose: "any" });
   }
   icons.push({
-    src: "/klorad-icon.svg",
+    src: "/psm-mark.png",
     sizes: "any",
-    type: "image/svg+xml",
-    purpose: "any",
-  });
-  icons.push({
-    src: "/klorad-favicon.png",
-    sizes: "100x100",
     type: "image/png",
     purpose: "any",
   });
