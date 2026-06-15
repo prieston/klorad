@@ -1,7 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { Button, KloradMark, Panel } from "@klorad/design-system";
+import { Button, Panel } from "@klorad/design-system";
 
 const PROVIDERS = [
   { id: "google", label: "Google", icon: <GoogleIcon /> },
@@ -13,9 +13,17 @@ export default function SignInPage() {
     <div className="flex min-h-screen items-center justify-center bg-bg px-6 text-text-primary">
       <Panel className="w-full max-w-sm rounded-2xl p-6">
         <div className="flex flex-col items-center text-center">
-          <KloradMark className="h-10 w-auto" />
+          {/* Square PSMdt mark with the asterisk + "DIGITAL TWINS"
+              tag baked in. Plain <img> keeps the static asset on
+              the same render path it ships from `/public`. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/psm-mark.png"
+            alt="PSMdt Digital Twins"
+            className="h-14 w-auto"
+          />
           <h1 className="mt-4 text-lg font-semibold text-text-primary">
-            Klorad Mobility
+            Mobility
           </h1>
           <p className="mt-1 text-sm text-text-secondary">
             Sign in to manage your traffic-management devices

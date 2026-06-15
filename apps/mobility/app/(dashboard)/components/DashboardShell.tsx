@@ -8,7 +8,6 @@ import dynamic from "next/dynamic";
 import useSWR from "swr";
 import {
   AppShell,
-  KloradMark,
   type NavGroup,
 } from "@klorad/design-system";
 
@@ -315,18 +314,20 @@ export default function DashboardShell({
       brand={
         <Link
           href={orgId ? `/org/${orgId}` : "/"}
-          aria-label="Klorad Mobility"
-          className="flex items-center gap-2.5 no-underline"
+          aria-label="PSMdt Digital Twins"
+          className="flex items-center no-underline"
         >
-          <KloradMark className="h-8 w-auto" />
-          <span className="flex flex-col leading-none">
-            <span className="text-sm font-semibold uppercase tracking-[0.18em] text-text-primary">
-              Klorad
-            </span>
-            <span className="mt-1 text-[10px] font-medium uppercase tracking-[0.26em] text-text-tertiary">
-              Mobility
-            </span>
-          </span>
+          {/* Operator-side branding — the horizontal PSMdt mark
+              already carries "DIGITAL TWINS" so the row stays clean
+              on its own. Plain <img> instead of next/image because
+              the asset ships from /public on the same origin and
+              benefits from the simpler render path. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/psm-logo.png"
+            alt="PSMdt Digital Twins"
+            className="h-8 w-auto"
+          />
         </Link>
       }
       sidebarHeader={

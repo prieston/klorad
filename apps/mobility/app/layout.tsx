@@ -8,8 +8,8 @@ import Providers from "./providers";
 
 export const metadata: Metadata = {
   title: {
-    default: "Klorad Mobility",
-    template: "%s · Klorad Mobility",
+    default: "PSMdt Mobility",
+    template: "%s · PSMdt Mobility",
   },
   description:
     "Traffic-management dashboard for transport authorities: ATMS device monitoring, live cameras, dynamic signs, and a public traveller map.",

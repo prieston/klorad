@@ -163,8 +163,8 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "Klorad Mobility";
   const options = {
     body: payload.body || "",
-    icon: payload.icon || "/klorad-favicon.png",
-    badge: "/klorad-favicon.png",
+    icon: payload.icon || "/psm-mark.png",
+    badge: "/psm-mark.png",
     tag: payload.tag || `world-${WORLD_SLUG}`,
     data: {
       url: payload.url || `/w/${WORLD_SLUG}`,
