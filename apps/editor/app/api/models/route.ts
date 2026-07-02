@@ -124,6 +124,14 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Missing file data" }, { status: 400 });
     }
     // Configure the S3 client for DigitalOcean Spaces.
+    //
+    // `requestChecksumCalculation: "WHEN_REQUIRED"` — @aws-sdk/client-s3
+    // ≥ 3.729 defaults to `WHEN_SUPPORTED`, which bakes a CRC32 of an
+    // *empty* body into the presigned PUT URL (checksum computed at
+    // sign time, before the browser has the file). DO Spaces then 403s
+    // when the real body's checksum doesn't match. Same fix that
+    // shipped in `@klorad/storage`'s server; kept inline here because
+    // the editor isn't on `@klorad/storage` yet.
     const s3 = new S3Client({
       region: serverEnv.DO_SPACES_REGION,
       endpoint: serverEnv.DO_SPACES_ENDPOINT,
@@ -131,6 +139,8 @@ export async function PATCH(request: NextRequest) {
         accessKeyId: serverEnv.DO_SPACES_KEY,
         secretAccessKey: serverEnv.DO_SPACES_SECRET,
       },
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
     });
     const bucketName = serverEnv.DO_SPACES_BUCKET;
     // Use provided prefix (e.g., "supportive-data") or default to "models"
@@ -464,7 +474,8 @@ export async function DELETE(request: NextRequest) {
       // Only delete from Spaces if it's not a Cesium Ion placeholder URL
       if (!fileUrl.startsWith("cesium-ion://")) {
         const key = fileUrl.replace(`${endpoint}/${bucketName}/`, "");
-        // Setup S3 client.
+        // Setup S3 client. See PATCH handler for the checksum flag
+        // rationale — same issue applies to signed DELETE requests.
         const s3 = new S3Client({
           region: serverEnv.DO_SPACES_REGION,
           endpoint: endpoint,
@@ -472,6 +483,8 @@ export async function DELETE(request: NextRequest) {
             accessKeyId: serverEnv.DO_SPACES_KEY,
             secretAccessKey: serverEnv.DO_SPACES_SECRET,
           },
+          requestChecksumCalculation: "WHEN_REQUIRED",
+          responseChecksumValidation: "WHEN_REQUIRED",
         });
         // Delete the object from Spaces.
         const deleteCommand = new DeleteObjectCommand({
