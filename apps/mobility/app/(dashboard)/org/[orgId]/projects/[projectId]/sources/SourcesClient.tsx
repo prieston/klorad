@@ -148,6 +148,16 @@ function SourceRowItem({
 }) {
   const [busy, setBusy] = useState(false);
   const isRunning = row.syncStatus === "running";
+  /** Mirrors `STALE_SYNC_AFTER_MS` on the server. After 10 minutes
+   *  we treat a `running` row as a casualty of Vercel's `after()`
+   *  budget and let the operator restart instead of greying out the
+   *  Sync button forever. The server-side recovery in `/sync` does
+   *  the actual reset; we just unblock the click. */
+  const STALE_SYNC_AFTER_MS = 10 * 60 * 1000;
+  const isStale =
+    isRunning &&
+    !!row.syncStartedAt &&
+    Date.now() - new Date(row.syncStartedAt).getTime() > STALE_SYNC_AFTER_MS;
 
   const test = async () => {
     setBusy(true);
@@ -255,11 +265,20 @@ function SourceRowItem({
           </button>
           <button
             type="button"
-            disabled={busy || isRunning}
+            disabled={busy || (isRunning && !isStale)}
             onClick={sync}
+            title={
+              isStale
+                ? "Previous run looks stuck — click to reset and start fresh."
+                : undefined
+            }
             className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-50"
           >
-            {isRunning ? "Syncing…" : "Sync now"}
+            {isStale
+              ? "Restart sync"
+              : isRunning
+                ? "Syncing…"
+                : "Sync now"}
           </button>
           <button
             type="button"
