@@ -40,9 +40,19 @@ import {
 } from "@aws-sdk/client-s3";
 import { storageConfigFromEnv } from "../src/server";
 
+// Every Klorad app that reads or writes to Spaces from the browser
+// needs its Origin listed here — direct-upload PUT, presigned GET,
+// and (in the editor) Cesium's cross-origin glTF fetch all need
+// `Access-Control-Allow-Origin` on the response, which DO Spaces
+// only sets when an incoming Origin matches one of these rules.
+// Localhost ports match each app's `next dev -p …` script.
 const DEFAULT_ORIGINS = [
   "https://campus.klorad.com",
+  "https://platform.klorad.com",
+  "https://mobility.klorad.com",
+  "http://localhost:3001",
   "http://localhost:3003",
+  "http://localhost:3004",
 ];
 
 function parseOrigins(): string[] {
@@ -83,7 +93,11 @@ async function main() {
     AllowedOrigins: origins,
     AllowedMethods: ["PUT", "GET", "HEAD"],
     AllowedHeaders: ["*"],
-    ExposeHeaders: ["ETag"],
+    // Cesium's glTF loader in the editor reads `Content-Length` for
+    // load-progress UI and `Accept-Ranges` to decide whether it can
+    // stream big `.glb` files — without them exposed the browser
+    // treats every byte as unknown. ETag stays for cache validation.
+    ExposeHeaders: ["ETag", "Content-Length", "Accept-Ranges"],
     MaxAgeSeconds: 300,
   };
 
