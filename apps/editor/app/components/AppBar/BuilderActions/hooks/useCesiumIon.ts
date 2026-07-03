@@ -207,9 +207,12 @@ export const useCesiumIon = () => {
         ionOptions.inputCrs = `EPSG:${options.epsgCode}`;
       }
 
-      // geometryCompression: "MESHOPT" or "DRACO" for BIM/CAD (note: no "ric" in field name)
-      // Remove "NONE" option as Ion doesn't accept it
-      if (options?.geometricCompression) {
+      // geometryCompression: "MESHOPT" or "DRACO" for BIM/CAD.
+      // Ion 409s ("options.sourceType must be a valid source type")
+      // if this is present on non-BIM types like KML/GeoJSON/CZML —
+      // it infers a BIM tiling flow and demands a matching sourceType.
+      // Gate on `BIM_CAD` like `textureFormat` below already does.
+      if (uploadSourceType === "BIM_CAD" && options?.geometricCompression) {
         const compression = options.geometricCompression.toUpperCase();
         if (compression === "MESHOPT" || compression === "DRACO") {
           ionOptions.geometryCompression = compression;
