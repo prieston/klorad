@@ -275,7 +275,7 @@ export async function loadTilesetWithTransform(
   cesiumAssetId: string,
   metadata?: Record<string, unknown> | null,
   transform?: TilesetTransformData,
-  options?: {
+  _options?: {
     viewer?: any;
     log?: boolean;
   }
@@ -537,5 +537,175 @@ export function findExistingTileset(
     }
   }
 
+  return null;
+}
+
+/**
+ * Cesium Ion asset types this viewer understands. Every user-facing
+ * upload eventually maps to one of these strings on the DB Asset row.
+ */
+export type IonAssetType =
+  | "3DTILES"
+  | "GLTF"
+  | "KML"
+  | "GEOJSON"
+  | "CZML"
+  | "IMAGERY"
+  | "TERRAIN";
+
+const KNOWN_ION_TYPES: readonly IonAssetType[] = [
+  "3DTILES",
+  "GLTF",
+  "KML",
+  "GEOJSON",
+  "CZML",
+  "IMAGERY",
+  "TERRAIN",
+];
+
+/**
+ * Resolve the underlying Cesium Ion asset type from the DB Asset's
+ * `fileType` + `metadata`. Preference order:
+ *
+ *   1. `metadata.type` — populated by both the direct-upload polling
+ *      path (`useCesiumIonUpload.ts`) and the integration sync path
+ *      (`apps/editor/lib/cesium/sync.ts`).
+ *   2. `assetType` (i.e. `fileType`) if it already names a known Ion
+ *      type — sync-imported rows store the Ion type directly here.
+ *   3. `undefined` — caller should default to `"3DTILES"` (the historic
+ *      behaviour before vector types were wired up).
+ *
+ * Direct-upload rows carry `fileType = "cesium-ion-tileset"`, which is
+ * intentionally not a real Ion type — it's the marker that the row is
+ * an Ion asset at all. In that case only path (1) can succeed.
+ */
+export function resolveIonType(
+  assetType?: string,
+  metadata?: Record<string, unknown> | null
+): IonAssetType | undefined {
+  const metaType =
+    metadata && typeof metadata === "object"
+      ? (metadata as { type?: unknown }).type
+      : undefined;
+  if (typeof metaType === "string") {
+    const upper = metaType.toUpperCase();
+    if ((KNOWN_ION_TYPES as readonly string[]).includes(upper)) {
+      return upper as IonAssetType;
+    }
+  }
+  if (assetType) {
+    const upper = assetType.toUpperCase();
+    if ((KNOWN_ION_TYPES as readonly string[]).includes(upper)) {
+      return upper as IonAssetType;
+    }
+  }
+  return undefined;
+}
+
+/** KML / GeoJSON / CZML — loaded via `*DataSource.load(IonResource)`
+ *  rather than `Cesium3DTileset.fromIonAssetId`. */
+export function isVectorIonType(type: IonAssetType | undefined): boolean {
+  return type === "KML" || type === "GEOJSON" || type === "CZML";
+}
+
+/**
+ * Load a vector Ion asset (KML / GeoJSON / CZML) as a Cesium
+ * `DataSource`. Attach to `viewer.dataSources` — NOT
+ * `scene.primitives` — and dispose via `viewer.dataSources.remove()`.
+ *
+ * `KmlDataSource.load` needs `camera` + `canvas` for network-link
+ * screen-space handling; we pass the viewer's when we have one, and
+ * fall back to bare `load(resource)` otherwise (feature will still
+ * render, just without live network-link updates).
+ */
+export async function loadVectorIonDataSource(
+  Cesium: any,
+  cesiumAssetId: string,
+  ionType: "KML" | "GEOJSON" | "CZML",
+  viewer?: any
+): Promise<any> {
+  const idNum = Number(cesiumAssetId);
+  if (!Number.isFinite(idNum)) {
+    throw new Error(`Invalid Cesium Ion asset id: ${cesiumAssetId}`);
+  }
+  const resource = await Cesium.IonResource.fromAssetId(idNum);
+  switch (ionType) {
+    case "KML": {
+      // `clampToGround: true` drapes flat KML features (no altitude
+      // specified per-feature, or `altitudeMode = clampToGround`) onto
+      // the terrain surface. Without it, features render at height 0
+      // and get eaten by any non-trivial terrain — which is exactly
+      // what happens for typical POI / route KMLs authored in Google
+      // Earth. Features with `absolute` altitude in the source KML
+      // keep their real height.
+      //
+      // `camera` + `canvas` are needed for KML network links to
+      // resolve screen-space queries; passing them when we have a
+      // viewer is a no-op for static KMLs.
+      const kmlOptions: Record<string, unknown> = { clampToGround: true };
+      if (viewer?.camera) kmlOptions.camera = viewer.camera;
+      if (viewer?.canvas) kmlOptions.canvas = viewer.canvas;
+      const kmlDataSource = await Cesium.KmlDataSource.load(
+        resource,
+        kmlOptions
+      );
+      // Cesium ignores `clampToGround` for KML LineStrings unless the
+      // source KML sets `<tessellate>1</tessellate>` on each line —
+      // its console warning is "Ignoring clampToGround for KML lines
+      // without the tessellate flag". Setting `polyline.clampToGround`
+      // per-entity overrides that at the graphics level. Only touch
+      // polylines; leave polygons/points alone since load-time
+      // `clampToGround` already handles those correctly.
+      //
+      // Gotcha: KML's parser defaults line `arcType` to `NONE` (a
+      // straight 3D segment between endpoints) when `<tessellate>` is
+      // absent, but `GroundPolylineGeometry` — the geometry
+      // `clampToGround` switches Cesium into — REJECTS `ArcType.NONE`
+      // with `DeveloperError: Valid options for arcType are
+      // ArcType.GEODESIC and ArcType.RHUMB`. So we have to flip both
+      // properties together, otherwise the render loop throws every
+      // frame. Geodesic is the natural choice for a line following
+      // the terrain surface.
+      try {
+        for (const entity of kmlDataSource.entities.values) {
+          if (entity?.polyline) {
+            entity.polyline.clampToGround = true;
+            entity.polyline.arcType = Cesium.ArcType.GEODESIC;
+          }
+        }
+      } catch {
+        /* entities collection unavailable — nothing to force */
+      }
+      return kmlDataSource;
+    }
+    case "GEOJSON":
+      // Same reasoning as KML — GeoJSON features are 2D by default
+      // and disappear under any real terrain otherwise. GeoJSON's
+      // LineString handling does NOT have the KML tessellate quirk,
+      // so no post-load fix-up needed here.
+      return await Cesium.GeoJsonDataSource.load(resource, {
+        clampToGround: true,
+      });
+    case "CZML":
+      // CZML packets specify altitude modes per-entity in the source
+      // document, so there's no load-time clamp option — authors
+      // control it via `heightReference`.
+      return await Cesium.CzmlDataSource.load(resource);
+  }
+}
+
+/** Find a previously-loaded vector data source keyed by asset id. */
+export function findExistingVectorDataSource(
+  viewer: any,
+  cesiumAssetId: string
+): any | null {
+  const collection = viewer?.dataSources;
+  if (!collection) return null;
+  for (let i = 0; i < collection.length; i++) {
+    const ds = collection.get(i);
+    if (ds && ds._kloradAssetId === cesiumAssetId) {
+      return ds;
+    }
+  }
   return null;
 }

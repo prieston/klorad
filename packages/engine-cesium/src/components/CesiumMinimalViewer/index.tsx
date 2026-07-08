@@ -7,8 +7,13 @@ import { useTerrain } from "./hooks/useTerrain";
 import { TilesetRenderer } from "./components/TilesetRenderer";
 import { ImageryRenderer } from "./components/ImageryRenderer";
 import { TerrainRenderer } from "./components/TerrainRenderer";
+import { VectorDataSourceRenderer } from "./components/VectorDataSourceRenderer";
 import { LocationClickHandler } from "./components/LocationClickHandler";
 import { CesiumLoadingScreen } from "../CesiumLoadingScreen";
+import {
+  isVectorIonType,
+  resolveIonType,
+} from "../../utils/tileset-operations";
 import type { CesiumMinimalViewerProps } from "./types";
 
 /**
@@ -75,10 +80,19 @@ export function CesiumMinimalViewer({
     return <CesiumLoadingScreen />;
   }
 
+  // Resolve the actual Ion type from the DB `fileType` + `metadata`.
+  // Direct-upload rows carry `fileType = "cesium-ion-tileset"` so we
+  // need to consult `metadata.type` (populated by the upload polling
+  // path) to distinguish 3D Tiles from KML/GeoJSON/CZML.
+  const ionType = resolveIonType(assetType, metadata);
+  const isVector = isVectorIonType(ionType);
+  const isTerrainAsset = ionType === "TERRAIN" || assetType === "TERRAIN";
+  const isImageryAsset = ionType === "IMAGERY" || assetType === "IMAGERY";
+
   return (
     <>
       {/* Render terrain for TERRAIN type assets */}
-      {cesiumAssetId && assetType === "TERRAIN" && (
+      {cesiumAssetId && isTerrainAsset && (
         <TerrainRenderer
           viewer={viewer}
           Cesium={Cesium}
@@ -92,7 +106,7 @@ export function CesiumMinimalViewer({
       )}
 
       {/* Render imagery for IMAGERY type assets */}
-      {cesiumAssetId && assetType === "IMAGERY" && (
+      {cesiumAssetId && isImageryAsset && (
         <ImageryRenderer
           viewer={viewer}
           Cesium={Cesium}
@@ -104,8 +118,24 @@ export function CesiumMinimalViewer({
         />
       )}
 
-      {/* Render tileset for 3D Tiles and other types (excluding TERRAIN and IMAGERY) */}
-      {cesiumAssetId && assetType !== "IMAGERY" && assetType !== "TERRAIN" && (
+      {/* Render KML / GeoJSON / CZML as a Cesium DataSource — Ion
+          returns raw XML/JSON for these, not tileset.json, so the
+          3D-Tiles loader would `JSON.parse` an XML document and throw
+          `Unexpected token '<', "<?xml vers"…`. */}
+      {cesiumAssetId && isVector && (
+        <VectorDataSourceRenderer
+          viewer={viewer}
+          Cesium={Cesium}
+          cesiumAssetId={cesiumAssetId}
+          ionType={ionType as "KML" | "GEOJSON" | "CZML"}
+          onReady={handleTilesetReady}
+          onError={onError}
+        />
+      )}
+
+      {/* Render tileset for everything else (3D Tiles, glTF, or
+          rows where the type isn't resolvable — historic default). */}
+      {cesiumAssetId && !isTerrainAsset && !isImageryAsset && !isVector && (
         <TilesetRenderer
           viewer={viewer}
           Cesium={Cesium}

@@ -51,6 +51,7 @@ export const useCesiumIon = () => {
 
       // Fetch the asset to get metadata/transform if it exists
       let transform: { matrix: number[]; longitude?: number; latitude?: number; height?: number } | undefined;
+      let ionType: string | undefined;
       try {
         const fetchedAsset = await getModel(newAsset.id);
         const metadata = fetchedAsset.asset?.metadata as Record<string, unknown> | undefined;
@@ -70,6 +71,14 @@ export const useCesiumIon = () => {
             height: savedTransform.height,
           };
         }
+        // Ion type (KML / GEOJSON / CZML / 3DTILES / …) is written to
+        // `metadata.type` by the upload polling path — pass it into
+        // the scene store so `CesiumIonAssetsRenderer` picks the right
+        // loader (Cesium3DTileset vs KmlDataSource et al).
+        const metaType = metadata?.type;
+        if (typeof metaType === "string") {
+          ionType = metaType;
+        }
       } catch (err) {
         // Ignore errors fetching asset metadata
       }
@@ -80,6 +89,7 @@ export const useCesiumIon = () => {
         apiKey: data.apiKey || "",
         assetId: data.assetId, // Cesium Ion asset ID for rendering
         enabled: true,
+        type: ionType,
         transform,
       });
 

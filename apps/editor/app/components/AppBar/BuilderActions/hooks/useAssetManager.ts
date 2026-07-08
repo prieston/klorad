@@ -213,12 +213,27 @@ export const useAssetManager = ({
       const metadata = (model as any).metadata as Record<string, unknown> | undefined;
       const transformToPass = extractTransformFromMetadata(metadata);
 
+      // Resolve the Ion asset type so the scene renderer knows which
+      // loader to use. `metadata.type` is set by the upload-polling
+      // path and the sync path; `fileType` is the sync fallback. If
+      // neither is present the renderer falls back to 3D Tiles, which
+      // keeps pre-vector scenes working unchanged.
+      const metaType = (metadata as { type?: unknown } | undefined)?.type;
+      const ionType =
+        typeof metaType === "string"
+          ? metaType
+          : typeof model.fileType === "string" &&
+              model.fileType.toUpperCase() !== "CESIUM-ION-TILESET"
+            ? model.fileType
+            : undefined;
+
       // For Cesium Ion assets, add to both cesiumIonAssets and objects arrays
       addCesiumIonAsset({
         name: model.name || model.originalFilename,
         apiKey: (model as any).cesiumApiKey || "",
         assetId: (model as any).cesiumAssetId,
         enabled: true,
+        type: ionType,
         transform: transformToPass,
       });
 

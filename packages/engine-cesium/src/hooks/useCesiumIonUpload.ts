@@ -215,6 +215,17 @@ export const useCesiumIonUpload = () => {
     } else if (sourceType === "PHOTOS_3D_RECONSTRUCTION") {
       ionType = "3DTILES";
       uploadSourceType = "RASTER_IMAGERY";
+    } else if (
+      sourceType === "KML" ||
+      sourceType === "GEOJSON" ||
+      sourceType === "CZML"
+    ) {
+      // Vector formats hosted as-is (no tiling). Ion still requires
+      // `options.sourceType` — matching the type is the pattern that
+      // works (same as IMAGERY → sourceType: "IMAGERY"). Without it
+      // Ion 409s with `options.sourceType must be a valid source type`.
+      ionType = sourceType;
+      uploadSourceType = sourceType;
     }
 
     return { ionType, uploadSourceType };

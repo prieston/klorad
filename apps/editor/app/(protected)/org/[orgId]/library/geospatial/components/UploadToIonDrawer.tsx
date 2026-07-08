@@ -113,6 +113,19 @@ export const UploadToIonDrawer: React.FC<UploadToIonDrawerProps> = ({
         }
       } else if (uploadSourceType) {
         ionOptions.sourceType = uploadSourceType;
+      } else if (
+        sourceType === "KML" ||
+        sourceType === "GEOJSON" ||
+        sourceType === "CZML"
+      ) {
+        // Vector formats hosted as-is (no tiling), but Ion still
+        // requires `options.sourceType`. Matching the type is the
+        // pattern that works (same as IMAGERY → sourceType: "IMAGERY").
+        // Without it Ion 409s: `options.sourceType must be a valid
+        // source type`. The shared `mapSourceType` in @klorad/engine-cesium
+        // also has a matching branch, but this app-level fallback
+        // means the fix takes effect without rebuilding the package.
+        ionOptions.sourceType = sourceType;
       }
 
       // position: object shape { longitude, latitude, height }
