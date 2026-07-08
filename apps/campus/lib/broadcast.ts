@@ -33,16 +33,27 @@ export interface CreateBroadcastInput {
   senderId?: string | null;
 }
 
+/** Single tagged discriminant so callers can switch/if-else cleanly.
+ *  TypeScript's `"skipped" in result` narrowing gave up on the shape
+ *  where two non-ok variants both had `ok: false`; a nominal
+ *  `status` field is unambiguous. */
 export type CreateBroadcastResult =
   | {
-      ok: true;
+      status: "sent";
       broadcastId: string;
       attempted: number;
       delivered: number;
       pruned: number;
     }
-  | { ok: false; skipped: "push-disabled" | "no-subscribers"; broadcastId?: string }
-  | { ok: false; error: string; broadcastId?: string };
+  | {
+      status: "skipped";
+      reason: "push-disabled" | "no-subscribers";
+    }
+  | {
+      status: "error";
+      error: string;
+      broadcastId?: string;
+    };
 
 /**
  * Send a push to every subscriber on `mapId` and persist the audit
@@ -54,7 +65,7 @@ export async function createBroadcastAndSend(
   input: CreateBroadcastInput,
 ): Promise<CreateBroadcastResult> {
   if (!pushEnabled()) {
-    return { ok: false, skipped: "push-disabled" };
+    return { status: "skipped", reason: "push-disabled" };
   }
 
   const {
@@ -122,7 +133,7 @@ export async function createBroadcastAndSend(
     });
 
     return {
-      ok: true,
+      status: "sent",
       broadcastId: broadcast.id,
       attempted: result.attempted,
       delivered: result.delivered,
@@ -131,7 +142,7 @@ export async function createBroadcastAndSend(
   } catch (err) {
     console.error("[broadcast] send failed", err);
     return {
-      ok: false,
+      status: "error",
       error: err instanceof Error ? err.message : "Push failed",
       broadcastId: broadcast.id,
     };

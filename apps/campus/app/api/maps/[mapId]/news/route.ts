@@ -169,7 +169,7 @@ export async function POST(req: Request, { params }: { params: Params }) {
         url: newsDeepLinkUrl(mapId, created.id),
         senderId: session.user.id as string,
       });
-      if (result.ok) {
+      if (result.status === "sent") {
         broadcast = {
           requested: true,
           ok: true,
@@ -177,12 +177,8 @@ export async function POST(req: Request, { params }: { params: Params }) {
           delivered: result.delivered,
           attempted: result.attempted,
         };
-      } else if ("skipped" in result) {
-        broadcast = {
-          requested: true,
-          ok: false,
-          reason: result.skipped,
-        };
+      } else if (result.status === "skipped") {
+        broadcast = { requested: true, ok: false, reason: result.reason };
       } else {
         broadcast = { requested: true, ok: false, reason: result.error };
       }

@@ -74,7 +74,7 @@ export async function POST(req: Request, { params }: { params: Params }) {
     senderId: (session?.user?.id as string | undefined) ?? null,
   });
 
-  if (outcome.ok) {
+  if (outcome.status === "sent") {
     return NextResponse.json({
       ok: true,
       result: {
@@ -85,10 +85,13 @@ export async function POST(req: Request, { params }: { params: Params }) {
     });
   }
 
-  const status = "skipped" in outcome && outcome.skipped === "push-disabled" ? 503 : 500;
+  const status =
+    outcome.status === "skipped" && outcome.reason === "push-disabled"
+      ? 503
+      : 500;
   const errorMessage =
-    "skipped" in outcome
-      ? outcome.skipped === "push-disabled"
+    outcome.status === "skipped"
+      ? outcome.reason === "push-disabled"
         ? "Push isn't configured on this server."
         : "Broadcast skipped."
       : outcome.error;
