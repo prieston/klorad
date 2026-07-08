@@ -10,6 +10,7 @@ import {
 } from "@/lib/events-db";
 import { revalidateTag } from "next/cache";
 import { publicCampusTag } from "@/lib/public-campus";
+import { createBroadcastAndSend, eventDeepLinkUrl } from "@/lib/broadcast";
 
 type Params = Promise<{ mapId: string }>;
 
@@ -161,5 +162,55 @@ export async function POST(req: Request, { params }: { params: Params }) {
     metadata: { startsAt: startsAt.toISOString() },
   });
 
-  return NextResponse.json({ id: created.id });
+  // Optional on-publish push — see the news route for the reasoning
+  // behind the shape of this response and the try/catch that keeps
+  // event creation safe from downstream broadcast errors.
+  let broadcast:
+    | { requested: false }
+    | { requested: true; ok: true; broadcastId: string; delivered: number; attempted: number }
+    | { requested: true; ok: false; reason: string } = { requested: false };
+  if (body.notify === true) {
+    try {
+      const result = await createBroadcastAndSend({
+        mapId,
+        organizationId: project.organizationId,
+        title:
+          typeof body.notifyTitle === "string" && body.notifyTitle.trim().length > 0
+            ? body.notifyTitle.trim()
+            : title,
+        body:
+          typeof body.notifyBody === "string" && body.notifyBody.trim().length > 0
+            ? body.notifyBody.trim()
+            : description,
+        url: eventDeepLinkUrl(mapId, created.id),
+        senderId: (session?.user?.id as string | undefined) ?? null,
+      });
+      if (result.ok) {
+        broadcast = {
+          requested: true,
+          ok: true,
+          broadcastId: result.broadcastId,
+          delivered: result.delivered,
+          attempted: result.attempted,
+        };
+      } else if ("skipped" in result) {
+        broadcast = {
+          requested: true,
+          ok: false,
+          reason: result.skipped,
+        };
+      } else {
+        broadcast = { requested: true, ok: false, reason: result.error };
+      }
+    } catch (err) {
+      console.error("[events] broadcast failed", err);
+      broadcast = {
+        requested: true,
+        ok: false,
+        reason: err instanceof Error ? err.message : "Broadcast failed",
+      };
+    }
+  }
+
+  return NextResponse.json({ id: created.id, broadcast });
 }

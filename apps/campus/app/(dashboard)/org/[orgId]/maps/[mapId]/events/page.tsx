@@ -63,6 +63,7 @@ export default async function EventsAdminPage({
           mapId={mapId}
           initialEvents={events}
           indoorMapId={indoorMapId}
+          pushEnabled={Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY)}
         />
         <IcsFeedsManager mapId={mapId} initialFeeds={initialFeeds} />
         <NotifyForm

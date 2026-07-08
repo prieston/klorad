@@ -26,6 +26,10 @@ interface Props {
   initialPosts: NewsPost[];
   /** MappedIn venue id — when set, the anchor input becomes a picker. */
   indoorMapId?: string | null;
+  /** True when VAPID keys are configured on the server. Drives whether
+   *  the "Send push notification" switch is interactive. Falls to
+   *  `false` if the parent page doesn't pass it — safe default. */
+  pushEnabled?: boolean;
 }
 
 const EMPTY_ANCHOR: AnchorValue = { refName: "", refId: "" };
@@ -52,6 +56,7 @@ export function NewsAdminClient({
   mapId,
   initialPosts,
   indoorMapId,
+  pushEnabled = false,
 }: Props) {
   const [posts, setPosts] = useState<NewsPost[]>(initialPosts);
   /** Non-null when the form is editing an existing post. */
@@ -65,6 +70,10 @@ export function NewsAdminClient({
   const [anchor, setAnchor] = useState<AnchorValue>(EMPTY_ANCHOR);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  /** Only meaningful on Create (not Edit) — sends a push to every
+   *  subscriber the moment the post lands, with a deep-link to the
+   *  new article's public page. */
+  const [notify, setNotify] = useState(false);
 
   const reset = () => {
     setEditingId(null);
@@ -76,6 +85,7 @@ export function NewsAdminClient({
     setPublishedAt(todayISODate());
     setAnchor(EMPTY_ANCHOR);
     setImageUrl(null);
+    setNotify(false);
   };
 
   /** Populate the form with a post's current values for editing. */
@@ -133,12 +143,18 @@ export function NewsAdminClient({
                 },
               ]
             : [],
+          // Only ask for a push on Create — resending on every Edit
+          // would spam subscribers with duplicates whenever a rector
+          // fixes a typo. Reach form covers the "resend on update"
+          // case explicitly.
+          notify: editingId ? undefined : notify,
         }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error ?? "Failed to save");
       }
+      const json = await res.json().catch(() => ({}));
       // Optimistic refresh — re-fetch the list so the post updates.
       const list = await fetch(`/api/maps/${mapId}/news`).then((r) =>
         r.json(),
@@ -146,6 +162,20 @@ export function NewsAdminClient({
       setPosts(list.posts ?? []);
       reset();
       toast.success(editingId ? "Updated" : "Published");
+      // Broadcast toast — success shows the delivery counts, failure
+      // still shows the post was published but surfaces why the push
+      // was skipped so the rector can decide whether to retry via
+      // the Reach form.
+      const b = json?.broadcast;
+      if (b?.requested) {
+        if (b.ok) {
+          toast.success(
+            `Sent to ${b.attempted} subscriber(s) · ${b.delivered} delivered.`,
+          );
+        } else {
+          toast.warn(`Push skipped: ${b.reason}`);
+        }
+      }
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Failed to save");
@@ -338,6 +368,38 @@ export function NewsAdminClient({
               defaultCategory="news"
             />
           </Field>
+
+          {/* Push notification toggle — Create only. On Edit we hide
+              it because sending the same push again on every typo
+              edit would be a subscriber-experience footgun. */}
+          {!editingId && (
+            <label
+              className={`flex cursor-pointer items-start gap-3 rounded-lg border border-solid p-3 transition-colors ${
+                pushEnabled
+                  ? "border-line-soft hover:border-accent/40"
+                  : "cursor-not-allowed border-line-soft bg-surface-2/60 opacity-70"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={pushEnabled && notify}
+                onChange={(e) => setNotify(e.target.checked)}
+                disabled={!pushEnabled || submitting}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
+                aria-label="Send push notification when publishing"
+              />
+              <span className="flex-1">
+                <span className="block text-sm font-medium text-text-primary">
+                  Send push notification
+                </span>
+                <span className="mt-0.5 block text-xs text-text-tertiary">
+                  {pushEnabled
+                    ? "Notify everyone who tapped “Get notifications” on this campus. Tapping the notification opens this article."
+                    : "Disabled — set VAPID_* env vars to enable."}
+                </span>
+              </span>
+            </label>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button

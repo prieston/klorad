@@ -27,6 +27,9 @@ interface Props {
   initialEvents: EventPost[];
   /** MappedIn venue id — when set, the anchor input becomes a picker. */
   indoorMapId?: string | null;
+  /** True when VAPID keys are configured on the server. Drives whether
+   *  the "Send push notification" switch is interactive. */
+  pushEnabled?: boolean;
 }
 
 const EMPTY_ANCHOR: AnchorValue = { refName: "", refId: "" };
@@ -63,6 +66,7 @@ export function EventsAdminClient({
   mapId,
   initialEvents,
   indoorMapId,
+  pushEnabled = false,
 }: Props) {
   const [events, setEvents] = useState<EventPost[]>(initialEvents);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -80,6 +84,9 @@ export function EventsAdminClient({
   const [expectedAttendance, setExpectedAttendance] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  /** Only meaningful on Create — see NewsAdminClient for the same
+   *  no-resend-on-edit rationale. */
+  const [notify, setNotify] = useState(false);
 
   const reset = () => {
     setEditingId(null);
@@ -96,6 +103,7 @@ export function EventsAdminClient({
     setOrganizer("");
     setExpectedAttendance("");
     setImageUrl(null);
+    setNotify(false);
   };
 
   /** `<input type="datetime-local">` value from an ISO string in local TZ. */
@@ -175,18 +183,32 @@ export function EventsAdminClient({
                 },
               ]
             : [],
+          // See NewsAdminClient — Create only. Edit relies on the
+          // Reach form for explicit resends.
+          notify: editingId ? undefined : notify,
         }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error ?? "Failed to save");
       }
+      const json = await res.json().catch(() => ({}));
       const list = await fetch(`/api/maps/${mapId}/events`).then((r) =>
         r.json(),
       );
       setEvents(list.events ?? []);
       reset();
       toast.success(editingId ? "Updated" : "Event published");
+      const b = json?.broadcast;
+      if (b?.requested) {
+        if (b.ok) {
+          toast.success(
+            `Sent to ${b.attempted} subscriber(s) · ${b.delivered} delivered.`,
+          );
+        } else {
+          toast.warn(`Push skipped: ${b.reason}`);
+        }
+      }
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Failed to save");
@@ -432,6 +454,37 @@ export function EventsAdminClient({
               defaultCategory="events"
             />
           </Field>
+
+          {/* Push notification toggle — Create only. See
+              NewsAdminClient for the same reasoning. */}
+          {!editingId && (
+            <label
+              className={`flex cursor-pointer items-start gap-3 rounded-lg border border-solid p-3 transition-colors ${
+                pushEnabled
+                  ? "border-line-soft hover:border-accent/40"
+                  : "cursor-not-allowed border-line-soft bg-surface-2/60 opacity-70"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={pushEnabled && notify}
+                onChange={(e) => setNotify(e.target.checked)}
+                disabled={!pushEnabled || submitting}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
+                aria-label="Send push notification when publishing"
+              />
+              <span className="flex-1">
+                <span className="block text-sm font-medium text-text-primary">
+                  Send push notification
+                </span>
+                <span className="mt-0.5 block text-xs text-text-tertiary">
+                  {pushEnabled
+                    ? "Notify everyone who tapped “Get notifications” on this campus. Tapping the notification opens this event."
+                    : "Disabled — set VAPID_* env vars to enable."}
+                </span>
+              </span>
+            </label>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button
