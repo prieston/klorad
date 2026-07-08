@@ -12,6 +12,7 @@ import { flyToThreeObject } from "@klorad/engine-three/utils";
 const logger = createLogger("ObjectPropertiesView");
 import { ScrollContainer } from "../components/ScrollContainer";
 import ObjectActionsSection from "../../ObjectActionsSection";
+import { CesiumIonAssetPropertiesSection } from "../../CesiumIonAssetPropertiesSection";
 import ModelInformationSection from "../../ModelInformationSection";
 import ObservationModelSection from "../../ObservationModelSection";
 import IoTDevicePropertiesPanel from "../../IoTDevicePropertiesPanel";
@@ -236,6 +237,21 @@ export const ObjectPropertiesView: React.FC<ObjectPropertiesViewProps> = memo(
           onInteractableChange={handleInteractableChange}
           engine={engine}
         />
+
+        {/* Vector-Ion-only options (Clamp to ground for KML/GeoJSON).
+            The component early-returns null for non-vector rows so it
+            stays invisible when the selected object is a 3D tileset.
+            Pass both `cesiumAssetId` and the object name so the
+            component can fall back to name-matching for older rows
+            that were persisted without `cesiumAssetId`. */}
+        {isCesiumIonAsset && (
+          <CesiumIonAssetPropertiesSection
+            cesiumAssetId={
+              (selectedObject as { cesiumAssetId?: string })?.cesiumAssetId
+            }
+            selectedObjectName={selectedObject?.name}
+          />
+        )}
 
         {repositioning && !isCesiumIonAsset && onCancelRepositioning && (
           <Alert
