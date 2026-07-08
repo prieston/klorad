@@ -622,12 +622,21 @@ export async function loadVectorIonDataSource(
   Cesium: any,
   cesiumAssetId: string,
   ionType: "KML" | "GEOJSON" | "CZML",
-  viewer?: any
+  viewer?: any,
+  options?: {
+    /** Drape features onto terrain surface. Defaults to `true` — the
+     *  common case for KML/GeoJSON authored without meaningful
+     *  altitudes. Pass `false` to preserve the source's own altitude
+     *  data (needed for KMLs with real 3D geometry). Ignored for CZML
+     *  because altitude mode is per-entity in the packet source. */
+    clampToGround?: boolean;
+  }
 ): Promise<any> {
   const idNum = Number(cesiumAssetId);
   if (!Number.isFinite(idNum)) {
     throw new Error(`Invalid Cesium Ion asset id: ${cesiumAssetId}`);
   }
+  const clampToGround = options?.clampToGround ?? true;
   const resource = await Cesium.IonResource.fromAssetId(idNum);
   switch (ionType) {
     case "KML": {
@@ -642,7 +651,7 @@ export async function loadVectorIonDataSource(
       // `camera` + `canvas` are needed for KML network links to
       // resolve screen-space queries; passing them when we have a
       // viewer is a no-op for static KMLs.
-      const kmlOptions: Record<string, unknown> = { clampToGround: true };
+      const kmlOptions: Record<string, unknown> = { clampToGround };
       if (viewer?.camera) kmlOptions.camera = viewer.camera;
       if (viewer?.canvas) kmlOptions.canvas = viewer.canvas;
       const kmlDataSource = await Cesium.KmlDataSource.load(
@@ -666,15 +675,21 @@ export async function loadVectorIonDataSource(
       // properties together, otherwise the render loop throws every
       // frame. Geodesic is the natural choice for a line following
       // the terrain surface.
-      try {
-        for (const entity of kmlDataSource.entities.values) {
-          if (entity?.polyline) {
-            entity.polyline.clampToGround = true;
-            entity.polyline.arcType = Cesium.ArcType.GEODESIC;
+      //
+      // When the caller opts OUT of clamp (a 3D KML with real
+      // altitudes), we skip this override entirely so the source
+      // `arcType` and altitudes are respected.
+      if (clampToGround) {
+        try {
+          for (const entity of kmlDataSource.entities.values) {
+            if (entity?.polyline) {
+              entity.polyline.clampToGround = true;
+              entity.polyline.arcType = Cesium.ArcType.GEODESIC;
+            }
           }
+        } catch {
+          /* entities collection unavailable — nothing to force */
         }
-      } catch {
-        /* entities collection unavailable — nothing to force */
       }
       return kmlDataSource;
     }
@@ -684,7 +699,7 @@ export async function loadVectorIonDataSource(
       // LineString handling does NOT have the KML tessellate quirk,
       // so no post-load fix-up needed here.
       return await Cesium.GeoJsonDataSource.load(resource, {
-        clampToGround: true,
+        clampToGround,
       });
     case "CZML":
       // CZML packets specify altitude modes per-entity in the source

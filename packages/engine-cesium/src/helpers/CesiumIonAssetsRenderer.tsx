@@ -37,6 +37,13 @@ const CesiumIonAssetsRenderer: React.FC<CesiumIonAssetsRendererProps> = ({
   autoFlyToTileset = false,
 }) => {
   const tilesetRefs = useRef<Map<string, TilesetWrapper>>(new Map());
+  // Bumped every time the load effect re-runs. `initializeAsset`
+  // captures the run token at start and discards its loaded data
+  // source if the token has moved on — prevents a stale in-flight
+  // load from attaching to the viewer after a newer effect run has
+  // already swept and started a fresh load. Without this, toggling
+  // clamp-to-ground fast enough leaves a ghost of the previous render.
+  const runTokenRef = useRef(0);
   const cesiumIonAssets = useSceneStore((state) => state.cesiumIonAssets);
   const { cesiumViewer, cesiumInstance } = useSceneStore();
   const removeCesiumIonAsset = useSceneStore((state) => state.removeCesiumIonAsset);
@@ -48,7 +55,12 @@ const CesiumIonAssetsRenderer: React.FC<CesiumIonAssetsRendererProps> = ({
         const transformKey = asset.transform?.matrix
           ? asset.transform.matrix.slice(12, 15).join(',') // Use translation part as key
           : 'no-transform';
-        return `${asset.id}-${asset.enabled}-${transformKey}`;
+        // `clampToGround` participates so toggling it in the
+        // properties panel tears down + reloads the data source with
+        // the new option (Cesium doesn't reactively update the
+        // load-time flag once the source is added to the viewer).
+        const clampKey = asset.clampToGround === false ? 'no-clamp' : 'clamp';
+        return `${asset.id}-${asset.enabled}-${transformKey}-${clampKey}`;
       })
       .join('|');
   }, [cesiumIonAssets]);
@@ -67,19 +79,46 @@ const CesiumIonAssetsRenderer: React.FC<CesiumIonAssetsRendererProps> = ({
       return;
     }
 
+    // Dispose everything we're tracking, then also sweep any orphan
+    // data sources still attached to the viewer with a `_kloradAssetId`
+    // tag. Without the sweep, toggling a fast-changing option (e.g.
+    // clamp-to-ground) can leave a ghost of the previous render: the
+    // effect fires a fresh load before the previous `initializeAsset`
+    // finished attaching, so its data source only lands on the viewer
+    // AFTER our forEach-dispose — orphaning it forever.
     tilesetRefs.current.forEach((wrapper) => {
       wrapper.dispose();
     });
     tilesetRefs.current.clear();
 
+    try {
+      const collection = cesiumViewer.dataSources;
+      if (collection) {
+        const orphans: any[] = [];
+        for (let i = 0; i < collection.length; i++) {
+          const ds = collection.get(i);
+          if (ds?._kloradAssetId != null) {
+            orphans.push(ds);
+          }
+        }
+        for (const ds of orphans) {
+          collection.remove(ds, true);
+        }
+      }
+    } catch {
+      /* viewer torn down mid-teardown — nothing to do */
+    }
+
+    runTokenRef.current += 1;
+    const runToken = runTokenRef.current;
     cesiumIonAssets.forEach((asset) => {
       if (asset.enabled) {
-        initializeAsset(asset);
+        initializeAsset(asset, runToken);
       }
     });
   }, [assetsKey, cesiumViewer, cesiumInstance]); // Use assetsKey instead of cesiumIonAssets
 
-  const initializeAsset = async (asset: any) => {
+  const initializeAsset = async (asset: any, runToken: number) => {
     try {
       const originalToken = cesiumInstance.Ion.defaultAccessToken;
       cesiumInstance.Ion.defaultAccessToken = asset.apiKey;
@@ -95,9 +134,32 @@ const CesiumIonAssetsRenderer: React.FC<CesiumIonAssetsRendererProps> = ({
           cesiumInstance,
           asset.assetId,
           ionType as "KML" | "GEOJSON" | "CZML",
-          cesiumViewer
+          cesiumViewer,
+          {
+            // Default true — matches historic behaviour and covers the
+            // common flat-KML case. Operator flips this off from the
+            // properties panel when the source KML has real altitudes.
+            clampToGround: asset.clampToGround ?? true,
+          }
         );
+        // If a newer run started while we were awaiting Ion, drop this
+        // data source instead of attaching it — it would only be a
+        // ghost of the previous option state.
+        if (runToken !== runTokenRef.current) {
+          try {
+            dataSource.destroy?.();
+          } catch {
+            /* nothing to do */
+          }
+          cesiumInstance.Ion.defaultAccessToken = originalToken;
+          return;
+        }
         dataSource._kloradAssetId = asset.assetId;
+        // Tag the runtime Ion type so the properties panel can detect
+        // "this is a vector row" from the viewer directly, without
+        // depending on `asset.type` being present on the store row
+        // (older scenes persist without it).
+        dataSource._kloradIonType = ionType;
         await cesiumViewer.dataSources.add(dataSource);
 
         const wrapper: TilesetWrapper = {

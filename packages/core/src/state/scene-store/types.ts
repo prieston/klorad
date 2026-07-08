@@ -16,6 +16,15 @@ export interface CesiumIonAsset {
    *  Optional so pre-existing scenes (populated before this field
    *  existed) still hydrate — the renderer defaults them to 3DTILES. */
   type?: string;
+  /** Whether to drape KML / GeoJSON features onto the terrain surface
+   *  (Cesium's `clampToGround`). Only meaningful for vector types.
+   *  Default `true` — the common case is a flat KML/GeoJSON without
+   *  meaningful altitudes, which disappears under any real terrain
+   *  otherwise. Flip to `false` for KMLs with genuine 3D geometry
+   *  (flight paths, absolute-altitude features) where the source
+   *  altitudes should be respected. Editable from the object
+   *  properties panel in the builder. */
+  clampToGround?: boolean;
   transform?: {
     matrix: number[]; // 16-element array representing Matrix4
     longitude?: number;
