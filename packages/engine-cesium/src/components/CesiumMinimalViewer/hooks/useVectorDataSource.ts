@@ -84,6 +84,10 @@ export function useVectorDataSource({
         if (cancelled) return;
 
         dataSource._kloradAssetId = cesiumAssetId;
+        // Tag the Ion type at runtime so panels can detect it
+        // without depending on the (optional, possibly-un-hydrated)
+        // `asset.type` field on the scene store row.
+        dataSource._kloradIonType = ionType;
 
         // Viewer could have been torn down while we awaited Ion.
         if (
