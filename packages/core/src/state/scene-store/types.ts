@@ -8,6 +8,14 @@ export interface CesiumIonAsset {
   apiKey: string;
   assetId: string;
   enabled: boolean;
+  /** Underlying Cesium Ion asset type — "3DTILES" | "KML" | "GEOJSON" |
+   *  "CZML" | "IMAGERY" | "TERRAIN" | "GLTF". Determines which loader
+   *  the scene renderer picks: 3D Tiles → `Cesium3DTileset.fromIonAssetId`;
+   *  vector formats → `KmlDataSource.load` / `GeoJsonDataSource.load` /
+   *  `CzmlDataSource.load` on the viewer's `dataSources` collection.
+   *  Optional so pre-existing scenes (populated before this field
+   *  existed) still hydrate — the renderer defaults them to 3DTILES. */
+  type?: string;
   transform?: {
     matrix: number[]; // 16-element array representing Matrix4
     longitude?: number;

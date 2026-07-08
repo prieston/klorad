@@ -103,18 +103,39 @@ export function createCesiumActions(set: any, get: any) {
         return;
       }
 
-      // Helper function to find tileset by assetId
+      // Helper function to find tileset by assetId. First scans
+      // `scene.primitives` (3D Tiles), then falls back to
+      // `viewer.dataSources` (KML / GeoJSON / CZML — attached by
+      // `CesiumIonAssetsRenderer`'s vector branch and tagged with
+      // `_kloradAssetId`). Without the data-source pass, fly-to on a
+      // KML would spin the 20-retry loop and log "Tileset not found
+      // after 20 retries" — the primitives collection never contains
+      // it.
       const findTilesetByAssetId = (): any => {
-        const primitives = (cesiumViewer as any).scene.primitives;
-        const expectedAssetId = parseInt((asset as any).assetId);
+        const expectedAssetIdNum = parseInt((asset as any).assetId);
+        const expectedAssetIdStr = String((asset as any).assetId);
 
-        for (let i = 0; i < primitives.length; i++) {
-          const primitive = primitives.get(i);
-          const primitiveAssetId = (primitive as any)?.assetId;
-          if (primitive && primitiveAssetId === expectedAssetId) {
-            return primitive;
+        const primitives = (cesiumViewer as any).scene?.primitives;
+        if (primitives) {
+          for (let i = 0; i < primitives.length; i++) {
+            const primitive = primitives.get(i);
+            const primitiveAssetId = (primitive as any)?.assetId;
+            if (primitive && primitiveAssetId === expectedAssetIdNum) {
+              return primitive;
+            }
           }
         }
+
+        const dataSources = (cesiumViewer as any).dataSources;
+        if (dataSources) {
+          for (let i = 0; i < dataSources.length; i++) {
+            const ds = dataSources.get(i);
+            if (ds && (ds as any)._kloradAssetId === expectedAssetIdStr) {
+              return ds;
+            }
+          }
+        }
+
         return null;
       };
 

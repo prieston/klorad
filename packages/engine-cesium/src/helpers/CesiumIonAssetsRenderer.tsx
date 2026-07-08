@@ -3,15 +3,23 @@
 import React, { useEffect, useRef } from "react";
 import { useSceneStore } from "@klorad/core";
 import {
+  isVectorIonType,
   loadTilesetWithTransform,
+  loadVectorIonDataSource,
   reapplyTransformAfterReady,
+  resolveIonType,
   waitForTilesetReady,
   positionCameraForTileset,
 } from "../utils/tileset-operations";
 
 interface TilesetWrapper {
   id: string;
-  tileset: any;
+  /** Set for 3D Tiles rows. */
+  tileset?: any;
+  /** Set for KML / GeoJSON / CZML rows. Kept in a separate field so
+   *  fly-to and transform code doesn't accidentally treat a data
+   *  source as a tileset. */
+  dataSource?: any;
   dispose: () => void;
 }
 
@@ -75,6 +83,46 @@ const CesiumIonAssetsRenderer: React.FC<CesiumIonAssetsRendererProps> = ({
     try {
       const originalToken = cesiumInstance.Ion.defaultAccessToken;
       cesiumInstance.Ion.defaultAccessToken = asset.apiKey;
+
+      // Branch: vector-format Ion assets (KML / GeoJSON / CZML) go
+      // through Cesium DataSources, not `Cesium3DTileset.fromIonAssetId`.
+      // Without this, the tileset loader tries to `JSON.parse` raw
+      // KML/XML and either throws or retries forever ("Tileset for
+      // asset X not found after 20 retries").
+      const ionType = resolveIonType(asset.type);
+      if (isVectorIonType(ionType)) {
+        const dataSource = await loadVectorIonDataSource(
+          cesiumInstance,
+          asset.assetId,
+          ionType as "KML" | "GEOJSON" | "CZML",
+          cesiumViewer
+        );
+        dataSource._kloradAssetId = asset.assetId;
+        await cesiumViewer.dataSources.add(dataSource);
+
+        const wrapper: TilesetWrapper = {
+          id: asset.id,
+          dataSource,
+          dispose: () => {
+            try {
+              cesiumViewer?.dataSources?.remove(dataSource, true);
+            } catch {
+              /* teardown race — nothing to do */
+            }
+          },
+        };
+        tilesetRefs.current.set(asset.id, wrapper);
+
+        if (autoFlyToTileset) {
+          try {
+            await cesiumViewer.flyTo(dataSource, { duration: 2.0 });
+          } catch {
+            /* ignore fly-to-during-teardown errors */
+          }
+        }
+        cesiumInstance.Ion.defaultAccessToken = originalToken;
+        return;
+      }
 
       // Load tileset with transform (uses shared utility function)
       // This applies transform before adding to scene
