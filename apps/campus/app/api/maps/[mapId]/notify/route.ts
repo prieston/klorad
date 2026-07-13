@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { randomBytes } from "node:crypto";
 import { auth } from "@/auth";
 import { requireCampusAccess } from "@/lib/authz";
-import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
-import { pushEnabled, sendPushToProject } from "@/lib/push";
+import { pushEnabled } from "@/lib/push";
+import { createBroadcastAndSend } from "@/lib/broadcast";
 
 type Params = Promise<{ mapId: string }>;
 
@@ -56,103 +55,45 @@ export async function POST(req: Request, { params }: { params: Params }) {
   const url = typeof body.url === "string" ? body.url : undefined;
   const icon = typeof body.icon === "string" ? body.icon : undefined;
 
-  // Pre-allocate the broadcast row so the push payload can carry its
-  // id. If anything fails before the send, the row is left with
-  // `attempted: 0` which the Reach UI renders as a "0/0 · queued"
-  // line — surfacing the failed send instead of hiding it.
-  const clickToken = randomBytes(12).toString("base64url");
   const session = await auth();
-  const broadcast = await prisma.broadcast.create({
-    data: {
-      projectId: mapId,
-      title,
-      body: message,
-      targetPath: extractCampusRelativePath(url, mapId),
-      senderId: (session?.user?.id as string | undefined) ?? null,
-      clickToken,
-    },
-    select: { id: true },
+  const project = await prisma.project.findUnique({
+    where: { id: mapId },
+    select: { organizationId: true },
+  });
+  if (!project) {
+    return NextResponse.json({ error: "Campus not found" }, { status: 404 });
+  }
+
+  const outcome = await createBroadcastAndSend({
+    mapId,
+    organizationId: project.organizationId,
+    title,
+    body: message,
+    url,
+    icon,
+    senderId: (session?.user?.id as string | undefined) ?? null,
   });
 
-  try {
-    const result = await sendPushToProject(mapId, {
-      title,
-      body: message,
-      url,
-      icon,
-      broadcastId: broadcast.id,
-      clickToken,
+  if (outcome.status === "sent") {
+    return NextResponse.json({
+      ok: true,
+      result: {
+        attempted: outcome.attempted,
+        delivered: outcome.delivered,
+        pruned: outcome.pruned,
+      },
     });
-
-    await prisma.broadcast
-      .update({
-        where: { id: broadcast.id },
-        data: {
-          attempted: result.attempted,
-          delivered: result.delivered,
-          pruned: result.pruned,
-        },
-      })
-      .catch((err) => {
-        console.error("[notify] count update failed", err);
-      });
-
-    // Audit row: piggybacks on the project lookup the authz helper
-    // already did. We do an extra `findUnique` to get the org id —
-    // tiny cost vs. accurate attribution on the "What Changed" feed.
-    const project = await prisma.project.findUnique({
-      where: { id: mapId },
-      select: { organizationId: true },
-    });
-    if (project) {
-      await recordAudit({
-        organizationId: project.organizationId,
-        projectId: mapId,
-        actorId: (session?.user?.id as string | undefined) ?? null,
-        entityType: "BROADCAST",
-        entityId: broadcast.id,
-        action: "CREATED",
-        message: `Broadcast "${title}" — sent to ${result.delivered} of ${result.attempted}`,
-        metadata: {
-          attempted: result.attempted,
-          delivered: result.delivered,
-          pruned: result.pruned,
-        },
-      });
-    }
-
-    return NextResponse.json({ ok: true, result });
-  } catch (err) {
-    console.error("[notify]", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Push failed" },
-      { status: 500 },
-    );
   }
-}
 
-/**
- * The Reach composer sends an absolute-or-campus-prefixed URL like
- * `/campus/<mapId>/events`. We store the campus-relative tail so
- * future history rows stay valid if the public URL scheme moves
- * (e.g. custom domains). Returns `null` when the URL doesn't look
- * like a campus link.
- */
-function extractCampusRelativePath(
-  url: string | undefined,
-  mapId: string,
-): string | null {
-  if (!url) return null;
-  let path = url;
-  try {
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      path = new URL(url).pathname;
-    }
-  } catch {
-    return null;
-  }
-  const prefix = `/campus/${mapId}`;
-  if (!path.startsWith(prefix)) return null;
-  const tail = path.slice(prefix.length);
-  return tail || "/";
+  const status =
+    outcome.status === "skipped" && outcome.reason === "push-disabled"
+      ? 503
+      : 500;
+  const errorMessage =
+    outcome.status === "skipped"
+      ? outcome.reason === "push-disabled"
+        ? "Push isn't configured on this server."
+        : "Broadcast skipped."
+      : outcome.error;
+  return NextResponse.json({ error: errorMessage }, { status });
 }

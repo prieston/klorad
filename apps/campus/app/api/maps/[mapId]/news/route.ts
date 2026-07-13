@@ -10,6 +10,7 @@ import {
 import { revalidateTag } from "next/cache";
 import { publicCampusTag } from "@/lib/public-campus";
 import { Prisma, type NewsCategory } from "@prisma/client";
+import { createBroadcastAndSend, newsDeepLinkUrl } from "@/lib/broadcast";
 
 type Params = Promise<{ mapId: string }>;
 
@@ -142,5 +143,54 @@ export async function POST(req: Request, { params }: { params: Params }) {
     metadata: { category, title },
   });
 
-  return NextResponse.json({ id: created.id });
+  // Optional on-publish push. The Reach form still exists for
+  // one-off announcements; this is the "publish + notify at once"
+  // shortcut on the news composer. Wrapped in try/catch so a push
+  // failure never fails the news creation itself — the row is
+  // already in the DB and the rector shouldn't see a 500 for a
+  // downstream problem.
+  let broadcast:
+    | { requested: false }
+    | { requested: true; ok: true; broadcastId: string; delivered: number; attempted: number }
+    | { requested: true; ok: false; reason: string } = { requested: false };
+  if (body.notify === true) {
+    try {
+      const result = await createBroadcastAndSend({
+        mapId,
+        organizationId: project.organizationId,
+        title:
+          typeof body.notifyTitle === "string" && body.notifyTitle.trim().length > 0
+            ? body.notifyTitle.trim()
+            : title,
+        body:
+          typeof body.notifyBody === "string" && body.notifyBody.trim().length > 0
+            ? body.notifyBody.trim()
+            : post,
+        url: newsDeepLinkUrl(mapId, created.id),
+        senderId: session.user.id as string,
+      });
+      if (result.status === "sent") {
+        broadcast = {
+          requested: true,
+          ok: true,
+          broadcastId: result.broadcastId,
+          delivered: result.delivered,
+          attempted: result.attempted,
+        };
+      } else if (result.status === "skipped") {
+        broadcast = { requested: true, ok: false, reason: result.reason };
+      } else {
+        broadcast = { requested: true, ok: false, reason: result.error };
+      }
+    } catch (err) {
+      console.error("[news] broadcast failed", err);
+      broadcast = {
+        requested: true,
+        ok: false,
+        reason: err instanceof Error ? err.message : "Broadcast failed",
+      };
+    }
+  }
+
+  return NextResponse.json({ id: created.id, broadcast });
 }
