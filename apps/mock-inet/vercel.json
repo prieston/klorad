@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "//": "Skip the light audits step other apps run — the DATABASE_URL check in @klorad/dev-audits assumes every app hits Prisma, but the mock is stateless (no DB, no Prisma). Build stays limited to the app's own build script.",
   "buildCommand": "cd ../.. && pnpm vercel:build:mock-inet",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile --prod=false",
   "framework": "nextjs",
