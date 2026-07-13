@@ -28,19 +28,38 @@ import {
 } from "./fixture.js";
 import { createInetHttpClient, type InetHttpClient } from "./client.js";
 import {
+  INET_SUBSYSTEMS,
   InetAtmsConfigSchema,
+  RawAidDeviceSchema,
   RawCctvDeviceSchema,
   RawDmsDeviceSchema,
+  RawRadarDeviceSchema,
   RawStatusSchema,
+  RawVmsDeviceSchema,
+  RawVslsDeviceSchema,
   type InetAtmsConfig,
   type InetDevice,
   type InetMedia,
   type InetStatus,
   type InetSubsystem,
+  type RawAidDevice,
   type RawCctvDevice,
   type RawDmsDevice,
+  type RawRadarDevice,
   type RawStatus,
+  type RawVmsDevice,
+  type RawVslsDevice,
 } from "./types.js";
+
+/** Subsystems that expose a `/status` endpoint the same way DMS does.
+ *  VMS is the regional alias for DMS; VSLS is the same wire shape with
+ *  an added lane label. CCTV / AID / RADAR don't advertise a
+ *  documented status endpoint on the ATMS surface. */
+const STATUS_ENABLED_SUBSYSTEMS: ReadonlySet<InetSubsystem> = new Set([
+  "dms",
+  "vms",
+  "vsls",
+]);
 
 const DEFAULT_PAGE_SIZE = 200;
 /** Safety brake — stop walking pages after this many round-trips even
@@ -54,17 +73,19 @@ export const INET_ATMS_CONNECTOR_ID = "inet-atms";
 function packId(subsystem: InetSubsystem, externalId: string): string {
   return `${subsystem}:${externalId}`;
 }
+function isInetSubsystem(value: string | undefined): value is InetSubsystem {
+  return (
+    typeof value === "string" &&
+    (INET_SUBSYSTEMS as readonly string[]).includes(value)
+  );
+}
+
 function unpackId(deviceId: string): {
   subsystem: InetSubsystem;
   externalId: string;
 } | null {
   const [subsystem, externalId, ...rest] = deviceId.split(":");
-  if (
-    rest.length > 0 ||
-    !subsystem ||
-    !externalId ||
-    !(subsystem === "cctv" || subsystem === "dms")
-  ) {
+  if (rest.length > 0 || !externalId || !isInetSubsystem(subsystem)) {
     return null;
   }
   return { subsystem, externalId };
@@ -141,6 +162,108 @@ function normaliseDms(raw: RawDmsDevice): InetDevice {
     name: raw.name ?? `DMS ${externalId}`,
     media: null,
   };
+}
+
+// ─────────────────────────────────────────────────────────────
+// PSMdt-iNET demo subsystems (aid / vms / vsls / radar)
+//
+// Each shares wire shape with an existing subsystem — see the aliased
+// schemas in `types.ts`. Normalisers stay tiny by delegating to the
+// parent normaliser and swapping the packed id + subsystem tag.
+// ─────────────────────────────────────────────────────────────
+
+function normaliseAid(raw: RawAidDevice): InetDevice {
+  const base = normaliseCctv(raw);
+  return {
+    ...base,
+    deviceId: packId("aid", base.externalId),
+    subsystem: "aid",
+    name: raw.name ?? `AID ${base.externalId}`,
+  };
+}
+
+function normaliseVms(raw: RawVmsDevice): InetDevice {
+  const base = normaliseDms(raw);
+  return {
+    ...base,
+    deviceId: packId("vms", base.externalId),
+    subsystem: "vms",
+    name: raw.name ?? `VMS ${base.externalId}`,
+  };
+}
+
+function normaliseVsls(raw: RawVslsDevice): InetDevice {
+  const base = normaliseDms(raw);
+  // VSLS rows are lane-scoped in the source — surface the lane as a
+  // suffix on the name so a gantry's three siblings render distinctly
+  // in the objects list.
+  const laneSuffix = raw.lane ? ` · ${raw.lane}` : "";
+  return {
+    ...base,
+    deviceId: packId("vsls", base.externalId),
+    subsystem: "vsls",
+    name: raw.name ?? `VSLS ${base.externalId}${laneSuffix}`,
+  };
+}
+
+function normaliseRadar(raw: RawRadarDevice): InetDevice {
+  const externalId = raw.deviceId;
+  return {
+    deviceId: packId("radar", externalId),
+    externalId,
+    subsystem: "radar",
+    type: raw.type ?? null,
+    lat: raw.latitude ?? null,
+    lng: raw.longitude ?? null,
+    mileMarker: raw.mileMarker != null ? String(raw.mileMarker) : null,
+    primaryRoad: raw.primaryRoad ?? null,
+    crossRoad: raw.crossRoad ?? null,
+    direction: raw.direction ?? null,
+    routeId: raw.routeId != null ? String(raw.routeId) : null,
+    agency: raw.agency ?? null,
+    name: raw.name ?? `RADAR ${externalId}`,
+    // Bearing is carried on `raw.bearing` — currently no `InetDevice`
+    // column for it, so it stays available via the passthrough Zod
+    // schema when downstream needs it (e.g. map icon rotation). No
+    // media surface for a radar.
+    media: null,
+  };
+}
+
+/** Route each subsystem's raw JSON through its parser + normaliser.
+ *  Returns null on parse failure so the caller can skip the row
+ *  without aborting the page. Keeps `listLive` + `getEntity` free of
+ *  a growing if/else chain per new subsystem. */
+function parseAndNormalise(
+  subsystem: InetSubsystem,
+  raw: unknown,
+): InetDevice | null {
+  switch (subsystem) {
+    case "cctv": {
+      const parsed = RawCctvDeviceSchema.safeParse(raw);
+      return parsed.success ? normaliseCctv(parsed.data) : null;
+    }
+    case "aid": {
+      const parsed = RawAidDeviceSchema.safeParse(raw);
+      return parsed.success ? normaliseAid(parsed.data) : null;
+    }
+    case "dms": {
+      const parsed = RawDmsDeviceSchema.safeParse(raw);
+      return parsed.success ? normaliseDms(parsed.data) : null;
+    }
+    case "vms": {
+      const parsed = RawVmsDeviceSchema.safeParse(raw);
+      return parsed.success ? normaliseVms(parsed.data) : null;
+    }
+    case "vsls": {
+      const parsed = RawVslsDeviceSchema.safeParse(raw);
+      return parsed.success ? normaliseVsls(parsed.data) : null;
+    }
+    case "radar": {
+      const parsed = RawRadarDeviceSchema.safeParse(raw);
+      return parsed.success ? normaliseRadar(parsed.data) : null;
+    }
+  }
 }
 
 /** Decode the NTCIP short-status bitfield into a single human-facing
@@ -223,14 +346,7 @@ export function createInetAtmsConnector(): InetAtmsConnector {
       const items: InetDevice[] = [];
       let freshThisPage = 0;
       for (const entry of raw) {
-        let device: InetDevice | null = null;
-        if (subsystem === "cctv") {
-          const parsed = RawCctvDeviceSchema.safeParse(entry);
-          if (parsed.success) device = normaliseCctv(parsed.data);
-        } else if (subsystem === "dms") {
-          const parsed = RawDmsDeviceSchema.safeParse(entry);
-          if (parsed.success) device = normaliseDms(parsed.data);
-        }
+        const device = parseAndNormalise(subsystem, entry);
         if (!device) continue;
         if (!seenExternalIds.has(device.externalId)) {
           seenExternalIds.add(device.externalId);
@@ -321,12 +437,7 @@ export function createInetAtmsConnector(): InetAtmsConnector {
           unpacked.subsystem,
           `/${unpacked.externalId}`,
         );
-        if (unpacked.subsystem === "cctv") {
-          const parsed = RawCctvDeviceSchema.safeParse(raw);
-          return parsed.success ? normaliseCctv(parsed.data) : null;
-        }
-        const parsed = RawDmsDeviceSchema.safeParse(raw);
-        return parsed.success ? normaliseDms(parsed.data) : null;
+        return parseAndNormalise(unpacked.subsystem, raw);
       } catch {
         return null;
       }
@@ -355,7 +466,9 @@ export function createInetAtmsConnector(): InetAtmsConnector {
       await Promise.all(
         deviceIds.map(async (id) => {
           const unpacked = unpackId(id);
-          if (!unpacked || unpacked.subsystem !== "dms") return;
+          if (!unpacked || !STATUS_ENABLED_SUBSYSTEMS.has(unpacked.subsystem)) {
+            return;
+          }
           try {
             const raw = await client!.getJson<unknown>(
               unpacked.subsystem,

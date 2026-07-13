@@ -20,8 +20,21 @@ import { z } from "zod";
 
 /** Subsystems the adapter understands today. Add new ones to this
  *  union and they automatically appear in the per-tenant multi-select
- *  in the Mobility settings UI. */
-export const INET_SUBSYSTEMS = ["cctv", "dms"] as const;
+ *  in the Mobility settings UI.
+ *
+ *  `aid` / `vms` / `vsls` / `radar` were added to support the PSMdt-iNET
+ *  demo fleet — an on-tenant mock (`psmdt-inet-mock`) mirrors the same
+ *  REST surface as Parsons for these subsystems, so live sources point
+ *  at the mock host and the connector sees identical shapes to `cctv`
+ *  and `dms`. */
+export const INET_SUBSYSTEMS = [
+  "cctv",
+  "dms",
+  "aid",
+  "vms",
+  "vsls",
+  "radar",
+] as const;
 export type InetSubsystem = (typeof INET_SUBSYSTEMS)[number];
 
 /** Per-tenant config persisted with credentials encrypted at rest via
@@ -260,3 +273,51 @@ export const RawDmsDeviceSchema = z
   .passthrough();
 
 export type RawDmsDevice = z.infer<typeof RawDmsDeviceSchema>;
+
+/** VMS (Variable Message Sign) is the regional name for what Parsons
+ *  calls DMS — same wire shape, different label. Alias the schema so
+ *  the adapter code only threads one shape. */
+export const RawVmsDeviceSchema = RawDmsDeviceSchema;
+export type RawVmsDevice = RawDmsDevice;
+
+/** VSLS (Variable Speed Limit Sign) — one row per lane in the source
+ *  workbook, all with an inline status. Field surface matches DMS
+ *  closely, so we reuse that schema with two optional extras. */
+export const RawVslsDeviceSchema = RawDmsDeviceSchema.extend({
+  /** Lane label from the source (`LEFT LANE`, `MIDDLE LANE`, …). */
+  lane: z.string().nullish(),
+  /** Grouping key so the UI can render VSLS gantries as a set. */
+  groupIndex: z.number().int().nullish(),
+});
+export type RawVslsDevice = z.infer<typeof RawVslsDeviceSchema>;
+
+/** AID (Automatic Incident Detection) — a camera whose primary
+ *  output is an event stream, not a video feed. Shape mirrors CCTV
+ *  (they're often co-mounted on the same pole). */
+export const RawAidDeviceSchema = RawCctvDeviceSchema;
+export type RawAidDevice = RawCctvDevice;
+
+/** RADAR / ramp radar — vehicle-detection systems (VDS). No media;
+ *  carries a bearing so the map can rotate the icon. */
+export const RawRadarDeviceSchema = z
+  .object({
+    deviceId: z.union([z.string(), z.number()]).transform(String),
+    externalId: z.string().nullish(),
+    name: z.string().nullish(),
+    description: z.string().nullish(),
+    type: z.string().nullish(),
+    agency: z.string().nullish(),
+    active: z.boolean().nullish(),
+    latitude: z.number().nullish(),
+    longitude: z.number().nullish(),
+    mileMarker: z.number().nullish(),
+    primaryRoad: z.string().nullish(),
+    crossRoad: z.string().nullish(),
+    direction: z.string().nullish(),
+    routeId: z.union([z.string(), z.number()]).nullish(),
+    /** Facing bearing in degrees (0 = North, 90 = East). Sourced from
+     *  the `Rotation` column in the equipment workbook. */
+    bearing: z.number().nullish(),
+  })
+  .passthrough();
+export type RawRadarDevice = z.infer<typeof RawRadarDeviceSchema>;

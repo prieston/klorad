@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { toast } from "react-toastify";
 import type { ConnectorDescriptor } from "@klorad/connectors";
+import { INET_SUBSYSTEMS } from "@klorad/connectors/inet-atms";
 
 interface SyncProgress {
   subsystem: string | null;
@@ -408,8 +409,13 @@ function AddSourceForm({
   const [host, setHost] = useState("https://demobe.parsonsinet.com");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [subCctv, setSubCctv] = useState(true);
-  const [subDms, setSubDms] = useState(true);
+  // Track subsystem selection by name so this stays maintenance-free
+  // as new subsystems (aid / vms / vsls / radar for the PSMdt-iNET
+  // demo, plus whatever ships next) land in `INET_SUBSYSTEMS`. Default
+  // to the two live iNET tenants have historically enabled.
+  const [selectedSubsystems, setSelectedSubsystems] = useState<
+    Set<string>
+  >(() => new Set(["cctv", "dms"]));
   const [mode, setMode] = useState<"fixture" | "live">("fixture");
   const [submitting, setSubmitting] = useState(false);
 
@@ -420,9 +426,11 @@ function AddSourceForm({
     }
     setSubmitting(true);
     try {
-      const subsystems: string[] = [];
-      if (subCctv) subsystems.push("cctv");
-      if (subDms) subsystems.push("dms");
+      // Emit in the same order as `INET_SUBSYSTEMS` so the payload
+      // is stable across restarts of the picker.
+      const subsystems: string[] = INET_SUBSYSTEMS.filter((s) =>
+        selectedSubsystems.has(s),
+      );
       const config: Record<string, unknown> = {
         host,
         subsystems,
@@ -536,22 +544,29 @@ function AddSourceForm({
         <fieldset className="text-sm md:col-span-2">
           <legend className="mb-1 text-text-tertiary">Subsystems</legend>
           <div className="flex flex-wrap gap-4">
-            <label className="inline-flex items-center gap-2 text-text-primary">
-              <input
-                type="checkbox"
-                checked={subCctv}
-                onChange={(e) => setSubCctv(e.target.checked)}
-              />
-              CCTV
-            </label>
-            <label className="inline-flex items-center gap-2 text-text-primary">
-              <input
-                type="checkbox"
-                checked={subDms}
-                onChange={(e) => setSubDms(e.target.checked)}
-              />
-              DMS
-            </label>
+            {INET_SUBSYSTEMS.map((subsystem) => (
+              <label
+                key={subsystem}
+                className="inline-flex items-center gap-2 text-text-primary"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedSubsystems.has(subsystem)}
+                  onChange={(e) =>
+                    setSelectedSubsystems((prev) => {
+                      const next = new Set(prev);
+                      if (e.target.checked) {
+                        next.add(subsystem);
+                      } else {
+                        next.delete(subsystem);
+                      }
+                      return next;
+                    })
+                  }
+                />
+                {subsystem.toUpperCase()}
+              </label>
+            ))}
           </div>
         </fieldset>
       </div>
