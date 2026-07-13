@@ -103,26 +103,24 @@ export default async function NewsDetailPage({
     <main id="main" data-consumer lang={locale}>
 
       <article className="mx-auto max-w-[760px]">
-        {/* Striped cover + image. `stripedBanner` paints the diagonal
-            accent pattern; if a post image is set it sits behind the
-            stripes via background-image, blended through the soft
-            tint. Back chip floats top-left over both. */}
+        {/* Cover art. When the post has an image, show it cleanly —
+            the earlier design blended the striped accent pattern on
+            top via `soft-light`, but that made the image read as a
+            tinted texture instead of a photograph. When there's no
+            image, fall back to the diagonal accent stripes so the
+            cover still carries the campus's colour. */}
         <div
           className="relative h-56 w-full md:h-72"
-          style={{
-            ...stripedBanner(accent, 22),
-            ...(post.imageUrl
+          style={
+            post.imageUrl
               ? {
-                  backgroundImage: `url(${post.imageUrl}), ${
-                    (stripedBanner(accent, 22) as { backgroundImage: string })
-                      .backgroundImage
-                  }`,
-                  backgroundSize: "cover, auto",
-                  backgroundPosition: "center, top left",
-                  backgroundBlendMode: "soft-light, normal",
+                  backgroundImage: `url(${post.imageUrl})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  backgroundColor: accent,
                 }
-              : null),
-          }}
+              : stripedBanner(accent, 22)
+          }
         >
           <Link
             href={`/campus/${token}${lang}`}

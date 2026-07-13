@@ -126,23 +126,22 @@ export default async function EventDetailPage({
     <main id="main" data-consumer lang={locale}>
 
       <article className="mx-auto max-w-[760px]">
-        {/* Striped cover + optional event image. */}
+        {/* Cover art. Clean image when the event has one; diagonal
+            accent stripes as the fallback when it doesn't. Matches
+            the news detail page — the earlier soft-light overlay
+            made real photos read as tinted textures. */}
         <div
           className="relative h-56 w-full md:h-72"
-          style={{
-            ...stripedBanner(accent, 22),
-            ...(event.imageUrl
+          style={
+            event.imageUrl
               ? {
-                  backgroundImage: `url(${event.imageUrl}), ${
-                    (stripedBanner(accent, 22) as { backgroundImage: string })
-                      .backgroundImage
-                  }`,
-                  backgroundSize: "cover, auto",
-                  backgroundPosition: "center, top left",
-                  backgroundBlendMode: "soft-light, normal",
+                  backgroundImage: `url(${event.imageUrl})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  backgroundColor: accent,
                 }
-              : null),
-          }}
+              : stripedBanner(accent, 22)
+          }
         >
           <Link
             href={`/campus/${token}${lang}`}
