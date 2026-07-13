@@ -1,0 +1,34 @@
+{
+  "name": "@klorad/mock-inet",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Mock Parsons/iNET ATMS API for PSMdt-iNET demo scenarios. Klorad Mobility sources point their `host` at the deployed URL and treat it as a real Parsons tenant.",
+  "engines": {
+    "node": ">=20 <23",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "seed": "tsx scripts/build-seed-from-csv.ts",
+    "dev": "NODE_ENV=development NEXT_TELEMETRY_DISABLED=1 next dev -p 3005",
+    "build": "pnpm seed && next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "15.5.7",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "^15.1.9",
+    "tsx": "^4.19.2",
+    "typescript": "^5.5.3"
+  }
+}
