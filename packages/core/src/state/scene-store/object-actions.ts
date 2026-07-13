@@ -34,9 +34,33 @@ export function createObjectActions(set: any, _get: any) {
           objects: state.objects.filter((obj: Model) => obj.id !== id),
           selectedObject:
             state.selectedObject?.id === id ? null : state.selectedObject,
+          // Match the sidecar `CesiumIonAsset` row by the Cesium Ion
+          // asset id — not the model's `assetId`, which stores the
+          // *database* asset id (`model.id`) and never matches
+          // `cesiumIonAsset.assetId` (the numeric Ion id). Without
+          // this, deleting an Ion-backed model from the scene
+          // removed it from the objects list but the tileset / data
+          // source kept rendering because `CesiumIonAssetsRenderer`
+          // still saw a live row in `cesiumIonAssets`.
+          //
+          // Falls back to a `name` match so historical rows added
+          // before we started stamping `cesiumAssetId` on the Model
+          // still delete cleanly.
           cesiumIonAssets: isCesiumIonAsset
             ? state.cesiumIonAssets.filter((asset: any) => {
-                return asset.assetId !== objectToRemove?.assetId;
+                const cesiumId = (objectToRemove as {
+                  cesiumAssetId?: string;
+                })?.cesiumAssetId;
+                if (cesiumId && String(asset.assetId) === String(cesiumId)) {
+                  return false;
+                }
+                if (
+                  objectToRemove?.name &&
+                  asset.name === objectToRemove.name
+                ) {
+                  return false;
+                }
+                return true;
               })
             : state.cesiumIonAssets,
         };
