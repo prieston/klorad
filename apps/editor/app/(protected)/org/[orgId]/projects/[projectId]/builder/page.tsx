@@ -250,6 +250,33 @@ const sanitizeSceneData = (
       })()
     : [];
 
+  // Drop orphan `cesiumIonAssets` — rows with no corresponding `Model`
+  // in `objects`. These appear when an earlier version of
+  // `removeObject` failed to filter the sidecar array (fixed centrally
+  // in PR #236). Without this sweep, a stuck deleted-but-still-
+  // rendering asset reappears on every reload until the operator
+  // finds a way to remove it manually.
+  //
+  // Match rule: `cesiumIonAsset.assetId` (Cesium Ion asset id) equals
+  // `model.cesiumAssetId` (Ion id stamped on the model row when the
+  // asset was added). Falls back to a `name` match so historical
+  // models added before `cesiumAssetId` was populated still keep
+  // their sidecar alive.
+  const orphanFilteredCesiumIonAssets = cleanCesiumIonAssets.filter(
+    (asset: any) => {
+      const assetId = asset?.assetId ? String(asset.assetId) : null;
+      const assetName = typeof asset?.name === "string" ? asset.name : null;
+      return cleanObjects.some((obj: any) => {
+        const objCesiumId = obj?.cesiumAssetId
+          ? String(obj.cesiumAssetId)
+          : null;
+        if (assetId && objCesiumId && objCesiumId === assetId) return true;
+        if (assetName && obj?.name === assetName) return true;
+        return false;
+      });
+    },
+  );
+
   return {
     objects: cleanObjects,
     observationPoints: cleanObservationPoints,
@@ -257,7 +284,7 @@ const sanitizeSceneData = (
     selectedLocation: cleanSelectedLocation,
     showTiles,
     basemapType: basemapType || "cesium",
-    cesiumIonAssets: cleanCesiumIonAssets,
+    cesiumIonAssets: orphanFilteredCesiumIonAssets,
     cesiumLightingEnabled: cesiumLightingEnabled || false,
     cesiumShadowsEnabled: cesiumShadowsEnabled || false,
     cesiumCurrentTime: cesiumCurrentTime || null,
