@@ -1,0 +1,743 @@
+openapi: 3.0.3
+
+info:
+  title: PSMdt · iNET Mock API
+  version: 0.1.0
+  description: |
+    Demo API that mocks Parsons/iNET's ATMS surface and layers a
+    real-time demo path on top for the three PSMdt sales scenarios
+    (Response-to-Incident, O&M VMS Inspection, Active Traffic
+    Management).
+
+    Two layers, one deploy:
+
+    - **`/atms/*`** — byte-compatible with the Parsons iNET REST that
+      Klorad Mobility's `@klorad/connectors/inet-atms` connector
+      already speaks. Point a Mobility source's `host` here and the
+      existing sync runs untouched.
+    - **`/api/*`** — additive demo surface (incidents, worlds, VDS
+      telemetry, SSE stream, webhooks). Not called by the Mobility
+      sync; consumed by the scenario scripts and any front-end that
+      wants live push.
+
+    Auth on both layers is HTTP Basic (defaults `demo` / `demo`,
+    configurable via `MOCK_USER` / `MOCK_PASS`).
+
+servers:
+  - url: https://mock.psmdt-inet.dev
+    description: Prod-style Vercel deploy
+  - url: http://localhost:3000
+    description: Local dev
+
+security:
+  - basicAuth: []
+
+tags:
+  - name: iNET drop-in
+    description: |
+      Byte-compatible mirror of the Parsons iNET ATMS endpoints. The
+      Klorad Mobility connector walks these to build its device
+      inventory.
+  - name: Incidents
+    description: Scenario 1 — Response-to-Incident lifecycle.
+  - name: Worlds
+    description: |
+      Scenario 2 — build a scoped, shareable device world (e.g. only
+      the VMS signs on the Western Ring-Road). Returns an install URL
+      the PSMdt-iNET app can open.
+  - name: VDS
+    description: Scenario 3 — Active Traffic Management live telemetry.
+  - name: Realtime
+    description: SSE + webhook fan-out for status changes and demo events.
+  - name: Demo control
+    description: One-tap triggers that kick off scripted scenario runs.
+
+paths:
+  # ─────────────────────────────────────────────────────────────
+  # Layer 1 — iNET drop-in
+  # ─────────────────────────────────────────────────────────────
+
+  /atms/{subsystem}-rest/rest/{subsystem}/:
+    get:
+      tags: [iNET drop-in]
+      summary: List devices in a subsystem
+      description: |
+        Cursor-paginated device listing. Klorad Mobility's connector
+        calls this with `limit=200` and pages by passing the last
+        item's `externalId` as `start_id`.
+
+        Response is a **bare JSON array** — no envelope, no `total`,
+        no `next`. Pagination terminates when the returned page is
+        shorter than `limit` or when the caller has walked its
+        20-page ceiling.
+      parameters:
+        - $ref: "#/components/parameters/Subsystem"
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+        - name: start_id
+          in: query
+          description: |
+            Cursor — the `externalId` of the last item from the
+            previous page. Omit on the first page.
+          schema: { type: string }
+        - name: query
+          in: query
+          schema: { type: string }
+        - name: lat
+          in: query
+          schema: { type: number, format: double }
+        - name: lng
+          in: query
+          schema: { type: number, format: double }
+        - name: sort_by
+          in: query
+          explode: true
+          schema: { type: array, items: { type: string } }
+      responses:
+        "200":
+          description: Bare array of devices for the requested subsystem.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Device" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /atms/{subsystem}-rest/rest/{subsystem}/{externalId}:
+    get:
+      tags: [iNET drop-in]
+      summary: Get a single device
+      parameters:
+        - $ref: "#/components/parameters/Subsystem"
+        - $ref: "#/components/parameters/ExternalId"
+      responses:
+        "200":
+          description: One device (same schema as list items).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Device" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /atms/dms-rest/rest/dms/{externalId}/status:
+    get:
+      tags: [iNET drop-in]
+      summary: DMS status snapshot
+      description: |
+        Parsons keeps DMS status on a separate endpoint. The mock
+        also serves it for `vms` and `vsls` via
+        `/atms/vms-rest/rest/vms/{id}/status` etc. — Klorad Mobility
+        just uses `dms`.
+      parameters:
+        - $ref: "#/components/parameters/ExternalId"
+      responses:
+        "200":
+          description: |
+            Either a status object or a single-element `[status]`
+            array — the connector tolerates both, and this mock
+            picks the object form.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DmsStatus" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ─────────────────────────────────────────────────────────────
+  # Layer 2 — Demo surface
+  # ─────────────────────────────────────────────────────────────
+
+  /api/incidents:
+    get:
+      tags: [Incidents]
+      summary: List incidents
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Incident" }
+    post:
+      tags: [Incidents]
+      summary: Post a new incident
+      description: |
+        Creates an incident and emits `incident.posted` on the SSE
+        stream + registered webhooks. Optionally anchored to a
+        device — if a `deviceId` is given, the incident inherits
+        that device's `lat`/`lon` unless overridden.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IncidentCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Incident" }
+
+  /api/incidents/{id}:
+    get:
+      tags: [Incidents]
+      summary: Get a single incident
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Incident" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Incidents]
+      summary: Transition incident status
+      description: |
+        Updates the incident's status. Legal transitions:
+        `posted → acknowledged → en_route → on_scene → resolved`.
+        Any transition emits `incident.status_changed` on the SSE
+        stream + registered webhooks.
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: "#/components/schemas/IncidentStatus" }
+                note: { type: string, description: Free-text supervisor note. }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Incident" }
+
+  /api/worlds:
+    get:
+      tags: [Worlds]
+      summary: List worlds
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/World" }
+    post:
+      tags: [Worlds]
+      summary: Build a scoped world from a filter
+      description: |
+        Returns a `World` with a stable slug + install URL the
+        PSMdt-iNET app can open. `filter` follows the same shape as
+        `GET /api/devices` query params (types, direction, ids).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorldCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/World" }
+
+  /api/worlds/{id}:
+    get:
+      tags: [Worlds]
+      summary: Get a world by id or slug
+      parameters:
+        - $ref: "#/components/parameters/WorldId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/World" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/worlds/{id}/devices:
+    get:
+      tags: [Worlds]
+      summary: List devices scoped to a world
+      description: |
+        Same device shape as `/atms/*`, filtered by the world's
+        stored filter. Used by the PSMdt-iNET app after install so
+        the operator sees only the scoped inventory.
+      parameters:
+        - $ref: "#/components/parameters/WorldId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Device" }
+
+  /api/vds/live:
+    get:
+      tags: [VDS]
+      summary: Latest traffic sample per VDS
+      description: |
+        Snapshot of the last emitted `vds.tick` per active radar /
+        ramp-radar device. The scripted traffic loop ticks at ~1 Hz
+        and also fans out over SSE + webhooks; this endpoint is the
+        pull-style equivalent for clients that don't do push.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/VdsSample" }
+
+  /api/webhooks:
+    get:
+      tags: [Realtime]
+      summary: List registered webhooks
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Webhook" }
+    post:
+      tags: [Realtime]
+      summary: Register a webhook
+      description: |
+        Any event whose type matches an entry in `events` is POSTed
+        to `url` with an HMAC-SHA256 signature in
+        `X-PSMdt-Signature` (secret = the webhook's own `secret`).
+        Failed deliveries retry with exponential back-off for
+        1 hour, then the webhook is auto-disabled.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebhookCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Webhook" }
+
+  /api/webhooks/{id}:
+    delete:
+      tags: [Realtime]
+      summary: Delete a webhook
+      parameters:
+        - $ref: "#/components/parameters/WebhookId"
+      responses:
+        "204": { description: Deleted. }
+
+  /api/stream:
+    get:
+      tags: [Realtime]
+      summary: Server-Sent Events stream
+      description: |
+        `Content-Type: text/event-stream`. Each message is one
+        `StreamEvent` serialised as JSON. Client is expected to
+        reconnect on drop — Vercel caps a single SSE connection at
+        ~300s (Pro).
+
+        Filter with `?events=incident.status_changed,vds.tick` to
+        subscribe to a subset.
+      parameters:
+        - name: events
+          in: query
+          schema: { type: string }
+          example: incident.status_changed,vds.tick
+      responses:
+        "200":
+          description: SSE stream.
+          content:
+            text/event-stream:
+              schema: { $ref: "#/components/schemas/StreamEvent" }
+
+  /api/demo/scenario/{name}:
+    post:
+      tags: [Demo control]
+      summary: Trigger a scripted scenario
+      description: |
+        One-tap starts one of the three demo scenarios. Idempotent
+        per name — starting an already-running scenario resets it.
+
+        - `incident` — creates an incident anchored at a random AID
+          + PTZ pair, walks it through the status pipeline on a
+          6-second cadence.
+        - `vms-inspection` — creates a world scoped to `WEST`
+          direction + `VMS` type, returns the install URL.
+        - `traffic` — starts the VDS traffic tick loop (~1 Hz per
+          radar), with rush-hour + slowdown patterns.
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [incident, vms-inspection, traffic]
+      responses:
+        "200":
+          description: Started (or reset).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name: { type: string }
+                  status: { type: string, enum: [started, reset] }
+                  detail: { type: object, additionalProperties: true }
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+
+  parameters:
+    Subsystem:
+      name: subsystem
+      in: path
+      required: true
+      description: |
+        One of `cctv`, `aid`, `vms`, `vsls`, `radar`. `dms` is
+        accepted as an alias for `vms` for connector compatibility.
+      schema:
+        type: string
+        enum: [cctv, aid, vms, dms, vsls, radar]
+    ExternalId:
+      name: externalId
+      in: path
+      required: true
+      schema: { type: string }
+      description: Device id as it appears in the source workbook (e.g. `W-VMS-15.01`).
+    IncidentId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    WorldId:
+      name: id
+      in: path
+      required: true
+      description: World id (UUID) or slug (`western-ring-vms`).
+      schema: { type: string }
+    WebhookId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid HTTP Basic credentials.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Device:
+      type: object
+      description: |
+        The base device shape shared across every subsystem. Specific
+        subsystems layer extra fields on top — see `CctvExtras`,
+        `DmsExtras`. The Klorad Mobility sync only reads the base
+        fields (id, subsystem, name, type, coords, road/chainage);
+        subsystem-specific fields pass through as an unknown
+        payload.
+      required:
+        - externalId
+        - deviceId
+        - subsystem
+        - type
+      properties:
+        deviceId:
+          type: string
+          description: Same as `externalId` — Parsons ships them as separate keys but they're equal in practice.
+        externalId:
+          type: string
+          example: W-VMS-15.01
+        subsystem:
+          type: string
+          enum: [cctv, aid, vms, vsls, radar]
+        name:
+          type: string
+          example: Western Ring · VMS 15.01
+        type:
+          type: string
+          description: Short human-readable type name (e.g. `PTZ`, `VMS`, `RDR`).
+        subtype:
+          type: string
+          description: Parsons-specific sub-classification (`TYPE E1`, `TYPE C1`).
+          example: TYPE E1
+        direction:
+          type: string
+          enum: [WEST, EAST]
+        primaryRoad:
+          type: string
+          example: Flyover · Western Ring
+        crossRoad:
+          type: string
+          nullable: true
+        mileMarker:
+          type: string
+          description: Chainage in KM+M format (`15+ 522`).
+          example: 15+ 522
+        area:
+          type: string
+          description: Geographical area (`ΓΕ1`–`ΓΕ4`).
+          example: ΓΕ4
+        mounting:
+          type: string
+          description: Mounting hardware (`POLE`, `GANTRY`, `CANTILEVER`, `TUNNEL ENTRANCE`, `ON PTZ POLE`).
+        relativeLocation:
+          type: string
+          nullable: true
+          example: RIGHT SIDE OF THE ROAD
+        latitude: { type: number, format: double, example: 40.587727 }
+        longitude: { type: number, format: double, example: 22.985937 }
+        bearing:
+          type: number
+          nullable: true
+          description: Facing bearing in degrees from `Rotation` column when present.
+        routeId: { type: string, nullable: true }
+        agency:
+          type: string
+          example: DEMO
+        active:
+          type: boolean
+          default: true
+        # Subsystem extras (nullable per subsystem):
+        hlsUri: { type: string, nullable: true }
+        dashUri: { type: string, nullable: true }
+        cameraIpAddr: { type: string, nullable: true }
+        url: { type: string, nullable: true }
+        controlType:
+          type: string
+          nullable: true
+          enum: [status, "status and command"]
+        signType:
+          type: integer
+          nullable: true
+          description: DMS/VMS sign type integer.
+        pixelWidth: { type: integer, nullable: true }
+        pixelHeight: { type: integer, nullable: true }
+        status:
+          allOf:
+            - $ref: "#/components/schemas/DmsStatus"
+          nullable: true
+          description: Inlined for DMS/VMS on list responses; separate endpoint also available.
+
+    DmsStatus:
+      type: object
+      required: [signId, connectable, timestamp]
+      properties:
+        signId: { type: string }
+        connectable: { type: boolean }
+        shortStatus:
+          type: integer
+          description: Parsons short-status code — `0` = healthy.
+        controlMode:
+          type: string
+          example: photocell
+        timestamp:
+          type: integer
+          format: int64
+          description: ms since epoch of the sample.
+        message:
+          type: string
+          description: Current sign message in Parsons markup.
+          example: "[pb][jp2]Road Closed[nl]Use Alternate"
+        beacon: { type: boolean, default: false }
+        brightnessLevel: { $ref: "#/components/schemas/RangedLevel" }
+        photocellLevel: { $ref: "#/components/schemas/RangedLevel" }
+        lightOutput: { $ref: "#/components/schemas/RangedLevel" }
+
+    RangedLevel:
+      type: object
+      required: [min, max, current]
+      properties:
+        min: { type: number }
+        max: { type: number }
+        current: { type: number }
+
+    Incident:
+      type: object
+      required: [id, title, status, postedAt, latitude, longitude]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        status: { $ref: "#/components/schemas/IncidentStatus" }
+        latitude: { type: number, format: double }
+        longitude: { type: number, format: double }
+        deviceId: { type: string, nullable: true, description: Anchoring device (usually a PTZ or AID). }
+        postedAt: { type: string, format: date-time }
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              status: { $ref: "#/components/schemas/IncidentStatus" }
+              at: { type: string, format: date-time }
+              note: { type: string, nullable: true }
+
+    IncidentStatus:
+      type: string
+      enum: [posted, acknowledged, en_route, on_scene, resolved]
+
+    IncidentCreate:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        deviceId: { type: string, nullable: true }
+        latitude: { type: number, format: double, nullable: true }
+        longitude: { type: number, format: double, nullable: true }
+
+    World:
+      type: object
+      required: [id, slug, name, filter, installUrl]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string, example: western-ring-vms }
+        name: { type: string, example: Western Ring · VMS }
+        filter: { $ref: "#/components/schemas/WorldFilter" }
+        installUrl:
+          type: string
+          format: uri
+          example: https://mock.psmdt-inet.dev/w/western-ring-vms
+        createdAt: { type: string, format: date-time }
+
+    WorldCreate:
+      type: object
+      required: [name, filter]
+      properties:
+        name: { type: string }
+        slug: { type: string, description: "Optional — auto-generated from name if omitted." }
+        filter: { $ref: "#/components/schemas/WorldFilter" }
+
+    WorldFilter:
+      type: object
+      description: |
+        Any subset of these clauses. All are AND-combined. Empty
+        filter matches everything (rarely useful — a demo world is
+        almost always narrower).
+      properties:
+        types:
+          type: array
+          items:
+            type: string
+            enum: [cctv, aid, vms, vsls, radar]
+        direction:
+          type: string
+          enum: [WEST, EAST]
+        area:
+          type: array
+          items: { type: string, example: ΓΕ4 }
+        ids:
+          type: array
+          items: { type: string }
+        bbox:
+          type: array
+          description: "[minLon, minLat, maxLon, maxLat]"
+          items: { type: number, format: double }
+          minItems: 4
+          maxItems: 4
+
+    VdsSample:
+      type: object
+      required: [deviceId, timestamp, volume, speed, occupancy]
+      properties:
+        deviceId: { type: string, example: W-RDR-4.01 }
+        timestamp: { type: string, format: date-time }
+        volume:
+          type: integer
+          description: Vehicles per minute across all lanes.
+        speed:
+          type: number
+          description: Mean km/h across all lanes.
+        occupancy:
+          type: number
+          description: Lane occupancy 0.0–1.0.
+        perLane:
+          type: array
+          items:
+            type: object
+            properties:
+              lane: { type: integer }
+              volume: { type: integer }
+              speed: { type: number }
+              occupancy: { type: number }
+
+    Webhook:
+      type: object
+      required: [id, url, events, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/StreamEventType" }
+        active: { type: boolean, default: true }
+        createdAt: { type: string, format: date-time }
+        lastDeliveryAt: { type: string, format: date-time, nullable: true }
+        lastDeliveryStatus: { type: integer, nullable: true }
+
+    WebhookCreate:
+      type: object
+      required: [url, events]
+      properties:
+        url: { type: string, format: uri }
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/StreamEventType" }
+        secret:
+          type: string
+          description: Optional — auto-generated if omitted; returned in the response and never shown again.
+
+    StreamEventType:
+      type: string
+      enum:
+        - device.status_changed
+        - incident.posted
+        - incident.status_changed
+        - vds.tick
+
+    StreamEvent:
+      type: object
+      required: [type, at, payload]
+      properties:
+        type: { $ref: "#/components/schemas/StreamEventType" }
+        at: { type: string, format: date-time }
+        payload:
+          oneOf:
+            - $ref: "#/components/schemas/Device"
+            - $ref: "#/components/schemas/Incident"
+            - $ref: "#/components/schemas/VdsSample"
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        detail: { type: string }

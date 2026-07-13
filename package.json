@@ -16,6 +16,7 @@
     "dev:website": "cd apps/website && pnpm dev",
     "dev:admin": "cd apps/admin && pnpm dev",
     "dev:campus": "cd apps/campus && pnpm dev",
+    "dev:mock-inet": "cd apps/mock-inet && pnpm dev",
     "build:campus": "pnpm build:packages && cd apps/campus && pnpm build",
     "build:mobility": "pnpm build:packages && cd apps/mobility && pnpm build",
     "clean": "node scripts/clean.mjs",
@@ -60,6 +61,7 @@
     "vercel:build:admin": "pnpm prisma:generate && pnpm --filter @klorad/prisma prisma migrate deploy && pnpm clean && pnpm build:packages && cd apps/admin && pnpm build",
     "vercel:build:campus": "pnpm prisma:generate && pnpm --filter @klorad/prisma prisma migrate deploy && pnpm clean && pnpm build:packages && cd apps/campus && pnpm build",
     "vercel:build:mobility": "pnpm prisma:generate && pnpm --filter @klorad/prisma prisma migrate deploy && pnpm clean && pnpm build:packages && cd apps/mobility && pnpm build",
+    "vercel:build:mock-inet": "cd apps/mock-inet && pnpm build",
     "dev:mobility": "cd apps/mobility && pnpm dev",
     "postinstall": "pnpm prisma:generate",
     "prepare": "husky || true"

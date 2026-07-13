@@ -1,0 +1,15 @@
+# Node / Next
+node_modules
+.next
+out
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+
+# Env
+.env
+.env.local
+.env*.local
+
+# Build outputs
+seed/devices.json
