@@ -4,18 +4,16 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import {
-  AlertTriangle,
   ArrowRight,
   Bell,
-  Camera,
   CheckCircle2,
   Database,
   RefreshCcw,
   ShieldOff,
-  Signpost,
   WifiOff,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { subsystemIcon } from "@/lib/mobility/subsystem-icon";
 
 interface AlertRow {
   deviceId: string;
@@ -205,12 +203,7 @@ function AlertItem({
   alert: AlertRow;
   openHref: string;
 }) {
-  const SubsystemIcon =
-    alert.subsystem === "cctv"
-      ? Camera
-      : alert.subsystem === "dms"
-        ? Signpost
-        : AlertTriangle;
+  const SubsystemIcon: LucideIcon = subsystemIcon(alert.subsystem);
   const kindIcon = alert.kind === "offline" ? WifiOff : ShieldOff;
   const KindIcon = kindIcon;
   return (

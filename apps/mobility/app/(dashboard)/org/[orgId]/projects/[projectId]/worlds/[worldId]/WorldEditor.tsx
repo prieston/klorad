@@ -9,7 +9,6 @@ import {
   ArrowLeft,
   BarChart3,
   Bell,
-  Camera,
   Check,
   Copy,
   Download,
@@ -23,11 +22,11 @@ import {
   Palette,
   Search,
   Send,
-  Signpost,
   Trash2,
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { subsystemIcon as pickSubsystemIcon } from "@/lib/mobility/subsystem-icon";
 
 type Visibility = "public" | "linkOnly" | "authenticated";
 
@@ -1046,13 +1045,8 @@ function BroadcastCard({ world }: { world: World }) {
 }
 
 function SubsystemIcon({ subsystem }: { subsystem: string }) {
-  if (subsystem === "cctv") {
-    return <Camera size={12} strokeWidth={1.8} className="text-text-tertiary" aria-hidden />;
-  }
-  if (subsystem === "dms") {
-    return <Signpost size={12} strokeWidth={1.8} className="text-text-tertiary" aria-hidden />;
-  }
-  return <MapPin size={12} strokeWidth={1.8} className="text-text-tertiary" aria-hidden />;
+  const Icon = pickSubsystemIcon(subsystem);
+  return <Icon size={12} strokeWidth={1.8} className="text-text-tertiary" aria-hidden />;
 }
 
 function VisibilityOption({

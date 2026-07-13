@@ -14,7 +14,6 @@ import {
   ArrowUpRight,
   Bell,
   Box,
-  Camera,
   CheckCircle2,
   Compass,
   Copy,
@@ -35,6 +34,7 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { subsystemIcon } from "@/lib/mobility/subsystem-icon";
 import { DmsFace } from "@/lib/mobility/dms-render";
 import {
   applyMapEnvSettings,
@@ -1180,9 +1180,7 @@ function DeviceDrawer({
     [key: string]: unknown;
   };
 
-  const subsystemIcon: LucideIcon =
-    device.subsystem === "cctv" ? Camera : device.subsystem === "dms" ? Signpost : Radio;
-  const SubsystemIcon = subsystemIcon;
+  const SubsystemIcon: LucideIcon = subsystemIcon(device.subsystem);
 
   return (
     <div className="flex h-full flex-col">

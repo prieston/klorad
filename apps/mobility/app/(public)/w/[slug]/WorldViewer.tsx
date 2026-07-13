@@ -9,18 +9,16 @@ import mapboxgl, {
 import {
   ArrowLeft,
   Box,
-  Camera,
   Layers as LayersIcon,
   MapPin,
   Moon,
   Mountain,
-  Radio,
   Settings,
-  Signpost,
   Sun,
   Sunrise,
   Sunset,
 } from "lucide-react";
+import { subsystemIcon } from "@/lib/mobility/subsystem-icon";
 import type { PublicWorldDevice } from "@/lib/mobility/world-resolver";
 import {
   applyMapEnvSettings,
@@ -975,12 +973,7 @@ function DeviceDrawer({
   onClose: () => void;
 }) {
   if (!device) return null;
-  const Icon =
-    device.subsystem === "cctv"
-      ? Camera
-      : device.subsystem === "dms"
-        ? Signpost
-        : Radio;
+  const Icon = subsystemIcon(device.subsystem);
 
   return (
     <aside
