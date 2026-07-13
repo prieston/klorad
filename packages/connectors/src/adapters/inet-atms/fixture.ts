@@ -128,6 +128,14 @@ export const FIXTURE_DMS_DEVICES: InetDevice[] = [
 export const FIXTURE_DEVICES: Record<InetSubsystem, InetDevice[]> = {
   cctv: FIXTURE_CCTV_DEVICES,
   dms: FIXTURE_DMS_DEVICES,
+  // PSMdt-iNET demo subsystems have no in-package fixtures — a live
+  // source pointed at the `psmdt-inet-mock` deployment carries the
+  // real seeded inventory. Empty arrays keep the record total so
+  // `FIXTURE_DEVICES[subsystem]` never throws on any enum value.
+  aid: [],
+  vms: [],
+  vsls: [],
+  radar: [],
 };
 
 /** Seed status keyed by `deviceId`. Shapes mirror the live Parsons
