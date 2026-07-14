@@ -121,3 +121,120 @@ export function filterDevices(filter: WorldFilter): Device[] {
 export function parseSubsystem(value: string): Subsystem | null {
   return isSubsystem(value) ? value : null;
 }
+
+/**
+ * Alias `dms` → `vms` so the legacy Parsons subsystem name serves the
+ * same data as its regional twin. Our source workbook only has
+ * VMS-shaped rows; without this alias, `/atms/dms-rest/rest/dms/`
+ * returns [] and Mobility sources that tick "DMS" get nothing.
+ *
+ * Note: if an operator ticks *both* dms and vms on their source,
+ * they'll double-sync the same physical signs (once as vms:… and
+ * once as dms:…, different packed ids). Pick one — VMS is the
+ * canonical name for our data.
+ */
+export function fetchFromSubsystem(requested: Subsystem): Subsystem {
+  return requested === "dms" ? "vms" : requested;
+}
+
+/**
+ * Per-subsystem live status — what the per-device status endpoint
+ * (path shape `/atms/{sub}-rest/rest/{sub}/{id}/status`) returns.
+ * VMS/VSLS/DMS reuse the pre-baked DMS-shaped status from the seed.
+ * CCTV/AID/RADAR get lightweight computed shapes so the Mobility
+ * drawer has something to render for them (previously radar and aid
+ * showed "no live data — the source returned no current status").
+ *
+ * All shapes carry `signId`, `connectable`, `timestamp` so the
+ * connector's normaliser (`RawStatusSchema` — every field `.nullish()`
+ * and `.passthrough()`) accepts them. Subsystem-specific extras
+ * (volume/speed for radar, eventCount for aid) pass through into the
+ * drawer's `live.status.raw` blob.
+ */
+export function currentStatus(device: Device): Record<string, unknown> {
+  const now = Date.now();
+  const base = {
+    signId: device.externalId,
+    connectable: true,
+    timestamp: now,
+  };
+
+  switch (device.subsystem) {
+    case "vms":
+    case "vsls":
+    case "dms":
+      return device.status
+        ? { ...device.status, timestamp: now }
+        : base;
+
+    case "cctv":
+      // Cameras have no NTCIP-style status on Parsons — just report
+      // reachability and let the drawer render the stream URL.
+      return base;
+
+    case "aid": {
+      // Fake event count + last detection driven by the current hour
+      // so successive polls tell a coherent story within a demo.
+      const hourBucket = Math.floor(now / 3_600_000);
+      const seed =
+        [...device.externalId].reduce((a, c) => a + c.charCodeAt(0), 0) +
+        hourBucket;
+      const eventCount = seed % 5;
+      const minutesAgo = seed % 55;
+      return {
+        ...base,
+        eventCount,
+        lastDetection:
+          eventCount > 0
+            ? new Date(now - minutesAgo * 60_000).toISOString()
+            : null,
+        message:
+          eventCount > 0
+            ? `${eventCount} incident${eventCount === 1 ? "" : "s"} detected in the last hour`
+            : "No incidents detected",
+      };
+    }
+
+    case "radar": {
+      // Synthetic traffic snapshot per radar. Deterministic per
+      // device + 5-second time bucket so successive polls return the
+      // same values within a bucket and vary between — reads as
+      // "live but not jittery" for a demo. Rush-hour bump matches
+      // the pattern in `lib/vds.ts`.
+      const bucket = Math.floor(now / 5000);
+      const seed =
+        [...device.externalId].reduce((a, c) => a + c.charCodeAt(0), 0) +
+        bucket;
+      const rush = isRushHour(now);
+      const baseVolume = rush ? 90 : 40;
+      const baseSpeed = rush ? 65 : 95;
+      const jitter = () => ((seed * 9301 + 49297) % 233280) / 233280 - 0.5;
+      const volume = Math.max(0, Math.round(baseVolume + jitter() * 20));
+      const speed = Math.max(5, Math.round(baseSpeed + jitter() * 12));
+      const occupancy = Math.min(1, Math.max(0, volume / 120));
+      return {
+        ...base,
+        volume,
+        speed,
+        occupancy: Number(occupancy.toFixed(3)),
+        perLane: [1, 2, 3].map((lane) => ({
+          lane,
+          volume: Math.max(0, Math.round(volume / 3 + jitter() * 6)),
+          speed: Math.max(5, Math.round(speed + jitter() * 5)),
+          occupancy: Number(
+            Math.min(1, Math.max(0, occupancy + jitter() * 0.05)).toFixed(3),
+          ),
+        })),
+      };
+    }
+  }
+}
+
+function isRushHour(now: number): boolean {
+  const d = new Date(now);
+  const minutes = d.getHours() * 60 + d.getMinutes();
+  return (
+    (minutes >= 7 * 60 + 30 && minutes < 9 * 60 + 30) ||
+    (minutes >= 17 * 60 && minutes < 19 * 60)
+  );
+}

@@ -20,7 +20,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBasicAuth } from "@/lib/auth";
 import {
+  currentStatus,
   deviceByExternalId,
+  fetchFromSubsystem,
   pageDevices,
   parseSubsystem,
 } from "@/lib/devices";
@@ -68,7 +70,11 @@ function listResponse(subsystem: Subsystem, request: NextRequest) {
   const lng = url.searchParams.has("lng")
     ? Number(url.searchParams.get("lng"))
     : undefined;
-  const items = pageDevices(subsystem, {
+  // `dms` is aliased to `vms` — see `fetchFromSubsystem`. The
+  // connector doesn't read the response's `subsystem` field (it
+  // packs its own from the config), so returning VMS-shaped rows
+  // verbatim under the DMS path is safe.
+  const items = pageDevices(fetchFromSubsystem(subsystem), {
     limit,
     startId,
     query,
@@ -79,18 +85,24 @@ function listResponse(subsystem: Subsystem, request: NextRequest) {
 }
 
 function singleResponse(subsystem: Subsystem, externalId: string) {
-  const device = deviceByExternalId(subsystem, externalId);
+  const device = deviceByExternalId(
+    fetchFromSubsystem(subsystem),
+    externalId,
+  );
   if (!device) return notFound();
   return NextResponse.json(device);
 }
 
 function statusResponse(subsystem: Subsystem, externalId: string) {
-  // Only DMS-family devices carry a distinct status shape. Parsons
-  // tolerates the /status suffix on any device but returns null or an
-  // empty object for cctv/aid/radar — mirror that.
-  const device = deviceByExternalId(subsystem, externalId);
+  const device = deviceByExternalId(
+    fetchFromSubsystem(subsystem),
+    externalId,
+  );
   if (!device) return notFound();
-  return NextResponse.json(device.status ?? {});
+  // Live per-subsystem status — see `currentStatus()`. CCTV / AID /
+  // RADAR now return sensible shapes instead of `{}` so the operator
+  // drawer has data to render.
+  return NextResponse.json(currentStatus(device));
 }
 
 function notFound() {

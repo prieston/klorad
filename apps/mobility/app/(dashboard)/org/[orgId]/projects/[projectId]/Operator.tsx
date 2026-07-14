@@ -1306,8 +1306,11 @@ function DeviceDrawer({
                 </div>
               )}
 
-            {/* CCTV stream */}
-            {device.subsystem === "cctv" &&
+            {/* CCTV / AID stream — AID cameras run the same
+                hlsUri / snapshot fallback chain as CCTV; separating
+                them here would just duplicate the render blocks. */}
+            {(device.subsystem === "cctv" ||
+              device.subsystem === "aid") &&
               payload.media?.kind === "cctv-stream" && (
                 <div className="overflow-hidden rounded-xl border border-line-soft bg-black">
                   <video
@@ -1320,20 +1323,39 @@ function DeviceDrawer({
                 </div>
               )}
 
-            {/* CCTV snapshot — refresh every 5 s with a cache-busting
-                query so the still updates without a manual reload. */}
-            {device.subsystem === "cctv" &&
+            {/* CCTV / AID snapshot — refresh every 5 s with a
+                cache-busting query so the still updates without a
+                manual reload. */}
+            {(device.subsystem === "cctv" ||
+              device.subsystem === "aid") &&
               payload.media?.kind === "cctv-snapshot" && (
                 <CctvSnapshot url={payload.media.url} alt={device.name} />
               )}
 
-            {/* CCTV without any media URL — say so explicitly instead
-                of leaving a blank panel below the status. */}
-            {device.subsystem === "cctv" && !payload.media && (
-              <div className="rounded-xl border border-line-soft bg-surface-2 p-5 text-center text-xs text-text-tertiary">
-                No live stream or snapshot URL is configured for this
-                camera on the source.
-              </div>
+            {/* CCTV / AID without any media URL — say so explicitly
+                instead of leaving a blank panel below the status. */}
+            {(device.subsystem === "cctv" ||
+              device.subsystem === "aid") &&
+              !payload.media && (
+                <div className="rounded-xl border border-line-soft bg-surface-2 p-5 text-center text-xs text-text-tertiary">
+                  No live stream or snapshot URL is configured for this
+                  camera on the source.
+                </div>
+              )}
+
+            {/* AID event stats — the source's status blob carries a
+                count + last-detection timestamp; surface them as a
+                small tile so AID cameras aren't just "connectable". */}
+            {device.subsystem === "aid" && live?.status && (
+              <AidEventTile status={live.status.raw as Record<string, unknown>} />
+            )}
+
+            {/* RADAR / VDS live telemetry — volume, mean speed, lane
+                occupancy sampled from the source. Shows nothing when
+                the source didn't return traffic fields (older mocks,
+                unconfigured devices) so the drawer stays clean. */}
+            {device.subsystem === "radar" && live?.status && (
+              <RadarTelemetryTile status={live.status.raw as Record<string, unknown>} />
             )}
           </div>
         )}
@@ -1415,6 +1437,112 @@ function CctvSnapshot({ url, alt }: { url: string; alt: string }) {
       <p className="px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
         Snapshot · refreshing every 5 s
       </p>
+    </div>
+  );
+}
+
+/* ─── AID event tile ───────────────────────────────────────────────── */
+
+/**
+ * Compact panel for AID cameras — surfaces the incident-count and
+ * last-detection timestamp the source ships in the status blob. Falls
+ * back gracefully when either field is missing so the drawer stays
+ * clean on hosts that don't report them.
+ */
+function AidEventTile({ status }: { status: Record<string, unknown> }) {
+  const eventCount =
+    typeof status.eventCount === "number" ? status.eventCount : null;
+  const lastDetection =
+    typeof status.lastDetection === "string" ? status.lastDetection : null;
+  const message =
+    typeof status.message === "string" ? status.message : null;
+
+  if (eventCount === null && !lastDetection && !message) return null;
+
+  return (
+    <div className="rounded-xl border border-line-soft bg-surface-2 p-4">
+      <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
+        Automated Incident Detection
+      </div>
+      <div className="flex items-baseline gap-3">
+        {eventCount !== null && (
+          <span className="text-2xl font-semibold text-text-primary">
+            {eventCount}
+          </span>
+        )}
+        {message && (
+          <span className="text-sm text-text-secondary">{message}</span>
+        )}
+      </div>
+      {lastDetection && (
+        <div className="mt-2 text-[11px] text-text-tertiary">
+          Last detection · {relativeFrom(lastDetection)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Radar / VDS telemetry tile ───────────────────────────────────── */
+
+/**
+ * Traffic snapshot for RADAR / RAMP RADAR / RM RADAR devices — the
+ * `volume`, `speed`, and `occupancy` fields that iNET's VDS surface
+ * exposes for each detector. Three-column tile so the drawer reads
+ * as a scanner readout, not a wall of text.
+ */
+function RadarTelemetryTile({ status }: { status: Record<string, unknown> }) {
+  const volume = typeof status.volume === "number" ? status.volume : null;
+  const speed = typeof status.speed === "number" ? status.speed : null;
+  const occupancy =
+    typeof status.occupancy === "number" ? status.occupancy : null;
+
+  if (volume === null && speed === null && occupancy === null) return null;
+
+  return (
+    <div className="rounded-xl border border-line-soft bg-surface-2 p-4">
+      <div className="mb-3 text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
+        Traffic sensor
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <RadarStat label="Volume" value={volume} unit="veh/min" />
+        <RadarStat label="Speed" value={speed} unit="km/h" />
+        <RadarStat
+          label="Occupancy"
+          value={
+            occupancy !== null
+              ? Math.round(occupancy * 100)
+              : null
+          }
+          unit="%"
+        />
+      </div>
+    </div>
+  );
+}
+
+function RadarStat({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: number | null;
+  unit: string;
+}) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
+        {label}
+      </div>
+      <div className="mt-1 flex items-baseline gap-1">
+        <span className="text-xl font-semibold text-text-primary">
+          {value ?? "—"}
+        </span>
+        {value !== null && (
+          <span className="text-[11px] text-text-tertiary">{unit}</span>
+        )}
+      </div>
     </div>
   );
 }

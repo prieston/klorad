@@ -51,14 +51,23 @@ import {
   type RawVslsDevice,
 } from "./types.js";
 
-/** Subsystems that expose a `/status` endpoint the same way DMS does.
- *  VMS is the regional alias for DMS; VSLS is the same wire shape with
- *  an added lane label. CCTV / AID / RADAR don't advertise a
- *  documented status endpoint on the ATMS surface. */
+/** Subsystems that expose a `/status` endpoint. Parsons only documents
+ *  the DMS shape (and VMS is the regional alias for the same); we
+ *  extend to CCTV / AID / RADAR here so the operator drawer can show
+ *  reachability + subsystem-specific telemetry for the PSMdt demo
+ *  fleet. The tolerant `RawStatusSchema.passthrough()` in `types.ts`
+ *  accepts whatever the source returns — subsystem-specific fields
+ *  (radar's volume/speed, aid's eventCount) reach the drawer via
+ *  `InetStatus.raw`. Hosts that don't implement `/status` for these
+ *  subsystems return an empty body and we silently skip them (the
+ *  fan-out is a `try/catch`, no crash on 404). */
 const STATUS_ENABLED_SUBSYSTEMS: ReadonlySet<InetSubsystem> = new Set([
+  "cctv",
   "dms",
   "vms",
   "vsls",
+  "aid",
+  "radar",
 ]);
 
 const DEFAULT_PAGE_SIZE = 200;
