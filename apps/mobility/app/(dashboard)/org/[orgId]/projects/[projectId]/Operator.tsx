@@ -1281,8 +1281,15 @@ function DeviceDrawer({
               </span>
             </div>
 
-            {/* DMS face */}
-            {device.subsystem === "dms" &&
+            {/* DMS / VMS / VSLS face — all three subsystems share the
+                same NTCIP status shape (`message`, `brightness`,
+                `maxLinesPerPage`, `maxCharsPerLine`). The DmsFace
+                renderer scales to the reported grid size, so a VSLS
+                24×24 panel showing "80" and a VMS 84×7 running "TRAFFIC
+                AHEAD" both render correctly from the same block. */}
+            {(device.subsystem === "dms" ||
+              device.subsystem === "vms" ||
+              device.subsystem === "vsls") &&
               typeof live.status.raw.message === "string" && (
                 <div className="rounded-xl border border-line-soft bg-black p-3">
                   <DmsFace
@@ -1360,9 +1367,14 @@ function DeviceDrawer({
           </div>
         )}
 
-        {/* DMS sign details — surface the rich status data the
-            renderer doesn't show otherwise. */}
-        {device.subsystem === "dms" && live?.status && (
+        {/* DMS / VMS / VSLS sign details — surface the rich status
+            data (short status, control mode, brightness/photocell
+            levels, beacon) the face renderer doesn't show. Same
+            shape across all three sign families. */}
+        {(device.subsystem === "dms" ||
+          device.subsystem === "vms" ||
+          device.subsystem === "vsls") &&
+          live?.status && (
           <DmsSignDetails
             status={live.status.raw as Record<string, unknown>}
             payload={payload as Record<string, unknown>}

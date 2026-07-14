@@ -465,13 +465,13 @@ export function createInetAtmsConnector(): InetAtmsConnector {
       if (!client) return out;
       // The ATMS REST surface is one-id-per-call for status; fan out
       // in parallel. Caller is expected to chunk to a sensible batch.
-      // CCTV records don't carry status on the device GET (the field is
-      // null) and there's no documented per-id CCTV status endpoint,
-      // so for CCTV we synthesise a minimal `online: true` from the
-      // device record's `active` flag fetched on getEntity. For now
-      // CCTV status is just an empty record; the dashboard treats
-      // missing entries as "no live data" and the drawer still shows
-      // the device's static fields.
+      // Every subsystem in STATUS_ENABLED_SUBSYSTEMS gets the same
+      // request shape; subsystem-specific payload extras (radar
+      // telemetry, aid event counts, cctv reachability stub) pass
+      // through via `InetStatus.raw`. If an upstream host doesn't
+      // implement /status for a subsystem it 404s and the id is
+      // silently dropped from the result — the drawer treats a
+      // missing entry as "no live data".
       await Promise.all(
         deviceIds.map(async (id) => {
           const unpacked = unpackId(id);
