@@ -79,8 +79,12 @@ export interface Device {
   signType: number | null;
   pixelWidth: number | null;
   pixelHeight: number | null;
-  /** Only inline on DMS/VMS list responses. */
-  status: DmsStatus | null;
+  /** Inline snapshot for DMS/VMS/VSLS list responses. Other subsystems
+   *  (cctv/aid/radar) get status generated live at request time by
+   *  `currentStatus()` — see `lib/devices.ts`. Typed loosely because
+   *  the shape differs per subsystem; the connector accepts any
+   *  passthrough. */
+  status: Record<string, unknown> | null;
 
   // VSLS
   lane: string | null;
