@@ -295,11 +295,22 @@ function SourceRowItem({
       {isRunning && (
         <SyncProgressCard
           row={row}
-          baseUrl={`https://demobe.parsonsinet.com/atms/${row.syncProgress?.subsystem ?? "{subsystem}"}-rest/rest/${row.syncProgress?.subsystem ?? "{subsystem}"}/`}
+          baseUrl={syncBaseUrl(row)}
         />
       )}
     </li>
   );
+}
+
+/** Build the URL the connector is currently polling — pulled from
+ *  the source's own config so the sync card shows the operator's
+ *  actual host (mock, staging, prod), not a hardcoded Parsons URL. */
+function syncBaseUrl(row: SourceRow): string {
+  const config = row.config as { host?: string } | null;
+  const host = (config?.host ?? "").replace(/\/$/, "");
+  const subsystem = row.syncProgress?.subsystem ?? "{subsystem}";
+  if (!host) return `/atms/${subsystem}-rest/rest/${subsystem}/`;
+  return `${host}/atms/${subsystem}-rest/rest/${subsystem}/`;
 }
 
 /* ─── Live progress card ─────────────────────────────────────────── */
@@ -406,16 +417,17 @@ function AddSourceForm({
     availableConnectors[0]?.id ?? "",
   );
   const [label, setLabel] = useState("Demo ATMS");
-  const [host, setHost] = useState("https://demobe.parsonsinet.com");
+  const [host, setHost] = useState("https://klorad-mock-inet.vercel.app");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   // Track subsystem selection by name so this stays maintenance-free
-  // as new subsystems (aid / vms / vsls / radar for the PSMdt-iNET
-  // demo, plus whatever ships next) land in `INET_SUBSYSTEMS`. Default
-  // to the two live iNET tenants have historically enabled.
+  // as new subsystems land in `INET_SUBSYSTEMS`. Default to every
+  // subsystem the connector supports — the PSMdt-iNET mock serves
+  // all six and the demo reads incomplete when the operator finds
+  // AID/RADAR/VSLS filters empty because they weren't ticked here.
   const [selectedSubsystems, setSelectedSubsystems] = useState<
     Set<string>
-  >(() => new Set(["cctv", "dms"]));
+  >(() => new Set(INET_SUBSYSTEMS));
   const [mode, setMode] = useState<"fixture" | "live">("fixture");
   const [submitting, setSubmitting] = useState(false);
 
@@ -493,7 +505,7 @@ function AddSourceForm({
           <input
             value={host}
             onChange={(e) => setHost(e.target.value)}
-            placeholder="https://demobe.parsonsinet.com"
+            placeholder="https://klorad-mock-inet.vercel.app"
             className="w-full rounded-md border border-line-strong bg-bg px-3 py-2 font-mono text-xs text-text-primary"
           />
         </label>
