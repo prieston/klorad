@@ -192,19 +192,24 @@ function rowToDevice(subsystem: Subsystem, raw: Record<string, string>): Device 
   };
 
   // Subsystem-specific enrichments.
-  if (subsystem === "cctv" || subsystem === "aid") {
-    // No live stream in the mock — set a demo HLS pointing at a
-    // sample loop the map can render as a placeholder. The client
-    // just needs the field to exist for the "Live" tab to render.
+  if (subsystem === "cctv") {
     base.hlsInd = true;
-    base.hlsUri = "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8";
+    base.hlsUri = CCTV_DEMO_HLS;
+    base.controlType = "status and command";
+  }
+  if (subsystem === "aid") {
+    // AID cameras carry a distinct demo loop so the drawer visibly
+    // differs from a PTZ feed at the same chainage. Overridden by the
+    // AID backfill pass further down (which also picks the demo).
+    base.hlsInd = true;
+    base.hlsUri = AID_DEMO_HLS;
     base.controlType = "status and command";
   }
   if (subsystem === "vms") {
     base.signType = 1;
     base.pixelWidth = 84;
     base.pixelHeight = 7;
-    base.status = makeDefaultStatus(code);
+    base.status = makeVmsStatus(code);
   }
   if (subsystem === "vsls") {
     base.signType = 2;
@@ -212,11 +217,16 @@ function rowToDevice(subsystem: Subsystem, raw: Record<string, string>): Device 
     base.pixelHeight = 24;
     base.lane = pick(raw, "relative location") || null;
     base.groupIndex = parseNumber(pick(raw, "grouping")) ?? null;
-    base.status = makeDefaultStatus(code);
+    base.status = makeVslsStatus(code);
   }
 
   return base;
 }
+
+const CCTV_DEMO_HLS =
+  "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8";
+const AID_DEMO_HLS =
+  "https://demo.unified-streaming.com/k8s/features/stable/video/sintel/sintel.ism/.m3u8";
 
 function primaryRoadFor(subsystem: Subsystem): string {
   switch (subsystem) {
@@ -266,18 +276,62 @@ function rawFirstColumn(raw: Record<string, string>): string {
   return "";
 }
 
-function makeDefaultStatus(id: string) {
+/** Rotating VMS/DMS messages, keyed off a hash of the device id so
+ *  each sign in the map shows different text and the demo doesn't
+ *  read as "one identical message repeated 35 times". */
+const VMS_MESSAGES = [
+  "[pb]TRAFFIC AHEAD[nl]REDUCE SPEED",
+  "[pb]INCIDENT[nl]LANE 2 CLOSED",
+  "[pb]NO INCIDENTS[nl]DRIVE SAFE",
+  "[pb]ROADWORK[nl]KM 15 TO 17",
+  "[pb]WET ROAD[nl]KEEP DISTANCE",
+  "[pb]DELAYS[nl]EXPECT 5 MIN",
+] as const;
+
+function idHash(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i += 1) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function makeVmsStatus(id: string) {
+  const message = VMS_MESSAGES[idHash(id) % VMS_MESSAGES.length]!;
   return {
     signId: id,
     connectable: true,
     shortStatus: 0,
     controlMode: "photocell" as const,
     timestamp: Date.now(),
-    message: "[pb]FLYOVER[nl]Drive safe",
+    message,
     beacon: false,
     brightnessLevel: { min: 0, max: 100, current: 75 },
     photocellLevel: { min: 0, max: 100, current: 50 },
     lightOutput: { min: 0, max: 255, current: 200 },
+    maxLinesPerPage: 3,
+    maxCharsPerLine: 16,
+  };
+}
+
+/** VSLS panels show a lane speed limit — a single 2-digit number
+ *  rather than free text. Cycle 60 / 80 / 100 by id hash so the
+ *  operator drawer visibly differs between lanes. */
+function makeVslsStatus(id: string) {
+  const limits = [60, 80, 100] as const;
+  const limit = limits[idHash(id) % limits.length]!;
+  return {
+    signId: id,
+    connectable: true,
+    shortStatus: 0,
+    controlMode: "manual" as const,
+    timestamp: Date.now(),
+    message: `[pb]${limit}`,
+    beacon: false,
+    brightnessLevel: { min: 0, max: 100, current: 90 },
+    photocellLevel: { min: 0, max: 100, current: 55 },
+    lightOutput: { min: 0, max: 255, current: 220 },
+    maxLinesPerPage: 1,
+    maxCharsPerLine: 3,
+    speedLimit: limit,
   };
 }
 
@@ -354,14 +408,16 @@ function main() {
         routeId: null,
         agency: "DEMO",
         active: true,
-        // AID's primary output is an event stream — no video feed in
-        // the mock. Leave media hints null.
-        hlsInd: null,
-        hlsUri: null,
+        // AID cameras stream video alongside their event feed —
+        // point at a distinct demo loop so the drawer's video panel
+        // renders and the operator can see it's a different camera
+        // to the PTZ at the same chainage.
+        hlsInd: true,
+        hlsUri: AID_DEMO_HLS,
         dashUri: null,
         cameraIpAddr: null,
         url: null,
-        controlType: "status",
+        controlType: "status and command",
         signType: null,
         pixelWidth: null,
         pixelHeight: null,

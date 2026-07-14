@@ -29,8 +29,6 @@ export async function GET(
       projectId: true,
       subsystem: true,
       externalDeviceId: true,
-      payload: true,
-      lastSeenAt: true,
       source: {
         select: {
           label: true,
@@ -78,41 +76,21 @@ export async function GET(
       urls: {
         list: `${base}/`,
         device: `${base}/${externalId}`,
-        // CCTV has no per-id /status endpoint in iNET; null signals
-        // that to the UI.
-        status: subsystem === "dms" ? `${base}/${externalId}/status` : null,
+        // Every iNET subsystem the connector talks to now exposes a
+        // per-id /status endpoint (mock or upstream) — surface the
+        // URL so the drawer's debug panel is honest about where the
+        // live payload came from.
+        status: `${base}/${externalId}/status`,
       },
     };
   }
   const source = describeSource();
 
-  // CCTV — iNET exposes no per-id status endpoint. The "live" signal
-  // is the video stream itself plus the device's `active` flag from
-  // the last sync; synthesise a status from the cached payload so
-  // the drawer doesn't show "No live data" for every camera.
-  if (device.subsystem === "cctv") {
-    const payload = device.payload as Record<string, unknown> | null;
-    const active =
-      payload && typeof payload.active === "boolean"
-        ? (payload.active as boolean)
-        : true;
-    return NextResponse.json({
-      status: {
-        online: active,
-        alarm: null,
-        observedAt: device.lastSeenAt.toISOString(),
-        raw: {
-          active,
-          note:
-            "CCTV has no per-device status endpoint; live signal is the stream.",
-        },
-      },
-      source,
-    });
-  }
-
-  // DMS — call the connector's getStatus. The adapter keys results
-  // by the *packed* id (e.g. `dms:21413`), so build that explicitly.
+  // All subsystems — call the connector's getStatus. The adapter keys
+  // results by the *packed* id (e.g. `dms:21413`), so build that
+  // explicitly. Subsystems whose upstream doesn't implement /status
+  // return an empty record and the drawer shows "no live data" — the
+  // connector's fan-out already tolerates 404s.
   try {
     const connector = await buildConnector({
       connectorId: device.source.connectorId,
