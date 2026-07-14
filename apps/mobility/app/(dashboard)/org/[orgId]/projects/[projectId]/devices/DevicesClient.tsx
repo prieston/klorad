@@ -234,10 +234,12 @@ export function DevicesClient({
           value={subsystem}
           options={[
             { value: "all", label: "All types" },
-            // Emit one chip per connector-known subsystem so the
-            // demo enums (aid / vms / vsls / radar) surface without
-            // touching this file.
-            ...INET_SUBSYSTEMS.map((s) => {
+            // Emit one chip per connector-known subsystem so demo
+            // enums surface without touching this file. Hide DMS
+            // since VMS is the same physical device under a
+            // different regional name — the source picker enforces
+            // one-or-the-other to avoid duplicate rows.
+            ...INET_SUBSYSTEMS.filter((s) => s !== "dms").map((s) => {
               const d = subsystemDescriptor(s);
               return { value: s, label: d.label, icon: d.icon };
             }),
