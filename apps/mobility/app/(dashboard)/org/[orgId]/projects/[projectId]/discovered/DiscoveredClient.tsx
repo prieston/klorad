@@ -6,18 +6,16 @@ import Link from "next/link";
 import { toast } from "react-toastify";
 import {
   ArrowRight,
-  Camera,
   CheckCircle2,
   Database,
   Eye,
   Inbox,
   Layers,
   RefreshCcw,
-  Signpost,
-  TrafficCone,
   XCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { subsystemIcon } from "@/lib/mobility/subsystem-icon";
 
 interface Device {
   id: string;
@@ -297,12 +295,7 @@ function DeviceRow({
   busy: boolean;
   onAct: (action: Action) => void;
 }) {
-  const SubsystemIcon =
-    device.subsystem === "cctv"
-      ? Camera
-      : device.subsystem === "dms"
-        ? Signpost
-        : TrafficCone;
+  const SubsystemIcon: LucideIcon = subsystemIcon(device.subsystem);
   return (
     <li className="grid items-center gap-3 px-5 py-3 md:grid-cols-[auto_1fr_auto]">
       <span

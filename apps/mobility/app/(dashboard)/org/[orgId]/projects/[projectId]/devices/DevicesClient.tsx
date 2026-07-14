@@ -6,18 +6,21 @@ import Link from "next/link";
 import { toast } from "react-toastify";
 import {
   ArrowRight,
-  Camera,
   CheckCircle2,
   Eye,
   EyeOff,
   Layers,
   RefreshCcw,
   Search,
-  Signpost,
   TrafficCone,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { INET_SUBSYSTEMS } from "@klorad/connectors/inet-atms";
+import {
+  subsystemDescriptor,
+  subsystemIcon,
+} from "@/lib/mobility/subsystem-icon";
 
 interface DeviceRow {
   id: string;
@@ -50,7 +53,10 @@ const fetcher = (url: string) =>
   });
 
 type StatusFilter = "all" | "needs-review" | "included" | "public" | "catalog";
-type SubsystemFilter = "all" | "cctv" | "dms";
+// Kept as a wide `string` so the picker survives future additions to
+// `INET_SUBSYSTEMS` without a code change here — the filter chip row
+// is generated from that enum below.
+type SubsystemFilter = "all" | string;
 
 export function DevicesClient({
   orgId,
@@ -228,8 +234,13 @@ export function DevicesClient({
           value={subsystem}
           options={[
             { value: "all", label: "All types" },
-            { value: "cctv", label: "CCTV", icon: Camera },
-            { value: "dms", label: "DMS", icon: Signpost },
+            // Emit one chip per connector-known subsystem so the
+            // demo enums (aid / vms / vsls / radar) surface without
+            // touching this file.
+            ...INET_SUBSYSTEMS.map((s) => {
+              const d = subsystemDescriptor(s);
+              return { value: s, label: d.label, icon: d.icon };
+            }),
           ]}
           onChange={(v) => setSubsystem(v as SubsystemFilter)}
         />
@@ -358,8 +369,7 @@ function DeviceRow({
   selected: boolean;
   onToggle: () => void;
 }) {
-  const SubsystemIcon =
-    device.subsystem === "cctv" ? Camera : device.subsystem === "dms" ? Signpost : Layers;
+  const SubsystemIcon: LucideIcon = subsystemIcon(device.subsystem);
   return (
     <li
       className={`flex items-center gap-3 px-4 py-3 transition-colors ${
