@@ -420,14 +420,22 @@ function AddSourceForm({
   const [host, setHost] = useState("https://klorad-mock-inet.vercel.app");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  // Track subsystem selection by name so this stays maintenance-free
-  // as new subsystems land in `INET_SUBSYSTEMS`. Default to every
-  // subsystem the connector supports — the PSMdt-iNET mock serves
-  // all six and the demo reads incomplete when the operator finds
-  // AID/RADAR/VSLS filters empty because they weren't ticked here.
+  // DMS and VMS are the same physical device with different regional
+  // names (Parsons/US = DMS, European/Greek = VMS). Ticking both on
+  // the same tenant collides on `(sourceId, externalDeviceId)` and
+  // one silently overwrites the other. Hide DMS from the picker;
+  // Parsons-native tenants can hand-edit `config.subsystems` if
+  // they need the DMS label.
+  const pickerSubsystems = useMemo(
+    () => INET_SUBSYSTEMS.filter((s) => s !== "dms"),
+    [],
+  );
+  // Default: every visible subsystem ticked. The mock serves all of
+  // them and the demo reads incomplete when filters are empty
+  // because the picker didn't tick them at source-creation time.
   const [selectedSubsystems, setSelectedSubsystems] = useState<
     Set<string>
-  >(() => new Set(INET_SUBSYSTEMS));
+  >(() => new Set(pickerSubsystems));
   const [mode, setMode] = useState<"fixture" | "live">("fixture");
   const [submitting, setSubmitting] = useState(false);
 
@@ -556,7 +564,7 @@ function AddSourceForm({
         <fieldset className="text-sm md:col-span-2">
           <legend className="mb-1 text-text-tertiary">Subsystems</legend>
           <div className="flex flex-wrap gap-4">
-            {INET_SUBSYSTEMS.map((subsystem) => (
+            {pickerSubsystems.map((subsystem) => (
               <label
                 key={subsystem}
                 className="inline-flex items-center gap-2 text-text-primary"
