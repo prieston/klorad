@@ -12,7 +12,10 @@ import {
 } from "./incidents";
 import { createWorld } from "./worlds";
 import { startTicker, stopTicker, triggerSlowdown } from "./vds";
-import type { IncidentStatus } from "./types";
+import type { Device, IncidentStatus } from "./types";
+import { devicesBySubsystem } from "./devices";
+import { setOverride } from "./overrides";
+import { publish } from "./events";
 
 interface RunningIncident {
   id: string;
@@ -112,4 +115,131 @@ export function runTraffic(): { name: "traffic"; status: "started" | "reset" } {
 // straight from it instead of re-tracking here.
 function incidentStatus(id: string): IncidentStatus | null {
   return getIncident(id)?.status ?? null;
+}
+
+/** Default demo window for status overrides. Long enough for the
+ *  Mobility drawer's 15-second polling to see the "hot" values on
+ *  multiple polls; short enough that the demo self-cleans. */
+const OVERRIDE_MS = 3 * 60 * 1000;
+
+function pickRandom<T>(items: T[]): T | null {
+  if (items.length === 0) return null;
+  return items[Math.floor(Math.random() * items.length)]!;
+}
+
+function publishDeviceStatusChanged(device: Device): void {
+  publish({
+    type: "device.status_changed",
+    at: new Date().toISOString(),
+    // We forward the *device record* verbatim (matches the wire shape
+    // downstream connectors expect); the consumer can call /status to
+    // read the fresh values including our override.
+    payload: device,
+  });
+}
+
+/**
+ * Scenario 4 — Radar occupancy spike.
+ * Picks a radar (specific `deviceId` or random) and forces occupancy
+ * to `0.85` with speed dropped to `18` for 3 minutes. Fires two
+ * `device.status_changed` events: one at spike, one when the
+ * override expires (scheduled via `setTimeout`, best-effort).
+ *
+ * This is what an "alert me when occupancy > 70%" rule (Arc C PR3)
+ * fires on — the mock provides the trigger data on demand instead
+ * of waiting for real rush-hour traffic.
+ */
+export function runRadarSpike(deviceId?: string): {
+  name: "radar-spike";
+  status: "started";
+  deviceId: string;
+} {
+  const pool = devicesBySubsystem("radar");
+  const device = deviceId
+    ? pool.find((d) => d.externalId === deviceId) ?? pickRandom(pool)
+    : pickRandom(pool);
+  if (!device) throw new Error("No radar devices seeded");
+  setOverride(
+    device.externalId,
+    { occupancy: 0.85, speed: 18, volume: 105 },
+    OVERRIDE_MS,
+    "Scenario: radar occupancy spike",
+  );
+  publishDeviceStatusChanged(device);
+  setTimeout(() => publishDeviceStatusChanged(device), OVERRIDE_MS + 200);
+  return { name: "radar-spike", status: "started", deviceId: device.externalId };
+}
+
+/**
+ * Scenario 5 — DMS alarm.
+ * Picks a DMS sign and flips its `shortStatus` to a non-zero value +
+ * `connectable` false for 3 minutes. This makes it show up as
+ * `offline` / `alarmed` — the two `MobilityAlert.kind` values —
+ * without any actual outage. Feeds "alert me when a sign faults"
+ * rules downstream.
+ */
+export function runDmsAlarm(deviceId?: string): {
+  name: "dms-alarm";
+  status: "started";
+  deviceId: string;
+} {
+  const pool = devicesBySubsystem("dms");
+  const device = deviceId
+    ? pool.find((d) => d.externalId === deviceId) ?? pickRandom(pool)
+    : pickRandom(pool);
+  if (!device) throw new Error("No DMS devices seeded");
+  setOverride(
+    device.externalId,
+    {
+      connectable: false,
+      shortStatus: 0x0004,
+      controlMode: "manual",
+      message: "[pb]SIGN FAULT[nl]TECH DISPATCHED",
+    },
+    OVERRIDE_MS,
+    "Scenario: DMS alarm",
+  );
+  publishDeviceStatusChanged(device);
+  setTimeout(() => publishDeviceStatusChanged(device), OVERRIDE_MS + 200);
+  return { name: "dms-alarm", status: "started", deviceId: device.externalId };
+}
+
+/**
+ * Scenario 6 — Incident cascade.
+ * Combines the existing incident runner with a co-located radar
+ * spike + a DMS alarm to reproduce a realistic "something happened
+ * on the highway" moment: incident posted → nearby radar starts
+ * showing a jam → a downstream sign flips to a fault-adjacent
+ * message asking traffic to slow. Rule editors can wire distinct
+ * push targets to each of the three underlying events.
+ */
+export function runIncidentCascade(): {
+  name: "incident-cascade";
+  status: "started";
+  incidentId: string;
+  radarDeviceId: string | null;
+  dmsDeviceId: string | null;
+} {
+  const incident = runIncident();
+  const radar = pickRandom(devicesBySubsystem("radar"));
+  const dms = pickRandom(devicesBySubsystem("dms"));
+  let radarDeviceId: string | null = null;
+  let dmsDeviceId: string | null = null;
+  if (radar) {
+    const spike = runRadarSpike(radar.externalId);
+    radarDeviceId = spike.deviceId;
+  }
+  // Stagger the DMS alarm 4s in so the demo watcher sees the events
+  // arrive as a sequence, not all at once.
+  if (dms) {
+    setTimeout(() => runDmsAlarm(dms.externalId), 4_000);
+    dmsDeviceId = dms.externalId;
+  }
+  return {
+    name: "incident-cascade",
+    status: "started",
+    incidentId: incident.incidentId,
+    radarDeviceId,
+    dmsDeviceId,
+  };
 }
