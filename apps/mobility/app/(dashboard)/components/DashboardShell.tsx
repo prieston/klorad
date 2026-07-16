@@ -225,7 +225,16 @@ function projectNavGroups(
           label: "Alerts",
           href: `${prefix}/alerts`,
           icon: <Bell size={16} strokeWidth={1.7} />,
-          active: is("/alerts"),
+          active:
+            pathname === `${prefix}/alerts` ||
+            (pathname.startsWith(`${prefix}/alerts/`) &&
+              !pathname.startsWith(`${prefix}/alerts/rules`)),
+        },
+        {
+          label: "Alert rules",
+          href: `${prefix}/alerts/rules`,
+          icon: <ListTodo size={16} strokeWidth={1.7} />,
+          active: is("/alerts/rules"),
         },
       ],
     },
