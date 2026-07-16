@@ -56,6 +56,7 @@ import {
   Settings,
   Sun,
   Users,
+  UsersRound,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import {
@@ -179,10 +180,16 @@ function orgNavGroups(orgId: string, pathname: string): NavGroup[] {
           active: pathname === prefix,
         },
         {
-          label: "Team",
+          label: "Members",
           href: `${prefix}/settings/members`,
           icon: <Users size={16} strokeWidth={1.7} />,
           active: is("/settings/members"),
+        },
+        {
+          label: "Teams",
+          href: `${prefix}/teams`,
+          icon: <UsersRound size={16} strokeWidth={1.7} />,
+          active: is("/teams"),
         },
         {
           label: "Settings",

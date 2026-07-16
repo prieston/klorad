@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "react-toastify";
+import useSWR from "swr";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -20,10 +21,12 @@ import {
   Lock,
   MapPin,
   Palette,
+  Plus,
   Search,
   Send,
   Trash2,
   Users,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { subsystemIcon as pickSubsystemIcon } from "@/lib/mobility/subsystem-icon";
@@ -368,6 +371,11 @@ export function WorldEditor({
 
       {/* Broadcast */}
       <BroadcastCard world={world} />
+
+      {/* Access — only visible when this world is set to authenticated. */}
+      {visibility === "authenticated" && (
+        <AccessCard worldId={world.id} orgId={orgId} />
+      )}
 
       {/* Device picker */}
       <section className="rounded-2xl border border-line-soft bg-surface-1/40 p-5">
@@ -1043,6 +1051,228 @@ function BroadcastCard({ world }: { world: World }) {
     </section>
   );
 }
+
+interface Principal {
+  id: string;
+  kind: "user" | "team";
+  createdAt: string;
+  user: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    image: string | null;
+  } | null;
+  team: { id: string; name: string; memberCount: number } | null;
+}
+
+interface OrgMemberOption {
+  userId: string;
+  user: { id: string; name: string | null; email: string | null };
+}
+
+interface TeamOption {
+  id: string;
+  name: string;
+  memberCount: number;
+}
+
+/** Access control for an authenticated-visibility world. Lists the
+ *  currently-granted principals (users + teams) and lets the operator
+ *  add or revoke grants. Only rendered when the world is
+ *  authenticated — public / linkOnly worlds don't gate on principals.
+ *  Empty list = no access, so the UI nudges the operator to add at
+ *  least one entry. */
+function AccessCard({ worldId, orgId }: { worldId: string; orgId: string }) {
+  const { data, mutate } = useSWR<{ principals: Principal[] }>(
+    `/api/worlds/${worldId}/principals`,
+    accessFetcher,
+  );
+  const { data: membersData } = useSWR<{ members: OrgMemberOption[] }>(
+    `/api/orgs/${orgId}/members`,
+    accessFetcher,
+  );
+  const { data: teamsData } = useSWR<{ teams: TeamOption[] }>(
+    `/api/orgs/${orgId}/teams`,
+    accessFetcher,
+  );
+  const principals = data?.principals ?? [];
+
+  const grantedUserIds = useMemo(
+    () => new Set(principals.filter((p) => p.user).map((p) => p.user!.id)),
+    [principals],
+  );
+  const grantedTeamIds = useMemo(
+    () => new Set(principals.filter((p) => p.team).map((p) => p.team!.id)),
+    [principals],
+  );
+
+  const teamOptions = (teamsData?.teams ?? []).filter(
+    (t) => !grantedTeamIds.has(t.id),
+  );
+  const userOptions = (membersData?.members ?? []).filter(
+    (m) => !grantedUserIds.has(m.userId),
+  );
+
+  const [pickerKind, setPickerKind] = useState<"team" | "user">("team");
+  const [pickerId, setPickerId] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function add() {
+    if (!pickerId) return;
+    setBusy(true);
+    try {
+      const body =
+        pickerKind === "user"
+          ? { kind: "user", userId: pickerId }
+          : { kind: "team", teamId: pickerId };
+      const res = await fetch(`/api/worlds/${worldId}/principals`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = (await res.json()) as { error?: string };
+        toast.error(err.error ?? "Grant failed");
+        return;
+      }
+      setPickerId("");
+      void mutate();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function revoke(principal: Principal) {
+    const res = await fetch(
+      `/api/worlds/${worldId}/principals/${principal.id}`,
+      { method: "DELETE" },
+    );
+    if (!res.ok) {
+      const err = (await res.json()) as { error?: string };
+      toast.error(err.error ?? "Revoke failed");
+      return;
+    }
+    void mutate();
+  }
+
+  return (
+    <section className="mb-6 rounded-2xl border border-line-soft bg-surface-1/40 p-5">
+      <header className="mb-3">
+        <h2 className="text-sm font-semibold text-text-primary">Access</h2>
+        <p className="mt-1 text-xs text-text-secondary">
+          Authenticated worlds are only visible to the users and teams granted
+          access below. Org owners always have access.
+        </p>
+      </header>
+
+      {principals.length === 0 ? (
+        <p className="mb-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+          No access grants yet. Only org owners can currently view this world.
+        </p>
+      ) : (
+        <ul className="mb-3 flex flex-wrap gap-2">
+          {principals.map((p) => (
+            <li
+              key={p.id}
+              className="inline-flex items-center gap-2 rounded-full border border-line-soft bg-bg px-2.5 py-1 text-xs"
+            >
+              <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-text-tertiary">
+                {p.kind}
+              </span>
+              <span className="text-text-primary">
+                {p.team
+                  ? `${p.team.name} · ${p.team.memberCount}`
+                  : (p.user?.name ?? p.user?.email ?? p.user?.id ?? "?")}
+              </span>
+              <button
+                type="button"
+                onClick={() => revoke(p)}
+                aria-label="Revoke"
+                className="rounded-full p-0.5 text-text-tertiary transition-colors hover:bg-red-500/10 hover:text-red-500"
+              >
+                <X size={11} strokeWidth={2.2} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex rounded-md border border-line-soft bg-bg text-xs">
+          <button
+            type="button"
+            onClick={() => {
+              setPickerKind("team");
+              setPickerId("");
+            }}
+            className={`px-3 py-1.5 ${
+              pickerKind === "team"
+                ? "bg-surface-2 font-medium text-text-primary"
+                : "text-text-tertiary hover:text-text-primary"
+            }`}
+          >
+            Team
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPickerKind("user");
+              setPickerId("");
+            }}
+            className={`px-3 py-1.5 ${
+              pickerKind === "user"
+                ? "bg-surface-2 font-medium text-text-primary"
+                : "text-text-tertiary hover:text-text-primary"
+            }`}
+          >
+            User
+          </button>
+        </div>
+        <select
+          value={pickerId}
+          onChange={(e) => setPickerId(e.target.value)}
+          className="min-w-[220px] flex-1 rounded-md border border-line-strong bg-bg px-3 py-1.5 text-sm text-text-primary"
+        >
+          <option value="">
+            {pickerKind === "team"
+              ? teamOptions.length === 0
+                ? "No teams available"
+                : "Pick a team…"
+              : userOptions.length === 0
+                ? "No org members available"
+                : "Pick a user…"}
+          </option>
+          {pickerKind === "team"
+            ? teamOptions.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({t.memberCount})
+                </option>
+              ))
+            : userOptions.map((m) => (
+                <option key={m.userId} value={m.userId}>
+                  {m.user.name ?? m.user.email ?? m.userId}
+                </option>
+              ))}
+        </select>
+        <button
+          type="button"
+          onClick={add}
+          disabled={busy || !pickerId}
+          className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-50"
+        >
+          <Plus size={12} strokeWidth={2.2} />
+          Grant
+        </button>
+      </div>
+    </section>
+  );
+}
+
+const accessFetcher = (url: string) =>
+  fetch(url).then(async (r) => {
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  });
 
 function SubsystemIcon({ subsystem }: { subsystem: string }) {
   const Icon = pickSubsystemIcon(subsystem);
