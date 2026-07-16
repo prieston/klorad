@@ -51,8 +51,18 @@ export default function Home() {
             "POST /api/demo/scenario/incident",
             "POST /api/demo/scenario/vms-inspection",
             "POST /api/demo/scenario/traffic",
+            "POST /api/demo/scenario/radar-spike (optional ?deviceId=…)",
+            "POST /api/demo/scenario/dms-alarm (optional ?deviceId=…)",
+            "POST /api/demo/scenario/incident-cascade",
+            "GET  /api/demo/overrides — inspect active status overrides",
           ]}
         />
+        <p style={{ marginTop: 12, color: "#94a3b8", fontSize: 13 }}>
+          Radar / DMS scenarios flip device status for 3 minutes and
+          emit <code>device.status_changed</code> events. Wire a
+          webhook against them from Mobility to drive the alert-rule
+          engine.
+        </p>
       </Section>
 
       <p style={{ marginTop: 40, color: "#64748b" }}>

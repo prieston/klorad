@@ -10,6 +10,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Device, Subsystem, WorldFilter } from "./types";
 import { isSubsystem } from "./types";
+import { getOverride } from "./overrides";
 
 let cache: Device[] | null = null;
 
@@ -151,6 +152,17 @@ export function fetchFromSubsystem(requested: Subsystem): Subsystem {
  * drawer's `live.status.raw` blob.
  */
 export function currentStatus(device: Device): Record<string, unknown> {
+  const raw = baseStatus(device);
+  // Merge any active scenario override on top. Overrides let the
+  // demo picker turn a single device "hot" for a few minutes without
+  // touching the seed — spike radar occupancy, alarm a DMS, drop
+  // reachability on a CCTV — and every subsequent /status call from
+  // that scenario's demo window returns the mutated value.
+  const override = getOverride(device.externalId);
+  return override ? { ...raw, ...override.patch, timestamp: Date.now() } : raw;
+}
+
+function baseStatus(device: Device): Record<string, unknown> {
   const now = Date.now();
   const base = {
     signId: device.externalId,
