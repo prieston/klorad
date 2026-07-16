@@ -1324,6 +1324,8 @@ function DeviceDrawer({
                     src={payload.media.url}
                     controls
                     playsInline
+                    autoPlay
+                    loop
                     muted
                     className="aspect-video w-full"
                   />

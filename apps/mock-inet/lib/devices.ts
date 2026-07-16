@@ -123,24 +123,23 @@ export function parseSubsystem(value: string): Subsystem | null {
 }
 
 /**
- * Alias `dms` → `vms` so the legacy Parsons subsystem name serves the
- * same data as its regional twin. Our source workbook only has
- * VMS-shaped rows; without this alias, `/atms/dms-rest/rest/dms/`
- * returns [] and Mobility sources that tick "DMS" get nothing.
+ * Alias `vms` → `dms` so the legacy regional subsystem name still
+ * resolves. Our seed now produces DMS-tagged rows (Parsons naming is
+ * canonical in the Mobility picker), so `/atms/vms-rest/rest/vms/`
+ * would return [] without this alias.
  *
  * Note: if an operator ticks *both* dms and vms on their source,
- * they'll double-sync the same physical signs (once as vms:… and
- * once as dms:…, different packed ids). Pick one — VMS is the
- * canonical name for our data.
+ * they'll double-sync the same physical signs. Pick one — DMS is the
+ * canonical name.
  */
 export function fetchFromSubsystem(requested: Subsystem): Subsystem {
-  return requested === "dms" ? "vms" : requested;
+  return requested === "vms" ? "dms" : requested;
 }
 
 /**
  * Per-subsystem live status — what the per-device status endpoint
  * (path shape `/atms/{sub}-rest/rest/{sub}/{id}/status`) returns.
- * VMS/VSLS/DMS reuse the pre-baked DMS-shaped status from the seed.
+ * DMS/VMS/VSLS reuse the pre-baked NTCIP-shaped status from the seed.
  * CCTV/AID/RADAR get lightweight computed shapes so the Mobility
  * drawer has something to render for them (previously radar and aid
  * showed "no live data — the source returned no current status").

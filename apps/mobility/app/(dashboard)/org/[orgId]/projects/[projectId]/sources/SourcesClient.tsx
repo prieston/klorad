@@ -423,11 +423,12 @@ function AddSourceForm({
   // DMS and VMS are the same physical device with different regional
   // names (Parsons/US = DMS, European/Greek = VMS). Ticking both on
   // the same tenant collides on `(sourceId, externalDeviceId)` and
-  // one silently overwrites the other. Hide DMS from the picker;
-  // Parsons-native tenants can hand-edit `config.subsystems` if
-  // they need the DMS label.
+  // one silently overwrites the other. Hide VMS from the picker;
+  // DMS is the canonical name across our data and Mobility UI, and
+  // the mock aliases `/atms/vms-rest/…` back to DMS for any tenant
+  // that hand-edits `config.subsystems` to add the legacy label.
   const pickerSubsystems = useMemo(
-    () => INET_SUBSYSTEMS.filter((s) => s !== "dms"),
+    () => INET_SUBSYSTEMS.filter((s) => s !== "vms"),
     [],
   );
   // Default: every visible subsystem ticked. The mock serves all of
