@@ -7,6 +7,7 @@ import { toast } from "react-toastify";
 import {
   ArrowLeft,
   Bell,
+  FlaskConical,
   Loader2,
   Plus,
   Trash2,
@@ -286,6 +287,27 @@ function summariseRule(rule: RuleRow): string {
   return `event: ${c.eventType ?? "?"}`;
 }
 
+// ─── Rule preview response ─────────────────────────────────────────
+
+interface PreviewSample {
+  deviceId: string;
+  externalDeviceId: string;
+  name: string;
+  observed: number | null;
+  matched: boolean;
+}
+
+type PreviewResult =
+  | {
+      kind: "threshold";
+      previewSupported: true;
+      sampled: number;
+      matched: number;
+      samples: PreviewSample[];
+      note?: string;
+    }
+  | { kind: "event"; previewSupported: false; note: string };
+
 // ─── Create form ────────────────────────────────────────────────────
 
 function RuleForm({
@@ -306,6 +328,8 @@ function RuleForm({
   const [eventType, setEventType] = useState<UpstreamEventType>("incident.posted");
   const [targetWorldIds, setTargetWorldIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const [preview, setPreview] = useState<PreviewResult | null>(null);
 
   const fieldsForSubsystem = FIELDS_BY_SUBSYSTEM[subsystem] ?? [];
   // Keep `field` valid when subsystem changes.
@@ -313,6 +337,46 @@ function RuleForm({
     if (fieldsForSubsystem.includes(field)) return field;
     return fieldsForSubsystem[0] ?? "";
   }, [field, fieldsForSubsystem]);
+
+  const runPreview = async () => {
+    const numericValue = Number(value);
+    if (kind === "threshold" && !Number.isFinite(numericValue)) {
+      toast.error("Value must be a number");
+      return;
+    }
+    setPreviewBusy(true);
+    setPreview(null);
+    try {
+      const body =
+        kind === "threshold"
+          ? {
+              kind: "threshold" as const,
+              config: {
+                subsystem,
+                field: effectiveField,
+                op,
+                value: numericValue,
+              },
+            }
+          : { kind: "event" as const, config: { eventType } };
+      const res = await fetch(
+        `/api/projects/${projectId}/alert-rules/test`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+      const json = (await res.json()) as PreviewResult | { error?: string };
+      if (!res.ok) {
+        toast.error((json as { error?: string }).error ?? "Preview failed");
+        return;
+      }
+      setPreview(json as PreviewResult);
+    } finally {
+      setPreviewBusy(false);
+    }
+  };
 
   const create = async () => {
     if (!name.trim()) {
@@ -523,7 +587,7 @@ function RuleForm({
         </fieldset>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={create}
@@ -537,7 +601,112 @@ function RuleForm({
           )}
           Create rule
         </button>
+        <button
+          type="button"
+          onClick={runPreview}
+          disabled={previewBusy}
+          title="Preview whether the rule would fire against the current fleet, without saving."
+          className="inline-flex items-center gap-2 rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+        >
+          {previewBusy ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <FlaskConical size={14} />
+          )}
+          Preview matches
+        </button>
       </div>
+
+      {preview && <PreviewPanel result={preview} onDismiss={() => setPreview(null)} />}
     </section>
+  );
+}
+
+function PreviewPanel({
+  result,
+  onDismiss,
+}: {
+  result: PreviewResult;
+  onDismiss: () => void;
+}) {
+  if (result.previewSupported === false) {
+    return (
+      <div className="mt-4 flex items-start gap-3 rounded-md border border-line-soft bg-surface-2 px-4 py-3 text-xs text-text-secondary">
+        <FlaskConical size={13} className="mt-0.5 text-text-tertiary" />
+        <p className="flex-1">{result.note}</p>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss preview"
+          className="text-text-tertiary hover:text-text-primary"
+        >
+          <X size={13} />
+        </button>
+      </div>
+    );
+  }
+  const { sampled, matched, samples } = result;
+  const anyMatched = matched > 0;
+  return (
+    <div className="mt-4 rounded-md border border-line-soft bg-surface-2 px-4 py-3 text-xs">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-text-primary">
+          <span
+            className={`font-medium ${
+              anyMatched ? "text-accent" : "text-text-secondary"
+            }`}
+          >
+            {matched} of {sampled}
+          </span>{" "}
+          {matched === 1 ? "device would fire" : "devices would fire"} right now
+          {sampled === 20 && (
+            <span className="text-text-tertiary"> (sampled)</span>
+          )}
+          {result.note && (
+            <span className="text-text-tertiary"> — {result.note}</span>
+          )}
+        </p>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss preview"
+          className="text-text-tertiary hover:text-text-primary"
+        >
+          <X size={13} />
+        </button>
+      </div>
+      {samples.length > 0 && (
+        <ul className="divide-y divide-line-soft rounded border border-line-soft bg-bg">
+          {samples.slice(0, 8).map((s) => (
+            <li
+              key={s.deviceId}
+              className="flex items-center gap-3 px-3 py-1.5"
+            >
+              <span
+                aria-hidden
+                className={`h-1.5 w-1.5 rounded-full ${
+                  s.matched ? "bg-accent" : "bg-line-strong"
+                }`}
+              />
+              <span className="flex-1 truncate text-text-primary">
+                {s.name}
+              </span>
+              <span className="font-mono text-[10px] text-text-tertiary">
+                {s.observed === null
+                  ? "—"
+                  : Number.isInteger(s.observed)
+                    ? s.observed
+                    : s.observed.toFixed(3)}
+              </span>
+            </li>
+          ))}
+          {samples.length > 8 && (
+            <li className="px-3 py-1.5 text-center text-[10px] text-text-tertiary">
+              +{samples.length - 8} more
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
   );
 }
