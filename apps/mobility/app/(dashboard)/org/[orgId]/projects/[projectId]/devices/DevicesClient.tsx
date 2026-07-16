@@ -235,11 +235,11 @@ export function DevicesClient({
           options={[
             { value: "all", label: "All types" },
             // Emit one chip per connector-known subsystem so demo
-            // enums surface without touching this file. Hide DMS
-            // since VMS is the same physical device under a
-            // different regional name — the source picker enforces
-            // one-or-the-other to avoid duplicate rows.
-            ...INET_SUBSYSTEMS.filter((s) => s !== "dms").map((s) => {
+            // enums surface without touching this file. Hide VMS
+            // since DMS is the same physical device under Parsons'
+            // canonical name — the source picker enforces one-or-the-
+            // other to avoid duplicate rows.
+            ...INET_SUBSYSTEMS.filter((s) => s !== "vms").map((s) => {
               const d = subsystemDescriptor(s);
               return { value: s, label: d.label, icon: d.icon };
             }),

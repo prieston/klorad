@@ -23,7 +23,12 @@ interface FileSpec {
 const FILES: FileSpec[] = [
   { file: "aid.csv", subsystem: "aid" },
   { file: "cctv.csv", subsystem: "cctv" },
-  { file: "vms.csv", subsystem: "vms" },
+  // Workbook is VMS-native (Greek regional naming). Emit rows tagged
+  // as `dms` — Parsons' name for the same physical device — since the
+  // Mobility picker treats DMS as canonical and VMS as a hidden
+  // alias. Device codes get rewritten `W-VMS-…` → `W-DMS-…` at row
+  // construction so the labels line up.
+  { file: "vms.csv", subsystem: "dms" },
   { file: "vsls.csv", subsystem: "vsls" },
   { file: "radar-main.csv", subsystem: "radar" },
   { file: "radar-ramp.csv", subsystem: "radar" },
@@ -141,8 +146,16 @@ function parseChainage(s: string): { mileMarker: number | null; chainage: string
 }
 
 function rowToDevice(subsystem: Subsystem, raw: Record<string, string>): Device | null {
-  const code = pick(raw, "code", "device", "id");
-  if (!code) return null;
+  const rawCode = pick(raw, "code", "device", "id");
+  if (!rawCode) return null;
+  // Rename `W-VMS-15.01` → `W-DMS-15.01` when the row lands under the
+  // DMS subsystem so the device label ("DMS W-DMS-…") reads
+  // consistently — otherwise it would be "DMS W-VMS-…", a leaky
+  // reminder that our workbook is VMS-native.
+  // The workbook has direction/pole prefixes on every code
+  // (`W-`, `WR-`, `WF-`, `E-`, `ER-`, `EF-`), so match the `-VMS-`
+  // segment rather than a fixed leading string.
+  const code = subsystem === "dms" ? rawCode.replace(/-VMS-/, "-DMS-") : rawCode;
 
   const rawLat = parseNumber(pick(raw, "latitude", "lat"));
   const rawLng = parseNumber(pick(raw, "longitude", "long", "lng"));
@@ -205,11 +218,11 @@ function rowToDevice(subsystem: Subsystem, raw: Record<string, string>): Device 
     base.hlsUri = AID_DEMO_HLS;
     base.controlType = "status and command";
   }
-  if (subsystem === "vms") {
+  if (subsystem === "dms") {
     base.signType = 1;
     base.pixelWidth = 84;
     base.pixelHeight = 7;
-    base.status = makeVmsStatus(code);
+    base.status = makeDmsStatus(code);
   }
   if (subsystem === "vsls") {
     base.signType = 2;
@@ -223,14 +236,21 @@ function rowToDevice(subsystem: Subsystem, raw: Record<string, string>): Device 
   return base;
 }
 
+// Real road-traffic footage from Wikimedia Commons (VP8/VP9 WebM,
+// CC-BY-SA / public domain). Movie clips (Tears of Steel, Sintel)
+// looked wrong on a traffic-camera panel — an operator glances at
+// the drawer and expects to see a road. The drawer's <video>
+// element plays WebM natively in Chrome/Edge/Firefox; Safari
+// requires H.264 MP4 and will fall back to the placeholder — an
+// acceptable tradeoff for the current demo target.
 const CCTV_DEMO_HLS =
-  "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8";
+  "https://upload.wikimedia.org/wikipedia/commons/6/68/Avtocesta.webm";
 const AID_DEMO_HLS =
-  "https://demo.unified-streaming.com/k8s/features/stable/video/sintel/sintel.ism/.m3u8";
+  "https://upload.wikimedia.org/wikipedia/commons/8/80/Verkehr_auf_Autobahn_A4_bei_Bautzen_%281%29.webm";
 
 function primaryRoadFor(subsystem: Subsystem): string {
   switch (subsystem) {
-    case "vms":
+    case "dms":
     case "vsls":
       return "Flyover";
     case "radar":
@@ -249,14 +269,16 @@ function defaultLabel(subsystem: Subsystem): string {
       return "PTZ";
     case "aid":
       return "AID";
-    case "vms":
-      return "VMS";
+    case "dms":
+      return "DMS";
     case "vsls":
       return "VSLS";
     case "radar":
       return "RADAR";
-    case "dms":
-      return "DMS";
+    case "vms":
+      // Not emitted by any FILES entry after the DMS rename — kept
+      // to satisfy the exhaustive Subsystem union.
+      return "VMS";
   }
 }
 
@@ -276,10 +298,10 @@ function rawFirstColumn(raw: Record<string, string>): string {
   return "";
 }
 
-/** Rotating VMS/DMS messages, keyed off a hash of the device id so
- *  each sign in the map shows different text and the demo doesn't
- *  read as "one identical message repeated 35 times". */
-const VMS_MESSAGES = [
+/** Rotating DMS messages, keyed off a hash of the device id so each
+ *  sign in the map shows different text and the demo doesn't read as
+ *  "one identical message repeated 35 times". */
+const DMS_MESSAGES = [
   "[pb]TRAFFIC AHEAD[nl]REDUCE SPEED",
   "[pb]INCIDENT[nl]LANE 2 CLOSED",
   "[pb]NO INCIDENTS[nl]DRIVE SAFE",
@@ -294,8 +316,8 @@ function idHash(id: string): number {
   return Math.abs(h);
 }
 
-function makeVmsStatus(id: string) {
-  const message = VMS_MESSAGES[idHash(id) % VMS_MESSAGES.length]!;
+function makeDmsStatus(id: string) {
+  const message = DMS_MESSAGES[idHash(id) % DMS_MESSAGES.length]!;
   return {
     signId: id,
     connectable: true,
@@ -434,9 +456,55 @@ function main() {
     );
   }
 
+  const jittered = deoverlapCoLocated(output);
+  console.log(`[seed] spread ${jittered} co-located devices in small rings`);
+
   writeFileSync(OUT_PATH, JSON.stringify(output, null, 2), "utf8");
   console.log(`[seed] wrote ${output.length} devices → ${OUT_PATH}`);
   console.log("[seed] totals:", perSubsystem);
+}
+
+/** Icons stacked on identical coordinates were unclickable — the top
+ *  one absorbs every click and the ones under it can't be selected.
+ *  Group devices by ~1-metre-rounded coord and spread each cluster
+ *  in a small ring so every device gets its own icon slot.
+ *
+ *  Deterministic: within a cluster we sort by externalId and hand
+ *  out angles by index, so re-seeding produces the same layout.
+ *  Ring radius scales with cluster size — a 2-device pair stays
+ *  tight (~10 m centre-to-centre), a 10-device pile-up gets a wider
+ *  ring so the icons don't overlap edge-to-edge at typical zoom. */
+function deoverlapCoLocated(devices: Device[]): number {
+  const groups = new Map<string, Device[]>();
+  for (const d of devices) {
+    const key = `${d.latitude.toFixed(5)},${d.longitude.toFixed(5)}`;
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(d);
+    else groups.set(key, [d]);
+  }
+  const METRES_PER_DEGREE_LAT = 111_320;
+  let moved = 0;
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => a.externalId.localeCompare(b.externalId));
+    const centerLat = group[0]!.latitude;
+    const centerLng = group[0]!.longitude;
+    const metresPerDegreeLng =
+      METRES_PER_DEGREE_LAT * Math.cos((centerLat * Math.PI) / 180);
+    // 8 m minimum + 1 m per additional device — keeps 2-device pairs
+    // tight and prevents 10+ pile-ups from overlapping around the
+    // ring circumference.
+    const radiusMetres = 8 + Math.max(0, group.length - 2);
+    for (let i = 0; i < group.length; i += 1) {
+      const angle = (2 * Math.PI * i) / group.length;
+      const dLat = (radiusMetres * Math.sin(angle)) / METRES_PER_DEGREE_LAT;
+      const dLng = (radiusMetres * Math.cos(angle)) / metresPerDegreeLng;
+      group[i]!.latitude = centerLat + dLat;
+      group[i]!.longitude = centerLng + dLng;
+      moved += 1;
+    }
+  }
+  return moved;
 }
 
 /** Nearest CCTV anchor by chainage delta, subject to same direction.
