@@ -57,6 +57,7 @@ export default async function SourcesPage({
       syncStatus: true,
       syncStartedAt: true,
       syncProgress: true,
+      webhookId: true,
     },
   });
 
@@ -65,7 +66,7 @@ export default async function SourcesPage({
   // Marshal Date / JSON fields into the client-friendly shape the
   // SourcesClient expects (Date → ISO string; JSON value → typed
   // SyncProgress shape).
-  const serialised = initialSources.map((s) => ({
+  const serialised = initialSources.map(({ webhookId, ...s }) => ({
     ...s,
     syncStartedAt: s.syncStartedAt ? s.syncStartedAt.toISOString() : null,
     syncProgress:
@@ -79,6 +80,9 @@ export default async function SourcesPage({
             message?: string;
           })
         : null,
+    // Boolean projection — the secret / id itself never crosses to
+    // the client.
+    hasWebhook: webhookId !== null,
   }));
 
   return (
