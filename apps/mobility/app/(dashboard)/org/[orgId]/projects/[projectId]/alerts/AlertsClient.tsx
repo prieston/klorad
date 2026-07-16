@@ -3,20 +3,30 @@
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
+import { toast } from "react-toastify";
 import {
   ArrowRight,
   Bell,
+  Check,
   CheckCircle2,
   Database,
+  Loader2,
   RefreshCcw,
+  RotateCcw,
   ShieldOff,
   WifiOff,
+  X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { subsystemIcon } from "@/lib/mobility/subsystem-icon";
 
-interface AlertRow {
-  deviceId: string;
+// ─── Types (mirror the server response) ────────────────────────────
+
+type AlertKind = "offline" | "alarmed";
+type StateFilter = "open" | "acknowledged" | "closed" | "all";
+
+interface AlertDevice {
+  id: string;
   externalDeviceId: string;
   subsystem: string;
   name: string;
@@ -25,14 +35,26 @@ interface AlertRow {
   crossRoad: string | null;
   direction: string | null;
   agency: string | null;
-  kind: "offline" | "alarmed";
-  message: string | null;
-  observedAt: string;
+}
+
+interface AlertRow {
+  id: string;
+  kind: AlertKind;
+  message: string;
+  openedAt: string;
+  closedAt: string | null;
+  acknowledgedAt: string | null;
+  acknowledgedBy: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
+  device: AlertDevice;
 }
 
 interface AlertsResponse {
+  state: StateFilter;
   alerts: AlertRow[];
-  totalIncluded: number;
 }
 
 const fetcher = (url: string) =>
@@ -41,7 +63,7 @@ const fetcher = (url: string) =>
     return r.json();
   });
 
-type KindFilter = "all" | "offline" | "alarmed";
+// ─── Component ─────────────────────────────────────────────────────
 
 export function AlertsClient({
   orgId,
@@ -52,28 +74,23 @@ export function AlertsClient({
   projectId: string;
   projectTitle: string;
 }) {
-  const { data, isLoading } = useSWR<AlertsResponse>(
-    `/api/projects/${projectId}/alerts`,
+  const [state, setState] = useState<StateFilter>("open");
+  const { data, isLoading, mutate } = useSWR<AlertsResponse>(
+    `/api/projects/${projectId}/alerts?state=${state}`,
     fetcher,
     { refreshInterval: 15_000 },
   );
   const alerts = useMemo(() => data?.alerts ?? [], [data]);
-  const total = data?.totalIncluded ?? 0;
 
-  const [kind, setKind] = useState<KindFilter>("all");
-  const filtered = useMemo(
-    () => (kind === "all" ? alerts : alerts.filter((a) => a.kind === kind)),
-    [alerts, kind],
-  );
-
-  const counts = useMemo(
-    () => ({
+  const counts = useMemo(() => {
+    // Only meaningful when the filter is `open`; in other filters we
+    // don't have the full picture, so we skip the split.
+    return {
       total: alerts.length,
       offline: alerts.filter((a) => a.kind === "offline").length,
       alarmed: alerts.filter((a) => a.kind === "alarmed").length,
-    }),
-    [alerts],
-  );
+    };
+  }, [alerts]);
 
   return (
     <main className="mx-auto w-full max-w-[1280px] px-6 py-10 md:px-10">
@@ -86,26 +103,24 @@ export function AlertsClient({
             Alerts.
           </h1>
           <p className="mt-3 max-w-2xl text-base text-text-secondary">
-            Live feed of devices currently offline or carrying an alarm
-            condition, derived from the ATMS status proxy. Scoped to your
-            included fleet ({total.toLocaleString()} devices), refreshed
-            every 15 seconds.
+            Durable alert rows opened by the rule engine. Acknowledge to mark
+            as seen; close when the underlying condition is resolved.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href={`/org/${orgId}/projects/${projectId}/alerts/rules`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:border-accent hover:text-accent"
+          >
+            Manage rules
+            <ArrowRight size={14} strokeWidth={1.8} />
+          </Link>
           <Link
             href={`/org/${orgId}/projects/${projectId}/devices`}
             className="inline-flex items-center gap-1.5 rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:border-accent hover:text-accent"
           >
             <Database size={14} strokeWidth={1.8} aria-hidden />
             Devices
-          </Link>
-          <Link
-            href={`/org/${orgId}/projects/${projectId}`}
-            className="inline-flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
-          >
-            Open console
-            <ArrowRight size={14} strokeWidth={1.8} />
           </Link>
         </div>
       </header>
@@ -114,34 +129,35 @@ export function AlertsClient({
       <section className="mb-8 grid grid-cols-1 gap-3 md:grid-cols-3">
         <StatTile
           icon={Bell}
-          label="Open alerts"
+          label={state === "open" ? "Open" : state === "acknowledged" ? "Acknowledged" : state === "closed" ? "Closed" : "All"}
           value={counts.total}
-          tone={counts.total > 0 ? "alarm" : "calm"}
+          tone={counts.total > 0 && state === "open" ? "alarm" : "muted"}
         />
         <StatTile
           icon={WifiOff}
           label="Offline"
           value={counts.offline}
-          tone={counts.offline > 0 ? "alarm" : "muted"}
+          tone={counts.offline > 0 && state === "open" ? "alarm" : "muted"}
         />
         <StatTile
           icon={ShieldOff}
           label="Alarmed"
           value={counts.alarmed}
-          tone={counts.alarmed > 0 ? "alarm" : "muted"}
+          tone={counts.alarmed > 0 && state === "open" ? "alarm" : "muted"}
         />
       </section>
 
-      {/* Filter chips + refresh tag */}
+      {/* State filter + refresh tag */}
       <section className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-line-soft bg-bg p-3">
         <ChipGroup
-          value={kind}
+          value={state}
           options={[
-            { value: "all", label: "All open" },
-            { value: "offline", label: "Offline", icon: WifiOff },
-            { value: "alarmed", label: "Alarmed", icon: ShieldOff },
+            { value: "open", label: "Open" },
+            { value: "acknowledged", label: "Acknowledged" },
+            { value: "closed", label: "Closed" },
+            { value: "all", label: "All" },
           ]}
-          onChange={(v) => setKind(v as KindFilter)}
+          onChange={(v) => setState(v as StateFilter)}
         />
         <span className="ml-auto inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
           <RefreshCcw size={11} strokeWidth={1.8} aria-hidden />
@@ -156,35 +172,18 @@ export function AlertsClient({
             Loading…
           </p>
         </SectionCard>
-      ) : filtered.length === 0 ? (
-        <SectionCard>
-          <div className="px-6 py-16 text-center">
-            <CheckCircle2
-              size={32}
-              strokeWidth={1.5}
-              className="mx-auto text-emerald-500"
-              aria-hidden
-            />
-            <h2 className="mt-4 text-lg font-medium text-text-primary">
-              {alerts.length === 0
-                ? "Network is quiet."
-                : "No alerts match this filter."}
-            </h2>
-            <p className="mt-1 text-sm text-text-secondary">
-              {alerts.length === 0
-                ? "All included devices are online and clear of alarms."
-                : "Try All open."}
-            </p>
-          </div>
-        </SectionCard>
+      ) : alerts.length === 0 ? (
+        <EmptyState state={state} orgId={orgId} projectId={projectId} />
       ) : (
         <SectionCard>
           <ul className="divide-y divide-line-soft">
-            {filtered.map((a) => (
+            {alerts.map((a) => (
               <AlertItem
-                key={a.deviceId + a.observedAt}
+                key={a.id}
                 alert={a}
-                openHref={`/org/${orgId}/projects/${projectId}?device=${a.deviceId}`}
+                projectId={projectId}
+                onChanged={() => void mutate()}
+                openHref={`/org/${orgId}/projects/${projectId}?device=${a.device.id}`}
               />
             ))}
           </ul>
@@ -194,32 +193,67 @@ export function AlertsClient({
   );
 }
 
-/* ─── Row ──────────────────────────────────────────────────────────── */
+// ─── Row ────────────────────────────────────────────────────────────
 
 function AlertItem({
   alert,
+  projectId,
+  onChanged,
   openHref,
 }: {
   alert: AlertRow;
+  projectId: string;
+  onChanged: () => void;
   openHref: string;
 }) {
-  const SubsystemIcon: LucideIcon = subsystemIcon(alert.subsystem);
-  const kindIcon = alert.kind === "offline" ? WifiOff : ShieldOff;
-  const KindIcon = kindIcon;
+  const SubsystemIcon: LucideIcon = subsystemIcon(alert.device.subsystem);
+  const KindIcon = alert.kind === "offline" ? WifiOff : ShieldOff;
+  const [busy, setBusy] = useState(false);
+
+  const isClosed = alert.closedAt !== null;
+  const isAcked = alert.acknowledgedAt !== null && !isClosed;
+
+  const patch = async (action: "ack" | "unack" | "close" | "reopen") => {
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/alerts/${alert.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        },
+      );
+      if (!res.ok) {
+        toast.error("Update failed");
+        return;
+      }
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <li className="grid items-center gap-3 px-5 py-4 md:grid-cols-[auto_1fr_auto_auto] md:gap-4">
+    <li
+      className={`grid items-center gap-3 px-5 py-4 md:grid-cols-[auto_1fr_auto_auto] md:gap-4 ${
+        isClosed ? "opacity-60" : ""
+      }`}
+    >
       <span
         aria-hidden
         className={`flex h-9 w-9 items-center justify-center rounded-full ${
-          alert.kind === "offline"
-            ? "bg-red-500/10 text-red-600"
-            : "bg-yellow-500/10 text-yellow-600"
+          isClosed
+            ? "bg-surface-2 text-text-tertiary"
+            : alert.kind === "offline"
+              ? "bg-red-500/10 text-red-600"
+              : "bg-yellow-500/10 text-yellow-600"
         }`}
       >
         <KindIcon size={14} strokeWidth={1.8} />
       </span>
       <div className="min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <SubsystemIcon
             size={12}
             strokeWidth={1.8}
@@ -227,34 +261,138 @@ function AlertItem({
             aria-hidden
           />
           <span className="truncate text-sm font-medium text-text-primary">
-            {alert.customLabel ?? alert.name}
+            {alert.device.customLabel ?? alert.device.name}
           </span>
           <KindPill kind={alert.kind} />
+          {isClosed && (
+            <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.18em] text-text-tertiary">
+              closed
+            </span>
+          )}
+          {isAcked && (
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.18em] text-emerald-600">
+              acknowledged
+            </span>
+          )}
         </div>
         <p className="mt-0.5 truncate text-xs text-text-tertiary">
-          {alert.subsystem.toUpperCase()} · {alert.externalDeviceId}
-          {alert.primaryRoad && ` · ${alert.primaryRoad}`}
-          {alert.direction && ` (${alert.direction})`}
-          {alert.message && (
-            <span className="text-text-secondary"> — {alert.message}</span>
-          )}
+          {alert.device.subsystem.toUpperCase()} · {alert.device.externalDeviceId}
+          {alert.device.primaryRoad && ` · ${alert.device.primaryRoad}`}
+          {alert.device.direction && ` (${alert.device.direction})`}
         </p>
+        <p className="mt-1 text-xs text-text-secondary">{alert.message}</p>
+        {alert.acknowledgedBy && (
+          <p className="mt-0.5 text-[10px] text-text-tertiary">
+            Acknowledged by{" "}
+            {alert.acknowledgedBy.name ?? alert.acknowledgedBy.email ?? "unknown"}
+            {alert.acknowledgedAt && ` · ${relativeFrom(alert.acknowledgedAt)}`}
+          </p>
+        )}
       </div>
       <span className="text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
-        {relativeFrom(alert.observedAt)}
+        {relativeFrom(alert.openedAt)}
       </span>
-      <Link
-        href={openHref}
-        className="inline-flex items-center gap-1 rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:border-accent hover:text-accent"
-      >
-        Open
-        <ArrowRight size={12} strokeWidth={1.8} />
-      </Link>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {isClosed ? (
+          <button
+            type="button"
+            onClick={() => patch("reopen")}
+            disabled={busy}
+            className="inline-flex items-center gap-1 rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+          >
+            <RotateCcw size={12} strokeWidth={1.8} />
+            Reopen
+          </button>
+        ) : (
+          <>
+            {isAcked ? (
+              <button
+                type="button"
+                onClick={() => patch("unack")}
+                disabled={busy}
+                aria-label="Unacknowledge"
+                title="Unacknowledge"
+                className="inline-flex items-center gap-1 rounded-md border border-line-soft px-2.5 py-1.5 text-xs font-medium text-text-tertiary transition-colors hover:border-text-primary hover:text-text-primary disabled:opacity-50"
+              >
+                <X size={12} strokeWidth={1.8} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => patch("ack")}
+                disabled={busy}
+                className="inline-flex items-center gap-1 rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+              >
+                <Check size={12} strokeWidth={1.8} />
+                Ack
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => patch("close")}
+              disabled={busy}
+              className="inline-flex items-center gap-1 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-50"
+            >
+              {busy ? <Loader2 size={12} className="animate-spin" /> : "Close"}
+            </button>
+          </>
+        )}
+        <Link
+          href={openHref}
+          className="inline-flex items-center gap-1 rounded-md border border-line-soft px-2.5 py-1.5 text-xs font-medium text-text-tertiary transition-colors hover:border-accent hover:text-accent"
+        >
+          <ArrowRight size={12} strokeWidth={1.8} />
+        </Link>
+      </div>
     </li>
   );
 }
 
-/* ─── Tiny shared primitives ───────────────────────────────────────── */
+// ─── Empty state ────────────────────────────────────────────────────
+
+function EmptyState({
+  state,
+  orgId,
+  projectId,
+}: {
+  state: StateFilter;
+  orgId: string;
+  projectId: string;
+}) {
+  return (
+    <SectionCard>
+      <div className="px-6 py-16 text-center">
+        <CheckCircle2
+          size={32}
+          strokeWidth={1.5}
+          className="mx-auto text-emerald-500"
+          aria-hidden
+        />
+        <h2 className="mt-4 text-lg font-medium text-text-primary">
+          {state === "open"
+            ? "No open alerts."
+            : state === "acknowledged"
+              ? "No acknowledged alerts."
+              : state === "closed"
+                ? "No closed alerts."
+                : "No alerts have fired yet."}
+        </h2>
+        <p className="mt-1 text-sm text-text-secondary">
+          Alerts are opened by rules matching upstream webhook events.{" "}
+          <Link
+            href={`/org/${orgId}/projects/${projectId}/alerts/rules`}
+            className="text-accent hover:underline"
+          >
+            Create a rule
+          </Link>{" "}
+          to start.
+        </p>
+      </div>
+    </SectionCard>
+  );
+}
+
+// ─── Tiny shared primitives ───────────────────────────────────────
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
@@ -335,7 +473,7 @@ function ChipGroup<T extends string>({
   );
 }
 
-function KindPill({ kind }: { kind: "offline" | "alarmed" }) {
+function KindPill({ kind }: { kind: AlertKind }) {
   const cls =
     kind === "offline"
       ? "bg-red-500/10 text-red-600"
