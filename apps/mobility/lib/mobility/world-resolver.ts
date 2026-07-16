@@ -159,9 +159,15 @@ export async function loadPublicWorldBySlug(
 
 /**
  * Page-level resolver. Pass `viewerId` if a session exists.
- * The auth gate is project-org membership: anyone in the owning
- * organisation can view an `authenticated` world. Tighter per-world
- * ACLs can graduate into their own table later.
+ *
+ * For `authenticated` worlds the gate is `MobilityWorldPrincipal` —
+ * a direct `user` grant or membership in a `team` grant. Empty
+ * principal list denies everyone; there is no org-membership
+ * fallback (the previous behaviour) since we now support per-world
+ * ACLs and there are no existing authenticated worlds to
+ * grandfather in. Owners still get access as the world's project
+ * organisation-owner via the `owner` short-circuit — otherwise a
+ * mis-configured world would lock out the operator who created it.
  */
 export async function resolveWorldForViewer(
   slug: string,
@@ -176,7 +182,9 @@ export async function resolveWorldForViewer(
     return { kind: "ok", world: await toPublicWorld(world) };
   }
   if (!viewerId) return { kind: "needs_signin" };
-  const membership = await prisma.organizationMember.findUnique({
+  // Org owners bypass the principal check — they created the world,
+  // it would be surprising if they had to grant themselves access.
+  const ownerMembership = await prisma.organizationMember.findUnique({
     where: {
       organizationId_userId: {
         organizationId: world.project.organizationId,
@@ -185,6 +193,22 @@ export async function resolveWorldForViewer(
     },
     select: { role: true },
   });
-  if (!membership) return { kind: "no_access" };
+  if (ownerMembership?.role === "owner") {
+    return { kind: "ok", world: await toPublicWorld(world) };
+  }
+  const grant = await prisma.mobilityWorldPrincipal.findFirst({
+    where: {
+      worldId: world.id,
+      OR: [
+        { kind: "user", userId: viewerId },
+        {
+          kind: "team",
+          team: { members: { some: { userId: viewerId } } },
+        },
+      ],
+    },
+    select: { id: true },
+  });
+  if (!grant) return { kind: "no_access" };
   return { kind: "ok", world: await toPublicWorld(world) };
 }
