@@ -150,11 +150,8 @@ function matchThreshold(
   msg: string;
 } | null {
   if ((event.payload.subsystem ?? "") !== cfg.subsystem) return null;
-  const status = event.payload.status;
-  if (!status || typeof status !== "object") return null;
-  const raw = (status as Record<string, unknown>)[cfg.field];
-  if (typeof raw !== "number") return null;
-  if (!compare(raw, cfg.op, cfg.value)) return null;
+  const outcome = evaluateThresholdOnStatus(event.payload.status, cfg);
+  if (!outcome.matched) return null;
   return {
     externalId:
       typeof event.payload.externalId === "string"
@@ -163,8 +160,27 @@ function matchThreshold(
           ? event.payload.deviceId
           : null,
     subsystem: cfg.subsystem,
-    msg: `${cfg.subsystem}.${cfg.field} ${cfg.op} ${cfg.value} (observed ${raw})`,
+    msg: `${cfg.subsystem}.${cfg.field} ${cfg.op} ${cfg.value} (observed ${outcome.observed})`,
   };
+}
+
+/** Reusable threshold evaluator — shared with the rule "Preview
+ *  matches" endpoint so the button shows exactly what a webhook
+ *  event would fire. Returns both the observed value and a boolean
+ *  so the preview can distinguish "field not present" from "field
+ *  present but below threshold". */
+export function evaluateThresholdOnStatus(
+  status: unknown,
+  cfg: ThresholdConfig,
+): { observed: number | null; matched: boolean } {
+  if (!status || typeof status !== "object") {
+    return { observed: null, matched: false };
+  }
+  const raw = (status as Record<string, unknown>)[cfg.field];
+  if (typeof raw !== "number") {
+    return { observed: null, matched: false };
+  }
+  return { observed: raw, matched: compare(raw, cfg.op, cfg.value) };
 }
 
 function matchEvent(event: UpstreamEvent): {
