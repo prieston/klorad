@@ -41,22 +41,24 @@ model Session {
 }
 
 model User {
-  id                      String               @id @default(cuid())
+  id                      String                   @id @default(cuid())
   name                    String?
-  email                   String?              @unique
+  email                   String?                  @unique
   emailVerified           DateTime?
   image                   String?
   password                String?
-  passwordResetToken      String?              @unique
+  passwordResetToken      String?                  @unique
   passwordResetTokenExp   DateTime?
   accounts                Account[]
   sessions                Session[]
   subscription            Subscription? // One-to-one relation with Subscription
   organizationMembers     OrganizationMember[]
-  organizationInvitesSent OrganizationInvite[] @relation("InvitesSent") // Invitations sent by this user
+  organizationInvitesSent OrganizationInvite[]     @relation("InvitesSent") // Invitations sent by this user
   activities              Activity[] // Activities performed by this user (as actor)
-  broadcastsSent          Broadcast[]          @relation("BroadcastsSent") // Push broadcasts triggered by this user
+  broadcastsSent          Broadcast[]              @relation("BroadcastsSent") // Push broadcasts triggered by this user
   projectRoleOverrides    ProjectMember[] // Per-project role overrides (per-campus access scoping)
+  teamMemberships         TeamMember[] // Membership in named groups within an org
+  worldGrants             MobilityWorldPrincipal[] @relation("UserWorldGrants") // Direct per-world access grants (Mobility)
 }
 
 model VerificationToken {
@@ -88,6 +90,9 @@ model Organization {
   members               OrganizationMember[]
   invites               OrganizationInvite[]
   projects              Project[]
+  /// Named groups of users within this organisation. Currently used
+  /// by Mobility to grant world access to a whole team at once.
+  teams                 Team[]
   assets                Asset[]
   activities            Activity[]
   cesiumIonIntegrations CesiumIonIntegration[]
@@ -121,6 +126,42 @@ model OrganizationMember {
   @@unique([organizationId, userId])
   @@index([userId])
   @@index([organizationId])
+}
+
+/// Named group of users within an organisation. First consumer is
+/// Mobility, which lets an operator grant world access to a whole
+/// team via `MobilityWorldPrincipal`. Kept org-generic so other
+/// verticals (Editor, Campus) can reuse the same table later.
+model Team {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      TeamMember[]
+  worldGrants  MobilityWorldPrincipal[] @relation("TeamWorldGrants")
+
+  /// Name is unique within an org — reduces the "which Support team
+  /// did you mean" problem on the picker.
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  teamId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+  @@index([teamId])
 }
 
 model OrganizationInvite {
@@ -998,6 +1039,11 @@ model MobilityWorld {
   /// Append-only stream of visitor + operator events for the analytics
   /// panel. See lib/mobility/world-events.ts.
   events            MobilityWorldEvent[]
+  /// Access-control principals for `authenticated`-visibility worlds.
+  /// Empty list = no access (strict; there is no legacy fallback).
+  /// Populated with a mix of `user` and `team` rows resolved at
+  /// viewer time.
+  principals        MobilityWorldPrincipal[]
 
   @@unique([projectId, slug])
   @@index([projectId])
@@ -1055,6 +1101,43 @@ enum MobilityWorldVisibility {
   public
   linkOnly
   authenticated
+}
+
+/// Access-control principal for an authenticated-visibility world.
+/// Polymorphic-ish: `kind` picks which of `userId`/`teamId` is set.
+/// One of the two must be non-null and the other null — enforced at
+/// the API layer since Postgres check constraints are awkward via
+/// Prisma migrations.
+///
+/// Cascade delete when the world, user, or team disappears — an
+/// orphan principal is meaningless. No fallback for empty principal
+/// list: an authenticated world with zero rows here denies everyone
+/// (there are no legacy authenticated worlds to grandfather in).
+model MobilityWorldPrincipal {
+  id        String                     @id @default(cuid())
+  worldId   String
+  kind      MobilityWorldPrincipalKind
+  /// Set when `kind = user`; null otherwise.
+  userId    String?
+  /// Set when `kind = team`; null otherwise.
+  teamId    String?
+  createdAt DateTime                   @default(now())
+
+  world MobilityWorld @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  user  User?         @relation("UserWorldGrants", fields: [userId], references: [id], onDelete: Cascade)
+  team  Team?         @relation("TeamWorldGrants", fields: [teamId], references: [id], onDelete: Cascade)
+
+  /// Unique per (world, principal). Duplicate-grant attempts on the
+  /// API layer become a no-op upsert instead of a 500.
+  @@unique([worldId, kind, userId, teamId])
+  @@index([worldId])
+  @@index([userId])
+  @@index([teamId])
+}
+
+enum MobilityWorldPrincipalKind {
+  user
+  team
 }
 
 /// Append-only event stream per world. Powers the operator analytics
