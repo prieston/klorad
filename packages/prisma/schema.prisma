@@ -238,6 +238,7 @@ model Project {
   mobilityDevices        MobilityDevice[]
   mobilityDeviceStatuses MobilityDeviceStatus[]
   mobilityAlerts         MobilityAlert[]
+  mobilityAlertRules     MobilityAlertRule[]
   // Publishable per-stakeholder PWAs — each carves a curated subset
   // of project devices, with its own slug, theme, and visibility.
   mobilityWorlds         MobilityWorld[]
@@ -867,11 +868,19 @@ model MobilityDataSource {
   /// Updated after every page so the dashboard can render a real
   /// progress card instead of a spinner with no signal.
   syncProgress         Json?
+  /// HMAC secret shared with the upstream to verify inbound webhook
+  /// events (Arc C alert engine). Set when the operator hits
+  /// "Register webhook" on the source detail; null until then.
+  webhookSecret        String?
+  /// Opaque id returned by the upstream when the webhook was
+  /// registered. Persisted so we can delete + re-register cleanly.
+  webhookId            String?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  project Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  devices MobilityDevice[]
+  project    Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  devices    MobilityDevice[]
+  alertRules MobilityAlertRule[]
 
   @@index([projectId])
 }
@@ -991,6 +1000,51 @@ model MobilityAlert {
 enum MobilityAlertKind {
   offline
   alarmed
+}
+
+/// Operator-defined rule that turns an incoming webhook event or a
+/// device status field into a `MobilityAlert` row. Rules are project-
+/// scoped; `sourceId` optionally narrows to a single source (radar
+/// rig, DMS group). `kind` picks between two evaluator shapes:
+///
+///   threshold — trigger when a device's status field crosses a
+///               numeric threshold. Example config:
+///                 {subsystem: "radar", field: "occupancy",
+///                  op: "gt", value: 0.7}
+///
+///   event     — trigger on a raw upstream event (typically an
+///               incident post or a status change). Example config:
+///                 {eventType: "incident.posted"}
+///
+/// `targets` lists which worlds' push subscribers should be notified
+/// when the rule fires. Populated by the rule editor UI (Arc C PR3);
+/// dispatch happens on the MobilityAlert insert path.
+model MobilityAlertRule {
+  id        String                @id @default(cuid())
+  projectId String
+  sourceId  String?
+  name      String
+  enabled   Boolean               @default(true)
+  kind      MobilityAlertRuleKind
+  /// Shape depends on `kind`; see model doc. Validated by Zod at the
+  /// API layer, opaque to the DB.
+  config    Json                  @default("{}")
+  /// `{worldIds: string[]}`. Empty = alert row is created but no
+  /// push fans out — still useful for the operator alerts panel.
+  targets   Json                  @default("{}")
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  project Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  source  MobilityDataSource? @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, enabled])
+  @@index([sourceId, enabled])
+}
+
+enum MobilityAlertRuleKind {
+  threshold
+  event
 }
 
 /// Mobility "world" — a publishable, stakeholder-facing PWA that

@@ -52,11 +52,31 @@ export async function GET(
       syncStatus: true,
       syncStartedAt: true,
       syncProgress: true,
+      // Only expose a boolean — the secret itself never leaves the
+      // register-webhook POST response.
+      webhookId: true,
       createdAt: true,
       updatedAt: true,
     },
   });
-  return NextResponse.json({ sources: rows });
+  return NextResponse.json({
+    sources: rows.map((r) => ({
+      id: r.id,
+      connectorId: r.connectorId,
+      label: r.label,
+      config: r.config,
+      enabled: r.enabled,
+      pollIntervalSeconds: r.pollIntervalSeconds,
+      lastSyncedAt: r.lastSyncedAt,
+      lastError: r.lastError,
+      syncStatus: r.syncStatus,
+      syncStartedAt: r.syncStartedAt,
+      syncProgress: r.syncProgress,
+      hasWebhook: r.webhookId !== null,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    })),
+  });
 }
 
 export async function POST(

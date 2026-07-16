@@ -27,6 +27,10 @@ interface SourceRow {
   syncStatus: string | null;
   syncStartedAt: string | null;
   syncProgress: SyncProgress | null;
+  /** True when the source has an inbound webhook registered with the
+   *  upstream — surfaces on the row as a "Webhook ✓" chip so the
+   *  operator knows the alert engine will actually see events. */
+  hasWebhook: boolean;
 }
 
 interface Props {
@@ -217,6 +221,47 @@ function SourceRowItem({
     }
   };
 
+  const registerWebhook = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/sources/${row.id}/webhook`, {
+        method: "POST",
+      });
+      const body = (await res.json()) as {
+        ok?: boolean;
+        deliveryUrl?: string;
+        error?: string;
+      };
+      if (!res.ok || !body.ok) {
+        toast.error(body.error ?? "Webhook registration failed");
+        return;
+      }
+      toast.success("Webhook registered — upstream events will now trigger rules");
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const unregisterWebhook = async () => {
+    if (!confirm("Remove the inbound webhook? Alert rules will stop firing until re-registered."))
+      return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/sources/${row.id}/webhook`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast.success("Webhook removed");
+        onChanged();
+      } else {
+        toast.error("Remove failed");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const lastSyncedDisplay = row.lastSyncedAt
     ? new Date(row.lastSyncedAt).toLocaleString()
     : "never";
@@ -281,6 +326,27 @@ function SourceRowItem({
                 ? "Syncing…"
                 : "Sync now"}
           </button>
+          {row.hasWebhook ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={unregisterWebhook}
+              title="Remove the inbound webhook — rules stop firing until re-registered."
+              className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:border-red-500/60 hover:bg-red-500/10 hover:text-red-600 disabled:opacity-50"
+            >
+              Webhook ✓
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={registerWebhook}
+              title="Provision an inbound webhook so upstream events fire the project's alert rules."
+              className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+            >
+              Register webhook
+            </button>
+          )}
           <button
             type="button"
             disabled={busy || isRunning}
