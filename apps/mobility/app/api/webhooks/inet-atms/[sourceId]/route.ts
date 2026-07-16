@@ -17,6 +17,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { evaluateRules, type StoredRule, type UpstreamEvent } from "@/lib/mobility/alert-rules";
+import { openAlertAndDispatch } from "@/lib/mobility/alert-dispatch";
 
 export const runtime = "nodejs";
 
@@ -110,24 +111,30 @@ export async function POST(
   );
 
   let inserted = 0;
+  let pushedCount = 0;
   for (const match of matches) {
     if (!match.externalId) continue;
     const deviceId = deviceIdByExternal.get(match.externalId);
     if (!deviceId) continue;
-    await prisma.mobilityAlert.create({
-      data: {
-        projectId: source.projectId,
-        deviceId,
-        kind: match.alertKind,
-        message: `[${match.ruleName}] ${match.message}`,
-      },
+    const result = await openAlertAndDispatch({
+      projectId: source.projectId,
+      deviceId,
+      ruleId: match.ruleId,
+      ruleName: match.ruleName,
+      kind: match.alertKind,
+      message: match.message,
+      targetWorldIds: match.targetWorldIds,
     });
     inserted += 1;
-    // Arc C PR3 fan-out hook lands here — for now the caller can
-    // read `MobilityAlert` and drive push separately.
+    pushedCount += result.pushed.reduce((a, p) => a + p.delivered, 0);
   }
 
-  return NextResponse.json({ ok: true, matched: matches.length, inserted });
+  return NextResponse.json({
+    ok: true,
+    matched: matches.length,
+    inserted,
+    pushed: pushedCount,
+  });
 }
 
 /** Compare the incoming signature to a re-computed one using
