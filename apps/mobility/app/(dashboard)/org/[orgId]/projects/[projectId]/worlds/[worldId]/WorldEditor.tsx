@@ -943,11 +943,26 @@ function ThemePreview({
 
 /* ───────────────────── Broadcast composer ─────────────────────── */
 
+interface BroadcastHistoryEntry {
+  id: string;
+  sentAt: string;
+  title: string | null;
+  attempted: number;
+  delivered: number;
+  pruned: number;
+  url: string | null;
+}
+
 function BroadcastCard({ world }: { world: World }) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [url, setUrl] = useState("");
   const [sending, setSending] = useState(false);
   const router = useRouter();
+  const { data: historyData, mutate: mutateHistory } = useSWR<{
+    broadcasts: BroadcastHistoryEntry[];
+  }>(`/api/worlds/${world.id}/broadcasts`, accessFetcher);
+  const history = historyData?.broadcasts ?? [];
 
   const canSend =
     world.isPublished &&
@@ -961,10 +976,18 @@ function BroadcastCard({ world }: { world: World }) {
     if (!canSend) return;
     setSending(true);
     try {
+      const trimmedUrl = url.trim();
       const res = await fetch(`/api/worlds/${world.id}/broadcast`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), body: body.trim() }),
+        body: JSON.stringify({
+          title: title.trim(),
+          body: body.trim(),
+          // Only forward `url` when the operator typed one — the
+          // server defaults to `/w/<slug>` otherwise, which is the
+          // right root behaviour for a generic broadcast.
+          ...(trimmedUrl ? { url: trimmedUrl } : {}),
+        }),
       });
       const data = (await res.json().catch(() => null)) as
         | { ok?: boolean; attempted?: number; delivered?: number; pruned?: number; error?: string }
@@ -977,6 +1000,8 @@ function BroadcastCard({ world }: { world: World }) {
       );
       setTitle("");
       setBody("");
+      setUrl("");
+      void mutateHistory();
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Broadcast failed");
@@ -1032,6 +1057,20 @@ function BroadcastCard({ world }: { world: World }) {
             className="mt-1 block w-full rounded-md border border-line-soft bg-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
           />
         </label>
+        <label className="block text-xs font-medium text-text-secondary">
+          Deep link
+          <span className="ml-1.5 rounded bg-surface-2 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-text-tertiary">
+            optional
+          </span>
+          <input
+            type="text"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            maxLength={500}
+            placeholder={`/w/${world.slug}/incident/42 · defaults to the world root`}
+            className="mt-1 block w-full rounded-md border border-line-soft bg-bg px-3 py-2 font-mono text-xs text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+          />
+        </label>
         <div className="flex items-center justify-between">
           {reason ? (
             <p className="text-[11px] text-text-tertiary">{reason}</p>
@@ -1048,6 +1087,40 @@ function BroadcastCard({ world }: { world: World }) {
           </button>
         </div>
       </form>
+
+      {history.length > 0 && (
+        <div className="mt-5 border-t border-line-soft pt-4">
+          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-text-tertiary">
+            Recent broadcasts
+          </h3>
+          <ul className="divide-y divide-line-soft">
+            {history.map((b) => (
+              <li key={b.id} className="flex items-start gap-3 py-2.5">
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-sm text-text-primary">
+                    {b.title ?? "(untitled broadcast)"}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-text-tertiary">
+                    {formatRelative(b.sentAt)}
+                    {b.url ? (
+                      <>
+                        {" · "}
+                        <span className="font-mono">{b.url}</span>
+                      </>
+                    ) : null}
+                  </p>
+                </div>
+                <span
+                  className="shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-medium text-text-secondary"
+                  title={`${b.delivered} delivered / ${b.attempted} attempted / ${b.pruned} pruned`}
+                >
+                  {b.delivered} / {b.attempted}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

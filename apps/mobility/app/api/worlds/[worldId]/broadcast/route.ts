@@ -84,6 +84,11 @@ export async function POST(
     kind: "broadcast_sent",
     meta: {
       title: parsed.data.title,
+      // Persist the deep-link URL that was pushed so the operator's
+      // "recent broadcasts" list can show where each notification
+      // pointed. Defaults to the world root when the composer left
+      // it blank (same fallback as the push payload itself).
+      url: parsed.data.url ?? `/w/${world.slug}`,
       attempted: result.attempted,
       delivered: result.delivered,
       pruned: result.pruned,
