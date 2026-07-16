@@ -38,7 +38,14 @@ export async function GET(
   const rows = await prisma.mobilityDevice.findMany({
     where,
     orderBy: { lastSeenAt: "desc" },
-    take: 500,
+    // Demo mock alone syncs ~775 devices across 6 subsystems; a
+    // 500-row cap silently dropped whichever subsystem was written
+    // earliest (CCTV, DMS) since ordering is `lastSeenAt desc`.
+    // A real production tenant with tens of thousands of devices
+    // needs cursor pagination — tracked as follow-up. For now bump
+    // the cap to 5000, which covers every demo scenario and any
+    // reasonable single-corridor deployment.
+    take: 5000,
     select: {
       id: true,
       externalDeviceId: true,
