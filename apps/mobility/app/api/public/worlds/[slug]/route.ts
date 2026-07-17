@@ -1,16 +1,17 @@
 /**
- * `GET /api/public/worlds/[slug]` — public world payload.
+ * `GET /api/public/worlds/[slug]` — world payload for the SW's
+ * stale-while-revalidate cache + potential SWR polling on the
+ * client. Session-aware for `authenticated` worlds via
+ * `loadWorldForPushViewer` — same helper the push endpoints use, so
+ * a granted user's SW `fetch` (which forwards same-origin cookies)
+ * receives the payload while anonymous probes still 404.
  *
- * Backs the service worker's stale-while-revalidate strategy so a
- * world that's been visited once is fully usable offline. Shape
- * matches what `WorldViewer` consumes via SSR; on subsequent visits
- * the client could swap to a SWR poll against this endpoint for live
- * updates without re-rendering the whole page. Returns 404 for
- * drafts / `authenticated` worlds so an enumeration attack can't
- * tell which slugs exist.
+ * Cache-Control varies by visibility:
+ *   public / linkOnly → `public, s-maxage=60` (CDN-cacheable)
+ *   authenticated     → `private, no-store` (per-user, never shared)
  */
 import { NextResponse } from "next/server";
-import { loadPublicWorldBySlug } from "@/lib/mobility/world-resolver";
+import { loadWorldForPushViewer } from "@/lib/mobility/world-resolver";
 
 type Params = Promise<{ slug: string }>;
 
@@ -19,10 +20,14 @@ export async function GET(
   { params }: { params: Params },
 ): Promise<NextResponse> {
   const { slug } = await params;
-  const world = await loadPublicWorldBySlug(slug);
+  const world = await loadWorldForPushViewer(slug);
   if (!world) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
+  const cacheControl =
+    world.visibility === "authenticated"
+      ? "private, no-store, max-age=0"
+      : "public, max-age=60, s-maxage=60";
   return NextResponse.json(
     {
       world: {
@@ -37,10 +42,6 @@ export async function GET(
         customIcons: world.customIcons,
       },
     },
-    {
-      headers: {
-        "Cache-Control": "public, max-age=60, s-maxage=60",
-      },
-    },
+    { headers: { "Cache-Control": cacheControl } },
   );
 }
