@@ -14,6 +14,7 @@
     "lint": "next lint --fix --dir app"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
     "@auth/prisma-adapter": "^2.11.1",
     "@klorad/connectors": "workspace:*",
     "@klorad/design-system": "workspace:^",
