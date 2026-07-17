@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Map as MapIcon, List, Sparkles } from "lucide-react";
+import { Bell, List, Map as MapIcon, Sparkles } from "lucide-react";
 import {
   MobileBottomNav,
   type MobileBottomNavItem,
@@ -13,18 +13,20 @@ interface Props {
   slug: string;
 }
 
-type TabKey = "map" | "devices" | "paris";
+type TabKey = "map" | "devices" | "paris" | "notifications";
 
 const ITEMS: MobileBottomNavItem[] = [
   { key: "map", label: "Map", icon: MapIcon },
   { key: "devices", label: "Devices", icon: List },
   { key: "paris", label: "Paris", icon: Sparkles },
+  { key: "notifications", label: "Alerts", icon: Bell },
 ];
 
 function resolveActiveTab(pathname: string, slug: string): TabKey {
   const base = `/w/${slug}`;
   if (pathname.startsWith(`${base}/devices`)) return "devices";
   if (pathname.startsWith(`${base}/paris`)) return "paris";
+  if (pathname.startsWith(`${base}/notifications`)) return "notifications";
   return "map";
 }
 
@@ -59,6 +61,8 @@ export function MobilityBottomNav({ slug }: Props) {
         return `/w/${slug}/devices`;
       case "paris":
         return `/w/${slug}/paris`;
+      case "notifications":
+        return `/w/${slug}/notifications`;
     }
   };
 

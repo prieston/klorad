@@ -377,7 +377,10 @@ export function WorldEditor({
       <ThemeCard world={world} />
 
       {/* Broadcast */}
-      <BroadcastCard world={world} />
+      <BroadcastCard
+        world={world}
+        worldDevices={devicePool.filter((d) => selected.has(d.id))}
+      />
 
       {/* Device picker */}
       <section className="rounded-2xl border border-line-soft bg-surface-1/40 p-5">
@@ -967,11 +970,39 @@ function ThemePreview({
 
 /* ───────────────────── Broadcast composer ─────────────────────── */
 
-function BroadcastCard({ world }: { world: World }) {
+function BroadcastCard({
+  world,
+  worldDevices,
+}: {
+  world: World;
+  /** Devices currently assigned to this world (upstream `Device`
+   *  pool ∩ `selected`). The composer's target picker only offers
+   *  these — you can't link a notification to a device that isn't
+   *  in the world. */
+  worldDevices: Device[];
+}) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
+  const [targetIds, setTargetIds] = useState<Set<string>>(() => new Set());
+  const [targetQuery, setTargetQuery] = useState("");
+  const [targetOpen, setTargetOpen] = useState(false);
   const router = useRouter();
+
+  const filteredDevices = useMemo(() => {
+    const q = targetQuery.trim().toLowerCase();
+    if (!q) return worldDevices;
+    return worldDevices.filter((d) =>
+      `${d.name} ${d.subsystem} ${d.primaryRoad ?? ""} ${d.crossRoad ?? ""}`
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [worldDevices, targetQuery]);
+
+  const selectedDevices = useMemo(
+    () => worldDevices.filter((d) => targetIds.has(d.id)),
+    [worldDevices, targetIds],
+  );
 
   const canSend =
     world.isPublished &&
@@ -979,6 +1010,13 @@ function BroadcastCard({ world }: { world: World }) {
     title.trim().length > 0 &&
     body.trim().length > 0 &&
     !sending;
+
+  const previewUrl =
+    selectedDevices.length > 0
+      ? `/w/${world.slug}?devices=${selectedDevices
+          .map((d) => encodeURIComponent(d.id))
+          .join(",")}`
+      : `/w/${world.slug}`;
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -988,10 +1026,20 @@ function BroadcastCard({ world }: { world: World }) {
       const res = await fetch(`/api/worlds/${world.id}/broadcast`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), body: body.trim() }),
+        body: JSON.stringify({
+          title: title.trim(),
+          body: body.trim(),
+          deviceIds: Array.from(targetIds),
+        }),
       });
       const data = (await res.json().catch(() => null)) as
-        | { ok?: boolean; attempted?: number; delivered?: number; pruned?: number; error?: string }
+        | {
+            ok?: boolean;
+            attempted?: number;
+            delivered?: number;
+            pruned?: number;
+            error?: string;
+          }
         | null;
       if (!res.ok) {
         throw new Error(data?.error ?? "Broadcast failed");
@@ -1001,6 +1049,9 @@ function BroadcastCard({ world }: { world: World }) {
       );
       setTitle("");
       setBody("");
+      setTargetIds(new Set());
+      setTargetQuery("");
+      setTargetOpen(false);
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Broadcast failed");
@@ -1016,6 +1067,8 @@ function BroadcastCard({ world }: { world: World }) {
     reason = "No subscribers yet — visit the world and enable alerts to test.";
   }
 
+  const canPickDevices = worldDevices.length > 0;
+
   return (
     <section className="mb-6 rounded-2xl border border-line-soft bg-surface-1/40 p-5">
       <div className="flex items-center justify-between gap-3">
@@ -1029,8 +1082,9 @@ function BroadcastCard({ world }: { world: World }) {
         </span>
       </div>
       <p className="mt-1 text-xs text-text-secondary">
-        Push a one-shot alert to every subscriber of this world. Use sparingly —
-        repeat broadcasts collapse on the device.
+        Push a one-shot alert to every subscriber of this world. Link one or
+        more devices to have the notification open the map with those pins
+        highlighted.
       </p>
 
       <form onSubmit={send} className="mt-4 space-y-3">
@@ -1056,6 +1110,120 @@ function BroadcastCard({ world }: { world: World }) {
             className="mt-1 block w-full rounded-md border border-line-soft bg-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
           />
         </label>
+
+        {/* Device link — pick which of the world's devices this alert
+            relates to. Tapping the notification opens the visitor map
+            with those pins highlighted and the camera fit-to-bounds. */}
+        <div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-text-secondary">
+              Link to devices{" "}
+              <span className="text-[10px] font-normal text-text-tertiary">
+                (optional)
+              </span>
+            </p>
+            {canPickDevices ? (
+              <button
+                type="button"
+                onClick={() => setTargetOpen((o) => !o)}
+                className="text-[11px] font-medium text-accent hover:underline"
+              >
+                {targetOpen ? "Hide" : selectedDevices.length > 0 ? "Change" : "Choose"}
+              </button>
+            ) : null}
+          </div>
+
+          {selectedDevices.length > 0 ? (
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {selectedDevices.map((d) => (
+                <span
+                  key={d.id}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-bg px-2 py-0.5 text-[11px] text-text-primary"
+                >
+                  <SubsystemIcon subsystem={d.subsystem} />
+                  <span className="max-w-[140px] truncate">{d.name}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${d.name}`}
+                    onClick={() =>
+                      setTargetIds((prev) => {
+                        const next = new Set(prev);
+                        next.delete(d.id);
+                        return next;
+                      })
+                    }
+                    className="text-text-tertiary hover:text-text-primary"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-1 text-[11px] text-text-tertiary">
+              {canPickDevices
+                ? "None picked — the notification opens the map without a highlight."
+                : "This world has no devices assigned yet. Save some below to link alerts to them."}
+            </p>
+          )}
+
+          {targetOpen && canPickDevices ? (
+            <div className="mt-2 rounded-lg border border-line-soft bg-bg">
+              <div className="flex items-center gap-2 border-b border-line-soft px-3 py-1.5">
+                <Search size={12} className="text-text-tertiary" />
+                <input
+                  value={targetQuery}
+                  onChange={(e) => setTargetQuery(e.target.value)}
+                  placeholder="Search name, road, subsystem…"
+                  className="w-full bg-transparent py-1 text-xs outline-none placeholder:text-text-tertiary"
+                />
+              </div>
+              <ul className="max-h-56 overflow-y-auto">
+                {filteredDevices.length === 0 ? (
+                  <li className="px-3 py-3 text-center text-[11px] text-text-tertiary">
+                    No matches.
+                  </li>
+                ) : (
+                  filteredDevices.map((d) => {
+                    const checked = targetIds.has(d.id);
+                    return (
+                      <li key={d.id}>
+                        <label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-surface-2">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              setTargetIds((prev) => {
+                                const next = new Set(prev);
+                                if (checked) next.delete(d.id);
+                                else next.add(d.id);
+                                return next;
+                              })
+                            }
+                            className="h-3 w-3 accent-[color:var(--accent,#0ea5e9)]"
+                          />
+                          <SubsystemIcon subsystem={d.subsystem} />
+                          <span className="flex-1 truncate">{d.name}</span>
+                          <span className="truncate text-[10px] text-text-tertiary">
+                            {d.primaryRoad ?? d.subsystem}
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </div>
+          ) : null}
+
+          {selectedDevices.length > 0 ? (
+            <p className="mt-1.5 truncate text-[10px] text-text-tertiary">
+              Opens →{" "}
+              <code className="font-mono">{previewUrl}</code>
+            </p>
+          ) : null}
+        </div>
+
         <div className="flex items-center justify-between">
           {reason ? (
             <p className="text-[11px] text-text-tertiary">{reason}</p>

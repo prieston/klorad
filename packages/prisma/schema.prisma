@@ -692,7 +692,12 @@ model ProjectMember {
   @@index([userId])
 }
 
-/// One row per push broadcast the rector sends from the Reach screen.
+/// One row per push broadcast.
+///   Campus:   sent from the Reach screen (rector → all subscribers).
+///   Mobility: sent from a MobilityWorld's operator dashboard
+///             (`worldId` set, `deviceIds` optional — the devices the
+///             alert relates to; the visitor sees them highlighted on
+///             the map when they tap the notification).
 /// Stores enough context to render the history feed (title/body/target
 /// + counts) without keeping the literal device endpoint list around.
 /// `senderId` is nullable so deleting a user doesn't orphan or lose
@@ -700,14 +705,22 @@ model ProjectMember {
 model Broadcast {
   id         String   @id @default(cuid())
   projectId  String
+  /// Optional link back to a MobilityWorld. Set for mobility
+  /// broadcasts; null for campus. Powers the visitor
+  /// `/w/<slug>/notifications` history feed.
+  worldId    String?
   /// Notification title shown on the device.
   title      String
   /// Notification body shown on the device.
   body       String
-  /// Path relative to the campus root, e.g. "/events". Stored without
-  /// the `/campus/<mapId>` prefix so deep-links don't break if the
-  /// consumer URL scheme changes.
+  /// Deep-link path — campus stores e.g. "/events"; mobility stores
+  /// e.g. "/w/<slug>?devices=id1,id2" so the SW `notificationclick`
+  /// handler can open the map with those pins highlighted.
   targetPath String?
+  /// Mobility-only: the world's device IDs the alert relates to. Used
+  /// by the visitor notifications page to render context chips and
+  /// derive the map deep-link. Empty for campus broadcasts.
+  deviceIds  String[] @default([])
   /// The user that triggered the broadcast.
   senderId   String?
   /// How many subscriptions we attempted to deliver to.
@@ -726,10 +739,12 @@ model Broadcast {
   clickToken String?
   createdAt  DateTime @default(now())
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  sender  User?   @relation("BroadcastsSent", fields: [senderId], references: [id], onDelete: SetNull)
+  project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sender  User?          @relation("BroadcastsSent", fields: [senderId], references: [id], onDelete: SetNull)
+  world   MobilityWorld? @relation(fields: [worldId], references: [id], onDelete: Cascade)
 
   @@index([projectId, createdAt])
+  @@index([worldId, createdAt])
 }
 
 /// the two keys the Push API hands the browser, scoped to a Project.
@@ -1098,6 +1113,9 @@ model MobilityWorld {
   /// Populated with a mix of `user` and `team` rows resolved at
   /// viewer time.
   principals        MobilityWorldPrincipal[]
+  /// Push broadcasts sent to this world (mobility-scoped Broadcast
+  /// rows). Populates the visitor `/w/<slug>/notifications` feed.
+  broadcasts        Broadcast[]
 
   @@unique([projectId, slug])
   @@index([projectId])
