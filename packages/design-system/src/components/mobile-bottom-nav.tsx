@@ -12,6 +12,8 @@ export type MobileBottomNavItem = {
   icon: React.ComponentType<{ className?: string }>;
 };
 
+export type MobileBottomNavVariant = "pill" | "bar";
+
 export type MobileBottomNavProps = {
   items: MobileBottomNavItem[];
   /** The currently-active item's key. */
@@ -25,17 +27,31 @@ export type MobileBottomNavProps = {
    */
   renderItem(item: MobileBottomNavItem, content: ReactNode, isActive: boolean): ReactNode;
   className?: string;
+  /**
+   * Two visual treatments:
+   *
+   *   pill (default) — floating rounded pill with soft shadow and a
+   *     white → transparent fade gradient above. Reads as an app-
+   *     over-content control; used by Campus.
+   *   bar — full-width white bar flush with the viewport bottom,
+   *     hairline top border, no shadow, no fade. Reads as native app
+   *     chrome (matches the top nav); used by Mobility so the map
+   *     doesn't visually bleed through the nav.
+   *
+   * Kept as a prop rather than a separate component so consumers can
+   * A/B or swap without touching the rest of the wrapper.
+   */
+  variant?: MobileBottomNavVariant;
 };
 
 /**
- * Pill-style mobile bottom nav. Active item expands to show its
- * label inside an accent-filled rounded-full pill; inactive items
- * collapse to an icon-only tap target. Fixed to the bottom of the
- * viewport with safe-area-inset bottom padding so it clears the
- * home indicator on iOS.
+ * Mobile bottom nav. Active item expands to show its label inside an
+ * accent-filled rounded-full pill; inactive items collapse to an icon-
+ * only tap target. Fixed to the bottom of the viewport with safe-area-
+ * inset bottom padding so it clears the home indicator on iOS.
  *
- * The component is engine-agnostic about routing — wrap each item
- * in whatever `<Link>` / `<a>` / `<button>` the host app uses by
+ * The component is engine-agnostic about routing — wrap each item in
+ * whatever `<Link>` / `<a>` / `<button>` the host app uses by
  * implementing `renderItem`. The primitive owns the styling +
  * active-state transitions; the caller owns the destination.
  */
@@ -44,29 +60,42 @@ export function MobileBottomNav({
   activeKey,
   renderItem,
   className,
+  variant = "pill",
 }: MobileBottomNavProps) {
+  const isBar = variant === "bar";
   return (
     <nav
       aria-label="Primary"
       className={cn(
-        "pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3",
-        // Fade gradient behind the nav — pure-white at the bottom
-        // bleeding to transparent ~6rem up. Tells the visitor that
-        // content scrolled under the nav still exists ("there's
-        // more, keep scrolling") without hiding it outright.
-        // `content-['']` is the bit that makes Tailwind actually
-        // emit the pseudo-element; without it the `before:*`
-        // utilities are no-ops.
-        "before:pointer-events-none before:absolute before:inset-x-0 before:bottom-0 before:-z-10 before:h-[8rem] before:bg-gradient-to-t before:from-white before:via-white/85 before:to-transparent before:content-['']",
-        "pt-[6rem] pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+        "fixed inset-x-0 bottom-0 z-40",
+        isBar
+          ? // Bar variant — chrome that owns its space. Full-width,
+            // hairline top border, no gradient. Content below scrolls
+            // *up to* the nav rather than *under* it.
+            "border-t border-black/10 bg-white pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2"
+          : // Pill variant — floating overlay. Reserves ~6rem of
+            // transparent breathing room above so the gradient fade
+            // has somewhere to bleed.
+            [
+              "pointer-events-none flex justify-center px-3",
+              "before:pointer-events-none before:absolute before:inset-x-0 before:bottom-0 before:-z-10 before:h-[8rem] before:bg-gradient-to-t before:from-white before:via-white/85 before:to-transparent before:content-['']",
+              "pt-[6rem] pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+            ].join(" "),
         className,
       )}
     >
       <ul
         className={cn(
-          "pointer-events-auto flex w-full max-w-[420px] list-none items-center justify-around gap-1 rounded-full",
-          "border border-solid border-black/5 bg-white/95 p-1.5 backdrop-blur",
-          "shadow-[0_8px_28px_-12px_rgba(0,0,0,0.25)]",
+          "flex list-none items-center",
+          isBar
+            ? "mx-auto w-full max-w-[560px] justify-around gap-1 px-2"
+            : // Pill styling stays visually distinct — soft shadow +
+              // rounded shell + subtle backdrop blur.
+              [
+                "pointer-events-auto w-full max-w-[420px] justify-around gap-1 rounded-full",
+                "border border-solid border-black/5 bg-white/95 p-1.5 backdrop-blur",
+                "shadow-[0_8px_28px_-12px_rgba(0,0,0,0.25)]",
+              ].join(" "),
         )}
       >
         {items.map((item) => {

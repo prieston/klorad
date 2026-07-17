@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import useSWR from "swr";
 import { Search, X, ChevronRight, Loader2 } from "lucide-react";
 import { subsystemDescriptor } from "@/lib/mobility/subsystem-icon";
+import { DeviceLiveDetail } from "@/lib/mobility/DeviceLiveDetail";
 import type { PublicWorldDevice } from "@/lib/mobility/world-resolver";
 
 interface Props {
@@ -26,11 +28,39 @@ const fetcher = (url: string) =>
  * The live-status fetch is on-demand (only when a row is tapped) so
  * the list itself is cheap. Follows the world's brand colour via
  * `--w-accent` inheritance.
+ *
+ * Deep-link support: `?open=<deviceId>` on mount opens the detail
+ * sheet immediately. Paris ships this URL as her `focus_device`
+ * action so "show me the K9 camera" lands on the sheet with the
+ * video already playing.
  */
 export function DevicesList({ slug, devices }: Props) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [query, setQuery] = useState("");
   const [subsystem, setSubsystem] = useState<string>("all");
-  const [openId, setOpenId] = useState<string | null>(null);
+  const initialOpen = searchParams?.get("open") ?? null;
+  const [openId, setOpenId] = useState<string | null>(initialOpen);
+
+  // Clear the URL when the sheet closes so refreshing doesn't re-
+  // open it, and rewrite the URL when Paris navigates in with a
+  // `?open=` — keeps the browser back button honest.
+  useEffect(() => {
+    const current = searchParams?.get("open") ?? null;
+    if (openId && current !== openId) {
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.set("open", openId);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    } else if (!openId && current) {
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.delete("open");
+      const q = params.toString();
+      router.replace(q ? `${pathname}?${q}` : (pathname ?? ""), {
+        scroll: false,
+      });
+    }
+  }, [openId, pathname, router, searchParams]);
 
   const subsystems = useMemo(() => {
     const s = new Set<string>();
@@ -182,6 +212,11 @@ interface LiveResponse {
     observedAt: string;
     raw: Record<string, unknown>;
   } | null;
+  media?: {
+    kind?: string;
+    url?: string;
+    streamType?: string;
+  } | null;
 }
 
 function DetailSheet({
@@ -210,7 +245,7 @@ function DetailSheet({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[560px] rounded-t-3xl bg-white pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+        className="max-h-[calc(100dvh-4rem)] w-full max-w-[560px] overflow-y-auto rounded-t-3xl bg-white pb-[max(4.5rem,calc(3.5rem+env(safe-area-inset-bottom)))] md:pb-[max(1.5rem,env(safe-area-inset-bottom))]"
       >
         <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-[var(--w-border,#e6e6ea)]" />
 
@@ -275,7 +310,11 @@ function DetailSheet({
                 </span>
               </div>
 
-              <RawStatusList raw={data.status.raw} />
+              <DeviceLiveDetail
+                subsystem={device.subsystem}
+                status={data.status.raw}
+                media={data.media ?? null}
+              />
             </div>
           )}
 
@@ -288,39 +327,6 @@ function DetailSheet({
         </section>
       </div>
     </div>
-  );
-}
-
-function RawStatusList({ raw }: { raw: Record<string, unknown> }) {
-  // Keep the sheet tight — surface only the small handful of fields
-  // most stakeholders care about. Verbose radar per-lane / DMS
-  // capability metadata stays in the drawer of the operator app.
-  const KEYS = ["speed", "volume", "occupancy", "message", "eventCount"];
-  const rows = KEYS.map((k) => [k, raw[k]] as const).filter(
-    ([, v]) => v !== undefined && v !== null,
-  );
-  if (rows.length === 0) {
-    return (
-      <p className="text-xs text-[var(--w-fg-muted,#6b6b6b)]">
-        Connected. No live measurements to display.
-      </p>
-    );
-  }
-  return (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-2">
-      {rows.map(([k, v]) => (
-        <div key={k}>
-          <dt className="text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--w-fg-muted,#6b6b6b)]">
-            {k}
-          </dt>
-          <dd className="mt-0.5 font-mono text-sm text-[var(--w-fg,#1a1a1a)]">
-            {typeof v === "number" && !Number.isInteger(v)
-              ? v.toFixed(3)
-              : String(v)}
-          </dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 

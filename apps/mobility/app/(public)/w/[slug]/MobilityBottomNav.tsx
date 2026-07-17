@@ -73,6 +73,7 @@ export function MobilityBottomNav({ slug }: Props) {
     <div style={styleVars}>
       <MobileBottomNav
         className="md:hidden"
+        variant="bar"
         items={ITEMS}
         activeKey={activeKey}
         renderItem={(item, content, isActive) => (
