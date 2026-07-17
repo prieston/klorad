@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import mapboxgl, {
   type GeoJSONSource,
   type Map as MapboxMap,
@@ -9,6 +10,7 @@ import mapboxgl, {
 import {
   ArrowLeft,
   Box,
+  Info,
   Layers as LayersIcon,
   Moon,
   Mountain,
@@ -314,18 +316,47 @@ export function WorldViewer({
 }: Props) {
   const primary = pickHex(theme.primaryColor, DEFAULT_PRIMARY);
   const bg = pickHex(theme.backgroundColor, DEFAULT_BG);
-  const logoUrl = typeof theme.logoUrl === "string" ? theme.logoUrl : null;
   const tagline = typeof theme.tagline === "string" ? theme.tagline : null;
   /** Operator-driven palette as CSS variables. Set once on `<main>`
    *  so every info box can read `var(--w-fg)` etc. instead of fighting
    *  hard-coded text-white / bg-black classes. */
   const paletteStyle = useMemo(() => deriveWorldPalette(bg, primary), [bg, primary]);
 
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  /** Initial state read from URL — parsed once on mount so we don't
+   *  re-run when the user pans the map (we update the URL via
+   *  history.replaceState in that case, which doesn't re-invoke this
+   *  hook). This is what makes every shareable link reproduce the
+   *  same map state on load. */
+  const initialUrlStateRef = useRef<{
+    device: string | null;
+    lng: number | null;
+    lat: number | null;
+    zoom: number | null;
+  } | null>(null);
+  if (initialUrlStateRef.current === null) {
+    const dev = searchParams?.get("device") ?? null;
+    const lng = parseFloat(searchParams?.get("lng") ?? "");
+    const lat = parseFloat(searchParams?.get("lat") ?? "");
+    const zoom = parseFloat(searchParams?.get("z") ?? "");
+    initialUrlStateRef.current = {
+      device: dev,
+      lng: Number.isFinite(lng) ? lng : null,
+      lat: Number.isFinite(lat) ? lat : null,
+      zoom: Number.isFinite(zoom) ? zoom : null,
+    };
+  }
+  const initialUrlState = initialUrlStateRef.current;
+
   const mapEl = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
   const layersReadyRef = useRef(false);
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    initialUrlState.device,
+  );
   const selected = useMemo(
     () => devices.find((d) => d.id === selectedId) ?? null,
     [devices, selectedId],
@@ -435,16 +466,23 @@ export function WorldViewer({
     [primary],
   );
 
-  // Init map once.
+  // Init map once. Camera + selection may be seeded from the URL so
+  // shared links reproduce state on load.
   useEffect(() => {
     if (!mapboxToken || !mapEl.current || mapRef.current) return;
     mapboxgl.accessToken = mapboxToken;
     const initialStyle = MAP_STYLES[latestSettingsRef.current.mapStyle].url;
+    const urlCam =
+      initialUrlState.lng != null &&
+      initialUrlState.lat != null &&
+      initialUrlState.zoom != null;
     const map = new mapboxgl.Map({
       container: mapEl.current,
       style: initialStyle,
-      center: [22.9444, 40.6401],
-      zoom: 11,
+      center: urlCam
+        ? [initialUrlState.lng!, initialUrlState.lat!]
+        : [22.9444, 40.6401],
+      zoom: urlCam ? initialUrlState.zoom! : 11,
       pitch: 30,
       maxPitch: 85,
       attributionControl: false,
@@ -455,7 +493,29 @@ export function WorldViewer({
       applyMapEnvSettings(map, latestSettingsRef.current);
       void loadDeviceIconsIntoMap(map, customIconsRef.current).then(() => {
         attachLayers(map);
-        fitToDevices(map, devices);
+        if (urlCam) {
+          // Camera already seeded — nothing else to do.
+          return;
+        }
+        // No shared-link camera. Prefer a seeded device selection over
+        // the fit-to-all fallback so `?device=<id>` lands close-up.
+        const seed = initialUrlState.device
+          ? devices.find(
+              (d) =>
+                d.id === initialUrlState.device &&
+                d.lat != null &&
+                d.lng != null,
+            )
+          : null;
+        if (seed && seed.lat != null && seed.lng != null) {
+          map.flyTo({
+            center: [seed.lng, seed.lat],
+            zoom: 15,
+            duration: 0,
+          });
+        } else {
+          fitToDevices(map, devices);
+        }
       });
     });
 
@@ -466,6 +526,51 @@ export function WorldViewer({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- init-once
   }, [mapboxToken]);
+
+  /** Serialize the current map + selection into the URL. Uses
+   *  history.replaceState (not Next router) so map moveend doesn't
+   *  re-invoke the server page / re-fetch devices — the URL bar
+   *  updates in place. Debounced so a pan doesn't spam history. */
+  const urlWriteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const writeUrlState = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const map = mapRef.current;
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    if (map) {
+      const c = map.getCenter();
+      params.set("lng", c.lng.toFixed(5));
+      params.set("lat", c.lat.toFixed(5));
+      params.set("z", map.getZoom().toFixed(2));
+    }
+    if (latestSelectedRef.current) {
+      params.set("device", latestSelectedRef.current);
+    } else {
+      params.delete("device");
+    }
+    const q = params.toString();
+    const url = q ? `${pathname}?${q}` : (pathname ?? "");
+    window.history.replaceState(null, "", url);
+  }, [pathname, searchParams]);
+
+  const scheduleUrlWrite = useCallback(() => {
+    if (urlWriteTimerRef.current) clearTimeout(urlWriteTimerRef.current);
+    urlWriteTimerRef.current = setTimeout(writeUrlState, 200);
+  }, [writeUrlState]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.on("moveend", scheduleUrlWrite);
+    map.on("zoomend", scheduleUrlWrite);
+    return () => {
+      map.off("moveend", scheduleUrlWrite);
+      map.off("zoomend", scheduleUrlWrite);
+    };
+  }, [scheduleUrlWrite, mapboxToken]);
+
+  useEffect(() => {
+    writeUrlState();
+  }, [selectedId, writeUrlState]);
 
   // Style swap — `setStyle` wipes user layers, so we re-attach on
   // `style.load`. Tracked separately from the env-settings effect so a
@@ -578,7 +683,7 @@ export function WorldViewer({
       <main
         className="flex w-full items-center justify-center p-8 text-center text-sm"
         style={{
-          height: "100dvh",
+          height: "calc(100dvh - 3.5rem)",
           backgroundColor: bg,
           color: "var(--w-fg)",
           ...paletteStyle,
@@ -592,15 +697,22 @@ export function WorldViewer({
   return (
     <main
       className="relative w-full overflow-hidden"
-      // Inline `height` so the layout doesn't depend on Tailwind's
-      // arbitrary-value JIT picking up `h-[100dvh]` for this route.
-      // Mapbox needs a measurable container before init, and any
-      // height-purge causes the canvas to collapse to 0 — symptom is
-      // a blank screen with the html/body background showing through.
+      // Height reserves 3.5rem for the sticky top nav so the map fits
+      // exactly between the top nav and the viewport bottom — without
+      // this the total document is `100dvh + 3.5rem` and the whole
+      // page picks up an unwanted 3.5rem scrollbar. Inline `height`
+      // (not Tailwind arbitrary values) because the JIT can purge
+      // one-off arbitrary heights and Mapbox needs a measurable
+      // container before init — a collapsed canvas paints as a blank
+      // screen.
       //
       // The `--w-*` palette is plumbed once here so every floating
       // info box can theme off it without hard-coded colours.
-      style={{ height: "100dvh", backgroundColor: bg, ...paletteStyle }}
+      style={{
+        height: "calc(100dvh - 3.5rem)",
+        backgroundColor: bg,
+        ...paletteStyle,
+      }}
     >
       <div
         ref={mapEl}
@@ -608,58 +720,16 @@ export function WorldViewer({
         style={{ width: "100%", height: "100%" }}
       />
 
-      {/* World title — top-left card. Kept compact so it doesn't
-          dominate the map; the install prompt + drawer live elsewhere.
-          All colours read from the `--w-*` palette so a light theme
-          renders dark text on a bright card and vice versa. */}
-      <header
-        className="pointer-events-none absolute left-4 top-4 max-w-[min(86%,360px)] rounded-2xl border px-4 py-3 shadow-lg backdrop-blur"
-        style={{
-          borderColor: "var(--w-border)",
-          backgroundColor: "color-mix(in srgb, var(--w-bg) 85%, transparent)",
-          color: "var(--w-fg)",
-        }}
-      >
-        <div className="flex items-center gap-2">
-          {logoUrl ? (
-            // Operator-provided URL on an arbitrary host — next/image's
-            // remote-pattern allowlist is the wrong shape for that
-            // tenancy model, so plain <img> is intentional.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoUrl}
-              alt=""
-              className="h-7 w-7 shrink-0 rounded-md object-cover"
-            />
-          ) : null}
-          <p
-            className="text-[10px] font-medium uppercase tracking-[0.22em]"
-            style={{ color: "var(--w-fg-muted)" }}
-          >
-            Klorad Mobility
-          </p>
-        </div>
-        <h1 className="mt-1 text-base font-semibold">{name}</h1>
-        {tagline || description ? (
-          <p
-            className="mt-1 line-clamp-2 text-xs"
-            style={{ color: "var(--w-fg-soft)" }}
-          >
-            {tagline || description}
-          </p>
-        ) : null}
-        <p className="mt-1.5 text-[11px]" style={{ color: "var(--w-fg-muted)" }}>
-          <span style={{ color: primary }}>{devices.length}</span> devices ·{" "}
-          <code className="font-mono">/w/{slug}</code>
-        </p>
-      </header>
-
       <MapSettingsButton
         primary={primary}
         settings={settings}
         onChange={setSettings}
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
+        worldName={name}
+        worldTagline={tagline ?? description ?? null}
+        worldSlug={slug}
+        deviceCount={devices.length}
       />
 
       <DeviceDrawer
@@ -680,21 +750,36 @@ function MapSettingsButton({
   onChange,
   open,
   onOpenChange,
+  worldName,
+  worldTagline,
+  worldSlug,
+  deviceCount,
 }: {
   primary: string;
   settings: MapEnvSettings;
   onChange: (next: MapEnvSettings) => void;
   open: boolean;
   onOpenChange: (next: boolean) => void;
+  worldName: string;
+  worldTagline: string | null;
+  worldSlug: string;
+  deviceCount: number;
 }) {
   const styleDef = MAP_STYLES[settings.mapStyle];
   return (
-    <div className="absolute bottom-4 right-4 z-20 flex flex-col items-end gap-2">
+    // Lifted above the mobile bottom nav (`bar` variant is ~3.5rem +
+    // safe area). Desktop keeps a tight 1rem gap from the viewport
+    // corner since the bottom nav is `md:hidden`.
+    <div className="absolute right-4 z-20 flex flex-col items-end gap-2 bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.75rem)] md:bottom-4">
       {open ? (
         <MapSettingsPanel
           primary={primary}
           settings={settings}
           onChange={onChange}
+          worldName={worldName}
+          worldTagline={worldTagline}
+          worldSlug={worldSlug}
+          deviceCount={deviceCount}
         />
       ) : null}
       <button
@@ -722,15 +807,23 @@ function MapSettingsPanel({
   primary,
   settings,
   onChange,
+  worldName,
+  worldTagline,
+  worldSlug,
+  deviceCount,
 }: {
   primary: string;
   settings: MapEnvSettings;
   onChange: (next: MapEnvSettings) => void;
+  worldName: string;
+  worldTagline: string | null;
+  worldSlug: string;
+  deviceCount: number;
 }) {
   const activeStyle = MAP_STYLES[settings.mapStyle];
   return (
     <div
-      className="pointer-events-auto w-[280px] rounded-2xl border p-4 text-xs shadow-2xl backdrop-blur"
+      className="pointer-events-auto max-h-[calc(100dvh-14rem)] w-[300px] overflow-y-auto rounded-2xl border p-4 text-xs shadow-2xl backdrop-blur"
       style={{
         borderColor: "var(--w-border-strong)",
         backgroundColor:
@@ -738,6 +831,49 @@ function MapSettingsPanel({
         color: "var(--w-fg)",
       }}
     >
+      {/* World info — moved out of the old top-left header card so
+          the map has a clean canvas. Panel opens on demand instead. */}
+      <p
+        className="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.22em]"
+        style={{ color: "var(--w-fg-muted)" }}
+      >
+        <Info size={11} strokeWidth={1.8} aria-hidden />
+        World
+      </p>
+      <div
+        className="mb-4 rounded-xl border p-3"
+        style={{
+          borderColor: "var(--w-border)",
+          backgroundColor: "var(--w-overlay)",
+        }}
+      >
+        <p className="text-sm font-semibold" style={{ color: "var(--w-fg)" }}>
+          {worldName}
+        </p>
+        {worldTagline ? (
+          <p
+            className="mt-0.5 line-clamp-2 text-[11px]"
+            style={{ color: "var(--w-fg-soft)" }}
+          >
+            {worldTagline}
+          </p>
+        ) : null}
+        <p
+          className="mt-2 text-[11px]"
+          style={{ color: "var(--w-fg-muted)" }}
+        >
+          <span style={{ color: primary }}>{deviceCount}</span>{" "}
+          {deviceCount === 1 ? "device" : "devices"}
+        </p>
+        <p
+          className="mt-1 truncate font-mono text-[10px]"
+          style={{ color: "var(--w-fg-muted)" }}
+          title={`/w/${worldSlug}`}
+        >
+          /w/{worldSlug}
+        </p>
+      </div>
+
       {/* Style */}
       <p
         className="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.22em]"
@@ -1003,8 +1139,13 @@ function DeviceDrawer({
   const Icon = subsystemIcon(device.subsystem);
 
   return (
+    // Positioned above the mobile bottom-nav (3.5rem + safe-area) so
+    // its rounded top edge and content aren't clipped behind the nav.
+    // Internal `overflow-y-auto` + max-height keeps scrolling inside
+    // the drawer — the outer `<main>` is `overflow-hidden` so a tall
+    // drawer never pushes the page.
     <aside
-      className="absolute bottom-0 left-0 right-0 z-10 mx-auto max-h-[70dvh] max-w-[640px] overflow-y-auto rounded-t-2xl border p-5 pb-[calc(env(safe-area-inset-bottom)+4.5rem)] shadow-2xl backdrop-blur md:bottom-4 md:left-4 md:right-auto md:w-[380px] md:rounded-2xl md:pb-5"
+      className="absolute left-0 right-0 z-10 mx-auto w-full max-w-[640px] overflow-y-auto rounded-t-2xl border p-5 shadow-2xl backdrop-blur bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.5rem)] max-h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom))] md:bottom-4 md:left-4 md:right-auto md:w-[380px] md:max-h-[calc(100dvh-8rem)] md:rounded-2xl"
       style={{
         borderColor: "var(--w-border)",
         backgroundColor: "color-mix(in srgb, var(--w-bg) 94%, transparent)",
