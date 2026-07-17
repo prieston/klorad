@@ -35,6 +35,28 @@ interface Props {
 const SW_READY_TIMEOUT_MS = 10_000;
 const PUSH_SUBSCRIBE_TIMEOUT_MS = 15_000;
 
+/** Find the SW registration for our world regardless of whether it
+ *  *controls* the current page. `navigator.serviceWorker.ready`
+ *  waits for a SW that controls the URL, but Next.js strips
+ *  trailing slashes so the canonical page URL is `/w/<slug>` while
+ *  `RegisterWorldSW` registers with scope `/w/<slug>/`. The scope
+ *  doesn't cover the current URL, so `ready` waits forever.
+ *
+ *  `pushManager.subscribe` doesn't require page control — it just
+ *  needs a valid registration — so we look it up by scope. Falls
+ *  back to `.ready` if no matching registration exists yet (first
+ *  load, before the register call resolved) which the caller wraps
+ *  in a timeout. */
+async function findWorldRegistration(
+  slug: string,
+): Promise<ServiceWorkerRegistration> {
+  const scope = new URL(`/w/${slug}/`, window.location.origin).href;
+  const all = await navigator.serviceWorker.getRegistrations();
+  const match = all.find((r) => r.scope === scope);
+  if (match) return match;
+  return navigator.serviceWorker.ready;
+}
+
 /**
  * Push notification opt-in for one world. Renders a small floating
  * button that mirrors the browser's permission state.
@@ -62,7 +84,7 @@ export function PushOptIn({ slug, primary }: Props) {
     (async () => {
       try {
         const reg = await withTimeout(
-          navigator.serviceWorker.ready,
+          findWorldRegistration(slug),
           SW_READY_TIMEOUT_MS,
         );
         const existing = await reg.pushManager.getSubscription();
@@ -80,7 +102,7 @@ export function PushOptIn({ slug, primary }: Props) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [slug]);
 
   const subscribe = useCallback(async () => {
     setStatus("subscribing");
@@ -112,7 +134,7 @@ export function PushOptIn({ slug, primary }: Props) {
 
       step = "sw-not-ready";
       const reg = await withTimeout(
-        navigator.serviceWorker.ready,
+        findWorldRegistration(slug),
         SW_READY_TIMEOUT_MS,
       ).catch((err) => {
         step = "sw-timeout";
@@ -169,7 +191,7 @@ export function PushOptIn({ slug, primary }: Props) {
     setStatus("unsubscribing");
     try {
       const reg = await withTimeout(
-        navigator.serviceWorker.ready,
+        findWorldRegistration(slug),
         SW_READY_TIMEOUT_MS,
       );
       const sub = await reg.pushManager.getSubscription();
