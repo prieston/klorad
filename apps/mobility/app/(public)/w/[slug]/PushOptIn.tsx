@@ -9,31 +9,44 @@ type Status =
   | "denied"
   | "subscribed"
   | "subscribing"
-  | "unsubscribing";
+  | "unsubscribing"
+  | "error";
+
+/** Where a subscribe attempt died. Surfaced as a button label and a
+ *  structured console.warn so someone with DevTools open can tell
+ *  us which awaitable stalled instead of guessing. Silent failure
+ *  used to bury real bugs (bad VAPID key, SW that never activated,
+ *  FCM unreachable) behind a button stuck at "Working…". */
+type ErrorReason =
+  | "sw-not-ready"
+  | "sw-timeout"
+  | "vapid-fetch"
+  | "vapid-bad-key"
+  | "push-subscribe"
+  | "push-subscribe-timeout"
+  | "subscribe-post"
+  | "unknown";
 
 interface Props {
   slug: string;
   primary: string;
 }
 
+const SW_READY_TIMEOUT_MS = 10_000;
+const PUSH_SUBSCRIBE_TIMEOUT_MS = 15_000;
+
 /**
  * Push notification opt-in for one world. Renders a small floating
- * button that mirrors the browser's permission state:
+ * button that mirrors the browser's permission state.
  *
- *   - SW not supported / iOS Safari without standalone install
- *     → render nothing (no nag)
- *   - Permission "denied" → render nothing (the browser blocked us;
- *     surfacing a button would be cargo-cult)
- *   - Default → "Enable alerts" — clicks subscribe through SW + post
- *   - Granted + subscribed → "Alerts on" — clicks unsubscribe
- *
- * Lives client-side because the Notification API doesn't exist on the
- * server, and the SW registration must be ready before subscribing —
- * the registrar in the layout already triggers that on mount; we just
- * wait for it via `serviceWorker.ready`.
+ * Every await point has a timeout and an error label — silent hangs
+ * used to bury real bugs behind a button stuck at "Working…". The
+ * button now surfaces which step failed and the console carries the
+ * underlying error.
  */
 export function PushOptIn({ slug, primary }: Props) {
   const [status, setStatus] = useState<Status>("idle");
+  const [errorReason, setErrorReason] = useState<ErrorReason | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -45,18 +58,23 @@ export function PushOptIn({ slug, primary }: Props) {
       setStatus("denied");
       return;
     }
-    // Check existing subscription so the button reflects state on
-    // revisit instead of saying "Enable" when the user has already
-    // opted in on a previous session.
     let cancelled = false;
     (async () => {
       try {
-        const reg = await navigator.serviceWorker.ready;
+        const reg = await withTimeout(
+          navigator.serviceWorker.ready,
+          SW_READY_TIMEOUT_MS,
+        );
         const existing = await reg.pushManager.getSubscription();
         if (cancelled) return;
         setStatus(existing ? "subscribed" : "idle");
-      } catch {
-        if (!cancelled) setStatus("unsupported");
+      } catch (err) {
+        if (cancelled) return;
+        // Initial state check failing doesn't disable the button —
+        // the operator can still try to subscribe, which surfaces
+        // the real error.
+        console.warn("[PushOptIn] initial state check failed", err);
+        setStatus("idle");
       }
     })();
     return () => {
@@ -66,6 +84,8 @@ export function PushOptIn({ slug, primary }: Props) {
 
   const subscribe = useCallback(async () => {
     setStatus("subscribing");
+    setErrorReason(null);
+    let step: ErrorReason = "unknown";
     try {
       if (Notification.permission === "default") {
         const perm = await Notification.requestPermission();
@@ -75,25 +95,40 @@ export function PushOptIn({ slug, primary }: Props) {
         }
       }
 
+      step = "vapid-fetch";
       const keyRes = await fetch(`/api/public/worlds/${slug}/vapid-public-key`);
       if (!keyRes.ok) {
-        // Push not configured — silently revert. The UI already
-        // hides the button when we can detect this earlier, but
-        // network ordering means we may discover it here.
+        console.warn(
+          `[PushOptIn] vapid endpoint ${keyRes.status} — push not available`,
+        );
         setStatus("unsupported");
         return;
       }
       const { publicKey } = (await keyRes.json()) as { publicKey: string };
+      if (!publicKey) {
+        step = "vapid-bad-key";
+        throw new Error("vapid endpoint returned no key");
+      }
 
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        // `applicationServerKey` is typed as `BufferSource`, but TS's
-        // lib.dom narrows it through ArrayBufferView<ArrayBuffer>,
-        // which rejects Uint8Array's `ArrayBufferLike` slot. The
-        // runtime accepts plain Uint8Array — cast through unknown
-        // rather than ship a slice that allocates twice.
-        applicationServerKey: urlBase64ToUint8Array(publicKey) as unknown as BufferSource,
+      step = "sw-not-ready";
+      const reg = await withTimeout(
+        navigator.serviceWorker.ready,
+        SW_READY_TIMEOUT_MS,
+      ).catch((err) => {
+        step = "sw-timeout";
+        throw err;
+      });
+
+      step = "push-subscribe";
+      const sub = await withTimeout(
+        reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey) as unknown as BufferSource,
+        }),
+        PUSH_SUBSCRIBE_TIMEOUT_MS,
+      ).catch((err) => {
+        step = "push-subscribe-timeout";
+        throw err;
       });
 
       const subJson = sub.toJSON();
@@ -105,6 +140,7 @@ export function PushOptIn({ slug, primary }: Props) {
         return;
       }
 
+      step = "subscribe-post";
       const anonId = readAnonId();
       const res = await fetch(`/api/public/worlds/${slug}/subscribe`, {
         method: "POST",
@@ -112,20 +148,30 @@ export function PushOptIn({ slug, primary }: Props) {
         body: JSON.stringify({ endpoint: sub.endpoint, p256dh, auth, anonId }),
       });
       if (!res.ok) {
+        console.warn(
+          `[PushOptIn] subscribe POST ${res.status}`,
+          await res.text().catch(() => ""),
+        );
         await sub.unsubscribe();
-        setStatus("idle");
+        setErrorReason(step);
+        setStatus("error");
         return;
       }
       setStatus("subscribed");
-    } catch {
-      setStatus("idle");
+    } catch (err) {
+      console.warn(`[PushOptIn] subscribe failed at step: ${step}`, err);
+      setErrorReason(step);
+      setStatus("error");
     }
   }, [slug]);
 
   const unsubscribe = useCallback(async () => {
     setStatus("unsubscribing");
     try {
-      const reg = await navigator.serviceWorker.ready;
+      const reg = await withTimeout(
+        navigator.serviceWorker.ready,
+        SW_READY_TIMEOUT_MS,
+      );
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
         const anonId = readAnonId();
@@ -137,7 +183,8 @@ export function PushOptIn({ slug, primary }: Props) {
         await sub.unsubscribe();
       }
       setStatus("idle");
-    } catch {
+    } catch (err) {
+      console.warn("[PushOptIn] unsubscribe failed", err);
       setStatus("idle");
     }
   }, [slug]);
@@ -146,13 +193,16 @@ export function PushOptIn({ slug, primary }: Props) {
 
   const subscribed = status === "subscribed" || status === "unsubscribing";
   const busy = status === "subscribing" || status === "unsubscribing";
+  const errored = status === "error";
   const onClick = subscribed ? unsubscribe : subscribe;
   const Icon = subscribed ? Bell : BellOff;
   const label = subscribed
     ? "Alerts on"
     : busy
       ? "Working…"
-      : "Enable alerts";
+      : errored
+        ? `Retry (${friendlyReason(errorReason)})`
+        : "Enable alerts";
 
   return (
     <button
@@ -160,6 +210,11 @@ export function PushOptIn({ slug, primary }: Props) {
       onClick={onClick}
       disabled={busy}
       aria-pressed={subscribed}
+      title={
+        errored
+          ? "Subscribe failed. Open DevTools console for the underlying error."
+          : undefined
+      }
       className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium shadow-sm backdrop-blur transition-colors disabled:opacity-60"
       style={
         subscribed
@@ -168,17 +223,63 @@ export function PushOptIn({ slug, primary }: Props) {
               color: primary,
               backgroundColor: "var(--w-accent-soft)",
             }
-          : {
-              borderColor: "var(--w-border-strong)",
-              color: "var(--w-fg)",
-              backgroundColor: "var(--w-overlay)",
-            }
+          : errored
+            ? {
+                borderColor: "#ef4444",
+                color: "#ef4444",
+                backgroundColor: "var(--w-overlay)",
+              }
+            : {
+                borderColor: "var(--w-border-strong)",
+                color: "var(--w-fg)",
+                backgroundColor: "var(--w-overlay)",
+              }
       }
     >
       <Icon size={12} strokeWidth={1.8} aria-hidden />
       {label}
     </button>
   );
+}
+
+/** Race an awaitable against a wall clock so an unresponsive browser
+ *  API (SW that never activates, FCM that never answers) surfaces as
+ *  an explicit failure instead of a UI that pretends to work. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Timed out after ${ms}ms`));
+    }, ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
+function friendlyReason(reason: ErrorReason | null): string {
+  switch (reason) {
+    case "sw-not-ready":
+    case "sw-timeout":
+      return "SW";
+    case "vapid-fetch":
+      return "vapid";
+    case "vapid-bad-key":
+      return "key";
+    case "push-subscribe":
+    case "push-subscribe-timeout":
+      return "subscribe";
+    case "subscribe-post":
+      return "server";
+    default:
+      return "error";
+  }
 }
 
 /** Read the same anonId the WorldBeacon writes — undefined when
