@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "react-toastify";
 import { ArrowUpRight } from "lucide-react";
+import { AiKeyPanel } from "@/lib/mobility/AiKeyPanel";
 
 interface Initial {
   title: string;
@@ -192,6 +193,11 @@ export function SettingsClient({
             </span>
           )}
         </div>
+      </section>
+
+      {/* Paris AI key */}
+      <section className="mb-8">
+        <AiKeyPanel projectId={projectId} />
       </section>
 
       {/* Danger zone */}

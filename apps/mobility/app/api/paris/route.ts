@@ -14,6 +14,7 @@
  */
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { decryptSecret, secretsEnabled } from "@klorad/secrets";
 import { prisma } from "@/lib/prisma";
 import {
   PARIS_TOOLS,
@@ -31,6 +32,29 @@ interface RequestBody {
 
 const MAX_TOOL_ITERATIONS = 5;
 const MODEL = "claude-sonnet-4-6";
+
+/** Per-project key first (stored encrypted on `Project`), env-var
+ *  fallback second. Decrypt failures (rotated `SECRETS_KEY`, stale
+ *  ciphertext) log but fall through so the assistant stays usable
+ *  on the platform key. Same shape as Campus's `resolveAnthropicKey`. */
+async function resolveAnthropicKey(
+  projectId: string,
+): Promise<string | undefined> {
+  if (secretsEnabled()) {
+    try {
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { anthropicApiKeyEncrypted: true },
+      });
+      if (project?.anthropicApiKeyEncrypted) {
+        return decryptSecret(project.anthropicApiKeyEncrypted);
+      }
+    } catch (err) {
+      console.error("[paris] per-project key lookup failed", err);
+    }
+  }
+  return process.env.ANTHROPIC_API_KEY ?? undefined;
+}
 
 /** System prompt — kept short and behaviour-focused. Paris is a
  *  read-only concierge; the tool list is the contract for what it
@@ -80,10 +104,13 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = await resolveAnthropicKey(world.projectId);
   if (!apiKey) {
     return NextResponse.json(
-      { error: "ANTHROPIC_API_KEY not set" },
+      {
+        error:
+          "No Anthropic key configured — set one in the project's AI settings or the ANTHROPIC_API_KEY env var.",
+      },
       { status: 503 },
     );
   }
