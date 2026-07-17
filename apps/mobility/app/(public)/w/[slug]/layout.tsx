@@ -6,6 +6,7 @@ import { RegisterWorldSW } from "./RegisterWorldSW";
 import { WorldBeacon } from "./WorldBeacon";
 import { MobilityBottomNav } from "./MobilityBottomNav";
 import { MobilityPullToRefresh } from "./MobilityPullToRefresh";
+import { MobilityTopNav } from "./MobilityTopNav";
 
 type Params = Promise<{ slug: string }>;
 
@@ -97,8 +98,24 @@ export default async function WorldPublicLayout({
   params: Params;
 }) {
   const { slug } = await params;
+  // World name + logo drive the top-nav branding. Draft / gated
+  // worlds return null from the anonymous resolver; the top nav
+  // falls back to the slug in that case so the header still
+  // renders (the page-level access-denied surface takes over
+  // below).
+  const world = await loadPublicWorldBySlug(slug);
+  const logoUrl =
+    world && typeof world.theme.logoUrl === "string"
+      ? world.theme.logoUrl
+      : null;
+  const worldName = world?.name ?? slug;
   return (
     <>
+      <MobilityTopNav
+        slug={slug}
+        worldName={worldName}
+        logoUrl={logoUrl}
+      />
       {children}
       <MobilityBottomNav slug={slug} />
       <MobilityPullToRefresh />
