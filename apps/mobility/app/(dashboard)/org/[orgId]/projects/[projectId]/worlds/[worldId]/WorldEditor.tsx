@@ -26,6 +26,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { QrShare } from "@klorad/design-system";
 import { subsystemIcon as pickSubsystemIcon } from "@/lib/mobility/subsystem-icon";
 
 type Visibility = "public" | "linkOnly" | "authenticated";
@@ -360,6 +361,15 @@ export function WorldEditor({
       {/* Publish + live URL */}
       <PublishCard world={world} />
 
+      {/* Share — QR code for the world's public URL. Only surfaces
+          once the world is published, since sharing a draft URL
+          just serves a 404 to whoever scans it. */}
+      {world.isPublished && (
+        <section className="mb-6">
+          <ShareCard slug={world.slug} />
+        </section>
+      )}
+
       {/* Stats */}
       <StatsCard stats={stats} />
 
@@ -603,6 +613,28 @@ function PublishCard({ world }: { world: World }) {
         </div>
       ) : null}
     </section>
+  );
+}
+
+/* ───────────────────── Share (QR) ──────────────────────────────── */
+
+function ShareCard({ slug }: { slug: string }) {
+  // The public URL uses the browser origin so the QR points at the
+  // deploy the operator is actually looking at (staging vs prod)
+  // without env-var plumbing. SSR falls back to a relative-ish path
+  // that never actually renders — the primitive is client-only, so
+  // the useMemo runs post-mount.
+  const publicUrl = useMemo(() => {
+    if (typeof window === "undefined") return `/w/${slug}`;
+    return `${window.location.origin}/w/${slug}`;
+  }, [slug]);
+  return (
+    <QrShare
+      url={publicUrl}
+      downloadFilename={`world-${slug}`}
+      title="Share this world"
+      subtitle="Scan or copy the link — the QR downloads as an SVG for print."
+    />
   );
 }
 

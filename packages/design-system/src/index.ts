@@ -92,6 +92,7 @@ export {
   type AssistantSuggestion,
   type AssistantMessage,
 } from "./components/assistant-panel";
+export { QrShare, type QrShareProps } from "./components/qr-share";
 export { Dock, type DockProps } from "./components/dock";
 export {
   Workbench,

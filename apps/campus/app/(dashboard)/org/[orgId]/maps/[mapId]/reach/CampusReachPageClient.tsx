@@ -1,16 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
 import { toast } from "react-toastify";
-import QRCode from "qrcode";
 import {
   Bell,
-  Check,
-  Copy,
-  Download,
   History,
-  QrCode,
   Send,
   Users,
 } from "lucide-react";
@@ -19,6 +14,7 @@ import {
   Field,
   Input,
   Panel,
+  QrShare,
   Select,
   Textarea,
 } from "@klorad/design-system";
@@ -127,63 +123,11 @@ export default function CampusReachPageClient({
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [publishBusy, setPublishBusy] = useState(false);
-  const [qrSvg, setQrSvg] = useState<string>("");
-  const [copied, setCopied] = useState(false);
 
   const publicUrl = useMemo(() => {
     if (typeof window === "undefined") return `/campus/${mapId}`;
     return `${window.location.origin}/campus/${mapId}`;
   }, [mapId]);
-
-  // Render the QR client-side when the URL is known. SVG is sharp
-  // at any zoom and downloads as a file the rector can drop into
-  // print or paste into Figma without rasterising. `level: 'M'` is
-  // the sweet spot between resilience and dot density at typical
-  // student-phone scan distance.
-  useEffect(() => {
-    let cancelled = false;
-    QRCode.toString(publicUrl, {
-      type: "svg",
-      errorCorrectionLevel: "M",
-      margin: 1,
-      color: { dark: "#1a1a1a", light: "#ffffff" },
-      width: 240,
-    })
-      .then((svg) => {
-        if (!cancelled) setQrSvg(svg);
-      })
-      .catch(() => {
-        if (!cancelled) setQrSvg("");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [publicUrl]);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(publicUrl);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      toast.error("Couldn't copy the link");
-    }
-  };
-
-  const handleDownloadQr = () => {
-    if (!qrSvg) return;
-    const blob = new Blob([qrSvg], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    // Filename includes the mapId so the rector can save multiple
-    // campus QRs without overwriting in their Downloads folder.
-    a.download = `campus-${mapId}.svg`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
 
   const handleTogglePublish = async () => {
     if (!map || publishBusy) return;
@@ -402,62 +346,13 @@ export default function CampusReachPageClient({
 
         {/* ─ Right: the share card ──────────────────────────────── */}
         <aside className="space-y-6">
-          <Panel className="rounded-2xl p-6">
-            <div className="mb-4 flex items-start gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
-                <QrCode size={16} strokeWidth={1.75} aria-hidden />
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-text-primary">
-                  Share to students
-                </h2>
-                <p className="mt-0.5 text-xs text-text-tertiary">
-                  The link + QR you hand out. Survives printing — SVG
-                  download is sharp at any size.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col items-center gap-4">
-              <div
-                className="flex h-48 w-48 items-center justify-center rounded-xl bg-white p-2 shadow-sm"
-                aria-label="QR code"
-                dangerouslySetInnerHTML={
-                  qrSvg
-                    ? { __html: qrSvg }
-                    : { __html: "<div style='color:#9ca3af;font-size:11px'>Generating…</div>" }
-                }
-              />
-              <div className="w-full text-center">
-                <div className="truncate font-mono text-xs text-text-secondary">
-                  {publicUrl}
-                </div>
-              </div>
-              <div className="flex w-full flex-col gap-2">
-                <Button size="sm" variant="secondary" onClick={handleCopy}>
-                  {copied ? (
-                    <>
-                      <Check size={12} strokeWidth={1.75} aria-hidden />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={12} strokeWidth={1.75} aria-hidden />
-                      Copy URL
-                    </>
-                  )}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={handleDownloadQr}
-                  disabled={!qrSvg}
-                >
-                  <Download size={12} strokeWidth={1.75} aria-hidden />
-                  Download QR
-                </Button>
-              </div>
-            </div>
-          </Panel>
+          <QrShare
+            url={publicUrl}
+            downloadFilename={`campus-${mapId}`}
+            title="Share to students"
+            subtitle="The link + QR you hand out. Survives printing — SVG download is sharp at any size."
+            copyLabel="Copy URL"
+          />
 
           <Panel className="rounded-2xl p-6">
             <div className="mb-3 flex items-start gap-3">
