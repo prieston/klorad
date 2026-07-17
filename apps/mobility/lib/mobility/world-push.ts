@@ -27,6 +27,12 @@ function ensureConfigured(): boolean {
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT;
   if (!publicKey || !privateKey || !subject) return false;
+  if (!isValidVapidPublicKey(publicKey)) {
+    console.warn(
+      "[world-push] NEXT_PUBLIC_VAPID_PUBLIC_KEY is set but doesn't look like a P-256 point (65 decoded bytes, 0x04 prefix). Push disabled.",
+    );
+    return false;
+  }
   webpush.setVapidDetails(subject, publicKey, privateKey);
   configured = true;
   return true;
@@ -36,8 +42,36 @@ export function pushEnabled(): boolean {
   return ensureConfigured();
 }
 
+/** Only exposes the key when it's structurally valid. Prevents a
+ *  misconfigured Vercel env (e.g. someone pasting the env var name
+ *  as the value) from being served to browsers, which just makes
+ *  `pushManager.subscribe` hang silently in Chrome. */
 export function getVapidPublicKey(): string | null {
-  return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null;
+  const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  if (!key || !isValidVapidPublicKey(key)) return null;
+  return key;
+}
+
+/** Validate the base64url shape of a VAPID public key. A valid key
+ *  is exactly 65 bytes when decoded (0x04 uncompressed prefix +
+ *  32-byte X + 32-byte Y for a P-256 point) and its base64url form
+ *  is ~87 chars. Rejects both empty / null and the "someone pasted
+ *  the env var name as the value" failure mode that used to slip
+ *  through and hang the client. */
+export function isValidVapidPublicKey(raw: string): boolean {
+  if (!raw || raw.length < 80 || raw.length > 100) return false;
+  // Base64url uses `-_` in place of `+/`; also accept the standard
+  // form and padded variants because `web-push generate-vapid-keys`
+  // and hand-copies sometimes drop or add `=`.
+  if (!/^[A-Za-z0-9\-_+/=]+$/.test(raw)) return false;
+  try {
+    const pad = "=".repeat((4 - (raw.length % 4)) % 4);
+    const normalised = (raw + pad).replace(/-/g, "+").replace(/_/g, "/");
+    const bytes = Buffer.from(normalised, "base64");
+    return bytes.length === 65 && bytes[0] === 0x04;
+  } catch {
+    return false;
+  }
 }
 
 export interface WorldPushPayload {
