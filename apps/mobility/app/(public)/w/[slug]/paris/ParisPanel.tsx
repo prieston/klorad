@@ -112,7 +112,11 @@ function dedupe(actions: ParisToolAction[]): ParisToolAction[] {
 
 function hrefFor(a: ParisToolAction, slug: string): string {
   if (a.type === "focus_device") {
-    return `/w/${slug}?device=${encodeURIComponent(a.id)}`;
+    // Jump to the Devices tab with the sheet auto-opened. Keeps the
+    // deep-link inside the visitor surface so anonymous callers see
+    // the same rich detail (video, DMS face, radar tile) they'd get
+    // from tapping the row themselves.
+    return `/w/${slug}/devices?open=${encodeURIComponent(a.id)}`;
   }
   // `open_alert` — jump to the operator alerts panel; visitors
   // without operator access get the sign-in redirect.

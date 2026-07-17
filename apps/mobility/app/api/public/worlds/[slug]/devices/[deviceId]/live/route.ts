@@ -46,6 +46,7 @@ export async function GET(
           id: true,
           subsystem: true,
           externalDeviceId: true,
+          payload: true,
           source: {
             select: {
               connectorId: true,
@@ -63,6 +64,16 @@ export async function GET(
 
   const { device } = membership;
 
+  // Extract the media hint the connector wrote at sync time. Same
+  // shape the operator drawer reads (`payload.media`) so the
+  // visitor's rich detail sheet can render a video / snapshot
+  // without a second round-trip.
+  const payload = (device.payload ?? {}) as Record<string, unknown>;
+  const media =
+    payload.media && typeof payload.media === "object"
+      ? (payload.media as Record<string, unknown>)
+      : null;
+
   try {
     const connector = await buildConnector({
       connectorId: device.source.connectorId,
@@ -79,10 +90,14 @@ export async function GET(
     const packed = `${device.subsystem}:${externalId}`;
     const statuses = await connector.getStatus([packed]);
     const status = statuses[packed] ?? null;
-    return NextResponse.json({ status });
+    return NextResponse.json({ status, media });
   } catch (err) {
     return NextResponse.json(
-      { status: null, error: err instanceof Error ? err.message : "Unknown" },
+      {
+        status: null,
+        media,
+        error: err instanceof Error ? err.message : "Unknown",
+      },
       { status: 502 },
     );
   }

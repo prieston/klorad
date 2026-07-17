@@ -72,6 +72,7 @@ export {
   MobileBottomNav,
   type MobileBottomNavItem,
   type MobileBottomNavProps,
+  type MobileBottomNavVariant,
 } from "./components/mobile-bottom-nav";
 export {
   PullToRefresh,

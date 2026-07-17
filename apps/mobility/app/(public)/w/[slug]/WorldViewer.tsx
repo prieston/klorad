@@ -10,7 +10,6 @@ import {
   ArrowLeft,
   Box,
   Layers as LayersIcon,
-  MapPin,
   Moon,
   Mountain,
   Settings,
@@ -18,8 +17,10 @@ import {
   Sunrise,
   Sunset,
 } from "lucide-react";
+import useSWR from "swr";
 import { subsystemIcon } from "@/lib/mobility/subsystem-icon";
 import type { PublicWorldDevice } from "@/lib/mobility/world-resolver";
+import { DeviceLiveDetail } from "@/lib/mobility/DeviceLiveDetail";
 import {
   applyMapEnvSettings,
   loadMapEnvSettings,
@@ -35,7 +36,6 @@ import {
   THREE_DEVICE_LAYER_ID,
   type ThreeDeviceLayer,
 } from "@/lib/mobility/three-device-layer";
-import { PushOptIn } from "./PushOptIn";
 
 interface Props {
   slug: string;
@@ -652,9 +652,6 @@ export function WorldViewer({
           <span style={{ color: primary }}>{devices.length}</span> devices ·{" "}
           <code className="font-mono">/w/{slug}</code>
         </p>
-        <div className="pointer-events-auto mt-3">
-          <PushOptIn slug={slug} primary={primary} />
-        </div>
       </header>
 
       <MapSettingsButton
@@ -666,6 +663,7 @@ export function WorldViewer({
       />
 
       <DeviceDrawer
+        slug={slug}
         device={selected}
         primary={primary}
         onClose={() => setSelectedId(null)}
@@ -963,21 +961,50 @@ function PanelToggle({
 
 /* ───────────────────── Device drawer ──────────────────────────── */
 
+interface LiveResponse {
+  status: {
+    online: boolean;
+    alarm: string | null;
+    observedAt: string;
+    raw: Record<string, unknown>;
+  } | null;
+  media?: {
+    kind?: string;
+    url?: string;
+  } | null;
+}
+
+const drawerFetcher = (url: string) =>
+  fetch(url).then(async (r) => {
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  });
+
 function DeviceDrawer({
+  slug,
   device,
   primary,
   onClose,
 }: {
+  slug: string;
   device: PublicWorldDevice | null;
   primary: string;
   onClose: () => void;
 }) {
+  const { data } = useSWR<LiveResponse>(
+    device
+      ? `/api/public/worlds/${slug}/devices/${device.id}/live`
+      : null,
+    drawerFetcher,
+    { refreshInterval: 15_000 },
+  );
+
   if (!device) return null;
   const Icon = subsystemIcon(device.subsystem);
 
   return (
     <aside
-      className="absolute bottom-0 left-0 right-0 z-10 mx-auto max-w-[640px] rounded-t-2xl border p-5 shadow-2xl backdrop-blur md:bottom-4 md:left-4 md:right-auto md:w-[360px] md:rounded-2xl"
+      className="absolute bottom-0 left-0 right-0 z-10 mx-auto max-h-[70dvh] max-w-[640px] overflow-y-auto rounded-t-2xl border p-5 pb-[calc(env(safe-area-inset-bottom)+4.5rem)] shadow-2xl backdrop-blur md:bottom-4 md:left-4 md:right-auto md:w-[380px] md:rounded-2xl md:pb-5"
       style={{
         borderColor: "var(--w-border)",
         backgroundColor: "color-mix(in srgb, var(--w-bg) 94%, transparent)",
@@ -998,7 +1025,9 @@ function DeviceDrawer({
           >
             {device.subsystem.toUpperCase()}
           </p>
-          <h2 className="mt-0.5 truncate text-sm font-semibold">{device.name}</h2>
+          <h2 className="mt-0.5 truncate text-sm font-semibold">
+            {device.name}
+          </h2>
         </div>
         <button
           type="button"
@@ -1011,39 +1040,30 @@ function DeviceDrawer({
         </button>
       </div>
 
-      <dl className="mt-3 space-y-1.5 text-xs">
-        {device.primaryRoad ? (
-          <Row label="Road" value={device.primaryRoad} />
-        ) : null}
-        {device.crossRoad ? (
-          <Row label="Cross" value={device.crossRoad} />
-        ) : null}
-        {device.direction ? (
-          <Row label="Direction" value={device.direction} />
-        ) : null}
-        {device.lat != null && device.lng != null ? (
-          <Row
-            label={
-              <span className="inline-flex items-center gap-1">
-                <MapPin size={10} strokeWidth={1.8} aria-hidden />
-                Coords
-              </span>
-            }
-            value={`${device.lat.toFixed(4)}, ${device.lng.toFixed(4)}`}
-          />
-        ) : null}
-      </dl>
+      {/* Location strip — road / direction / coords in one line. */}
+      <p
+        className="mt-1.5 text-[11px]"
+        style={{ color: "var(--w-fg-muted)" }}
+      >
+        {[
+          device.primaryRoad,
+          device.direction,
+          device.crossRoad,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </p>
+
+      {/* Live detail — same rich rendering the Devices tab uses:
+          CCTV/AID video, DMS face, radar telemetry, VSLS speed limit. */}
+      <div className="mt-4">
+        <DeviceLiveDetail
+          subsystem={device.subsystem}
+          status={data?.status?.raw ?? null}
+          media={data?.media ?? null}
+        />
+      </div>
     </aside>
   );
 }
 
-function Row({ label, value }: { label: React.ReactNode; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <dt style={{ color: "var(--w-fg-muted)" }}>{label}</dt>
-      <dd className="truncate font-medium" style={{ color: "var(--w-fg)" }}>
-        {value}
-      </dd>
-    </div>
-  );
-}
