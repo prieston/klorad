@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams, usePathname } from "next/navigation";
 import useSWR from "swr";
 import { Search, X, ChevronRight, Loader2 } from "lucide-react";
 import { subsystemDescriptor } from "@/lib/mobility/subsystem-icon";
@@ -29,38 +29,53 @@ const fetcher = (url: string) =>
  * the list itself is cheap. Follows the world's brand colour via
  * `--w-accent` inheritance.
  *
- * Deep-link support: `?open=<deviceId>` on mount opens the detail
- * sheet immediately. Paris ships this URL as her `focus_device`
- * action so "show me the K9 camera" lands on the sheet with the
- * video already playing.
+ * URL state (all shareable — restores on load):
+ *   ?open=<deviceId>   — opens the detail sheet
+ *   ?subsystem=<key>   — active filter chip
+ *   ?q=<query>         — search box
+ *
+ * URL updates use `history.replaceState` (not Next router) so the
+ * search box doesn't re-invoke the server page on every keystroke.
  */
 export function DevicesList({ slug, devices }: Props) {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const pathname = usePathname();
-  const [query, setQuery] = useState("");
-  const [subsystem, setSubsystem] = useState<string>("all");
-  const initialOpen = searchParams?.get("open") ?? null;
-  const [openId, setOpenId] = useState<string | null>(initialOpen);
 
-  // Clear the URL when the sheet closes so refreshing doesn't re-
-  // open it, and rewrite the URL when Paris navigates in with a
-  // `?open=` — keeps the browser back button honest.
+  // Read initial state from URL exactly once — subsequent URL edits
+  // go via history.replaceState so we don't re-derive.
+  const initialRef = useRef<{
+    open: string | null;
+    subsystem: string;
+    query: string;
+  } | null>(null);
+  if (initialRef.current === null) {
+    initialRef.current = {
+      open: searchParams?.get("open") ?? null,
+      subsystem: searchParams?.get("subsystem") ?? "all",
+      query: searchParams?.get("q") ?? "",
+    };
+  }
+
+  const [query, setQuery] = useState(initialRef.current.query);
+  const [subsystem, setSubsystem] = useState<string>(
+    initialRef.current.subsystem,
+  );
+  const [openId, setOpenId] = useState<string | null>(initialRef.current.open);
+
+  const writeUrl = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams();
+    if (openId) params.set("open", openId);
+    if (subsystem !== "all") params.set("subsystem", subsystem);
+    if (query.trim()) params.set("q", query.trim());
+    const q = params.toString();
+    const url = q ? `${pathname}?${q}` : (pathname ?? "");
+    window.history.replaceState(null, "", url);
+  }, [openId, subsystem, query, pathname]);
+
   useEffect(() => {
-    const current = searchParams?.get("open") ?? null;
-    if (openId && current !== openId) {
-      const params = new URLSearchParams(searchParams?.toString() ?? "");
-      params.set("open", openId);
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    } else if (!openId && current) {
-      const params = new URLSearchParams(searchParams?.toString() ?? "");
-      params.delete("open");
-      const q = params.toString();
-      router.replace(q ? `${pathname}?${q}` : (pathname ?? ""), {
-        scroll: false,
-      });
-    }
-  }, [openId, pathname, router, searchParams]);
+    writeUrl();
+  }, [writeUrl]);
 
   const subsystems = useMemo(() => {
     const s = new Set<string>();
