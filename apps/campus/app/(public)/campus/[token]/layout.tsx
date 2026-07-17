@@ -8,6 +8,7 @@ import { SWRProvider } from "@/lib/swr/SWRProvider";
 import { ServiceWorkerRegistrar } from "@/lib/consumer/ServiceWorkerRegistrar";
 import { InstallPrompt } from "@/lib/consumer/InstallPrompt";
 import { PullToRefresh } from "@/lib/consumer/PullToRefresh";
+import { UpdateAvailablePrompt } from "@klorad/design-system";
 
 interface CampusBranding {
   name?: string;
@@ -133,6 +134,11 @@ export default async function CampusPublicLayout({
         <CampusBottomNav token={token} />
         <PullToRefresh />
         <InstallPrompt />
+        <UpdateAvailablePrompt
+          title="Νέα έκδοση διαθέσιμη"
+          subtitle="Ανανεώστε για να φορτώσετε τις τελευταίες αλλαγές."
+          refreshLabel="Ανανέωση"
+        />
         <ServiceWorkerRegistrar />
       </div>
     </SWRProvider>

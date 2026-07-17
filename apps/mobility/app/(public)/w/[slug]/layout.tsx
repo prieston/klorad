@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
+import { InstallPrompt, UpdateAvailablePrompt } from "@klorad/design-system";
 import { loadPublicWorldBySlug } from "@/lib/mobility/world-resolver";
 import { RegisterWorldSW } from "./RegisterWorldSW";
-import { InstallPrompt } from "./InstallPrompt";
 import { WorldBeacon } from "./WorldBeacon";
+import { MobilityBottomNav } from "./MobilityBottomNav";
+import { MobilityPullToRefresh } from "./MobilityPullToRefresh";
 
 type Params = Promise<{ slug: string }>;
 
@@ -98,8 +100,15 @@ export default async function WorldPublicLayout({
   return (
     <>
       {children}
+      <MobilityBottomNav slug={slug} />
+      <MobilityPullToRefresh />
+      <InstallPrompt
+        storageKey="klorad-mobility-install-dismissed-at"
+        title="Install this world"
+        subtitle="Add to your home screen for real-time alerts."
+      />
+      <UpdateAvailablePrompt scope={`/w/${slug}/`} />
       <RegisterWorldSW slug={slug} />
-      <InstallPrompt />
       <WorldBeacon slug={slug} />
     </>
   );
