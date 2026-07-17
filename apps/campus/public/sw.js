@@ -53,11 +53,25 @@ self.addEventListener("install", (event) => {
             .catch(() => undefined),
         ),
       );
-      // Take control immediately so the first notification doesn't
-      // wait for a reload (kept from the original push-only SW).
-      await self.skipWaiting();
+      // First-install: no controller yet, so activate immediately.
+      // Subsequent installs (a fresh SW version while one is already
+      // controlling the page) instead park in "waiting" and let the
+      // DS `UpdateAvailablePrompt` surface the refresh prompt. The
+      // message handler below activates the new worker on the user's
+      // signal.
+      if (!self.registration.active) {
+        await self.skipWaiting();
+      }
     })(),
   );
+});
+
+// Client-triggered activation for the update-available UI. Matches
+// the DS `SKIP_WAITING_MESSAGE` constant.
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "klorad-skip-waiting") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("activate", (event) => {
