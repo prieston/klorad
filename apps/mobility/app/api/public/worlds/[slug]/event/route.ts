@@ -13,7 +13,7 @@
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { loadPublicWorldBySlug } from "@/lib/mobility/world-resolver";
+import { loadWorldForPushViewer } from "@/lib/mobility/world-resolver";
 import { recordWorldEvent } from "@/lib/mobility/world-events";
 
 type Params = Promise<{ slug: string }>;
@@ -28,7 +28,7 @@ export async function POST(
   { params }: { params: Params },
 ): Promise<NextResponse> {
   const { slug } = await params;
-  const world = await loadPublicWorldBySlug(slug);
+  const world = await loadWorldForPushViewer(slug);
   if (!world) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }

@@ -14,6 +14,7 @@
  * with everything trimmed to what a stakeholder sees. Internal source
  * URLs and curation flags never leave the dashboard tier.
  */
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveDeviceStyles } from "./device-style-resolver";
 
@@ -154,6 +155,78 @@ export async function loadPublicWorldBySlug(
   });
   if (!world) return null;
   if (world.visibility === "authenticated") return null;
+  return await toPublicWorld(world);
+}
+
+/**
+ * Session-aware variant used by the `/api/public/worlds/[slug]/…`
+ * push endpoints (vapid key, subscribe, unsubscribe, event beacon).
+ *
+ * `loadPublicWorldBySlug` hides `authenticated` worlds from
+ * anonymous callers so probes can't enumerate slug existence — but
+ * that also locks out signed-in users who *have* been granted
+ * access via `MobilityWorldPrincipal`. This variant lets those users
+ * through by consulting the same rules `resolveWorldForViewer`
+ * applies to the page-level render:
+ *
+ *   - not found / draft → null
+ *   - public / linkOnly → world
+ *   - authenticated + org owner → world
+ *   - authenticated + granted principal → world
+ *   - authenticated + anon-or-not-granted → null
+ *
+ * Null-return semantics stay identical to `loadPublicWorldBySlug`
+ * so callers keep their existing 404-when-null branch. Errors on
+ * session read are treated as "no session" — never throw from a
+ * publicly-reachable endpoint.
+ */
+export async function loadWorldForPushViewer(
+  slug: string,
+): Promise<PublicWorld | null> {
+  const world = await prisma.mobilityWorld.findFirst({
+    where: { slug, isPublished: true },
+    include: worldInclude,
+  });
+  if (!world) return null;
+  if (world.visibility !== "authenticated") {
+    return await toPublicWorld(world);
+  }
+
+  let viewerId: string | null = null;
+  try {
+    const session = await auth();
+    viewerId = (session?.user?.id as string | undefined) ?? null;
+  } catch {
+    viewerId = null;
+  }
+  if (!viewerId) return null;
+
+  const ownerMembership = await prisma.organizationMember.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: world.project.organizationId,
+        userId: viewerId,
+      },
+    },
+    select: { role: true },
+  });
+  if (ownerMembership?.role === "owner") {
+    return await toPublicWorld(world);
+  }
+  const grant = await prisma.mobilityWorldPrincipal.findFirst({
+    where: {
+      worldId: world.id,
+      OR: [
+        { kind: "user", userId: viewerId },
+        {
+          kind: "team",
+          team: { members: { some: { userId: viewerId } } },
+        },
+      ],
+    },
+    select: { id: true },
+  });
+  if (!grant) return null;
   return await toPublicWorld(world);
 }
 
