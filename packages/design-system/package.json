@@ -19,8 +19,14 @@
   },
   "peerDependencies": {
     "@klorad/config": "workspace:*",
+    "lucide-react": "^1.16.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "lucide-react": {
+      "optional": false
+    }
   },
   "devDependencies": {
     "@types/culori": "^4.0.1",

@@ -73,6 +73,25 @@ export {
   type MobileBottomNavItem,
   type MobileBottomNavProps,
 } from "./components/mobile-bottom-nav";
+export {
+  PullToRefresh,
+  type PullToRefreshProps,
+} from "./components/pull-to-refresh";
+export {
+  InstallPrompt,
+  type InstallPromptProps,
+} from "./components/install-prompt";
+export {
+  UpdateAvailablePrompt,
+  SKIP_WAITING_MESSAGE,
+  type UpdateAvailablePromptProps,
+} from "./components/update-available-prompt";
+export {
+  AssistantPanel,
+  type AssistantPanelProps,
+  type AssistantSuggestion,
+  type AssistantMessage,
+} from "./components/assistant-panel";
 export { Dock, type DockProps } from "./components/dock";
 export {
   Workbench,
