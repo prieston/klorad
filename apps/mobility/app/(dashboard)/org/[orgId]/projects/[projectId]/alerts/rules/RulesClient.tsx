@@ -13,6 +13,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -119,24 +120,30 @@ export function RulesClient({
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-6 py-10 md:px-10">
-      <header className="mb-8">
-        <Link
-          href={`/org/${orgId}/projects/${projectId}/alerts`}
-          className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.28em] text-text-tertiary hover:text-text-primary"
-        >
-          <ArrowLeft size={12} />
-          {projectTitle} · Alerts
-        </Link>
-        <h1 className="mt-1 flex items-center gap-2 text-3xl font-light text-text-primary">
-          <Bell size={20} strokeWidth={1.5} className="text-accent" />
-          Alert rules
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-          Rules turn upstream webhook events into <code>MobilityAlert</code>{" "}
-          rows. Each rule can push a notification to a set of world
-          subscribers when it fires — same delivery pipeline as manual
-          broadcasts.
-        </p>
+      <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <Link
+            href={`/org/${orgId}/projects/${projectId}/alerts`}
+            className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.28em] text-text-tertiary hover:text-text-primary"
+          >
+            <ArrowLeft size={12} />
+            {projectTitle} · Alerts
+          </Link>
+          <h1 className="mt-1 flex items-center gap-2 text-3xl font-light text-text-primary">
+            <Bell size={20} strokeWidth={1.5} className="text-accent" />
+            Alert rules
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-text-secondary">
+            Rules turn upstream webhook events into <code>MobilityAlert</code>{" "}
+            rows. Each rule can push a notification to a set of world
+            subscribers when it fires — same delivery pipeline as manual
+            broadcasts.
+          </p>
+        </div>
+        <SeedDemoButton
+          projectId={projectId}
+          onSeeded={() => void mutate()}
+        />
       </header>
 
       <DiagnosticsBanner
@@ -185,7 +192,12 @@ export function RulesClient({
           <p className="px-6 py-8 text-sm text-text-tertiary">Loading…</p>
         ) : rules.length === 0 ? (
           <p className="px-6 py-8 text-sm text-text-tertiary">
-            No rules yet. Create one above.
+            No rules yet. Create one above, or click{" "}
+            <span className="font-medium text-text-secondary">
+              Seed demo rules
+            </span>{" "}
+            in the header for the canonical set that pairs with the
+            mock&apos;s demo scenarios.
           </p>
         ) : (
           <ul className="divide-y divide-line-soft">
@@ -202,6 +214,80 @@ export function RulesClient({
         )}
       </section>
     </main>
+  );
+}
+
+// ─── Seed demo rules button ────────────────────────────────────────
+
+/**
+ * Fires the backend seeder that creates the canonical rules paired
+ * with the mock's demo scenarios. Idempotent by rule name — a repeat
+ * click is safe; it just skips rules that already exist and reports
+ * a "0 created, N skipped" toast.
+ */
+function SeedDemoButton({
+  projectId,
+  onSeeded,
+}: {
+  projectId: string;
+  onSeeded: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  const seed = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/alert-rules/seed-demo`,
+        { method: "POST" },
+      );
+      const json = (await res.json().catch(() => null)) as
+        | {
+            created?: number;
+            skipped?: number;
+            totalTemplates?: number;
+            error?: string;
+          }
+        | null;
+      if (!res.ok) {
+        toast.error(json?.error ?? "Seed failed");
+        return;
+      }
+      const created = json?.created ?? 0;
+      const skipped = json?.skipped ?? 0;
+      if (created === 0 && skipped > 0) {
+        toast.info(
+          `All ${skipped} demo rule${skipped === 1 ? "" : "s"} already exist.`,
+        );
+      } else if (created > 0) {
+        toast.success(
+          `Seeded ${created} demo rule${created === 1 ? "" : "s"}` +
+            (skipped > 0 ? ` (${skipped} already existed)` : ""),
+        );
+      } else {
+        toast.info("No rules seeded.");
+      }
+      onSeeded();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={seed}
+      disabled={busy}
+      title="Create the canonical demo rules that pair with the mock's scenarios: radar jam, traffic slowdown, DMS fault, and incident posted. Idempotent — safe to click twice."
+      className="inline-flex shrink-0 items-center gap-2 rounded-md border border-accent bg-accent-soft px-3 py-2 text-xs font-medium text-accent transition-colors hover:bg-accent hover:text-accent-contrast disabled:opacity-50"
+    >
+      {busy ? (
+        <Loader2 size={12} className="animate-spin" />
+      ) : (
+        <Sparkles size={12} />
+      )}
+      Seed demo rules
+    </button>
   );
 }
 
@@ -305,7 +391,23 @@ function DiagnosticsBanner({
     });
   }
 
-  if (rulesCount > 0 && disabledRulesCount === rulesCount) {
+  if (rulesCount === 0) {
+    issues.push({
+      tone: "info",
+      text: (
+        <>
+          No rules configured. Alerts fire only when a rule matches an
+          incoming event — click{" "}
+          <span className="font-medium text-text-primary">
+            Seed demo rules
+          </span>{" "}
+          in the header for the canonical set paired with the mock&apos;s
+          scenarios (radar jam, traffic slowdown, DMS fault, incident
+          posted).
+        </>
+      ),
+    });
+  } else if (disabledRulesCount === rulesCount) {
     issues.push({
       tone: "warn",
       text: (
