@@ -11,10 +11,10 @@ import {
   pickIncidentAnchor,
 } from "./incidents";
 import { createWorld } from "./worlds";
-import { startTicker, stopTicker, triggerSlowdown } from "./vds";
+import { startTicker, stopTicker, tickerRunning, triggerSlowdown } from "./vds";
 import type { Device, IncidentStatus } from "./types";
-import { devicesBySubsystem } from "./devices";
-import { setOverride } from "./overrides";
+import { allDevices, devicesBySubsystem } from "./devices";
+import { setOverride, activeOverrides, clearOverride } from "./overrides";
 import { publish } from "./events";
 
 interface RunningIncident {
@@ -241,5 +241,105 @@ export function runIncidentCascade(): {
     incidentId: incident.incidentId,
     radarDeviceId,
     dmsDeviceId,
+  };
+}
+
+/**
+ * Reset everything back to nominal. The counterpart to the trigger
+ * scenarios — clears every 3-minute override, stops the traffic
+ * ticker, cancels the running incident, and publishes a fresh
+ * `device.status_changed` for each device that had an override so
+ * subscribers (webhooks, mobility alert engine) see the "restored"
+ * state without waiting for the 3-minute expiry.
+ *
+ * This is the "make the demo look normal again" button — critical
+ * for running the pitch back-to-back without a 3-minute cool-down.
+ */
+export function resetAll(): {
+  name: "reset";
+  status: "reset";
+  cleared: {
+    incident: boolean;
+    traffic: boolean;
+    overrides: number;
+  };
+} {
+  const hadIncident = runningIncident !== null;
+  if (runningIncident) {
+    clearInterval(runningIncident.timer);
+    runningIncident = null;
+  }
+
+  const hadTraffic = runningTraffic;
+  if (runningTraffic) {
+    stopTicker();
+    runningTraffic = false;
+  }
+
+  // Snapshot active overrides BEFORE clearing so we can re-publish
+  // the "back to normal" event for each affected device. Order
+  // matters — clear then publish (so subscribers that re-read
+  // /status see the clean value).
+  const active = activeOverrides();
+  for (const row of active) {
+    clearOverride(row.externalId);
+  }
+  // `activeOverrides()` only carries the externalId; look the device
+  // up in the flat pool since overrides are subsystem-agnostic.
+  const byExternalId = new Map<string, Device>();
+  for (const d of allDevices()) byExternalId.set(d.externalId, d);
+  for (const row of active) {
+    const device = byExternalId.get(row.externalId);
+    if (device) publishDeviceStatusChanged(device);
+  }
+
+  return {
+    name: "reset",
+    status: "reset",
+    cleared: {
+      incident: hadIncident,
+      traffic: hadTraffic,
+      overrides: active.length,
+    },
+  };
+}
+
+export interface ScenarioStatus {
+  incident: {
+    running: boolean;
+    id: string | null;
+  };
+  traffic: {
+    running: boolean;
+  };
+  overrides: Array<{
+    externalId: string;
+    reason: string;
+    expiresAt: number;
+    remainingMs: number;
+  }>;
+}
+
+/**
+ * Snapshot of what's currently "hot" — powers the demo panel's
+ * active-state badges. Reads authoritative state from each module
+ * rather than tracking it here twice.
+ */
+export function getScenarioStatus(): ScenarioStatus {
+  const now = Date.now();
+  return {
+    incident: {
+      running: runningIncident !== null,
+      id: runningIncident?.id ?? null,
+    },
+    traffic: {
+      running: tickerRunning(),
+    },
+    overrides: activeOverrides().map((o) => ({
+      externalId: o.externalId,
+      reason: o.reason,
+      expiresAt: o.expiresAt,
+      remainingMs: Math.max(0, o.expiresAt - now),
+    })),
   };
 }
