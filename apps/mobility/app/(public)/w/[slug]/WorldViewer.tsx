@@ -182,10 +182,26 @@ function buildIconExpression(
   ] as unknown as mapboxgl.ExpressionSpecification;
 }
 
+/** Filter that highlights every id in `ids`. Mapbox `in` with a
+ *  `literal` array is the cheap way — no re-adding the layer when
+ *  the set changes, just `setFilter`. Empty set → matches nothing. */
+function buildSelectionFilter(
+  ids: string[],
+): mapboxgl.FilterSpecification {
+  if (ids.length === 0) {
+    return ["==", ["get", "id"], NO_SELECTION];
+  }
+  return [
+    "in",
+    ["get", "id"],
+    ["literal", ids],
+  ] as unknown as mapboxgl.FilterSpecification;
+}
+
 function setupDeviceLayers(
   map: MapboxMap,
   primary: string,
-  selectedId: string | null,
+  highlightIds: string[],
   data: GeoJSON.FeatureCollection<GeoJSON.Point>,
   iconExpression: mapboxgl.ExpressionSpecification,
   onClusterClick: (clusterId: number, coords: [number, number]) => void,
@@ -228,12 +244,14 @@ function setupDeviceLayers(
     paint: { "text-color": "#ffffff" },
   });
   // Selection halo — drawn beneath the symbol so the icon sits on
-  // top crisply when a visitor picks a device.
+  // top crisply. Covers both the single tap-selected pin and any
+  // externally-highlighted devices from `?devices=<id,id,...>` (used
+  // by notification deep-links).
   map.addLayer({
     id: SELECTED_LAYER,
     type: "circle",
     source: SOURCE_ID,
-    filter: ["==", ["get", "id"], selectedId ?? NO_SELECTION],
+    filter: buildSelectionFilter(highlightIds),
     paint: {
       "circle-color": primary,
       "circle-opacity": 0.28,
@@ -332,23 +350,39 @@ export function WorldViewer({
    *  same map state on load. */
   const initialUrlStateRef = useRef<{
     device: string | null;
+    devices: string[];
     lng: number | null;
     lat: number | null;
     zoom: number | null;
   } | null>(null);
   if (initialUrlStateRef.current === null) {
     const dev = searchParams?.get("device") ?? null;
+    const devicesParam = searchParams?.get("devices") ?? "";
+    const devices = devicesParam
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     const lng = parseFloat(searchParams?.get("lng") ?? "");
     const lat = parseFloat(searchParams?.get("lat") ?? "");
     const zoom = parseFloat(searchParams?.get("z") ?? "");
     initialUrlStateRef.current = {
       device: dev,
+      devices,
       lng: Number.isFinite(lng) ? lng : null,
       lat: Number.isFinite(lat) ? lat : null,
       zoom: Number.isFinite(zoom) ? zoom : null,
     };
   }
   const initialUrlState = initialUrlStateRef.current;
+
+  /** Highlight set from `?devices=` — used by notification deep-links.
+   *  Stays constant once mounted; visitor taps only mutate
+   *  `selectedId`. Combined with `selectedId` when computing the halo
+   *  filter so a visitor tapping a different pin doesn't wipe the
+   *  externally-supplied highlight. */
+  const [highlightIds] = useState<Set<string>>(
+    () => new Set(initialUrlState.devices),
+  );
 
   const mapEl = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
@@ -442,10 +476,17 @@ export function WorldViewer({
 
   const attachLayers = useCallback(
     (map: MapboxMap) => {
+      const currentFilterIds = Array.from(
+        new Set(
+          [latestSelectedRef.current, ...highlightIds].filter(
+            (id): id is string => Boolean(id),
+          ),
+        ),
+      );
       setupDeviceLayers(
         map,
         primary,
-        latestSelectedRef.current,
+        currentFilterIds,
         latestDataRef.current,
         latestIconExpressionRef.current,
         (clusterId, coords) => {
@@ -463,7 +504,7 @@ export function WorldViewer({
       );
       layersReadyRef.current = true;
     },
-    [primary],
+    [primary, highlightIds],
   );
 
   // Init map once. Camera + selection may be seeded from the URL so
@@ -494,11 +535,24 @@ export function WorldViewer({
       void loadDeviceIconsIntoMap(map, customIconsRef.current).then(() => {
         attachLayers(map);
         if (urlCam) {
-          // Camera already seeded — nothing else to do.
+          // Camera already seeded from URL — no auto-frame.
           return;
         }
-        // No shared-link camera. Prefer a seeded device selection over
-        // the fit-to-all fallback so `?device=<id>` lands close-up.
+        // Deep-link priority:
+        //   1. ?devices=X,Y,Z — fit bounds around the highlighted set
+        //      (notification tap-through lands here).
+        //   2. ?device=<id>   — close-up on that one pin.
+        //   3. Fall back to fit-all.
+        if (highlightIds.size > 0) {
+          const highlightDevices = devices.filter(
+            (d) =>
+              highlightIds.has(d.id) && d.lat != null && d.lng != null,
+          );
+          if (highlightDevices.length > 0) {
+            fitToDevices(map, highlightDevices);
+            return;
+          }
+        }
         const seed = initialUrlState.device
           ? devices.find(
               (d) =>
@@ -671,12 +725,15 @@ export function WorldViewer({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !layersReadyRef.current) return;
-    map.setFilter(SELECTED_LAYER, [
-      "==",
-      ["get", "id"],
-      selectedId ?? NO_SELECTION,
-    ]);
-  }, [selectedId]);
+    const ids = Array.from(
+      new Set(
+        [selectedId, ...highlightIds].filter(
+          (id): id is string => Boolean(id),
+        ),
+      ),
+    );
+    map.setFilter(SELECTED_LAYER, buildSelectionFilter(ids));
+  }, [selectedId, highlightIds]);
 
   if (!mapboxToken) {
     return (
@@ -696,6 +753,10 @@ export function WorldViewer({
 
   return (
     <main
+      // `data-mapbox` opts this surface out of `MobilityPullToRefresh`
+      // so a downward pan on the map doesn't trigger `router.refresh`.
+      // Selector match happens in the DS `PullToRefresh` primitive.
+      data-mapbox
       className="relative w-full overflow-hidden"
       // Height reserves 3.5rem for the sticky top nav so the map fits
       // exactly between the top nav and the viewport bottom — without

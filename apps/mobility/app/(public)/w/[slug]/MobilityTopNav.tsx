@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { List, Map as MapIcon, Sparkles } from "lucide-react";
+import { Bell, List, Map as MapIcon, Sparkles } from "lucide-react";
 import { KloradMark } from "@klorad/design-system";
 import { MobilitySettingsMenu } from "./MobilitySettingsMenu";
 
@@ -15,20 +15,20 @@ interface Props {
   logoUrl: string | null;
 }
 
+type TabKey = "map" | "devices" | "paris" | "notifications";
+
 interface NavLink {
-  key: "map" | "devices" | "paris";
+  key: TabKey;
   label: string;
   href: string;
   icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
 }
 
-function resolveActiveTab(
-  pathname: string,
-  slug: string,
-): "map" | "devices" | "paris" {
+function resolveActiveTab(pathname: string, slug: string): TabKey {
   const base = `/w/${slug}`;
   if (pathname.startsWith(`${base}/devices`)) return "devices";
   if (pathname.startsWith(`${base}/paris`)) return "paris";
+  if (pathname.startsWith(`${base}/notifications`)) return "notifications";
   return "map";
 }
 
@@ -65,6 +65,12 @@ export function MobilityTopNav({ slug, worldName, logoUrl }: Props) {
       label: "Paris",
       href: `/w/${slug}/paris`,
       icon: Sparkles,
+    },
+    {
+      key: "notifications",
+      label: "Alerts",
+      href: `/w/${slug}/notifications`,
+      icon: Bell,
     },
   ];
 

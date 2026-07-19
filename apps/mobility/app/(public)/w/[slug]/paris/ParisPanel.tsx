@@ -28,8 +28,18 @@ interface Props {
  */
 export function ParisPanel({ slug, worldId, worldName }: Props) {
   return (
-    <div className="pb-32">
+    // Bounded viewport height — top nav is 3.5rem, mobile bottom nav
+    // is ~3.5rem + safe-area. The DS panel takes this container's
+    // full height and scrolls its own thread; the input pins to the
+    // bottom of this box, not to the document. That's the fix that
+    // stops the whole page from scrolling on long conversations.
+    <div
+      className="w-full"
+      style={{ height: "calc(100dvh - 3.5rem)" }}
+    >
       <AssistantPanel<ParisToolAction>
+        layout="fill"
+        inputBottomPadding="pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-3"
         endpoint="/api/paris"
         extraBody={{ worldId }}
         heroTitle="Hi, I'm Paris."
