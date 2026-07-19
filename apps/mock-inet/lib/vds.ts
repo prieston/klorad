@@ -34,6 +34,14 @@ export function stopTicker(): void {
     clearInterval(ticker);
     ticker = null;
   }
+  slowdownExternalId = null;
+  slowdownUntil = 0;
+}
+
+/** Whether the VDS ticker is currently running. Powers the demo-
+ *  panel's "Traffic ticker: active" badge. */
+export function tickerRunning(): boolean {
+  return ticker !== null;
 }
 
 /** Trigger a scripted 30-second slowdown on one radar — Scenario 3

@@ -1,34 +1,73 @@
+import { DemoControlPanel } from "./DemoControlPanel";
+
 /**
- * Developer-facing landing. Lists the endpoint surface so someone
- * hitting `/` in the browser knows what this is and how to poke it.
+ * Developer-facing landing page for the PSMdt-iNET mock.
+ *
+ * Top half is an interactive demo control panel (client component)
+ * with one card per scenario, live active-state badges, a reset
+ * button, and an SSE-driven event feed so you can watch the wire
+ * as you click. Bottom half is the classic endpoint reference for
+ * developers pointing curl / connectors at the mock.
  */
 export default function Home() {
-  const example = (path: string) => `GET ${path} — HTTP Basic (demo/demo)`;
   return (
-    <main style={{ maxWidth: 780, margin: "0 auto" }}>
-      <h1 style={{ marginTop: 0 }}>PSMdt-iNET Mock</h1>
-      <p style={{ color: "#94a3b8", marginTop: 0 }}>
-        Mock Parsons/iNET ATMS surface + demo scenario runners. Two layers,
-        one deploy.
-      </p>
+    <main
+      style={{
+        maxWidth: 980,
+        margin: "0 auto",
+        display: "flex",
+        flexDirection: "column",
+        gap: 40,
+      }}
+    >
+      <header>
+        <h1 style={{ marginTop: 0, marginBottom: 4, fontSize: 28 }}>
+          PSMdt-iNET Mock
+        </h1>
+        <p style={{ color: "#94a3b8", margin: 0 }}>
+          Mock Parsons/iNET ATMS surface + demo scenario runners.
+          Trigger a scenario below to drive alerts + webhooks against
+          a Klorad Mobility source pointed at this deploy.
+        </p>
+      </header>
 
+      <DemoControlPanel />
+
+      <ApiReference />
+
+      <footer style={{ color: "#64748b", fontSize: 13 }}>
+        Auth: HTTP Basic (<code>demo</code>/<code>demo</code> or the
+        <code>MOCK_USER</code>/<code>MOCK_PASS</code> env). This
+        page&apos;s Trigger + Reset buttons bypass Basic auth via a
+        same-origin check.
+      </footer>
+    </main>
+  );
+}
+
+/**
+ * Endpoint reference — kept below the control panel so people
+ * poking at curl still get a quick map without scrolling far.
+ * Static / server-rendered; no interactivity.
+ */
+function ApiReference() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <Section title="Layer 1 — iNET drop-in">
-        <p>
+        <p style={{ margin: "0 0 8px 0", color: "#cbd5e1" }}>
           Byte-compatible with the shape the Klorad{" "}
           <code>@klorad/connectors/inet-atms</code> connector talks to.
-          Point a Mobility source&apos;s <code>host</code> at this deploy and
-          sync as usual.
+          Point a Mobility source&apos;s <code>host</code> at this
+          deploy and sync as usual.
         </p>
         <List
           items={[
-            example("/atms/{subsystem}-rest/rest/{subsystem}/"),
-            example("/atms/{subsystem}-rest/rest/{subsystem}/{externalId}"),
-            example(
-              "/atms/dms-rest/rest/dms/{externalId}/status",
-            ),
+            "GET /atms/{subsystem}-rest/rest/{subsystem}/",
+            "GET /atms/{subsystem}-rest/rest/{subsystem}/{externalId}",
+            "GET /atms/dms-rest/rest/dms/{externalId}/status",
           ]}
         />
-        <p>
+        <p style={{ color: "#94a3b8", fontSize: 13, margin: "8px 0 0 0" }}>
           Subsystems: <code>cctv aid vms dms vsls radar</code>.
         </p>
       </Section>
@@ -41,42 +80,25 @@ export default function Home() {
             "GET /api/vds/live",
             "GET /api/stream (SSE)",
             "GET/POST /api/webhooks · DELETE /api/webhooks/:id",
+            "GET /api/demo/status · GET /api/demo/overrides",
+            "POST /api/demo/scenario/{name}",
           ]}
         />
       </Section>
-
-      <Section title="One-tap scenarios">
-        <List
-          items={[
-            "POST /api/demo/scenario/incident",
-            "POST /api/demo/scenario/vms-inspection",
-            "POST /api/demo/scenario/traffic",
-            "POST /api/demo/scenario/radar-spike (optional ?deviceId=…)",
-            "POST /api/demo/scenario/dms-alarm (optional ?deviceId=…)",
-            "POST /api/demo/scenario/incident-cascade",
-            "GET  /api/demo/overrides — inspect active status overrides",
-          ]}
-        />
-        <p style={{ marginTop: 12, color: "#94a3b8", fontSize: 13 }}>
-          Radar / DMS scenarios flip device status for 3 minutes and
-          emit <code>device.status_changed</code> events. Wire a
-          webhook against them from Mobility to drive the alert-rule
-          engine.
-        </p>
-      </Section>
-
-      <p style={{ marginTop: 40, color: "#64748b" }}>
-        Auth: HTTP Basic. Defaults <code>demo</code> / <code>demo</code>;
-        override with <code>MOCK_USER</code> / <code>MOCK_PASS</code>.
-      </p>
-    </main>
+    </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section style={{ marginTop: 32 }}>
-      <h2 style={{ marginBottom: 8, fontSize: 18 }}>{title}</h2>
+    <section>
+      <h2 style={{ marginTop: 0, marginBottom: 8, fontSize: 16 }}>{title}</h2>
       {children}
     </section>
   );
@@ -84,10 +106,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function List({ items }: { items: string[] }) {
   return (
-    <ul style={{ margin: "8px 0", paddingLeft: 20, lineHeight: 1.7 }}>
+    <ul style={{ margin: "4px 0", paddingLeft: 20, lineHeight: 1.7 }}>
       {items.map((s) => (
         <li key={s}>
-          <code>{s}</code>
+          <code style={{ fontSize: 12 }}>{s}</code>
         </li>
       ))}
     </ul>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireBasicAuth } from "@/lib/auth";
+import { isSameOriginRequest, requireBasicAuth } from "@/lib/auth";
 import {
+  resetAll,
   runDmsAlarm,
   runIncident,
   runIncidentCascade,
@@ -16,8 +17,13 @@ interface Params {
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
-  const denied = requireBasicAuth(request);
-  if (denied) return denied;
+  // Demo triggers are the whole point of the /api/demo surface —
+  // the mock's own homepage should be able to fire them with a click.
+  // External callers (curl, CI, remote demos) still need Basic auth.
+  if (!isSameOriginRequest(request)) {
+    const denied = requireBasicAuth(request);
+    if (denied) return denied;
+  }
   const { name } = await params;
   const url = new URL(request.url);
   const host = `${url.protocol}//${url.host}`;
@@ -39,12 +45,14 @@ export async function POST(request: NextRequest, { params }: Params) {
         return NextResponse.json(runDmsAlarm(deviceId));
       case "incident-cascade":
         return NextResponse.json(runIncidentCascade());
+      case "reset":
+        return NextResponse.json(resetAll());
       default:
         return NextResponse.json(
           {
             error: "Unknown scenario",
             detail:
-              "Expected `incident`, `vms-inspection`, `traffic`, `radar-spike`, `dms-alarm`, or `incident-cascade`.",
+              "Expected `incident`, `vms-inspection`, `traffic`, `radar-spike`, `dms-alarm`, `incident-cascade`, or `reset`.",
           },
           { status: 400 },
         );

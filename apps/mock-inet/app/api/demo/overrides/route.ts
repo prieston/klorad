@@ -6,14 +6,16 @@
  *   /status calls.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireBasicAuth } from "@/lib/auth";
+import { isSameOriginRequest, requireBasicAuth } from "@/lib/auth";
 import { activeOverrides } from "@/lib/overrides";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
-  const denied = requireBasicAuth(request);
-  if (denied) return denied;
+  if (!isSameOriginRequest(request)) {
+    const denied = requireBasicAuth(request);
+    if (denied) return denied;
+  }
   const now = Date.now();
   return NextResponse.json({
     now,

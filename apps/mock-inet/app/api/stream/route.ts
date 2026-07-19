@@ -7,7 +7,7 @@
  * Hobby). Client should reconnect with EventSource's built-in retry.
  */
 import { NextRequest } from "next/server";
-import { requireBasicAuth } from "@/lib/auth";
+import { isSameOriginRequest, requireBasicAuth } from "@/lib/auth";
 import { subscribe, parseEventFilter } from "@/lib/events";
 import type { StreamEventType } from "@/lib/types";
 
@@ -16,8 +16,14 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function GET(request: NextRequest) {
-  const denied = requireBasicAuth(request);
-  if (denied) return denied;
+  // Same-origin bypass so the mock's own demo panel can subscribe
+  // to the live event feed without a browser Basic-auth prompt.
+  // External CLI subscribers (curl, dashboards, wireshark scripts)
+  // still hit the credential check.
+  if (!isSameOriginRequest(request)) {
+    const denied = requireBasicAuth(request);
+    if (denied) return denied;
+  }
 
   const url = new URL(request.url);
   const filter = parseEventFilter(url.searchParams.get("events"));
