@@ -17,9 +17,10 @@ export async function GET(request: NextRequest) {
     if (denied) return denied;
   }
   const now = Date.now();
+  const overrides = await activeOverrides();
   return NextResponse.json({
     now,
-    overrides: activeOverrides().map((o) => ({
+    overrides: overrides.map((o) => ({
       ...o,
       expiresInMs: Math.max(0, o.expiresAt - now),
     })),

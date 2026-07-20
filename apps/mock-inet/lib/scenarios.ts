@@ -127,7 +127,8 @@ function pickRandom<T>(items: T[]): T | null {
   return items[Math.floor(Math.random() * items.length)]!;
 }
 
-function publishDeviceStatusChanged(device: Device): void {
+async function publishDeviceStatusChanged(device: Device): Promise<void> {
+  const status = await currentStatus(device);
   publish({
     type: "device.status_changed",
     at: new Date().toISOString(),
@@ -136,10 +137,8 @@ function publishDeviceStatusChanged(device: Device): void {
     // Klorad Mobility alert engine's threshold evaluator reads
     // `event.payload.status[field]` directly — if we only ship the
     // device it sees `status: null` and every threshold rule silently
-    // drops. Radars in particular don't have baseline status on the
-    // seed, so this was the bug preventing radar-spike alerts from
-    // firing end-to-end.
-    payload: { ...device, status: currentStatus(device) },
+    // drops.
+    payload: { ...device, status },
   });
 }
 
@@ -154,24 +153,31 @@ function publishDeviceStatusChanged(device: Device): void {
  * fires on — the mock provides the trigger data on demand instead
  * of waiting for real rush-hour traffic.
  */
-export function runRadarSpike(deviceId?: string): {
+export async function runRadarSpike(deviceId?: string): Promise<{
   name: "radar-spike";
   status: "started";
   deviceId: string;
-} {
+}> {
   const pool = devicesBySubsystem("radar");
   const device = deviceId
     ? pool.find((d) => d.externalId === deviceId) ?? pickRandom(pool)
     : pickRandom(pool);
   if (!device) throw new Error("No radar devices seeded");
-  setOverride(
+  await setOverride(
     device.externalId,
     { occupancy: 0.85, speed: 18, volume: 105 },
     OVERRIDE_MS,
     "Scenario: radar occupancy spike",
   );
-  publishDeviceStatusChanged(device);
-  setTimeout(() => publishDeviceStatusChanged(device), OVERRIDE_MS + 200);
+  await publishDeviceStatusChanged(device);
+  // Restore event fires after the override lapses. Best-effort — a
+  // cold start between now and OVERRIDE_MS drops the timer, but the
+  // override itself still expires on read via `expiresAt`, so the
+  // /status endpoint returns baseline correctly either way. The only
+  // thing that's lost is the closing `device.status_changed` webhook.
+  setTimeout(() => {
+    void publishDeviceStatusChanged(device);
+  }, OVERRIDE_MS + 200);
   return { name: "radar-spike", status: "started", deviceId: device.externalId };
 }
 
@@ -183,17 +189,17 @@ export function runRadarSpike(deviceId?: string): {
  * without any actual outage. Feeds "alert me when a sign faults"
  * rules downstream.
  */
-export function runDmsAlarm(deviceId?: string): {
+export async function runDmsAlarm(deviceId?: string): Promise<{
   name: "dms-alarm";
   status: "started";
   deviceId: string;
-} {
+}> {
   const pool = devicesBySubsystem("dms");
   const device = deviceId
     ? pool.find((d) => d.externalId === deviceId) ?? pickRandom(pool)
     : pickRandom(pool);
   if (!device) throw new Error("No DMS devices seeded");
-  setOverride(
+  await setOverride(
     device.externalId,
     {
       connectable: false,
@@ -204,8 +210,10 @@ export function runDmsAlarm(deviceId?: string): {
     OVERRIDE_MS,
     "Scenario: DMS alarm",
   );
-  publishDeviceStatusChanged(device);
-  setTimeout(() => publishDeviceStatusChanged(device), OVERRIDE_MS + 200);
+  await publishDeviceStatusChanged(device);
+  setTimeout(() => {
+    void publishDeviceStatusChanged(device);
+  }, OVERRIDE_MS + 200);
   return { name: "dms-alarm", status: "started", deviceId: device.externalId };
 }
 
@@ -218,26 +226,28 @@ export function runDmsAlarm(deviceId?: string): {
  * message asking traffic to slow. Rule editors can wire distinct
  * push targets to each of the three underlying events.
  */
-export function runIncidentCascade(): {
+export async function runIncidentCascade(): Promise<{
   name: "incident-cascade";
   status: "started";
   incidentId: string;
   radarDeviceId: string | null;
   dmsDeviceId: string | null;
-} {
+}> {
   const incident = runIncident();
   const radar = pickRandom(devicesBySubsystem("radar"));
   const dms = pickRandom(devicesBySubsystem("dms"));
   let radarDeviceId: string | null = null;
   let dmsDeviceId: string | null = null;
   if (radar) {
-    const spike = runRadarSpike(radar.externalId);
+    const spike = await runRadarSpike(radar.externalId);
     radarDeviceId = spike.deviceId;
   }
   // Stagger the DMS alarm 4s in so the demo watcher sees the events
   // arrive as a sequence, not all at once.
   if (dms) {
-    setTimeout(() => runDmsAlarm(dms.externalId), 4_000);
+    setTimeout(() => {
+      void runDmsAlarm(dms.externalId);
+    }, 4_000);
     dmsDeviceId = dms.externalId;
   }
   return {
@@ -260,7 +270,7 @@ export function runIncidentCascade(): {
  * This is the "make the demo look normal again" button — critical
  * for running the pitch back-to-back without a 3-minute cool-down.
  */
-export function resetAll(): {
+export async function resetAll(): Promise<{
   name: "reset";
   status: "reset";
   cleared: {
@@ -268,7 +278,7 @@ export function resetAll(): {
     traffic: boolean;
     overrides: number;
   };
-} {
+}> {
   const hadIncident = runningIncident !== null;
   if (runningIncident) {
     clearInterval(runningIncident.timer);
@@ -285,18 +295,18 @@ export function resetAll(): {
   // the "back to normal" event for each affected device. Order
   // matters — clear then publish (so subscribers that re-read
   // /status see the clean value).
-  const active = activeOverrides();
-  for (const row of active) {
-    clearOverride(row.externalId);
-  }
+  const active = await activeOverrides();
+  await Promise.all(active.map((row) => clearOverride(row.externalId)));
   // `activeOverrides()` only carries the externalId; look the device
   // up in the flat pool since overrides are subsystem-agnostic.
   const byExternalId = new Map<string, Device>();
   for (const d of allDevices()) byExternalId.set(d.externalId, d);
-  for (const row of active) {
-    const device = byExternalId.get(row.externalId);
-    if (device) publishDeviceStatusChanged(device);
-  }
+  await Promise.all(
+    active.map((row) => {
+      const device = byExternalId.get(row.externalId);
+      return device ? publishDeviceStatusChanged(device) : Promise.resolve();
+    }),
+  );
 
   return {
     name: "reset",
@@ -330,8 +340,9 @@ export interface ScenarioStatus {
  * active-state badges. Reads authoritative state from each module
  * rather than tracking it here twice.
  */
-export function getScenarioStatus(): ScenarioStatus {
+export async function getScenarioStatus(): Promise<ScenarioStatus> {
   const now = Date.now();
+  const overrides = await activeOverrides();
   return {
     incident: {
       running: runningIncident !== null,
@@ -340,7 +351,7 @@ export function getScenarioStatus(): ScenarioStatus {
     traffic: {
       running: tickerRunning(),
     },
-    overrides: activeOverrides().map((o) => ({
+    overrides: overrides.map((o) => ({
       externalId: o.externalId,
       reason: o.reason,
       expiresAt: o.expiresAt,

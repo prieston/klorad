@@ -151,14 +151,20 @@ export function fetchFromSubsystem(requested: Subsystem): Subsystem {
  * (volume/speed for radar, eventCount for aid) pass through into the
  * drawer's `live.status.raw` blob.
  */
-export function currentStatus(device: Device): Record<string, unknown> {
+export async function currentStatus(
+  device: Device,
+): Promise<Record<string, unknown>> {
   const raw = baseStatus(device);
   // Merge any active scenario override on top. Overrides let the
   // demo picker turn a single device "hot" for a few minutes without
   // touching the seed — spike radar occupancy, alarm a DMS, drop
   // reachability on a CCTV — and every subsequent /status call from
   // that scenario's demo window returns the mutated value.
-  const override = getOverride(device.externalId);
+  //
+  // Async because the override store is Postgres now (was in-memory
+  // per instance, which made cross-instance reads return baseline
+  // even during an active scenario).
+  const override = await getOverride(device.externalId);
   return override ? { ...raw, ...override.patch, timestamp: Date.now() } : raw;
 }
 

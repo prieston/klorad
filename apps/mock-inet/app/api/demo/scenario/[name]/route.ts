@@ -40,13 +40,13 @@ export async function POST(request: NextRequest, { params }: Params) {
       case "traffic":
         return NextResponse.json(runTraffic());
       case "radar-spike":
-        return NextResponse.json(runRadarSpike(deviceId));
+        return NextResponse.json(await runRadarSpike(deviceId));
       case "dms-alarm":
-        return NextResponse.json(runDmsAlarm(deviceId));
+        return NextResponse.json(await runDmsAlarm(deviceId));
       case "incident-cascade":
-        return NextResponse.json(runIncidentCascade());
+        return NextResponse.json(await runIncidentCascade());
       case "reset":
-        return NextResponse.json(resetAll());
+        return NextResponse.json(await resetAll());
       default:
         return NextResponse.json(
           {

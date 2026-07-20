@@ -1307,3 +1307,82 @@ model MobilityDeviceStyle {
   @@unique([projectId, subsystem])
   @@index([projectId])
 }
+
+/// Webhook registry for `apps/mock-inet` — mirrors what the mock
+/// used to keep in a module-level `Map` (see the pre-persistence
+/// version of `apps/mock-inet/lib/webhooks.ts`). Persisted here
+/// because Vercel serverless has no cross-instance state: the
+/// registration POST from Mobility lands on one warm instance, but
+/// the scenario POST that fires the webhook can land on any other
+/// instance, so an in-memory registry silently drops every event.
+///
+/// The table is intentionally isolated from `Mobility*` device data
+/// — it's the mock's own bookkeeping, not part of the ATMS domain.
+/// Kept in this schema (rather than a separate mock-only DB) because
+/// the mock + Mobility already share the same Postgres in every
+/// deployment and provisioning a second connection string per
+/// deploy is more friction than it's worth.
+///
+/// No FK to anything; the "subscriber" here is anonymous (an
+/// arbitrary URL Mobility gave us with a shared secret). Deletion is
+/// operator-triggered via DELETE /api/webhooks/{id} on the mock.
+model MockWebhook {
+  id                 String   @id
+  /// Absolute URL the mock POSTs each matching event to. This is
+  /// mobility's `/api/webhooks/inet-atms/{sourceId}` in practice, but
+  /// the table doesn't assume it — any HTTPS endpoint works.
+  url                String
+  /// Whitelist of event types this webhook wants. `["*"]` means all.
+  /// Postgres `text[]`, populated from `WebhookCreate.events`.
+  events             String[]
+  /// HMAC secret both sides share. Never returned by list/get — only
+  /// echoed on the create response so the caller can persist it once.
+  secret             String
+  /// Auto-deactivated after 3 failed retries (see `sendWithRetry`).
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  lastDeliveryAt     DateTime?
+  /// HTTP status of the most recent delivery attempt. Null before
+  /// the first fire. Used only by the /api/webhooks GET list for
+  /// operator visibility — no logic depends on it.
+  lastDeliveryStatus Int?
+
+  @@index([active])
+}
+
+/// Per-device status override applied by the mock's demo scenarios.
+/// Was an in-memory Map in apps/mock-inet/lib/overrides.ts — same
+/// serverless multi-instance problem as MockWebhook: a scenario POST
+/// set the override on the instance that handled it, but every other
+/// instance saw baseline values on the atms status endpoint. That
+/// made Mobility's device-drawer inspection view diverge from the
+/// alert message it just fired ("observed 0.85" in the alert row,
+/// drawer still shows 0). Persisting here makes the whole override
+/// picture instance-agnostic.
+///
+/// TTL semantics: `expiresAt` is enforced at read time — every query
+/// filters `WHERE expiresAt > NOW()`. A best-effort DELETE runs on
+/// read of an expired row so the table doesn't grow unbounded; a
+/// scheduled cleanup isn't needed for demo-scale volume (max ~10
+/// active overrides at any time).
+///
+/// One row per device (`externalId` is the PK) — a later scenario
+/// on the same device overwrites the previous override, matching
+/// the in-memory `Map.set()` semantics it replaces.
+model MockStatusOverride {
+  externalId String   @id
+  /// Merged over the base status shape by `currentStatus()`. Kept
+  /// as opaque JSON so scenarios can patch any subsystem's shape
+  /// without a schema change.
+  patch      Json     @default("{}")
+  /// Human label for the /overrides debug endpoint (e.g. "Scenario:
+  /// radar occupancy spike"). Not read by any evaluator.
+  reason     String
+  /// Absolute expiry timestamp. TTL is 3 minutes for the current
+  /// scenarios; the value is the caller's decision, not enforced
+  /// on this table.
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([expiresAt])
+}
