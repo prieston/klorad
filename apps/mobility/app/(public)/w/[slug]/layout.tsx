@@ -51,7 +51,7 @@ export async function generateMetadata({
 
   return {
     title: world.name,
-    description: world.description ?? `${world.name} — live traffic + transit.`,
+    description: world.description ?? `${world.name}. Live traffic and transit updates.`,
     manifest: `/w/${slug}/manifest.webmanifest`,
     icons,
     appleWebApp: {

@@ -191,7 +191,7 @@ export function ReachClient({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={80}
-                placeholder="e.g. PATHE southbound — single-lane closure"
+                placeholder="Interstate southbound: single-lane closure"
                 className="w-full rounded-md border border-line-strong bg-bg px-3 py-2 text-text-primary"
               />
               <p className="mt-1 text-[10px] text-text-tertiary">

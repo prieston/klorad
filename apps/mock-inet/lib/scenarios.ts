@@ -69,8 +69,8 @@ export function runIncident(): { name: "incident"; status: "started" | "reset"; 
 
 /**
  * Scenario 2 — O&M VMS Inspection.
- * Creates a world scoped to Western Ring-Road VMS signs and returns
- * the install URL. Not time-based; there's nothing to tick.
+ * Creates a world scoped to westbound VMS signs and returns the install
+ * URL. Not time-based; nothing to tick.
  */
 export function runVmsInspection(host: string): {
   name: "vms-inspection";
@@ -79,8 +79,8 @@ export function runVmsInspection(host: string): {
 } {
   const world = createWorld(
     {
-      name: "Western Ring · VMS",
-      slug: "western-ring-vms",
+      name: "VMS Inspection",
+      slug: "vms-inspection",
       filter: { types: ["vms"], direction: "WEST" },
     },
     host,

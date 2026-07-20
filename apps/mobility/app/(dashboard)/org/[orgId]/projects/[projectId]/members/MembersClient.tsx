@@ -177,17 +177,17 @@ export function MembersClient({
             </h3>
             <ul className="mt-2 space-y-1 text-xs leading-relaxed text-text-secondary">
               <li>
-                <span className="font-medium text-text-primary">Inherit</span>{" "}
-                — no row stored; the person uses their organisation role on
-                this project.
+                <span className="font-medium text-text-primary">Inherit</span>:
+                no row stored. The person uses their organisation role on this
+                project.
               </li>
               <li>
-                <span className="font-medium text-text-primary">Override</span>{" "}
-                — pick a role and it replaces their org role for this project
-                only (can be more permissive or stricter).
+                <span className="font-medium text-text-primary">Override</span>:
+                pick a role and it replaces their org role for this project
+                only. Can be more permissive or stricter.
               </li>
               <li>
-                <span className="font-medium text-text-primary">Block</span> —
+                <span className="font-medium text-text-primary">Block</span>:
                 they keep org access but are denied this project.{" "}
                 <span className="text-text-tertiary">
                   Owners can&apos;t be blocked.

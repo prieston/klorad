@@ -442,7 +442,7 @@ export function WorldEditor({
 
         {devicePool.length === 0 ? (
           <div className="mt-6 rounded-lg border border-dashed border-line-soft py-12 text-center text-xs text-text-tertiary">
-            No curated devices in this project yet — include some from
+            No curated devices in this project yet. Include some from
             the Devices tab first.
           </div>
         ) : (
@@ -552,7 +552,7 @@ function PublishCard({ world }: { world: World }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1_500);
     } catch {
-      toast.error("Clipboard unavailable — copy the URL manually.");
+      toast.error("Clipboard unavailable. Copy the URL manually.");
     }
   }
 
@@ -636,7 +636,7 @@ function ShareCard({ slug }: { slug: string }) {
       url={publicUrl}
       downloadFilename={`world-${slug}`}
       title="Share this world"
-      subtitle="Scan or copy the link — the QR downloads as an SVG for print."
+      subtitle="Scan or copy the link. The QR downloads as an SVG for print."
     />
   );
 }
@@ -799,8 +799,8 @@ function ThemeCard({ world }: { world: World }) {
         Theme &amp; branding
       </h2>
       <p className="mt-1 text-xs text-text-secondary">
-        Drives the public PWA&apos;s chrome — install icon, splash, header.
-        Changes apply on the next visit; installed PWAs pick them up after
+        Drives the public PWA&apos;s chrome: install icon, splash, header.
+        Changes apply on the next visit. Installed PWAs pick them up after
         an app re-open.
       </p>
 
@@ -1064,7 +1064,7 @@ function BroadcastCard({
   if (!world.isPublished) {
     reason = "Publish the world before broadcasting.";
   } else if (world.subscriberCount === 0) {
-    reason = "No subscribers yet — visit the world and enable alerts to test.";
+    reason = "No subscribers yet. Visit the world and enable alerts to test.";
   }
 
   const canPickDevices = worldDevices.length > 0;
@@ -1095,7 +1095,7 @@ function BroadcastCard({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={80}
-            placeholder="Egnatia Odos — Lane closure"
+            placeholder="Lane closure ahead"
             className="mt-1 block w-full rounded-md border border-line-soft bg-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
           />
         </label>
@@ -1106,7 +1106,7 @@ function BroadcastCard({
             onChange={(e) => setBody(e.target.value)}
             maxLength={280}
             rows={2}
-            placeholder="Two lanes closed at KM 42 until 18:00 — expect delays."
+            placeholder="Two lanes closed at Exit 5 until 18:00. Expect delays."
             className="mt-1 block w-full rounded-md border border-line-soft bg-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
           />
         </label>
@@ -1162,7 +1162,7 @@ function BroadcastCard({
           ) : (
             <p className="mt-1 text-[11px] text-text-tertiary">
               {canPickDevices
-                ? "None picked — the notification opens the map without a highlight."
+                ? "None picked. The notification opens the map without a highlight."
                 : "This world has no devices assigned yet. Save some below to link alerts to them."}
             </p>
           )}

@@ -111,7 +111,7 @@ export function AssistantPanel<TAction = unknown>({
   suggestions,
   placeholder = "Ask anything…",
   poweredByLabel = "Powered by Claude · Klorad",
-  unavailableCopy = "Sorry — the assistant is unavailable right now.",
+  unavailableCopy = "Sorry, the assistant is unavailable right now.",
   renderActions,
   layout = "flow",
   inputBottomPadding,

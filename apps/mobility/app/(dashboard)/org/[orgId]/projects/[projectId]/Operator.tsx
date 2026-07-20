@@ -1264,7 +1264,7 @@ function DeviceDrawer({
           <p className="text-sm text-text-tertiary">Fetching…</p>
         ) : !live?.status ? (
           <p className="text-sm text-text-tertiary">
-            No live data — the source returned no current status.
+            No live data. The source returned no current status.
           </p>
         ) : (
           <div className="space-y-3">

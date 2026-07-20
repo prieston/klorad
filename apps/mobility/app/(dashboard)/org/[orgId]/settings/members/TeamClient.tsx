@@ -107,7 +107,7 @@ export function TeamClient({
         return;
       }
       setLatestInviteUrl(body.inviteUrl);
-      toast.success("Invite created — share the link");
+      toast.success("Invite created. Share the link.");
       setInviteEmail("");
       void mutate();
     } finally {
