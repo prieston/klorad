@@ -13,7 +13,7 @@ import {
 import { createWorld } from "./worlds";
 import { startTicker, stopTicker, tickerRunning, triggerSlowdown } from "./vds";
 import type { Device, IncidentStatus } from "./types";
-import { allDevices, devicesBySubsystem } from "./devices";
+import { allDevices, currentStatus, devicesBySubsystem } from "./devices";
 import { setOverride, activeOverrides, clearOverride } from "./overrides";
 import { publish } from "./events";
 
@@ -131,10 +131,15 @@ function publishDeviceStatusChanged(device: Device): void {
   publish({
     type: "device.status_changed",
     at: new Date().toISOString(),
-    // We forward the *device record* verbatim (matches the wire shape
-    // downstream connectors expect); the consumer can call /status to
-    // read the fresh values including our override.
-    payload: device,
+    // Payload has to carry the CURRENT status (with any active
+    // override merged in), not just the seed device record. The
+    // Klorad Mobility alert engine's threshold evaluator reads
+    // `event.payload.status[field]` directly — if we only ship the
+    // device it sees `status: null` and every threshold rule silently
+    // drops. Radars in particular don't have baseline status on the
+    // seed, so this was the bug preventing radar-spike alerts from
+    // firing end-to-end.
+    payload: { ...device, status: currentStatus(device) },
   });
 }
 
