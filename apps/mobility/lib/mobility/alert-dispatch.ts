@@ -74,7 +74,12 @@ export async function openAlertAndDispatch(
 
   const pushed: DispatchResult["pushed"] = [];
   for (const world of worlds) {
-    const url = `/w/${world.slug}`;
+    // Deep-link straight to the device that fired the alert. The
+    // WorldViewer reads `?device=<id>` on load and flies to that
+    // pin — same param the manual "focus device" flow uses, so the
+    // visitor lands on the alert's source pin instead of the
+    // world's fit-to-all default view.
+    const url = `/w/${world.slug}?device=${encodeURIComponent(input.deviceId)}`;
     try {
       const result = await sendPushToWorld(world.id, {
         title: input.ruleName,
