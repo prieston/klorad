@@ -75,7 +75,7 @@ export function MobilityTopNav({ slug, worldName, logoUrl }: Props) {
   ];
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[var(--w-border,#e6e6ea)] bg-white">
+    <header className="sticky top-0 z-30 border-b border-[var(--w-border,#e6e6ea)] bg-[var(--w-surface,#ffffff)]">
       <div className="mx-auto flex h-14 max-w-[1280px] items-center justify-between gap-4 px-4 md:px-6">
         <Link
           href={`/w/${slug}`}

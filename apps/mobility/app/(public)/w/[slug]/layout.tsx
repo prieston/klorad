@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
 import { InstallPrompt, UpdateAvailablePrompt } from "@klorad/design-system";
 import { loadPublicWorldBySlug } from "@/lib/mobility/world-resolver";
+import { deriveWorldPaletteFromTheme } from "@/lib/mobility/world-palette";
 import { RegisterWorldSW } from "./RegisterWorldSW";
 import { WorldBeacon } from "./WorldBeacon";
 import { MobilityBottomNav } from "./MobilityBottomNav";
@@ -109,8 +110,18 @@ export default async function WorldPublicLayout({
       ? world.theme.logoUrl
       : null;
   const worldName = world?.name ?? slug;
+  // Inject the operator's `--w-*` palette on a wrapping div so
+  // every tab — map, devices, notifications, paris — reads the
+  // same CSS variables. Before this the palette was only set on
+  // WorldViewer's `<main>`, so the Devices bottom sheet + list
+  // cards rendered with hardcoded white on top of an unthemed body
+  // and looked wrong under dark themes.
+  const paletteStyle = deriveWorldPaletteFromTheme(world?.theme);
   return (
-    <>
+    <div
+      style={{ ...paletteStyle, backgroundColor: "var(--w-page)" }}
+      className="min-h-screen"
+    >
       <MobilityTopNav
         slug={slug}
         worldName={worldName}
@@ -127,6 +138,6 @@ export default async function WorldPublicLayout({
       <UpdateAvailablePrompt scope={`/w/${slug}/`} />
       <RegisterWorldSW slug={slug} />
       <WorldBeacon slug={slug} />
-    </>
+    </div>
   );
 }

@@ -107,7 +107,7 @@ export function DevicesList({ slug, devices }: Props) {
         </p>
       </header>
 
-      <div className="flex items-center gap-2 rounded-full border border-[var(--w-border-strong,#d4d4d8)] bg-white pl-4">
+      <div className="flex items-center gap-2 rounded-full border border-[var(--w-border-strong,#d4d4d8)] bg-[var(--w-surface,#ffffff)] pl-4">
         <Search size={14} className="text-[var(--w-fg-muted,#6b6b6b)]" />
         <input
           value={query}
@@ -142,7 +142,7 @@ export function DevicesList({ slug, devices }: Props) {
           No devices match this filter.
         </p>
       ) : (
-        <ul className="divide-y divide-[var(--w-border,#e6e6ea)] rounded-2xl border border-[var(--w-border,#e6e6ea)] bg-white">
+        <ul className="divide-y divide-[var(--w-border,#e6e6ea)] rounded-2xl border border-[var(--w-border,#e6e6ea)] bg-[var(--w-surface,#ffffff)]">
           {filtered.map((d) => {
             const desc = subsystemDescriptor(d.subsystem);
             const Icon = desc.icon;
@@ -210,7 +210,7 @@ function Chip({
       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
         active
           ? "border-transparent bg-[var(--w-accent,#0ea5e9)] text-[var(--w-accent-contrast,#ffffff)]"
-          : "border-[var(--w-border,#e6e6ea)] bg-white text-[var(--w-fg-muted,#6b6b6b)]"
+          : "border-[var(--w-border,#e6e6ea)] bg-[var(--w-surface,#ffffff)] text-[var(--w-fg-muted,#6b6b6b)]"
       }`}
     >
       {children}
@@ -260,7 +260,7 @@ function DetailSheet({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[calc(100dvh-4rem)] w-full max-w-[560px] overflow-y-auto rounded-t-3xl bg-white pb-[max(4.5rem,calc(3.5rem+env(safe-area-inset-bottom)))] md:pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+        className="max-h-[calc(100dvh-4rem)] w-full max-w-[560px] overflow-y-auto rounded-t-3xl bg-[var(--w-surface,#ffffff)] pb-[max(4.5rem,calc(3.5rem+env(safe-area-inset-bottom)))] md:pb-[max(1.5rem,env(safe-area-inset-bottom))]"
       >
         <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-[var(--w-border,#e6e6ea)]" />
 

@@ -52,7 +52,7 @@ export function NotificationsList({
       </header>
 
       {items.length === 0 ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-[var(--w-border,#e6e6ea)] bg-white/60 p-8 text-center">
+        <div className="mt-8 rounded-2xl border border-dashed border-[var(--w-border,#e6e6ea)] bg-[color-mix(in_srgb,var(--w-surface,#ffffff)_60%,transparent)] p-8 text-center">
           <Bell
             size={20}
             strokeWidth={1.5}
@@ -66,7 +66,7 @@ export function NotificationsList({
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-[var(--w-border,#e6e6ea)] rounded-2xl border border-[var(--w-border,#e6e6ea)] bg-white">
+        <ul className="divide-y divide-[var(--w-border,#e6e6ea)] rounded-2xl border border-[var(--w-border,#e6e6ea)] bg-[var(--w-surface,#ffffff)]">
           {items.map((n) => {
             const href = n.targetPath ?? `/w/${slug}`;
             const knownDevices = n.deviceIds
@@ -109,7 +109,7 @@ export function NotificationsList({
                           return (
                             <span
                               key={id}
-                              className="inline-flex max-w-[180px] items-center gap-1 truncate rounded-full border border-[var(--w-border,#e6e6ea)] bg-white px-2 py-0.5 text-[10px] text-[var(--w-fg-muted,#6b6b6b)]"
+                              className="inline-flex max-w-[180px] items-center gap-1 truncate rounded-full border border-[var(--w-border,#e6e6ea)] bg-[var(--w-surface,#ffffff)] px-2 py-0.5 text-[10px] text-[var(--w-fg-muted,#6b6b6b)]"
                             >
                               <Icon size={9} strokeWidth={2} />
                               <span className="truncate">{meta!.name}</span>
