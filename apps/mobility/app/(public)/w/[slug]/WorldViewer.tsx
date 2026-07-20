@@ -257,9 +257,13 @@ function setupDeviceLayers(
     paint: {
       "circle-color": primary,
       "circle-opacity": 0.28,
-      "circle-radius": 22,
+      // Larger than the biggest cluster bubble (28 px at 100+
+      // points) so the halo extends beyond the cluster ring when
+      // the selected pin is still bundled inside one at low zoom.
+      // Otherwise the halo was entirely hidden behind the bubble.
+      "circle-radius": 34,
       "circle-stroke-color": primary,
-      "circle-stroke-width": 2.5,
+      "circle-stroke-width": 3,
     },
   });
   map.addLayer({
@@ -574,7 +578,7 @@ export function WorldViewer({
         if (seed && seed.lat != null && seed.lng != null) {
           map.flyTo({
             center: [seed.lng, seed.lat],
-            zoom: 15,
+            zoom: 17,
             duration: 0,
           });
         } else {
@@ -813,7 +817,7 @@ export function WorldViewer({
     // motion instead of teleporting.
     map.flyTo({
       center: [device.lng, device.lat],
-      zoom: Math.max(map.getZoom(), 15),
+      zoom: Math.max(map.getZoom(), 17),
       duration: 900,
       essential: true,
     });
@@ -888,7 +892,7 @@ export function WorldViewer({
             return;
           map.flyTo({
             center: [selected.lng, selected.lat],
-            zoom: Math.max(map.getZoom(), 15),
+            zoom: Math.max(map.getZoom(), 17),
             duration: 900,
             essential: true,
           });
