@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useSearchParams, usePathname } from "next/navigation";
 import useSWR from "swr";
-import { Search, X, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronRight, Loader2, MapPin, Search, X } from "lucide-react";
 import { subsystemDescriptor } from "@/lib/mobility/subsystem-icon";
 import { DeviceLiveDetail } from "@/lib/mobility/DeviceLiveDetail";
 import type { PublicWorldDevice } from "@/lib/mobility/world-resolver";
@@ -283,6 +284,18 @@ function DetailSheet({
               {desc.label} · {device.externalDeviceId}
             </p>
           </div>
+          {/* Explicit "fly to" affordance — navigates to the Map tab
+              with `?device=<id>` so the map's URL-reactive select-
+              and-fly effect takes over. Uses Next `Link` so nav is a
+              soft push, preserving history + no full reload. */}
+          <Link
+            href={`/w/${slug}?device=${encodeURIComponent(device.id)}`}
+            title="Fly to this device on the map"
+            className="inline-flex items-center gap-1 rounded-full border border-[var(--w-border,#e6e6ea)] px-2.5 py-1 text-[11px] font-medium text-[var(--w-fg,#1a1a1a)] transition-colors hover:border-[var(--w-accent,#0ea5e9)] hover:text-[var(--w-accent,#0ea5e9)]"
+          >
+            <MapPin size={11} strokeWidth={2} />
+            Show on map
+          </Link>
           <button
             type="button"
             onClick={onClose}

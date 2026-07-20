@@ -12,6 +12,7 @@ import {
   Box,
   Info,
   Layers as LayersIcon,
+  MapPin,
   Moon,
   Mountain,
   Settings,
@@ -881,6 +882,17 @@ export function WorldViewer({
         device={selected}
         primary={primary}
         onClose={() => setSelectedId(null)}
+        onRecenter={() => {
+          const map = mapRef.current;
+          if (!map || !selected || selected.lat == null || selected.lng == null)
+            return;
+          map.flyTo({
+            center: [selected.lng, selected.lat],
+            zoom: Math.max(map.getZoom(), 15),
+            duration: 900,
+            essential: true,
+          });
+        }}
       />
     </main>
   );
@@ -1265,11 +1277,15 @@ function DeviceDrawer({
   device,
   primary,
   onClose,
+  onRecenter,
 }: {
   slug: string;
   device: PublicWorldDevice | null;
   primary: string;
   onClose: () => void;
+  /** Re-fly to the selected device — useful when the visitor has
+   *  panned the map away from the pin while the drawer is open. */
+  onRecenter: () => void;
 }) {
   const { data } = useSWR<LiveResponse>(
     device
@@ -1314,6 +1330,19 @@ function DeviceDrawer({
             {device.name}
           </h2>
         </div>
+        <button
+          type="button"
+          onClick={onRecenter}
+          aria-label="Recenter map on this device"
+          title="Recenter"
+          className="rounded-full border p-1.5 transition-colors"
+          style={{
+            borderColor: "var(--w-border)",
+            color: "var(--w-fg-muted)",
+          }}
+        >
+          <MapPin size={12} strokeWidth={2} aria-hidden />
+        </button>
         <button
           type="button"
           onClick={onClose}
