@@ -12,6 +12,7 @@ import {
   Box,
   Info,
   Layers as LayersIcon,
+  MapPin,
   Moon,
   Mountain,
   Settings,
@@ -56,6 +57,11 @@ interface Props {
   styleModels: Record<string, string>;
 }
 
+import {
+  deriveWorldPalette,
+  worldPickHex,
+} from "@/lib/mobility/world-palette";
+
 const DEFAULT_PRIMARY = "#0ea5e9";
 const DEFAULT_BG = "#0b1220";
 
@@ -86,73 +92,9 @@ function settingsStorageKey(slug: string): string {
   return `klorad-mobility-world-settings:${slug}`;
 }
 
-function pickHex(value: unknown, fallback: string): string {
-  if (typeof value === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value)) {
-    return value;
-  }
-  return fallback;
-}
-
-/** Expand `#rgb` → `#rrggbb` so the channel reads below stay uniform. */
-function expandHex(hex: string): string {
-  if (hex.length === 7) return hex;
-  const body = hex.slice(1);
-  return `#${body[0]}${body[0]}${body[1]}${body[1]}${body[2]}${body[2]}`;
-}
-
-interface RGB {
-  r: number;
-  g: number;
-  b: number;
-}
-
-function hexToRgb(hex: string): RGB {
-  const h = expandHex(hex).slice(1);
-  return {
-    r: parseInt(h.slice(0, 2), 16),
-    g: parseInt(h.slice(2, 4), 16),
-    b: parseInt(h.slice(4, 6), 16),
-  };
-}
-
-function rgba({ r, g, b }: RGB, a: number): string {
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
-}
-
-/** Perceived brightness — drives the fg/border choice so the operator
- *  can paint a world bright or dark and the chrome reads either way. */
-function isLight({ r, g, b }: RGB): boolean {
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55;
-}
-
-/**
- * Derive every chrome colour from the operator's two picks. Returned
- * as a flat record of CSS custom properties so the viewer can drop
- * them onto a single style block on `<main>` and every descendant
- * info-box / button reads them via `var(--w-*)` instead of hard-coded
- * `text-white` / `bg-black` classes that fight a bright theme.
- */
-function deriveWorldPalette(bg: string, primary: string): Record<string, string> {
-  const bgRgb = hexToRgb(bg);
-  const primaryRgb = hexToRgb(primary);
-  const light = isLight(bgRgb);
-  const fgBase: RGB = light ? { r: 11, g: 18, b: 32 } : { r: 245, g: 247, b: 250 };
-  const accentContrast: RGB = isLight(primaryRgb)
-    ? { r: 11, g: 18, b: 32 }
-    : { r: 255, g: 255, b: 255 };
-  return {
-    "--w-bg": bg,
-    "--w-fg": rgba(fgBase, 0.95),
-    "--w-fg-soft": rgba(fgBase, 0.72),
-    "--w-fg-muted": rgba(fgBase, 0.5),
-    "--w-border": rgba(fgBase, light ? 0.14 : 0.16),
-    "--w-border-strong": rgba(fgBase, light ? 0.22 : 0.28),
-    "--w-overlay": rgba(fgBase, light ? 0.06 : 0.08),
-    "--w-accent": primary,
-    "--w-accent-soft": rgba(primaryRgb, 0.18),
-    "--w-accent-contrast": rgba(accentContrast, 1),
-  };
-}
+// Palette + hex helpers live in `lib/mobility/world-palette.ts` so
+// the layout can inject the same `--w-*` vars for the Devices /
+// Notifications / Paris tabs where the WorldViewer isn't mounted.
 
 function fitToDevices(map: MapboxMap, devices: PublicWorldDevice[]): void {
   const located = devices.filter(
@@ -315,9 +257,13 @@ function setupDeviceLayers(
     paint: {
       "circle-color": primary,
       "circle-opacity": 0.28,
-      "circle-radius": 22,
+      // Larger than the biggest cluster bubble (28 px at 100+
+      // points) so the halo extends beyond the cluster ring when
+      // the selected pin is still bundled inside one at low zoom.
+      // Otherwise the halo was entirely hidden behind the bubble.
+      "circle-radius": 34,
       "circle-stroke-color": primary,
-      "circle-stroke-width": 2.5,
+      "circle-stroke-width": 3,
     },
   });
   map.addLayer({
@@ -400,8 +346,8 @@ export function WorldViewer({
   customIcons,
   styleModels,
 }: Props) {
-  const primary = pickHex(theme.primaryColor, DEFAULT_PRIMARY);
-  const bg = pickHex(theme.backgroundColor, DEFAULT_BG);
+  const primary = worldPickHex(theme.primaryColor, DEFAULT_PRIMARY);
+  const bg = worldPickHex(theme.backgroundColor, DEFAULT_BG);
   const tagline = typeof theme.tagline === "string" ? theme.tagline : null;
   /** Operator-driven palette as CSS variables. Set once on `<main>`
    *  so every info box can read `var(--w-fg)` etc. instead of fighting
@@ -632,7 +578,7 @@ export function WorldViewer({
         if (seed && seed.lat != null && seed.lng != null) {
           map.flyTo({
             center: [seed.lng, seed.lat],
-            zoom: 15,
+            zoom: 17,
             duration: 0,
           });
         } else {
@@ -871,7 +817,7 @@ export function WorldViewer({
     // motion instead of teleporting.
     map.flyTo({
       center: [device.lng, device.lat],
-      zoom: Math.max(map.getZoom(), 15),
+      zoom: Math.max(map.getZoom(), 17),
       duration: 900,
       essential: true,
     });
@@ -940,6 +886,17 @@ export function WorldViewer({
         device={selected}
         primary={primary}
         onClose={() => setSelectedId(null)}
+        onRecenter={() => {
+          const map = mapRef.current;
+          if (!map || !selected || selected.lat == null || selected.lng == null)
+            return;
+          map.flyTo({
+            center: [selected.lng, selected.lat],
+            zoom: Math.max(map.getZoom(), 17),
+            duration: 900,
+            essential: true,
+          });
+        }}
       />
     </main>
   );
@@ -1324,11 +1281,15 @@ function DeviceDrawer({
   device,
   primary,
   onClose,
+  onRecenter,
 }: {
   slug: string;
   device: PublicWorldDevice | null;
   primary: string;
   onClose: () => void;
+  /** Re-fly to the selected device — useful when the visitor has
+   *  panned the map away from the pin while the drawer is open. */
+  onRecenter: () => void;
 }) {
   const { data } = useSWR<LiveResponse>(
     device
@@ -1373,6 +1334,19 @@ function DeviceDrawer({
             {device.name}
           </h2>
         </div>
+        <button
+          type="button"
+          onClick={onRecenter}
+          aria-label="Recenter map on this device"
+          title="Recenter"
+          className="rounded-full border p-1.5 transition-colors"
+          style={{
+            borderColor: "var(--w-border)",
+            color: "var(--w-fg-muted)",
+          }}
+        >
+          <MapPin size={12} strokeWidth={2} aria-hidden />
+        </button>
         <button
           type="button"
           onClick={onClose}

@@ -178,7 +178,7 @@ export function MobilitySettingsMenu({ slug }: Props) {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Settings"
-        className="inline-flex items-center gap-1 rounded-full border border-[var(--w-border,#e6e6ea)] bg-white px-2.5 py-1.5 text-[var(--w-fg,#1a1a1a)] transition-colors hover:border-[var(--w-accent,#0ea5e9)]"
+        className="inline-flex items-center gap-1 rounded-full border border-[var(--w-border,#e6e6ea)] bg-[var(--w-surface,#ffffff)] px-2.5 py-1.5 text-[var(--w-fg,#1a1a1a)] transition-colors hover:border-[var(--w-accent,#0ea5e9)]"
       >
         <Settings size={14} strokeWidth={1.8} />
         <ChevronDown size={12} strokeWidth={2} />
@@ -187,7 +187,7 @@ export function MobilitySettingsMenu({ slug }: Props) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-[calc(100%+6px)] z-50 w-64 overflow-hidden rounded-2xl border border-[var(--w-border,#e6e6ea)] bg-white shadow-lg"
+          className="absolute right-0 top-[calc(100%+6px)] z-50 w-64 overflow-hidden rounded-2xl border border-[var(--w-border,#e6e6ea)] bg-[var(--w-surface,#ffffff)] shadow-lg"
         >
           {/* Identity */}
           <div className="border-b border-[var(--w-border,#e6e6ea)] px-4 py-3">

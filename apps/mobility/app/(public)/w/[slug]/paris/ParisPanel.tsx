@@ -97,7 +97,7 @@ function ParisActionCards({
           <Link
             key={`${a.type}:${a.id}:${i}`}
             href={href}
-            className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full border border-[var(--w-border,#e6e6ea)] bg-white px-3 py-1 text-xs text-[var(--w-fg,#1a1a1a)] transition-colors hover:border-[var(--w-accent,#0ea5e9)] hover:text-[var(--w-accent,#0ea5e9)]"
+            className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full border border-[var(--w-border,#e6e6ea)] bg-[var(--w-surface,#ffffff)] px-3 py-1 text-xs text-[var(--w-fg,#1a1a1a)] transition-colors hover:border-[var(--w-accent,#0ea5e9)] hover:text-[var(--w-accent,#0ea5e9)]"
           >
             <Icon size={12} strokeWidth={2} className="shrink-0" />
             <span className="truncate">{a.label}</span>
