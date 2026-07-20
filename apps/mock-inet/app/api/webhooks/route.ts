@@ -9,7 +9,8 @@ export async function GET(request: NextRequest) {
   const denied = requireBasicAuth(request);
   if (denied) return denied;
   // Never leak the secret on list; it's shown only on create.
-  const scrubbed = listWebhooks().map(({ secret: _secret, ...rest }) => rest);
+  const rows = await listWebhooks();
+  const scrubbed = rows.map(({ secret: _secret, ...rest }) => rest);
   return NextResponse.json(scrubbed);
 }
 
@@ -24,6 +25,6 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  const wh = registerWebhook(parsed.data);
+  const wh = await registerWebhook(parsed.data);
   return NextResponse.json(wh, { status: 201 });
 }
