@@ -5,6 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { toast } from "react-toastify";
 import {
+  Activity,
   AlertTriangle,
   ArrowLeft,
   Bell,
@@ -213,8 +214,285 @@ export function RulesClient({
           </ul>
         )}
       </section>
+
+      <ActivityPanel projectId={projectId} />
     </main>
   );
+}
+
+// ─── Recent webhook activity ───────────────────────────────────────
+
+interface RuleOutcomeRow {
+  ruleId: string;
+  ruleName: string;
+  matched: boolean;
+  reason: string;
+}
+
+type WebhookOutcomeKind =
+  | "unknown_source"
+  | "not_registered"
+  | "source_disabled"
+  | "bad_signature"
+  | "invalid_json"
+  | "malformed_event"
+  | "no_rules"
+  | "no_matches"
+  | "processed";
+
+interface WebhookReceiptRow {
+  id: string;
+  at: number;
+  sourceId: string;
+  outcome: WebhookOutcomeKind;
+  eventType: string | null;
+  payloadPreview: string | null;
+  rules: RuleOutcomeRow[];
+  alertsCreated: number;
+  pushesDelivered: number;
+  note: string | null;
+}
+
+/**
+ * Live feed of the last ~50 webhook receipts. Auto-refreshes every
+ * 3 s. Each row shows the outcome (delivered vs bounced), matched vs
+ * unmatched rules with a per-rule reason, and any dispatch note
+ * (e.g. "no MobilityDevice row for externalId=…").
+ *
+ * The point: when an operator triggers a scenario on the mock and
+ * doesn't see an alert, this panel tells them exactly where in the
+ * pipeline it stopped — no need to read Vercel logs.
+ */
+function ActivityPanel({ projectId }: { projectId: string }) {
+  const { data, mutate, isLoading } = useSWR<{
+    receipts: WebhookReceiptRow[];
+  }>(
+    `/api/projects/${projectId}/alert-rules/recent-activity`,
+    fetcher,
+    { refreshInterval: 3000, revalidateOnFocus: true },
+  );
+  const receipts = data?.receipts ?? [];
+
+  return (
+    <section className="mt-8 rounded-2xl border border-line-soft bg-bg">
+      <div className="flex items-center justify-between gap-3 border-b border-line-soft px-6 py-4">
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-medium text-text-primary">
+            <Activity size={16} strokeWidth={1.7} className="text-accent" />
+            Recent webhook activity
+          </h2>
+          <p className="mt-0.5 text-[11px] text-text-tertiary">
+            Last {receipts.length} receipts, most recent first. Auto-refreshes
+            every 3 s. In-memory — cleared on a serverless cold start.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void mutate()}
+          className="text-xs text-text-tertiary hover:text-accent"
+        >
+          Refresh
+        </button>
+      </div>
+      {isLoading && receipts.length === 0 ? (
+        <p className="px-6 py-8 text-sm text-text-tertiary">Loading…</p>
+      ) : receipts.length === 0 ? (
+        <p className="px-6 py-8 text-sm text-text-tertiary">
+          No webhook receipts yet. Trigger a scenario on the mock; if
+          nothing shows up here after a few seconds, the webhook isn&apos;t
+          reaching this deploy (check the source&apos;s webhook
+          registration on the{" "}
+          <span className="font-medium text-text-secondary">Sources</span>{" "}
+          page).
+        </p>
+      ) : (
+        <ul className="divide-y divide-line-soft">
+          {receipts.map((r) => (
+            <ReceiptRow key={r.id} receipt={r} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function ReceiptRow({ receipt }: { receipt: WebhookReceiptRow }) {
+  const [expanded, setExpanded] = useState(false);
+  const tone = outcomeTone(receipt.outcome);
+  const matchedCount = receipt.rules.filter((r) => r.matched).length;
+
+  return (
+    <li className="px-6 py-3">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-start gap-3 text-left"
+      >
+        <span
+          aria-hidden
+          className={`mt-1 h-2 w-2 shrink-0 rounded-full ${tone.dotClass}`}
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span className={`text-xs font-medium ${tone.textClass}`}>
+              {tone.label}
+            </span>
+            {receipt.eventType && (
+              <span className="font-mono text-[11px] text-text-secondary">
+                {receipt.eventType}
+              </span>
+            )}
+            <span className="ml-auto text-[10px] uppercase tracking-[0.14em] text-text-tertiary">
+              {relativeFrom(receipt.at)}
+            </span>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-text-tertiary">
+            {receipt.outcome === "processed" && (
+              <>
+                <span>{matchedCount}/{receipt.rules.length} matched</span>
+                <span>·</span>
+                <span>
+                  {receipt.alertsCreated} alert
+                  {receipt.alertsCreated === 1 ? "" : "s"}
+                </span>
+                <span>·</span>
+                <span>
+                  {receipt.pushesDelivered} push
+                  {receipt.pushesDelivered === 1 ? "" : "es"}
+                </span>
+              </>
+            )}
+            {receipt.note && (
+              <>
+                {receipt.outcome === "processed" && <span>·</span>}
+                <span className="text-amber-500">{receipt.note}</span>
+              </>
+            )}
+          </div>
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="mt-3 space-y-3 rounded-md border border-line-soft bg-surface-2 p-3">
+          {receipt.rules.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-text-tertiary">
+                Per-rule outcome
+              </p>
+              <ul className="space-y-1">
+                {receipt.rules.map((r) => (
+                  <li
+                    key={r.ruleId}
+                    className="flex items-baseline gap-2 text-[11px]"
+                  >
+                    <span
+                      aria-hidden
+                      className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
+                        r.matched ? "bg-accent" : "bg-text-tertiary"
+                      }`}
+                    />
+                    <span className="font-medium text-text-primary">
+                      {r.ruleName}
+                    </span>
+                    <span className="text-text-secondary">— {r.reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {receipt.payloadPreview && (
+            <div>
+              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-text-tertiary">
+                Payload preview
+              </p>
+              <pre className="overflow-x-auto rounded bg-bg px-2 py-1.5 font-mono text-[10px] text-text-secondary">
+                {receipt.payloadPreview}
+              </pre>
+            </div>
+          )}
+          <p className="text-[10px] text-text-tertiary">
+            source <code>{receipt.sourceId}</code>
+          </p>
+        </div>
+      )}
+    </li>
+  );
+}
+
+function outcomeTone(outcome: WebhookOutcomeKind): {
+  label: string;
+  dotClass: string;
+  textClass: string;
+} {
+  switch (outcome) {
+    case "processed":
+      return {
+        label: "Processed",
+        dotClass: "bg-emerald-500",
+        textClass: "text-emerald-500",
+      };
+    case "no_matches":
+      return {
+        label: "No matches",
+        dotClass: "bg-amber-500",
+        textClass: "text-amber-500",
+      };
+    case "no_rules":
+      return {
+        label: "No rules",
+        dotClass: "bg-amber-500",
+        textClass: "text-amber-500",
+      };
+    case "source_disabled":
+      return {
+        label: "Source disabled",
+        dotClass: "bg-amber-500",
+        textClass: "text-amber-500",
+      };
+    case "not_registered":
+      return {
+        label: "Not registered",
+        dotClass: "bg-red-500",
+        textClass: "text-red-500",
+      };
+    case "unknown_source":
+      return {
+        label: "Unknown source",
+        dotClass: "bg-red-500",
+        textClass: "text-red-500",
+      };
+    case "bad_signature":
+      return {
+        label: "Bad signature",
+        dotClass: "bg-red-500",
+        textClass: "text-red-500",
+      };
+    case "invalid_json":
+    case "malformed_event":
+      return {
+        label: "Malformed",
+        dotClass: "bg-red-500",
+        textClass: "text-red-500",
+      };
+    default:
+      return {
+        label: outcome,
+        dotClass: "bg-text-tertiary",
+        textClass: "text-text-secondary",
+      };
+  }
+}
+
+function relativeFrom(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 0) return "just now";
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return new Date(ts).toLocaleString();
 }
 
 // ─── Seed demo rules button ────────────────────────────────────────
