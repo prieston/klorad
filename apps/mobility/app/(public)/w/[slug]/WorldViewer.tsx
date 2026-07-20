@@ -1337,15 +1337,15 @@ function DeviceDrawer({
         <button
           type="button"
           onClick={onRecenter}
-          aria-label="Recenter map on this device"
-          title="Recenter"
-          className="rounded-full border p-1.5 transition-colors"
+          aria-label="Fly to this device on the map"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-90"
           style={{
-            borderColor: "var(--w-border)",
-            color: "var(--w-fg-muted)",
+            backgroundColor: primary,
+            color: "var(--w-accent-contrast)",
           }}
         >
-          <MapPin size={12} strokeWidth={2} aria-hidden />
+          <MapPin size={12} strokeWidth={2.2} aria-hidden />
+          Fly to
         </button>
         <button
           type="button"

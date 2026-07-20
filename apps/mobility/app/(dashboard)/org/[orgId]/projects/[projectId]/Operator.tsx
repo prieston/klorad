@@ -621,6 +621,25 @@ export function Operator({
             device={selected}
             onCurated={() => void mutate()}
             onClose={() => setSelectedId(null)}
+            onFlyTo={
+              selected.lat != null && selected.lng != null
+                ? () => {
+                    const map = mapRef.current;
+                    if (
+                      !map ||
+                      selected.lat == null ||
+                      selected.lng == null
+                    )
+                      return;
+                    map.flyTo({
+                      center: [selected.lng, selected.lat],
+                      zoom: Math.max(map.getZoom(), 17),
+                      duration: 900,
+                      essential: true,
+                    });
+                  }
+                : null
+            }
           />
         ) : (
           <NoSelection devices={devices} sourcesHref={sourcesHref} />
@@ -1146,10 +1165,14 @@ function DeviceDrawer({
   device,
   onCurated,
   onClose,
+  onFlyTo,
 }: {
   device: DeviceRow;
   onCurated: () => void;
   onClose: () => void;
+  /** Re-fly to this device on the map. Null when the device has no
+   *  coordinates (button hides). */
+  onFlyTo: (() => void) | null;
 }) {
   const { data: live, isLoading } = useSWR<LiveResponse>(
     `/api/devices/${device.id}/live`,
@@ -1201,14 +1224,27 @@ function DeviceDrawer({
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close drawer"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-surface-2 hover:text-text-primary"
-        >
-          <X size={14} strokeWidth={1.8} />
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {onFlyTo && (
+            <button
+              type="button"
+              onClick={onFlyTo}
+              aria-label="Fly to this device on the map"
+              className="inline-flex items-center gap-1.5 rounded-md bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-contrast transition-opacity hover:opacity-90"
+            >
+              <MapPin size={11} strokeWidth={2.2} aria-hidden />
+              Fly to
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close drawer"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-surface-2 hover:text-text-primary"
+          >
+            <X size={14} strokeWidth={1.8} />
+          </button>
+        </div>
       </header>
 
       {/* ── Locator ────────────────────────────────────────────────── */}

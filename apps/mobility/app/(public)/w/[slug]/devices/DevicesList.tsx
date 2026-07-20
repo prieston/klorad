@@ -147,12 +147,16 @@ export function DevicesList({ slug, devices }: Props) {
           {filtered.map((d) => {
             const desc = subsystemDescriptor(d.subsystem);
             const Icon = desc.icon;
+            const hasLocation = d.lat != null && d.lng != null;
             return (
-              <li key={d.id}>
+              <li
+                key={d.id}
+                className="flex items-center gap-2 pr-2 transition-colors hover:bg-[var(--w-page,#f5f5f7)]"
+              >
                 <button
                   type="button"
                   onClick={() => setOpenId(d.id)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--w-page,#f5f5f7)]"
+                  className="flex flex-1 items-center gap-3 px-4 py-3 text-left"
                 >
                   <span
                     aria-hidden
@@ -173,11 +177,22 @@ export function DevicesList({ slug, devices }: Props) {
                       {d.primaryRoad ? ` · ${d.primaryRoad}` : ""}
                     </span>
                   </span>
-                  <ChevronRight
-                    size={14}
-                    className="text-[var(--w-fg-muted,#6b6b6b)]"
-                  />
                 </button>
+                {hasLocation && (
+                  <Link
+                    href={`/w/${slug}?device=${encodeURIComponent(d.id)}`}
+                    aria-label={`Fly to ${d.name} on the map`}
+                    title="Fly to this device on the map"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--w-fg-muted,#6b6b6b)] transition-colors hover:bg-[var(--w-accent-soft,rgba(14,165,233,0.15))] hover:text-[var(--w-accent,#0ea5e9)]"
+                  >
+                    <MapPin size={14} strokeWidth={2} />
+                  </Link>
+                )}
+                <ChevronRight
+                  size={14}
+                  aria-hidden
+                  className="shrink-0 text-[var(--w-fg-muted,#6b6b6b)]"
+                />
               </li>
             );
           })}
