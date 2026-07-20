@@ -25,9 +25,9 @@ export default function Home() {
           PSMdt-iNET Mock
         </h1>
         <p style={{ color: "#94a3b8", margin: 0 }}>
-          Mock Parsons/iNET ATMS surface + demo scenario runners.
-          Trigger a scenario below to drive alerts + webhooks against
-          a Klorad Mobility source pointed at this deploy.
+          Mock iNET ATMS surface with demo scenario runners. Trigger a
+          scenario below to drive alerts and webhooks against a Klorad
+          Mobility source pointed at this deploy.
         </p>
       </header>
 
@@ -53,12 +53,12 @@ export default function Home() {
 function ApiReference() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <Section title="Layer 1 — iNET drop-in">
+      <Section title="Layer 1 · iNET drop-in">
         <p style={{ margin: "0 0 8px 0", color: "#cbd5e1" }}>
-          Byte-compatible with the shape the Klorad{" "}
-          <code>@klorad/connectors/inet-atms</code> connector talks to.
+          Matches the response shape the Klorad{" "}
+          <code>@klorad/connectors/inet-atms</code> connector expects.
           Point a Mobility source&apos;s <code>host</code> at this
-          deploy and sync as usual.
+          deploy and sync.
         </p>
         <List
           items={[
@@ -72,7 +72,7 @@ function ApiReference() {
         </p>
       </Section>
 
-      <Section title="Layer 2 — Demo surface">
+      <Section title="Layer 2 · Demo surface">
         <List
           items={[
             "GET/POST /api/incidents · PATCH /api/incidents/:id",

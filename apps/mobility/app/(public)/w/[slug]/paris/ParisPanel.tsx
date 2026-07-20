@@ -43,7 +43,7 @@ export function ParisPanel({ slug, worldId, worldName }: Props) {
         endpoint="/api/paris"
         extraBody={{ worldId }}
         heroTitle="Hi, I'm Paris."
-        heroSubtitle={`Ask me what's happening on ${worldName} — open alerts, live device status, what triggers notifications.`}
+        heroSubtitle={`Ask me what's happening on ${worldName}. Open alerts, live device status, or what triggers notifications.`}
         suggestions={[
           {
             label: "What's happening right now?",
@@ -64,7 +64,7 @@ export function ParisPanel({ slug, worldId, worldName }: Props) {
         ]}
         placeholder="Ask about alerts, devices, or rules…"
         poweredByLabel="Powered by Claude · Klorad Mobility"
-        unavailableCopy="Sorry — Paris is unavailable right now."
+        unavailableCopy="Sorry, Paris is unavailable right now."
         renderActions={(actions) => (
           <ParisActionCards actions={actions} slug={slug} />
         )}

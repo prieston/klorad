@@ -193,7 +193,7 @@ function SourceRowItem({
         if (json.started === false) {
           toast.info(json.reason ?? "Sync already running");
         } else {
-          toast.success("Sync scheduled — progress below");
+          toast.success("Sync scheduled. Progress below.");
         }
         onChanged();
       } else {
@@ -236,7 +236,7 @@ function SourceRowItem({
         toast.error(body.error ?? "Webhook registration failed");
         return;
       }
-      toast.success("Webhook registered — upstream events will now trigger rules");
+      toast.success("Webhook registered. Upstream events will now trigger rules.");
       onChanged();
     } finally {
       setBusy(false);
@@ -331,7 +331,7 @@ function SourceRowItem({
               type="button"
               disabled={busy}
               onClick={unregisterWebhook}
-              title="Remove the inbound webhook — rules stop firing until re-registered."
+              title="Remove the inbound webhook. Rules stop firing until re-registered."
               className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:border-red-500/60 hover:bg-red-500/10 hover:text-red-600 disabled:opacity-50"
             >
               Webhook ✓

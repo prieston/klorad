@@ -314,7 +314,7 @@ function DetailSheet({
             </p>
           ) : !data?.status ? (
             <p className="text-sm text-[var(--w-fg-muted,#6b6b6b)]">
-              No live data — the source returned no current status.
+              No live data. The source returned no current status.
             </p>
           ) : (
             <div className="space-y-3">

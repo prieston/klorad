@@ -119,7 +119,7 @@ const SCENARIOS: ScenarioDef[] = [
     title: "VMS inspection world",
     emoji: "🏗️",
     blurb:
-      "Provisions a demo world scoped to the Western Ring VMS signs and returns the install URL. Not time-based — nothing to reset.",
+      "Provisions a demo world scoped to VMS signs and returns the install URL. Not time-based, so there's nothing to reset.",
     emits: "no events (world provisioning only)",
     matches: "n/a",
   },
@@ -254,7 +254,7 @@ export function DemoControlPanel() {
           title={
             anythingActive
               ? "Clear every 3-minute override, stop the traffic ticker, cancel the running incident, and re-emit device.status_changed for each affected device."
-              : "Nothing to reset — no scenarios are active."
+              : "Nothing to reset. No scenarios are active."
           }
           style={{
             appearance: "none",
@@ -327,7 +327,7 @@ function ActiveSummary({ status }: { status: ScenarioStatus }) {
   if (chips.length === 0) {
     return (
       <p style={{ color: "#64748b", fontSize: 13, margin: "0 0 4px 0" }}>
-        All quiet — no scenarios active.
+        All quiet. No scenarios active.
       </p>
     );
   }

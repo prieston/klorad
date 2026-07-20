@@ -218,7 +218,7 @@ function CreateWorldCard({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Egnatia East — Winter Ops"
+            placeholder="Downtown Traffic"
             required
             className="mt-1 block w-full rounded-md border border-line-soft bg-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
           />

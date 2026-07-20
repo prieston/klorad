@@ -135,10 +135,9 @@ export function RulesClient({
             Alert rules
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-            Rules turn upstream webhook events into <code>MobilityAlert</code>{" "}
-            rows. Each rule can push a notification to a set of world
-            subscribers when it fires — same delivery pipeline as manual
-            broadcasts.
+            Rules watch upstream webhook events and open an alert when a
+            match fires. Add worlds under Push targets to notify their
+            subscribers on the same event.
           </p>
         </div>
         <SeedDemoButton
@@ -283,7 +282,7 @@ function ActivityPanel({ projectId }: { projectId: string }) {
           </h2>
           <p className="mt-0.5 text-[11px] text-text-tertiary">
             Last {receipts.length} receipts, most recent first. Auto-refreshes
-            every 3 s. In-memory — cleared on a serverless cold start.
+            every 3 s. In-memory, so it clears on a serverless cold start.
           </p>
         </div>
         <button
@@ -394,7 +393,7 @@ function ReceiptRow({ receipt }: { receipt: WebhookReceiptRow }) {
                     <span className="font-medium text-text-primary">
                       {r.ruleName}
                     </span>
-                    <span className="text-text-secondary">— {r.reason}</span>
+                    <span className="text-text-secondary">· {r.reason}</span>
                   </li>
                 ))}
               </ul>
@@ -556,7 +555,7 @@ function SeedDemoButton({
       type="button"
       onClick={seed}
       disabled={busy}
-      title="Create the canonical demo rules that pair with the mock's scenarios: radar jam, traffic slowdown, DMS fault, and incident posted. Idempotent — safe to click twice."
+      title="Create demo rules matched to the mock scenarios (radar jam, traffic slowdown, DMS fault, incident posted). Safe to click twice."
       className="inline-flex shrink-0 items-center gap-2 rounded-md border border-accent bg-accent-soft px-3 py-2 text-xs font-medium text-accent transition-colors hover:bg-accent hover:text-accent-contrast disabled:opacity-50"
     >
       {busy ? (
@@ -613,7 +612,7 @@ function DiagnosticsBanner({
       text: (
         <>
           No data sources yet. Alerts fire on events pushed from a
-          source webhook — add one first at{" "}
+          source webhook. Add one first at{" "}
           <Link
             href={`/org/${orgId}/projects/${projectId}/sources`}
             className="underline underline-offset-2 hover:text-text-primary"
@@ -662,7 +661,7 @@ function DiagnosticsBanner({
       text: (
         <>
           {disabledSources} source{disabledSources === 1 ? " is" : "s are"}{" "}
-          disabled — their events are silently ignored even if the
+          disabled. Their events are silently ignored even if the
           webhook fires.
         </>
       ),
@@ -675,7 +674,7 @@ function DiagnosticsBanner({
       text: (
         <>
           No rules configured. Alerts fire only when a rule matches an
-          incoming event — click{" "}
+          incoming event. Click{" "}
           <span className="font-medium text-text-primary">
             Seed demo rules
           </span>{" "}
@@ -900,7 +899,7 @@ function RuleRowItem({
             <div className="mt-2 flex flex-wrap gap-1.5">
               {worldIds.length === 0 ? (
                 <span className="text-[11px] text-text-tertiary">
-                  No push targets — alert row only.
+                  No push targets. Opens an alert row only.
                 </span>
               ) : (
                 worldIds.map((id) => (
@@ -1282,12 +1281,12 @@ function RuleDraftForm({
 
         <fieldset className="text-sm md:col-span-2">
           <legend className="mb-1 text-text-tertiary">
-            Push targets — worlds to notify
+            Push targets · worlds to notify
           </legend>
           <div className="flex flex-wrap gap-2">
             {worlds.length === 0 ? (
               <span className="text-[11px] text-text-tertiary">
-                No worlds yet — the rule will still open alert rows.
+                No worlds yet. The rule will still open alert rows.
               </span>
             ) : (
               worlds.map((w) => {
@@ -1422,7 +1421,7 @@ function PreviewPanel({
             <span className="text-text-tertiary"> (sampled)</span>
           )}
           {result.note && (
-            <span className="text-text-tertiary"> — {result.note}</span>
+            <span className="text-text-tertiary"> · {result.note}</span>
           )}
         </p>
         <button
