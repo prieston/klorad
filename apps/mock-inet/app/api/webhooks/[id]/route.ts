@@ -12,7 +12,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const denied = requireBasicAuth(request);
   if (denied) return denied;
   const { id } = await params;
-  const removed = deleteWebhook(id);
+  const removed = await deleteWebhook(id);
   if (!removed) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
