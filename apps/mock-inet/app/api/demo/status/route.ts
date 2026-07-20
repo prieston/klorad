@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const denied = requireBasicAuth(request);
     if (denied) return denied;
   }
-  return NextResponse.json(getScenarioStatus(), {
+  return NextResponse.json(await getScenarioStatus(), {
     // Never cache; the whole point is fresh state on every poll.
     headers: { "cache-control": "no-store" },
   });

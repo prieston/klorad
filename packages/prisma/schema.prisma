@@ -1349,3 +1349,40 @@ model MockWebhook {
 
   @@index([active])
 }
+
+/// Per-device status override applied by the mock's demo scenarios.
+/// Was an in-memory Map in apps/mock-inet/lib/overrides.ts — same
+/// serverless multi-instance problem as MockWebhook: a scenario POST
+/// set the override on the instance that handled it, but every other
+/// instance saw baseline values on the atms status endpoint. That
+/// made Mobility's device-drawer inspection view diverge from the
+/// alert message it just fired ("observed 0.85" in the alert row,
+/// drawer still shows 0). Persisting here makes the whole override
+/// picture instance-agnostic.
+///
+/// TTL semantics: `expiresAt` is enforced at read time — every query
+/// filters `WHERE expiresAt > NOW()`. A best-effort DELETE runs on
+/// read of an expired row so the table doesn't grow unbounded; a
+/// scheduled cleanup isn't needed for demo-scale volume (max ~10
+/// active overrides at any time).
+///
+/// One row per device (`externalId` is the PK) — a later scenario
+/// on the same device overwrites the previous override, matching
+/// the in-memory `Map.set()` semantics it replaces.
+model MockStatusOverride {
+  externalId String   @id
+  /// Merged over the base status shape by `currentStatus()`. Kept
+  /// as opaque JSON so scenarios can patch any subsystem's shape
+  /// without a schema change.
+  patch      Json     @default("{}")
+  /// Human label for the /overrides debug endpoint (e.g. "Scenario:
+  /// radar occupancy spike"). Not read by any evaluator.
+  reason     String
+  /// Absolute expiry timestamp. TTL is 3 minutes for the current
+  /// scenarios; the value is the caller's decision, not enforced
+  /// on this table.
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([expiresAt])
+}

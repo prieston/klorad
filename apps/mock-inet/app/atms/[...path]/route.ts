@@ -55,7 +55,7 @@ export async function GET(request: NextRequest, { params }: PathParams) {
   // ── /atms/{s}-rest/rest/{s}/{id}  → single
   if (!action) return singleResponse(subsystem, externalId);
   // ── /atms/{s}-rest/rest/{s}/{id}/status  → status
-  if (action === "status") return statusResponse(subsystem, externalId);
+  if (action === "status") return await statusResponse(subsystem, externalId);
   return notFound();
 }
 
@@ -93,16 +93,15 @@ function singleResponse(subsystem: Subsystem, externalId: string) {
   return NextResponse.json(device);
 }
 
-function statusResponse(subsystem: Subsystem, externalId: string) {
+async function statusResponse(subsystem: Subsystem, externalId: string) {
   const device = deviceByExternalId(
     fetchFromSubsystem(subsystem),
     externalId,
   );
   if (!device) return notFound();
-  // Live per-subsystem status — see `currentStatus()`. CCTV / AID /
-  // RADAR now return sensible shapes instead of `{}` so the operator
-  // drawer has data to render.
-  return NextResponse.json(currentStatus(device));
+  // Live per-subsystem status — see `currentStatus()`. Async now
+  // because overrides are Postgres-backed.
+  return NextResponse.json(await currentStatus(device));
 }
 
 function notFound() {

@@ -24,8 +24,19 @@ import type {
   WebhookCreate,
 } from "./types";
 
+interface MockWebhookRow {
+  id: string;
+  url: string;
+  events: string[];
+  secret: string;
+  active: boolean;
+  createdAt: Date;
+  lastDeliveryAt: Date | null;
+  lastDeliveryStatus: number | null;
+}
+
 export async function listWebhooks(): Promise<Webhook[]> {
-  const rows = await prisma.mockWebhook.findMany({
+  const rows: MockWebhookRow[] = await prisma.mockWebhook.findMany({
     orderBy: { createdAt: "asc" },
   });
   return rows.map(fromRow);
@@ -64,7 +75,7 @@ export async function deleteWebhook(id: string): Promise<boolean> {
  * immediately.
  */
 export async function deliverEvent(event: StreamEvent): Promise<void> {
-  const targets = await prisma.mockWebhook.findMany({
+  const targets: MockWebhookRow[] = await prisma.mockWebhook.findMany({
     where: {
       active: true,
       // Postgres text[] "has" — accepts the event type in the
@@ -73,7 +84,9 @@ export async function deliverEvent(event: StreamEvent): Promise<void> {
       events: { has: event.type },
     },
   });
-  await Promise.all(targets.map((row) => sendWithRetry(fromRow(row), event)));
+  await Promise.all(
+    targets.map((row) => sendWithRetry(fromRow(row), event)),
+  );
 }
 
 async function sendWithRetry(
@@ -141,16 +154,7 @@ function sign(secret: string, body: string): string {
 
 /** Map a Prisma row into the caller-facing `Webhook` shape. Keeps
  *  the JSON API stable even if the DB columns drift. */
-function fromRow(row: {
-  id: string;
-  url: string;
-  events: string[];
-  secret: string;
-  active: boolean;
-  createdAt: Date;
-  lastDeliveryAt: Date | null;
-  lastDeliveryStatus: number | null;
-}): Webhook {
+function fromRow(row: MockWebhookRow): Webhook {
   return {
     id: row.id,
     url: row.url,
