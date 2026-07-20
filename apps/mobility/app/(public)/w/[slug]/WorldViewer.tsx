@@ -65,6 +65,14 @@ const CLUSTER_COUNT_LAYER = "world-cluster-count";
 const POINT_LAYER = "world-points";
 const SELECTED_LAYER = "world-points-selected";
 const NO_SELECTION = "__none__";
+/** Second, unclustered source containing only the currently-selected
+ *  devices. Needed because the primary source is clustered, so a
+ *  selected pin that happens to be inside a cluster wouldn't render
+ *  its halo — the individual point feature is hidden behind the
+ *  cluster bubble. This source stays flat so its halo always draws. */
+const SELECTED_SOURCE_ID = "world-devices-selected";
+const SELECTED_HALO_LAYER = "world-devices-selected-halo";
+const SELECTED_PIN_LAYER = "world-devices-selected-pin";
 
 const DEFAULT_SETTINGS: MapEnvSettings = {
   mapStyle: "standard",
@@ -290,6 +298,58 @@ function setupDeviceLayers(
     },
   });
 
+  // Secondary unclustered source + halo + always-on pin for the
+  // selected devices. Rendered ABOVE the cluster layer so the
+  // selection is visible even when the underlying point feature is
+  // still bundled inside a cluster bubble at low zoom. The source
+  // starts empty; `setSelectedFeatures` updates it whenever selection
+  // changes.
+  map.addSource(SELECTED_SOURCE_ID, {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  });
+  map.addLayer({
+    id: SELECTED_HALO_LAYER,
+    type: "circle",
+    source: SELECTED_SOURCE_ID,
+    paint: {
+      "circle-color": primary,
+      "circle-opacity": 0.28,
+      "circle-radius": 22,
+      "circle-stroke-color": primary,
+      "circle-stroke-width": 2.5,
+    },
+  });
+  map.addLayer({
+    id: SELECTED_PIN_LAYER,
+    type: "symbol",
+    source: SELECTED_SOURCE_ID,
+    layout: {
+      "icon-image": iconExpression,
+      // A touch bigger than the base points at every zoom so a
+      // selected pin still reads clearly when the cluster bubble is
+      // painted over the same coordinate.
+      "icon-size": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        8,
+        0.28,
+        12,
+        0.4,
+        16,
+        0.56,
+      ],
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": true,
+    },
+    paint: {
+      "icon-color": primary,
+      "icon-halo-color": "rgba(0, 0, 0, 0.55)",
+      "icon-halo-width": 2,
+    },
+  });
+
   map.on("click", CLUSTER_LAYER, (e: MapMouseEvent) => {
     const feature = (e.features ?? [])[0];
     if (!feature) return;
@@ -305,13 +365,21 @@ function setupDeviceLayers(
     const id = feature?.properties?.id as string | undefined;
     if (id) onPointClick(id);
   });
+  // Selected-pin layer sits above the cluster so it swallows clicks
+  // over the same coordinate — the visitor tapping the highlighted
+  // pin lands on the drawer, not on a cluster expansion.
+  map.on("click", SELECTED_PIN_LAYER, (e: MapMouseEvent) => {
+    const feature = (e.features ?? [])[0];
+    const id = feature?.properties?.id as string | undefined;
+    if (id) onPointClick(id);
+  });
   map.on("click", (e: MapMouseEvent) => {
     const hits = map.queryRenderedFeatures(e.point, {
-      layers: [POINT_LAYER, CLUSTER_LAYER],
+      layers: [POINT_LAYER, CLUSTER_LAYER, SELECTED_PIN_LAYER],
     });
     if (hits.length === 0) onBackgroundClick();
   });
-  for (const layer of [POINT_LAYER, CLUSTER_LAYER]) {
+  for (const layer of [POINT_LAYER, CLUSTER_LAYER, SELECTED_PIN_LAYER]) {
     map.on(
       "mouseenter",
       layer,
@@ -732,8 +800,82 @@ export function WorldViewer({
         ),
       ),
     );
+    // Halo on the clustered source — hidden inside a cluster bubble
+    // at low zoom, but still useful when the pin is unclustered.
     map.setFilter(SELECTED_LAYER, buildSelectionFilter(ids));
-  }, [selectedId, highlightIds]);
+
+    // Unclustered "always visible" copy of the selected features.
+    // Keeps the halo + a bolder pin rendered on top of the cluster
+    // bubble, so the visitor can see which pin they picked even when
+    // Mapbox is still bundling it with neighbours.
+    const selectedSource = map.getSource(SELECTED_SOURCE_ID) as
+      | GeoJSONSource
+      | undefined;
+    if (selectedSource) {
+      const selectedFeatures: GeoJSON.Feature<GeoJSON.Point>[] = devices
+        .filter(
+          (d): d is PublicWorldDevice & { lat: number; lng: number } =>
+            ids.includes(d.id) && d.lat != null && d.lng != null,
+        )
+        .map((d) => ({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [d.lng, d.lat] },
+          properties: {
+            id: d.id,
+            name: d.name,
+            subsystem: d.subsystem,
+          },
+        }));
+      selectedSource.setData({
+        type: "FeatureCollection",
+        features: selectedFeatures,
+      });
+    }
+  }, [selectedId, highlightIds, devices]);
+
+  // React to external URL changes. Notification taps navigate to
+  // `/w/<slug>?device=<id>` — that's a Next.js soft nav which
+  // updates `searchParams` here. Our own moveend/select writes go
+  // through `history.replaceState`, which does NOT re-run this hook,
+  // so there's no risk of a feedback loop between URL writes and
+  // this reader.
+  useEffect(() => {
+    const urlDeviceId = searchParams?.get("device") ?? null;
+    if (urlDeviceId !== selectedId) {
+      setSelectedId(urlDeviceId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reading URL, writing state
+  }, [searchParams]);
+
+  // Fly-to on selection change. Runs whenever `selectedId` transitions
+  // from null → id or id → different id (including a fresh URL nav
+  // from a notification tap). Skipped for the initial mount because
+  // the map-init effect already places the camera; this only kicks
+  // in for subsequent user or deep-link driven selections.
+  const didInitialFlyRef = useRef(false);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !layersReadyRef.current) return;
+    if (!didInitialFlyRef.current) {
+      didInitialFlyRef.current = true;
+      return;
+    }
+    if (!selectedId) return;
+    const device = devices.find(
+      (d): d is PublicWorldDevice & { lat: number; lng: number } =>
+        d.id === selectedId && d.lat != null && d.lng != null,
+    );
+    if (!device) return;
+    // Zoom past the cluster breakpoint (14) so the pin comes out of
+    // any cluster it might be in. Smooth so the visitor sees the
+    // motion instead of teleporting.
+    map.flyTo({
+      center: [device.lng, device.lat],
+      zoom: Math.max(map.getZoom(), 15),
+      duration: 900,
+      essential: true,
+    });
+  }, [selectedId, devices]);
 
   if (!mapboxToken) {
     return (
