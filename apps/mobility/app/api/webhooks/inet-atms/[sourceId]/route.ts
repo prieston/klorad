@@ -4,11 +4,15 @@
  *   that follows the same envelope). Verifies the HMAC signature on
  *   the request body against the source's stored `webhookSecret`,
  *   parses the event, walks the project's enabled alert rules, and
- *   opens a `MobilityAlert` per matching rule.
+ *   opens a `MobilityAlert` per matching rule (which also dispatches
+ *   pushes via `openAlertAndDispatch`).
  *
- * The push fan-out to world subscribers is Arc C PR3 — this endpoint
- * only inserts the alert rows and returns the count. Once PR3 lands
- * the same insert path also dispatches pushes.
+ * Every terminal exit path records a `WebhookReceipt` on the
+ * `webhook-audit` ring buffer so the Alert Rules "Recent webhook
+ * activity" panel can surface what actually happened — invalid
+ * signature, no matches, no matching device row, etc. Debugging a
+ * silent "no alerts" then becomes a UI query instead of tail-ing
+ * server logs.
  *
  * Auth: HMAC only. No session, no CSRF token, no rate-limit yet —
  * upstream is the mock, which controls the secret.
@@ -16,8 +20,17 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { evaluateRules, type StoredRule, type UpstreamEvent } from "@/lib/mobility/alert-rules";
+import {
+  evaluateRules,
+  explainRules,
+  type StoredRule,
+  type UpstreamEvent,
+} from "@/lib/mobility/alert-rules";
 import { openAlertAndDispatch } from "@/lib/mobility/alert-dispatch";
+import {
+  previewPayload,
+  record as recordReceipt,
+} from "@/lib/mobility/webhook-audit";
 
 export const runtime = "nodejs";
 
@@ -35,15 +48,45 @@ export async function POST(
     select: { id: true, projectId: true, webhookSecret: true, enabled: true },
   });
   if (!source) {
+    recordReceipt(null, {
+      sourceId,
+      outcome: "unknown_source",
+      eventType: null,
+      payloadPreview: null,
+      rules: [],
+      alertsCreated: 0,
+      pushesDelivered: 0,
+      note: "source id not found",
+    });
     return NextResponse.json({ error: "Unknown source" }, { status: 404 });
   }
   if (!source.webhookSecret) {
+    recordReceipt(source.projectId, {
+      sourceId,
+      outcome: "not_registered",
+      eventType: null,
+      payloadPreview: null,
+      rules: [],
+      alertsCreated: 0,
+      pushesDelivered: 0,
+      note: "source has no webhookSecret — click Register webhook on the source",
+    });
     return NextResponse.json(
       { error: "Webhook not registered for this source" },
       { status: 400 },
     );
   }
   if (!source.enabled) {
+    recordReceipt(source.projectId, {
+      sourceId,
+      outcome: "source_disabled",
+      eventType: null,
+      payloadPreview: null,
+      rules: [],
+      alertsCreated: 0,
+      pushesDelivered: 0,
+      note: "source is disabled — events are ignored until re-enabled",
+    });
     // Return 200 with a note so the upstream doesn't retry and
     // eventually deactivate the webhook while the source is paused.
     return NextResponse.json({ ok: true, ignored: "source disabled" });
@@ -54,6 +97,18 @@ export async function POST(
   const rawBody = await req.text();
   const signatureHeader = req.headers.get(SIGNATURE_HEADER);
   if (!verifySignature(rawBody, source.webhookSecret, signatureHeader)) {
+    recordReceipt(source.projectId, {
+      sourceId,
+      outcome: "bad_signature",
+      eventType: null,
+      payloadPreview: previewPayload({ rawBody: rawBody.slice(0, 200) }),
+      rules: [],
+      alertsCreated: 0,
+      pushesDelivered: 0,
+      note: signatureHeader
+        ? "signature header present but did not verify — secret out of sync?"
+        : "no signature header on request",
+    });
     return NextResponse.json({ error: "Bad signature" }, { status: 401 });
   }
 
@@ -61,18 +116,37 @@ export async function POST(
   try {
     event = JSON.parse(rawBody) as UpstreamEvent;
   } catch {
+    recordReceipt(source.projectId, {
+      sourceId,
+      outcome: "invalid_json",
+      eventType: null,
+      payloadPreview: previewPayload({ rawBody: rawBody.slice(0, 200) }),
+      rules: [],
+      alertsCreated: 0,
+      pushesDelivered: 0,
+      note: "body was not valid JSON",
+    });
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
   if (!event || typeof event !== "object" || typeof event.type !== "string") {
+    recordReceipt(source.projectId, {
+      sourceId,
+      outcome: "malformed_event",
+      eventType: null,
+      payloadPreview: previewPayload(event),
+      rules: [],
+      alertsCreated: 0,
+      pushesDelivered: 0,
+      note: "event JSON missing `type` string field",
+    });
     return NextResponse.json({ error: "Malformed event" }, { status: 400 });
   }
 
   const rules = await prisma.mobilityAlertRule.findMany({
     where: {
       projectId: source.projectId,
-      enabled: true,
-      // Rules scoped to a source only match webhooks from that source;
-      // project-wide rules (sourceId = null) match every source.
+      // Include disabled rules so the audit panel can show that a
+      // rule was intentionally muted rather than mismatched.
       OR: [{ sourceId: null }, { sourceId: source.id }],
     },
     select: {
@@ -85,8 +159,39 @@ export async function POST(
     },
   });
 
+  if (rules.length === 0) {
+    recordReceipt(source.projectId, {
+      sourceId,
+      outcome: "no_rules",
+      eventType: event.type,
+      payloadPreview: previewPayload(event.payload),
+      rules: [],
+      alertsCreated: 0,
+      pushesDelivered: 0,
+      note: "no rules configured for this project (try Seed demo rules)",
+    });
+    return NextResponse.json({ ok: true, matched: 0, note: "no rules" });
+  }
+
+  const explanations = explainRules(event, rules as StoredRule[]);
   const matches = evaluateRules(event, rules as StoredRule[]);
+
   if (matches.length === 0) {
+    recordReceipt(source.projectId, {
+      sourceId,
+      outcome: "no_matches",
+      eventType: event.type,
+      payloadPreview: previewPayload(event.payload),
+      rules: explanations.map((e) => ({
+        ruleId: e.ruleId,
+        ruleName: e.ruleName,
+        matched: e.matched,
+        reason: e.reason,
+      })),
+      alertsCreated: 0,
+      pushesDelivered: 0,
+      note: null,
+    });
     return NextResponse.json({ ok: true, matched: 0 });
   }
 
@@ -112,10 +217,19 @@ export async function POST(
 
   let inserted = 0;
   let pushedCount = 0;
+  const dispatchNotes: string[] = [];
   for (const match of matches) {
-    if (!match.externalId) continue;
+    if (!match.externalId) {
+      dispatchNotes.push(`${match.ruleName}: matched but payload had no externalId/deviceId`);
+      continue;
+    }
     const deviceId = deviceIdByExternal.get(match.externalId);
-    if (!deviceId) continue;
+    if (!deviceId) {
+      dispatchNotes.push(
+        `${match.ruleName}: matched externalId="${match.externalId}" but no MobilityDevice row for this source (needs a sync)`,
+      );
+      continue;
+    }
     const result = await openAlertAndDispatch({
       projectId: source.projectId,
       deviceId,
@@ -128,6 +242,22 @@ export async function POST(
     inserted += 1;
     pushedCount += result.pushed.reduce((a, p) => a + p.delivered, 0);
   }
+
+  recordReceipt(source.projectId, {
+    sourceId,
+    outcome: "processed",
+    eventType: event.type,
+    payloadPreview: previewPayload(event.payload),
+    rules: explanations.map((e) => ({
+      ruleId: e.ruleId,
+      ruleName: e.ruleName,
+      matched: e.matched,
+      reason: e.reason,
+    })),
+    alertsCreated: inserted,
+    pushesDelivered: pushedCount,
+    note: dispatchNotes.length > 0 ? dispatchNotes.join(" · ") : null,
+  });
 
   return NextResponse.json({
     ok: true,

@@ -141,6 +141,116 @@ export function evaluateRules(
   return out;
 }
 
+/** Per-rule outcome for the "Recent webhook activity" panel. Explains
+ *  why each rule matched or didn't so the operator can see, at a
+ *  glance, whether a subsystem/field/value mismatch is the reason
+ *  their radar spike didn't fire.
+ *
+ *  Kept separate from `evaluateRules` so the hot webhook path pays no
+ *  overhead for producing debug strings — this is called immediately
+ *  after `evaluateRules` when we're already going to record a receipt. */
+export interface RuleExplanation {
+  ruleId: string;
+  ruleName: string;
+  matched: boolean;
+  reason: string;
+}
+
+export function explainRules(
+  event: UpstreamEvent,
+  rules: StoredRule[],
+): RuleExplanation[] {
+  return rules.map((rule) => {
+    if (!rule.enabled) {
+      return {
+        ruleId: rule.id,
+        ruleName: rule.name,
+        matched: false,
+        reason: "no match: rule disabled",
+      };
+    }
+    if (rule.kind === "threshold") {
+      const parsed = ThresholdConfig.safeParse(rule.config);
+      if (!parsed.success) {
+        return {
+          ruleId: rule.id,
+          ruleName: rule.name,
+          matched: false,
+          reason: "no match: rule config invalid",
+        };
+      }
+      const cfg = parsed.data;
+      if (event.type !== "device.status_changed") {
+        return {
+          ruleId: rule.id,
+          ruleName: rule.name,
+          matched: false,
+          reason: `no match: event type is "${event.type}", threshold rules need "device.status_changed"`,
+        };
+      }
+      const eventSubsystem = event.payload.subsystem ?? null;
+      if (eventSubsystem !== cfg.subsystem) {
+        return {
+          ruleId: rule.id,
+          ruleName: rule.name,
+          matched: false,
+          reason: `no match: rule subsystem "${cfg.subsystem}" ≠ payload subsystem "${eventSubsystem ?? "(missing)"}"`,
+        };
+      }
+      const outcome = evaluateThresholdOnStatus(event.payload.status, cfg);
+      if (outcome.observed === null) {
+        const status = event.payload.status;
+        const statusPresent =
+          status && typeof status === "object" ? "present" : "missing/null";
+        return {
+          ruleId: rule.id,
+          ruleName: rule.name,
+          matched: false,
+          reason: `no match: field "${cfg.field}" not a number on payload.status (status ${statusPresent})`,
+        };
+      }
+      if (!outcome.matched) {
+        return {
+          ruleId: rule.id,
+          ruleName: rule.name,
+          matched: false,
+          reason: `no match: observed ${outcome.observed} did not satisfy ${cfg.op} ${cfg.value}`,
+        };
+      }
+      return {
+        ruleId: rule.id,
+        ruleName: rule.name,
+        matched: true,
+        reason: `matched: ${cfg.field}=${outcome.observed} ${cfg.op} ${cfg.value}`,
+      };
+    }
+    // Event rule.
+    const parsed = EventConfig.safeParse(rule.config);
+    if (!parsed.success) {
+      return {
+        ruleId: rule.id,
+        ruleName: rule.name,
+        matched: false,
+        reason: "no match: rule config invalid",
+      };
+    }
+    if (parsed.data.eventType !== event.type) {
+      return {
+        ruleId: rule.id,
+        ruleName: rule.name,
+        matched: false,
+        reason: `no match: rule listens for "${parsed.data.eventType}", event was "${event.type}"`,
+      };
+    }
+    return {
+      ruleId: rule.id,
+      ruleName: rule.name,
+      matched: true,
+      reason: `matched: event ${event.type}`,
+    };
+  });
+}
+
 function matchThreshold(
   event: DeviceStatusEvent,
   cfg: ThresholdConfig,
