@@ -517,8 +517,48 @@ export function WorldViewer({
         () => setSelectedId(null),
       );
       layersReadyRef.current = true;
+
+      // Seed the unclustered halo source with any pre-existing
+      // selection (from a `?device=` deep-link). Without this the
+      // halo effect no-ops the first time — it runs on mount before
+      // the map is ready and doesn't re-fire when layers finish
+      // attaching, so the halo only appeared after a manual
+      // deselect + reselect. Now the deep-link visitor sees the
+      // halo the instant the map paints.
+      const seedIds = Array.from(
+        new Set(
+          [latestSelectedRef.current, ...highlightIds].filter(
+            (id): id is string => Boolean(id),
+          ),
+        ),
+      );
+      if (seedIds.length > 0) {
+        const seedSource = map.getSource(SELECTED_SOURCE_ID) as
+          | GeoJSONSource
+          | undefined;
+        if (seedSource) {
+          const seedFeatures: GeoJSON.Feature<GeoJSON.Point>[] = devices
+            .filter(
+              (d): d is PublicWorldDevice & { lat: number; lng: number } =>
+                seedIds.includes(d.id) && d.lat != null && d.lng != null,
+            )
+            .map((d) => ({
+              type: "Feature",
+              geometry: { type: "Point", coordinates: [d.lng, d.lat] },
+              properties: {
+                id: d.id,
+                name: d.name,
+                subsystem: d.subsystem,
+              },
+            }));
+          seedSource.setData({
+            type: "FeatureCollection",
+            features: seedFeatures,
+          });
+        }
+      }
     },
-    [primary, highlightIds],
+    [primary, highlightIds, devices],
   );
 
   // Init map once. Camera + selection may be seeded from the URL so

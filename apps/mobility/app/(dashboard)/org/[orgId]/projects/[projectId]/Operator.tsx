@@ -11,7 +11,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { toast } from "react-toastify";
 import {
-  ArrowUpRight,
   Bell,
   Box,
   CheckCircle2,
@@ -630,22 +629,27 @@ export function Operator({
             environment to render the map.
           </div>
         )}
-        <Legend devices={devices} />
-        <SubsystemFilterBar
-          available={availableSubsystems}
-          hidden={hiddenSubsystems}
-          onToggle={(subsystem) =>
-            setHiddenSubsystems((prev) => {
-              const next = new Set(prev);
-              if (next.has(subsystem)) next.delete(subsystem);
-              else next.add(subsystem);
-              return next;
-            })
-          }
-          onReset={() => setHiddenSubsystems(new Set())}
-        />
+        {/* Top-left overlay stack. On wide screens the Legend and
+            filter chips sit side by side; on narrow screens they
+            wrap. `max-w` reserves room for the right-side settings
+            chip so the two clusters never overlap. */}
+        <div className="pointer-events-auto absolute left-4 top-4 flex max-w-[calc(100%-6rem)] flex-wrap items-start gap-2">
+          <Legend devices={devices} />
+          <SubsystemFilterBar
+            available={availableSubsystems}
+            hidden={hiddenSubsystems}
+            onToggle={(subsystem) =>
+              setHiddenSubsystems((prev) => {
+                const next = new Set(prev);
+                if (next.has(subsystem)) next.delete(subsystem);
+                else next.add(subsystem);
+                return next;
+              })
+            }
+            onReset={() => setHiddenSubsystems(new Set())}
+          />
+        </div>
         <div className="pointer-events-auto absolute right-4 top-4 flex flex-col items-end gap-2">
-          <SourcesChip href={sourcesHref} />
           <ConsoleSettingsChip
             settings={settings}
             onChange={setSettings}
@@ -785,7 +789,7 @@ function Legend({ devices }: { devices: DeviceRow[] }) {
   const publicCount = devices.filter((d) => d.isPublic).length;
   return (
     <div
-      className="pointer-events-auto absolute left-4 top-4 max-w-[260px] overflow-hidden rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl"
+      className="w-[220px] overflow-hidden rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl"
       style={{
         backgroundColor: "var(--ov-bg)",
         borderColor: "var(--ov-border-strong)",
@@ -857,14 +861,16 @@ function Legend({ devices }: { devices: DeviceRow[] }) {
   );
 }
 
-/* ─── Subsystem filter chips (floating, top-left, below legend) ───── */
+/* ─── Subsystem filter chips (top-left, next to legend) ─────────── */
 
 /**
  * Chip row that toggles which subsystems render on the map. Empty
  * `hidden` set = everything visible (implicit default). Tap a chip to
  * hide, tap again to bring back. "All" button clears the filter.
- * Skipped entirely when the project has fewer than two subsystems —
- * a single-category filter isn't useful.
+ * Skipped entirely when the project has fewer than two subsystems.
+ *
+ * Positioned by the parent in a shared top-left overlay container
+ * that stacks it next to the Legend (or below on narrow screens).
  */
 function SubsystemFilterBar({
   available,
@@ -881,7 +887,7 @@ function SubsystemFilterBar({
   const anyHidden = hidden.size > 0;
   return (
     <div
-      className="pointer-events-auto absolute left-4 top-[7.5rem] flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-1.5 rounded-2xl border p-2 shadow-[0_8px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl"
+      className="flex max-w-[280px] flex-wrap items-center gap-1.5 rounded-2xl border p-2 shadow-[0_8px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl"
       style={{
         backgroundColor: "var(--ov-bg)",
         borderColor: "var(--ov-border-strong)",
@@ -936,26 +942,6 @@ function SubsystemFilterBar({
         );
       })}
     </div>
-  );
-}
-
-/* ─── Floating top-right "Sources" link ────────────────────────────── */
-
-function SourcesChip({ href }: { href: string }) {
-  return (
-    <Link
-      href={href}
-      className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold shadow-[0_4px_14px_rgba(0,0,0,0.16)] backdrop-blur-xl transition-all hover:border-accent hover:text-accent"
-      style={{
-        backgroundColor: "var(--ov-bg)",
-        borderColor: "var(--ov-border-strong)",
-        color: "var(--ov-fg)",
-      }}
-    >
-      <Database size={12} strokeWidth={2} aria-hidden />
-      Data sources
-      <ArrowUpRight size={11} strokeWidth={2} aria-hidden />
-    </Link>
   );
 }
 
