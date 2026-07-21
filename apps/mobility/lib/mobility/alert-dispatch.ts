@@ -88,8 +88,38 @@ export async function openAlertAndDispatch(
         tag: `rule:${input.ruleId}`,
       });
       pushed.push({ worldId: world.id, ...result });
-      // Mirror the manual-broadcast path so the operator's history
-      // list shows rule-fired notifications too.
+
+      // Persist a Broadcast row for the visitor notifications feed.
+      // The manual composer already does this; without it, alert-
+      // fired pushes went out but never showed up in
+      // `/w/<slug>/notifications` because that page reads Broadcast
+      // rows. Same targetPath as the push so tapping a history row
+      // deep-links to the same device.
+      await prisma.broadcast.create({
+        data: {
+          projectId: input.projectId,
+          worldId: world.id,
+          title: input.ruleName,
+          body: input.message,
+          targetPath: url,
+          deviceIds: [input.deviceId],
+          senderId: null,
+          attempted: result.attempted,
+          delivered: result.delivered,
+          pruned: result.pruned,
+        },
+      }).catch((err) => {
+        // A broadcast-row insert failure mustn't tank the fan-out —
+        // the push has already delivered. Log and continue.
+        console.error(
+          `[alert-dispatch] failed to persist broadcast row for world ${world.id}`,
+          err,
+        );
+      });
+
+      // Also record on the world event stream so the operator's
+      // audit view catches every dispatch (including ones where the
+      // Broadcast insert above failed).
       await recordWorldEvent({
         worldId: world.id,
         kind: "broadcast_sent",
