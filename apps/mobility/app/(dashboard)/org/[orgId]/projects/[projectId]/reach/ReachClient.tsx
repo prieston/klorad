@@ -8,8 +8,10 @@ import {
   Bell,
   CheckCircle2,
   Eye,
+  Loader2,
   Megaphone,
   Send,
+  Trash2,
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -320,7 +322,13 @@ export function ReachClient({
         ) : (
           <ul className="divide-y divide-line-soft">
             {broadcasts.map((b) => (
-              <BroadcastRow key={b.id} broadcast={b} />
+              <BroadcastRow
+                key={b.id}
+                broadcast={b}
+                projectId={projectId}
+                canManage={canSend}
+                onDeleted={() => void mutate()}
+              />
             ))}
           </ul>
         )}
@@ -331,11 +339,48 @@ export function ReachClient({
 
 /* ─── Row ──────────────────────────────────────────────────────────── */
 
-function BroadcastRow({ broadcast }: { broadcast: Broadcast }) {
+function BroadcastRow({
+  broadcast,
+  projectId,
+  canManage,
+  onDeleted,
+}: {
+  broadcast: Broadcast;
+  projectId: string;
+  canManage: boolean;
+  onDeleted: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
   const openRate =
     broadcast.delivered > 0
       ? Math.round((broadcast.opened / broadcast.delivered) * 100)
       : null;
+
+  const remove = async () => {
+    if (
+      !confirm(
+        `Delete "${broadcast.title}"? It will also disappear from every visitor's Notifications feed.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/broadcasts/${broadcast.id}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        toast.error("Delete failed");
+        return;
+      }
+      toast.success("Deleted");
+      onDeleted();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <li className="grid items-start gap-3 px-5 py-4 md:grid-cols-[auto_1fr_auto]">
       <span
@@ -374,6 +419,22 @@ function BroadcastRow({ broadcast }: { broadcast: Broadcast }) {
           sub={openRate != null ? `${openRate}%` : undefined}
           tone={broadcast.opened > 0 ? "success" : "muted"}
         />
+        {canManage && (
+          <button
+            type="button"
+            onClick={remove}
+            disabled={busy}
+            aria-label={`Delete "${broadcast.title}"`}
+            title="Delete this broadcast and remove it from every visitor's Notifications feed"
+            className="rounded-md p-1.5 text-text-tertiary transition-colors hover:bg-red-500/10 hover:text-red-500 disabled:opacity-50"
+          >
+            {busy ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Trash2 size={14} />
+            )}
+          </button>
+        )}
       </div>
     </li>
   );
