@@ -34,7 +34,7 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { subsystemIcon } from "@/lib/mobility/subsystem-icon";
+import { subsystemDescriptor, subsystemIcon } from "@/lib/mobility/subsystem-icon";
 import { DmsFace } from "@/lib/mobility/dms-render";
 import {
   applyMapEnvSettings,
@@ -153,6 +153,27 @@ export function Operator({
   const searchParams = useSearchParams();
   const focusId = searchParams?.get("device") ?? null;
   const [selectedId, setSelectedId] = useState<string | null>(focusId);
+
+  // Subsystem filter — which pin categories are visible on the map.
+  // Empty set means "show everything" (implicit default). A tap on a
+  // chip toggles that subsystem in/out. Applied by filtering the
+  // GeoJSON features before pushing to the source, so hidden pins
+  // also drop out of clusters (the count updates in real time).
+  const availableSubsystems = useMemo(() => {
+    const s = new Set<string>();
+    for (const d of devices) s.add(d.subsystem);
+    return Array.from(s).sort();
+  }, [devices]);
+  const [hiddenSubsystems, setHiddenSubsystems] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const visibleDevices = useMemo(
+    () =>
+      hiddenSubsystems.size === 0
+        ? devices
+        : devices.filter((d) => !hiddenSubsystems.has(d.subsystem)),
+    [devices, hiddenSubsystems],
+  );
   useEffect(() => {
     if (focusId && focusId !== selectedId) {
       setSelectedId(focusId);
@@ -426,8 +447,11 @@ export function Operator({
   }, [mapboxToken]);
 
   // Keep latest devices accessible from the init effect's late onLoad.
-  const latestDevicesRef = useRef<DeviceRow[]>(devices);
-  latestDevicesRef.current = devices;
+  // Ref tracks the filtered set so the map-init / style-swap paths
+  // that re-set the source data respect whatever chips the operator
+  // has toggled off.
+  const latestDevicesRef = useRef<DeviceRow[]>(visibleDevices);
+  latestDevicesRef.current = visibleDevices;
 
   // Same trick for settings — onLoad fires asynchronously after the
   // settings effect first runs, so it needs the latest value not the
@@ -549,14 +573,16 @@ export function Operator({
     });
   }, [settings.mapStyle]);
 
-  // Push device updates into the GeoJSON source.
+  // Push device updates into the GeoJSON source. Uses `visibleDevices`
+  // (post-subsystem-filter) so a chip toggle hides pins + updates
+  // clusters instantly.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !layersReadyRef.current) return;
     const source = map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (!source) return;
-    source.setData(toGeoJSON(devices));
-  }, [devices]);
+    source.setData(toGeoJSON(visibleDevices));
+  }, [visibleDevices]);
 
   // Move the selected-highlight filter when selection changes.
   useEffect(() => {
@@ -605,6 +631,19 @@ export function Operator({
           </div>
         )}
         <Legend devices={devices} />
+        <SubsystemFilterBar
+          available={availableSubsystems}
+          hidden={hiddenSubsystems}
+          onToggle={(subsystem) =>
+            setHiddenSubsystems((prev) => {
+              const next = new Set(prev);
+              if (next.has(subsystem)) next.delete(subsystem);
+              else next.add(subsystem);
+              return next;
+            })
+          }
+          onReset={() => setHiddenSubsystems(new Set())}
+        />
         <div className="pointer-events-auto absolute right-4 top-4 flex flex-col items-end gap-2">
           <SourcesChip href={sourcesHref} />
           <ConsoleSettingsChip
@@ -814,6 +853,88 @@ function Legend({ devices }: { devices: DeviceRow[] }) {
           <span style={{ color: "var(--ov-fg-soft)" }}>{publicCount}</span> on traveller map
         </p>
       </div>
+    </div>
+  );
+}
+
+/* ─── Subsystem filter chips (floating, top-left, below legend) ───── */
+
+/**
+ * Chip row that toggles which subsystems render on the map. Empty
+ * `hidden` set = everything visible (implicit default). Tap a chip to
+ * hide, tap again to bring back. "All" button clears the filter.
+ * Skipped entirely when the project has fewer than two subsystems —
+ * a single-category filter isn't useful.
+ */
+function SubsystemFilterBar({
+  available,
+  hidden,
+  onToggle,
+  onReset,
+}: {
+  available: string[];
+  hidden: Set<string>;
+  onToggle: (subsystem: string) => void;
+  onReset: () => void;
+}) {
+  if (available.length < 2) return null;
+  const anyHidden = hidden.size > 0;
+  return (
+    <div
+      className="pointer-events-auto absolute left-4 top-[7.5rem] flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-1.5 rounded-2xl border p-2 shadow-[0_8px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl"
+      style={{
+        backgroundColor: "var(--ov-bg)",
+        borderColor: "var(--ov-border-strong)",
+        color: "var(--ov-fg)",
+      }}
+    >
+      <button
+        type="button"
+        onClick={onReset}
+        disabled={!anyHidden}
+        title="Show every subsystem"
+        className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors disabled:opacity-50"
+        style={{
+          backgroundColor: anyHidden
+            ? "var(--ov-accent-badge)"
+            : "transparent",
+          color: anyHidden ? "var(--ov-fg)" : "var(--ov-fg-muted)",
+        }}
+      >
+        All
+      </button>
+      {available.map((subsystem) => {
+        const desc = subsystemDescriptor(subsystem);
+        const Icon = desc.icon;
+        const active = !hidden.has(subsystem);
+        return (
+          <button
+            key={subsystem}
+            type="button"
+            onClick={() => onToggle(subsystem)}
+            aria-pressed={active}
+            title={
+              active
+                ? `Hide ${desc.label} pins`
+                : `Show ${desc.label} pins`
+            }
+            className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-opacity"
+            style={{
+              borderColor: active
+                ? "var(--ov-border-strong)"
+                : "var(--ov-border)",
+              backgroundColor: active
+                ? "var(--ov-accent-badge)"
+                : "transparent",
+              color: active ? "var(--ov-fg)" : "var(--ov-fg-muted)",
+              opacity: active ? 1 : 0.55,
+            }}
+          >
+            <Icon size={11} strokeWidth={2} aria-hidden />
+            {desc.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
