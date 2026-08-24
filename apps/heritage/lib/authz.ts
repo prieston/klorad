@@ -124,6 +124,16 @@ export async function requireVenueAccess(
   | { denied: NextResponse; venue?: undefined }
   | { denied: null; venue: { projectId: string; organizationId: string } }
 > {
+  // Authenticate before the lookup. Resolving the venue first would answer
+  // 404 for an id that does not exist and 401 for one that does, handing an
+  // unauthenticated caller an existence oracle over every tenant's venue ids.
+  const session = await auth();
+  if (!session?.user?.id) {
+    return {
+      denied: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+
   const venue = await prisma.heritageVenue.findUnique({
     where: { id: venueId },
     select: { projectId: true, project: { select: { organizationId: true } } },
