@@ -250,31 +250,39 @@ async function main() {
     {
       key: "bronze-age",
       name: { en: "Late Bronze Age", el: "Ύστερη Εποχή του Χαλκού" },
-      start: -1600,
-      end: -1100,
+      // Astronomical year numbering, per the schema: 1 BCE is 0, 2 BCE is -1.
+      // So 1600 BCE is -1599, not -1600. Getting this wrong shifts every date
+      // by a year, which is the kind of thing an archaeologist notices first.
+      start: -1599,
+      end: -1099,
     },
     {
       key: "classical",
       name: { en: "Classical", el: "Κλασική περίοδος" },
-      start: -480,
-      end: -323,
+      // 480 BCE to 323 BCE in astronomical numbering.
+      start: -479,
+      end: -322,
     },
   ]) {
     const existing = await prisma.heritagePeriod.findFirst({
       where: { venueId, name: { equals: p.name } },
       select: { id: true },
     });
-    const row =
-      existing ??
-      (await prisma.heritagePeriod.create({
-        data: {
-          venueId,
-          name: p.name,
-          startYear: p.start,
-          endYear: p.end,
-        },
-        select: { id: true },
-      }));
+    const row = existing
+      ? await prisma.heritagePeriod.update({
+          where: { id: existing.id },
+          data: { startYear: p.start, endYear: p.end },
+          select: { id: true },
+        })
+      : await prisma.heritagePeriod.create({
+          data: {
+            venueId,
+            name: p.name,
+            startYear: p.start,
+            endYear: p.end,
+          },
+          select: { id: true },
+        });
     periods[p.key] = row.id;
   }
   console.log(`  periods: ${Object.keys(periods).length}`);

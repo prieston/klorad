@@ -7,11 +7,12 @@ export default defineConfig({
     'src/components/ModelPreview.tsx',
     'src/components/ThreeJSLocationSearchSection.tsx',
     'src/utils/index.ts',
+    'src/viewer/heritage-viewer.ts',
   ],
   outDir: 'dist',
   format: ['esm'],
   dts: {
-    entry: ['src/index.ts', 'src/components/index.ts', 'src/components/ModelPreview.tsx', 'src/components/ThreeJSLocationSearchSection.tsx', 'src/utils/index.ts'],
+    entry: ['src/index.ts', 'src/components/index.ts', 'src/components/ModelPreview.tsx', 'src/components/ThreeJSLocationSearchSection.tsx', 'src/utils/index.ts', 'src/viewer/heritage-viewer.ts'],
     resolve: false
   },
   sourcemap: true,

@@ -17,6 +17,7 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
     "@klorad/design-system": "workspace:^",
+    "@klorad/engine-three": "workspace:*",
     "@klorad/prisma": "workspace:*",
     "@klorad/secrets": "workspace:*",
     "@klorad/storage": "workspace:^",
@@ -33,9 +34,11 @@
     "react-dom": "^19.2.1",
     "react-toastify": "^11.0.5",
     "swr": "^2.3.6",
+    "three": "^0.170.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@types/three": "^0.170.0",
     "autoprefixer": "10.4.20",
     "eslint": "^8.56.0",
     "eslint-config-next": "^15.1.9",

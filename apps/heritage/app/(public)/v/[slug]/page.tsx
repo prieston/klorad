@@ -140,6 +140,7 @@ export default async function PublicVenuePage({
           key: s.id,
           label: t(s.title) ?? s.slug,
           meta: s.kind,
+          href: `/v/${venue.slug}/s/${s.slug}${lang ? `?lang=${lang}` : ""}`,
         }))}
       />
       <Listing
@@ -165,6 +166,7 @@ export default async function PublicVenuePage({
           key: o.id,
           label: t(o.title) ?? o.slug,
           meta: o.objectType ?? "",
+          href: `/v/${venue.slug}/o/${o.slug}${lang ? `?lang=${lang}` : ""}`,
         }))}
       />
     </main>
@@ -180,7 +182,7 @@ function Listing({
   icon: typeof Boxes;
   title: string;
   empty: string;
-  items: Array<{ key: string; label: string; meta: string }>;
+  items: Array<{ key: string; label: string; meta: string; href?: string }>;
 }) {
   return (
     <section className="mb-10">
@@ -199,7 +201,16 @@ function Listing({
         <ul className="mt-3 divide-y divide-line-soft">
           {items.map((item) => (
             <li key={item.key} className="py-3">
-              <p className="text-sm text-text-primary">{item.label}</p>
+              {item.href ? (
+                <a
+                  href={item.href}
+                  className="text-sm text-text-primary hover:text-accent"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <p className="text-sm text-text-primary">{item.label}</p>
+              )}
               {item.meta ? (
                 <p className="mt-0.5 text-xs text-text-tertiary">{item.meta}</p>
               ) : null}
