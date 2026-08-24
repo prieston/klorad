@@ -8,6 +8,7 @@
     "apps/admin",
     "apps/campus",
     "apps/mobility",
+    "apps/heritage",
     "packages/*"
   ],
   "scripts": {
@@ -19,6 +20,7 @@
     "dev:mock-inet": "cd apps/mock-inet && pnpm dev",
     "build:campus": "pnpm build:packages && cd apps/campus && pnpm build",
     "build:mobility": "pnpm build:packages && cd apps/mobility && pnpm build",
+    "build:heritage": "pnpm build:packages && cd apps/heritage && pnpm build",
     "clean": "node scripts/clean.mjs",
     "build": "pnpm -r build --if-present",
     "build:packages": "pnpm -r --filter './packages/*' --workspace-concurrency=1 run build",
@@ -61,8 +63,10 @@
     "vercel:build:admin": "pnpm prisma:generate && pnpm --filter @klorad/prisma prisma migrate deploy && pnpm clean && pnpm build:packages && cd apps/admin && pnpm build",
     "vercel:build:campus": "pnpm prisma:generate && pnpm --filter @klorad/prisma prisma migrate deploy && pnpm clean && pnpm build:packages && cd apps/campus && pnpm build",
     "vercel:build:mobility": "pnpm prisma:generate && pnpm --filter @klorad/prisma prisma migrate deploy && pnpm clean && pnpm build:packages && cd apps/mobility && pnpm build",
+    "vercel:build:heritage": "pnpm prisma:generate && pnpm --filter @klorad/prisma prisma migrate deploy && pnpm clean && pnpm build:packages && cd apps/heritage && pnpm build",
     "vercel:build:mock-inet": "cd apps/mock-inet && pnpm build",
     "dev:mobility": "cd apps/mobility && pnpm dev",
+    "dev:heritage": "cd apps/heritage && pnpm dev",
     "postinstall": "pnpm prisma:generate",
     "prepare": "husky || true"
   },
