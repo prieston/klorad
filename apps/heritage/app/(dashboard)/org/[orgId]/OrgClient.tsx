@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "react-toastify";
+import { slugify } from "@/lib/heritage/slug";
 import {
   ArrowRight,
   Boxes,
@@ -45,33 +46,6 @@ interface VenueRow {
   representationCount: number;
   sceneCount: number;
   proxyCount: number;
-}
-
-/**
- * Slugify for the public `/v/<slug>` URL. Transliterates Greek, because the
- * first tenants are Greek institutions and a venue named "Αρχαία Ολυνθος"
- * would otherwise slugify to nothing.
- */
-const GREEK_MAP: Record<string, string> = {
-  α: "a", β: "v", γ: "g", δ: "d", ε: "e", ζ: "z", η: "i", θ: "th",
-  ι: "i", κ: "k", λ: "l", μ: "m", ν: "n", ξ: "x", ο: "o", π: "p",
-  ρ: "r", σ: "s", ς: "s", τ: "t", υ: "y", φ: "f", χ: "ch", ψ: "ps",
-  ω: "o",
-};
-
-export function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .normalize("NFD")
-    // Strip combining marks first so Greek accents and Latin diacritics both
-    // reduce to their base letter before transliteration.
-    .replace(/[\u0300-\u036f]/g, "")
-    .split("")
-    .map((ch) => GREEK_MAP[ch] ?? ch)
-    .join("")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
 }
 
 export function OrgClient({
