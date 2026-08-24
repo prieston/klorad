@@ -67,6 +67,7 @@
     "vercel:build:mock-inet": "cd apps/mock-inet && pnpm build",
     "dev:mobility": "cd apps/mobility && pnpm dev",
     "dev:heritage": "cd apps/heritage && pnpm dev",
+    "dev:heritage:admin": "concurrently \"pnpm dev:admin\" \"pnpm dev:heritage\" --names \"admin,heritage\" --prefix-colors \"yellow,cyan\"",
     "postinstall": "pnpm prisma:generate",
     "prepare": "husky || true"
   },
