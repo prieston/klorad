@@ -1,7 +1,20 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type {
+  AbortMultipartUploadInput,
+  CompleteMultipartUploadInput,
+  CompleteMultipartUploadResult,
+  CreateMultipartUploadInput,
+  CreateMultipartUploadResult,
   PresignUploadInput,
+  PresignUploadPartInput,
   PresignUploadResult,
   StorageConfig,
   UploadAcl,
@@ -14,6 +27,11 @@ function sanitizeFileName(name: string): string {
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
     .toLowerCase();
+}
+
+function buildObjectKey(prefix: string | undefined, fileName: string): string {
+  const folder = (prefix ?? "uploads").replace(/^\/|\/$/g, "");
+  return `${folder}/${Date.now()}-${sanitizeFileName(fileName)}`;
 }
 
 function buildPublicUrl(cfg: StorageConfig, key: string): string {
@@ -58,9 +76,7 @@ export async function presignUpload(
   input: PresignUploadInput
 ): Promise<PresignUploadResult> {
   const acl: UploadAcl = input.acl ?? "public-read";
-  const prefix = (input.prefix ?? "uploads").replace(/^\/|\/$/g, "");
-  const safeName = sanitizeFileName(input.fileName);
-  const key = `${prefix}/${Date.now()}-${safeName}`;
+  const key = buildObjectKey(input.prefix, input.fileName);
 
   const client = makeClient(cfg);
   const command = new PutObjectCommand({
@@ -79,6 +95,159 @@ export async function presignUpload(
     publicUrl: acl === "public-read" ? buildPublicUrl(cfg, key) : key,
     acl,
   };
+}
+
+/** S3-compatible storage requires every part except the last to be >= 5 MiB. */
+export const MULTIPART_MIN_PART_SIZE = 5 * 1024 * 1024;
+
+/** And permits at most 10,000 parts per upload. */
+export const MULTIPART_MAX_PARTS = 10_000;
+
+/** And at most 5 GiB in any single part. */
+export const MULTIPART_MAX_PART_SIZE = 5 * 1024 * 1024 * 1024;
+
+/**
+ * Choose a part size for a known total.
+ *
+ * The floor is the 5 MiB minimum; above roughly 50 GB the 10,000-part ceiling
+ * binds instead and the part size has to grow. Rounded up to a whole MiB so
+ * the browser can slice on a clean boundary.
+ *
+ * A 26 GB point cloud — the size §6.3.4 of the Heritage spec uses as its
+ * example — lands on 5 MiB parts, about 5,300 of them.
+ */
+export function recommendPartSize(totalBytes: number): number {
+  if (!Number.isFinite(totalBytes) || totalBytes <= 0) {
+    throw new Error("totalBytes must be a positive number");
+  }
+  const mib = 1024 * 1024;
+  const needed = Math.ceil(totalBytes / MULTIPART_MAX_PARTS);
+  const size = Math.ceil(Math.max(MULTIPART_MIN_PART_SIZE, needed) / mib) * mib;
+  if (size > MULTIPART_MAX_PART_SIZE) {
+    throw new Error(
+      `File too large for multipart upload: ${totalBytes} bytes would need ` +
+        `parts above the ${MULTIPART_MAX_PART_SIZE}-byte limit`,
+    );
+  }
+  return size;
+}
+
+/**
+ * Begin a multipart upload. Server-side — it signs with the secret key and
+ * returns an `uploadId` the browser carries through the rest of the flow.
+ */
+export async function createMultipartUpload(
+  cfg: StorageConfig,
+  input: CreateMultipartUploadInput,
+): Promise<CreateMultipartUploadResult> {
+  const acl: UploadAcl = input.acl ?? "public-read";
+  const key = buildObjectKey(input.prefix, input.fileName);
+
+  const client = makeClient(cfg);
+  const result = await client.send(
+    new CreateMultipartUploadCommand({
+      Bucket: cfg.bucket,
+      Key: key,
+      ContentType: input.fileType,
+      ACL: acl,
+    }),
+  );
+  if (!result.UploadId) {
+    throw new Error("Storage did not return an UploadId");
+  }
+
+  return {
+    uploadId: result.UploadId,
+    key,
+    publicUrl: acl === "public-read" ? buildPublicUrl(cfg, key) : key,
+    acl,
+  };
+}
+
+/**
+ * Presign a single part so the browser can PUT it directly.
+ *
+ * Called once per part. Deliberately not batched: parts retry individually,
+ * an upload can be resumed hours later, and a long-lived batch of thousands of
+ * URLs would expire together and be useless. Default lifetime is 6 hours,
+ * longer than `presignUpload`'s hour, because a large upload legitimately
+ * outlives a short window.
+ *
+ * No ACL or ContentType here — both were fixed by `createMultipartUpload`, and
+ * signing them again on the part would change the signature the provider
+ * expects.
+ */
+export async function presignUploadPart(
+  cfg: StorageConfig,
+  input: PresignUploadPartInput,
+): Promise<string> {
+  if (!Number.isInteger(input.partNumber) || input.partNumber < 1) {
+    throw new Error("partNumber must be a positive integer (1-based)");
+  }
+  if (input.partNumber > MULTIPART_MAX_PARTS) {
+    throw new Error(`partNumber exceeds the ${MULTIPART_MAX_PARTS}-part limit`);
+  }
+  const client = makeClient(cfg);
+  const command = new UploadPartCommand({
+    Bucket: cfg.bucket,
+    Key: input.key,
+    UploadId: input.uploadId,
+    PartNumber: input.partNumber,
+  });
+  return getSignedUrl(client, command, {
+    expiresIn: input.expiresIn ?? 6 * 3600,
+  });
+}
+
+/**
+ * Assemble the uploaded parts into one object.
+ *
+ * Parts are sorted by number before submission — the provider rejects an
+ * out-of-order list, and the browser finishes parts in whatever order the
+ * network allows.
+ */
+export async function completeMultipartUpload(
+  cfg: StorageConfig,
+  input: CompleteMultipartUploadInput,
+): Promise<CompleteMultipartUploadResult> {
+  if (input.parts.length === 0) {
+    throw new Error("Cannot complete a multipart upload with no parts");
+  }
+  const client = makeClient(cfg);
+  await client.send(
+    new CompleteMultipartUploadCommand({
+      Bucket: cfg.bucket,
+      Key: input.key,
+      UploadId: input.uploadId,
+      MultipartUpload: {
+        Parts: [...input.parts]
+          .sort((a, b) => a.partNumber - b.partNumber)
+          .map((p) => ({ PartNumber: p.partNumber, ETag: p.eTag })),
+      },
+    }),
+  );
+  return { key: input.key, publicUrl: buildPublicUrl(cfg, input.key) };
+}
+
+/**
+ * Discard an incomplete upload and its parts.
+ *
+ * Worth calling on every abandoned upload: storage providers bill for orphaned
+ * parts indefinitely, and a Heritage tenant abandoning a few 26 GB uploads is
+ * a real cost, not a rounding error.
+ */
+export async function abortMultipartUpload(
+  cfg: StorageConfig,
+  input: AbortMultipartUploadInput,
+): Promise<void> {
+  const client = makeClient(cfg);
+  await client.send(
+    new AbortMultipartUploadCommand({
+      Bucket: cfg.bucket,
+      Key: input.key,
+      UploadId: input.uploadId,
+    }),
+  );
 }
 
 /**
