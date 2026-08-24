@@ -76,7 +76,7 @@ model Organization {
   slug                 String   @unique
   // isPersonal indicates this is a personal organization (cannot have multiple members)
   isPersonal           Boolean  @default(false)
-  // Which Klorad apps this organization has access to (e.g. "editor", "campus", "culture").
+  // Which Klorad apps this organization has access to (e.g. "editor", "campus", "heritage").
   // Each consumer app filters its org list to entries tagged with its key.
   apps                 String[] @default([])
   // Billing fields
