@@ -1652,6 +1652,8 @@ model HeritageVenue {
   representations      HeritageRepresentation[]
   proxies              HeritageProxy[]
   tours                HeritageTour[]
+  uploadSessions       HeritageUploadSession[]
+  ingestJobs           HeritageIngestJob[]
   periods              HeritagePeriod[]
   actors               HeritageActor[]
   events               HeritageEvent[]
@@ -1878,12 +1880,14 @@ model HeritageRepresentation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  venue    HeritageVenue                @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  object   HeritageObject?              @relation(fields: [objectId], references: [id], onDelete: SetNull)
-  space    HeritageSpace?               @relation(fields: [spaceId], references: [id], onDelete: SetNull)
-  files    HeritageRepresentationFile[]
-  paradata HeritageParadata?
-  layers   HeritageSceneLayer[]
+  venue          HeritageVenue                @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  object         HeritageObject?              @relation(fields: [objectId], references: [id], onDelete: SetNull)
+  space          HeritageSpace?               @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  files          HeritageRepresentationFile[]
+  paradata       HeritageParadata?
+  layers         HeritageSceneLayer[]
+  uploadSessions HeritageUploadSession[]
+  ingestJobs     HeritageIngestJob[]
 
   @@index([venueId, state])
   @@index([objectId])
@@ -2220,4 +2224,167 @@ model HeritageTourStop {
   @@index([tourId, sortOrder])
   @@index([sceneId])
   @@index([objectId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Heritage ingest (§7.2.1 HER-201, §7.2.2 HER-202).
+//
+// §6.3.4: "Campus assumes content is text and images. Heritage content is
+// gigabytes." A curator uploads a 26 GB point cloud, and the platform has to
+// process it into something a headset can stream, tell them how long that will
+// take, and tell them why it failed when it fails. Ingest is a pipeline with a
+// queue, a status model and legible errors — not an upload field.
+//
+// Upload state is held server-side rather than in the browser because a
+// resumable upload has to survive the tab closing, not just a flaky socket.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum HeritageUploadStatus {
+  pending
+  in_progress
+  completed
+  aborted
+  expired
+}
+
+/// Which pipeline a queued representation needs. The stages inside each are
+/// the worker's business; this records which contract applies.
+enum HeritageIngestJobKind {
+  /// Normalise to the delivery format, build the level-of-detail tree, tile.
+  splat_pipeline
+  /// Decimate if needed, compress geometry, transcode textures to KTX2, LODs.
+  mesh_pipeline
+  /// Convert to a renderable representation, or reject with a clear reason.
+  point_cloud_conversion
+  /// Extract duration, dimensions and codec for audio, video and imagery.
+  media_probe
+}
+
+enum HeritageIngestJobStatus {
+  queued
+  claimed
+  running
+  succeeded
+  failed
+  cancelled
+}
+
+/// One in-flight multipart upload.
+///
+/// Survives the browser: a curator who closes the tab three hours into a 26 GB
+/// upload can reopen the console and continue from the last completed part,
+/// which is what §7.2.1's "survives a dropped connection" actually requires.
+model HeritageUploadSession {
+  id               String  @id @default(cuid())
+  venueId          String
+  /// Set once the curator says what this file is. Null while the upload is
+  /// still just bytes arriving.
+  representationId String?
+
+  /// Storage key and the provider's opaque multipart id.
+  storageKey String
+  uploadId   String
+
+  fileName  String
+  fileType  String
+  /// Total size the client declared, used to derive the part plan. BigInt
+  /// because a point-cloud master overflows a 32-bit int.
+  sizeBytes BigInt
+  partSize  Int
+  partCount Int
+
+  purpose HeritageFilePurpose  @default(master)
+  status  HeritageUploadStatus @default(pending)
+
+  /// Why an upload was aborted, in language a curator can act on.
+  failureReason String?
+
+  /// Orphaned multipart parts are billed indefinitely by every storage
+  /// provider, so an abandoned session is a real cost. A sweep aborts
+  /// sessions past this and reclaims the parts.
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue          HeritageVenue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  representation HeritageRepresentation? @relation(fields: [representationId], references: [id], onDelete: SetNull)
+  parts          HeritageUploadPart[]
+
+  @@index([venueId, status])
+  @@index([representationId])
+  @@index([status, expiresAt])
+}
+
+/// One completed part of a multipart upload.
+///
+/// A row per part rather than a JSON array on the session: a 26 GB upload is
+/// roughly 5,000 parts finishing concurrently and out of order, and
+/// read-modify-write on a shared array loses parts under that. The unique
+/// constraint also makes a retried part idempotent.
+model HeritageUploadPart {
+  id         String @id @default(cuid())
+  sessionId  String
+  /// 1-based, per the S3 multipart API.
+  partNumber Int
+  /// The `ETag` the storage provider returned for this part. Required to
+  /// complete the upload.
+  eTag       String
+  sizeBytes  Int
+
+  createdAt DateTime @default(now())
+
+  session HeritageUploadSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, partNumber])
+  @@index([sessionId])
+}
+
+/// A unit of queued processing work against a Representation.
+///
+/// The transcoding itself — splat-tree construction, 3D Tiles tiling, Draco
+/// and KTX2 — is compute, not something a serverless request finishes
+/// (§12.2 names processing as a compute cost separate from storage). This
+/// table is the contract between the console and whatever runs that work: the
+/// console enqueues and reports, a worker claims and reports back.
+model HeritageIngestJob {
+  id               String @id @default(cuid())
+  venueId          String
+  representationId String
+
+  kind   HeritageIngestJobKind
+  status HeritageIngestJobStatus @default(queued)
+
+  /// Inputs the worker was asked to honour. §7.2.2: every output records the
+  /// parameters it was produced with, which is where paradata partly comes
+  /// from automatically rather than depending on curator diligence.
+  parameters Json?
+  /// What the worker reported back — output keys, splat counts, timings.
+  result     Json?
+
+  /// Legible failure, per §7.2.1. Distinct from `result` because a curator
+  /// reads this and a developer reads that.
+  failureReason String?
+
+  attempts   Int       @default(0)
+  /// Set when a worker takes the job; a claim older than the lease window is
+  /// treated as a dead worker and the job returns to the queue.
+  claimedAt  DateTime?
+  claimedBy  String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  /// Rough completion estimate shown to the curator — §7.2's principle is that
+  /// a pipeline taking twenty minutes must say so.
+  estimatedSeconds Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue          HeritageVenue          @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  representation HeritageRepresentation @relation(fields: [representationId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, status])
+  @@index([representationId])
+  @@index([status, createdAt])
 }
