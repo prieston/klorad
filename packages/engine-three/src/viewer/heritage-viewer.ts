@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 
 /**
  * A self-contained glTF viewer for Klorad Heritage.
@@ -48,6 +49,35 @@ export interface HeritageViewerOptions {
   /** Show hotspot geometry rather than leaving it invisible. Authoring aid. */
   showProxies?: boolean;
   background?: string;
+
+  /**
+   * Authoring mode (§7.2.3, HER-203).
+   *
+   * §5.3 is the reason this exists at all: a splat cloud contains no objects,
+   * no faces and no node names, and a raycast into it hits nothing. Proxies
+   * are the entire interaction layer for a captured site, and placing them is
+   * manual labour proportional to how tappable the client wants it. That cost
+   * is real and belongs in the quote — what this mode can do is stop it being
+   * worse than it has to be.
+   */
+  editable?: boolean;
+  /** Clicking empty geometry places a new proxy at the surface point hit. */
+  onPlaceProxy?: (transform: {
+    position: [number, number, number];
+    rotation: [number, number, number, number];
+    scale: [number, number, number];
+  }) => void;
+  /** Fired continuously while a gizmo is dragged, and once on release. */
+  onTransformProxy?: (
+    id: string,
+    transform: {
+      position: [number, number, number];
+      rotation: [number, number, number, number];
+      scale: [number, number, number];
+    },
+  ) => void;
+  /** Translation snap in metres. Null disables snapping. */
+  snap?: number | null;
 }
 
 interface Vec3 {
@@ -102,6 +132,9 @@ export class HeritageViewer {
   private frame = 0;
   private destroyed = false;
   private resizeObserver?: ResizeObserver;
+  private transform?: TransformControls;
+  private contentRoot?: THREE.Object3D;
+  private selectedProxy: THREE.Mesh | null = null;
 
   constructor(opts: HeritageViewerOptions) {
     this.opts = opts;
@@ -132,6 +165,8 @@ export class HeritageViewer {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
       this.controls.enableDamping = false;
     }
+
+    if (opts.editable) this.setupGizmo();
 
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
     const key = new THREE.DirectionalLight(0xffffff, 2.2);
@@ -207,32 +242,37 @@ export class HeritageViewer {
 
     if (this.destroyed) return;
     this.scene.add(root);
+    this.contentRoot = root;
     this.addProxies();
     this.frameAll(root);
     this.opts.onReady?.();
   }
 
   private addProxies() {
-    for (const p of this.opts.proxies ?? []) {
-      const material = new THREE.MeshBasicMaterial({
-        color: 0x27cee7,
-        transparent: true,
-        // Invisible by default: the proxy provides interaction, the capture
-        // provides appearance. Visible only as an authoring aid.
-        opacity: this.opts.showProxies ? 0.25 : 0,
-        depthWrite: false,
-        wireframe: this.opts.showProxies,
-      });
-      const mesh = new THREE.Mesh(proxyGeometry(p.shape), material);
-      const t = readTransform(p.transform);
-      mesh.position.copy(t.position);
-      mesh.quaternion.copy(t.quaternion);
-      mesh.scale.copy(t.scale);
-      mesh.userData.proxyId = p.id;
-      mesh.userData.label = p.label ?? null;
-      this.scene.add(mesh);
-      this.proxyMeshes.push(mesh);
-    }
+    for (const p of this.opts.proxies ?? []) this.createProxyMesh(p);
+  }
+
+  private createProxyMesh(p: ProxyHotspot): THREE.Mesh {
+    const visible = this.opts.showProxies || this.opts.editable;
+    const material = new THREE.MeshBasicMaterial({
+      color: 0x27cee7,
+      transparent: true,
+      // Invisible by default: the proxy provides interaction, the capture
+      // provides appearance. Visible only while authoring.
+      opacity: visible ? 0.25 : 0,
+      depthWrite: false,
+      wireframe: visible,
+    });
+    const mesh = new THREE.Mesh(proxyGeometry(p.shape), material);
+    const t = readTransform(p.transform);
+    mesh.position.copy(t.position);
+    mesh.quaternion.copy(t.quaternion);
+    mesh.scale.copy(t.scale);
+    mesh.userData.proxyId = p.id;
+    mesh.userData.label = p.label ?? null;
+    this.scene.add(mesh);
+    this.proxyMeshes.push(mesh);
+    return mesh;
   }
 
   /** Fit the camera to the loaded content so a visitor never arrives staring
@@ -254,15 +294,113 @@ export class HeritageViewer {
   }
 
   private onPointerDown = (e: PointerEvent) => {
+    // A drag on the gizmo is not a click on the scene behind it.
+    if (this.transform?.dragging) return;
+
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hit = this.raycaster.intersectObjects(this.proxyMeshes, false)[0];
-    if (hit) {
-      this.opts.onSelectProxy?.(hit.object.userData.proxyId as string);
+
+    const proxyHit = this.raycaster.intersectObjects(this.proxyMeshes, false)[0];
+    if (proxyHit) {
+      const mesh = proxyHit.object as THREE.Mesh;
+      this.opts.onSelectProxy?.(mesh.userData.proxyId as string);
+      if (this.opts.editable) this.selectProxy(mesh);
+      return;
     }
+
+    if (!this.opts.editable || !this.contentRoot) return;
+
+    // Nothing hit: place a new proxy where the ray meets the geometry. Placing
+    // at the surface rather than at the origin is the difference between an
+    // authoring tool and a coordinate entry form — a curator marking forty
+    // objects should be clicking, not typing vectors.
+    const surface = this.raycaster.intersectObject(this.contentRoot, true)[0];
+    if (!surface) return;
+    this.opts.onPlaceProxy?.({
+      position: [surface.point.x, surface.point.y, surface.point.z],
+      rotation: [0, 0, 0, 1],
+      scale: [0.3, 0.3, 0.3],
+    });
   };
+
+  private setupGizmo() {
+    const gizmo = new TransformControls(this.camera, this.renderer.domElement);
+    gizmo.setSpace("world");
+    // Orbiting while dragging a handle would fight the drag.
+    gizmo.addEventListener("dragging-changed", (e) => {
+      this.controls.enabled = !(e.value as boolean);
+    });
+    gizmo.addEventListener("objectChange", () => this.emitTransform());
+    if (this.opts.snap) {
+      gizmo.setTranslationSnap(this.opts.snap);
+      gizmo.setRotationSnap(Math.PI / 24);
+    }
+    // r155+ exposes the visual helper separately from the controller.
+    const helper = (gizmo as unknown as { getHelper?: () => THREE.Object3D }).getHelper?.();
+    this.scene.add(helper ?? (gizmo as unknown as THREE.Object3D));
+    this.transform = gizmo;
+  }
+
+  private emitTransform() {
+    const mesh = this.selectedProxy;
+    if (!mesh) return;
+    this.opts.onTransformProxy?.(mesh.userData.proxyId as string, {
+      position: [mesh.position.x, mesh.position.y, mesh.position.z],
+      rotation: [
+        mesh.quaternion.x,
+        mesh.quaternion.y,
+        mesh.quaternion.z,
+        mesh.quaternion.w,
+      ],
+      scale: [mesh.scale.x, mesh.scale.y, mesh.scale.z],
+    });
+  }
+
+  /** Attach the gizmo to a proxy, by id. Lets the console drive selection
+   *  from its list as well as from the canvas. */
+  selectProxyById(id: string | null) {
+    if (!id) {
+      this.transform?.detach();
+      this.selectedProxy = null;
+      return;
+    }
+    const mesh = this.proxyMeshes.find((m) => m.userData.proxyId === id);
+    if (mesh) this.selectProxy(mesh);
+  }
+
+  private selectProxy(mesh: THREE.Mesh) {
+    this.selectedProxy = mesh;
+    this.transform?.attach(mesh);
+  }
+
+  /** Switch gizmo mode. Bound to W/E/R by the console, the convention every
+   *  3D tool a curator's contractor uses already follows. */
+  setGizmoMode(mode: "translate" | "rotate" | "scale") {
+    this.transform?.setMode(mode);
+  }
+
+  /** Add a proxy to the live scene without a reload, so placing one feels
+   *  immediate rather than round-tripping through the server first. */
+  addProxy(p: ProxyHotspot) {
+    this.createProxyMesh(p);
+  }
+
+  /** Remove one, likewise. */
+  removeProxy(id: string) {
+    const i = this.proxyMeshes.findIndex((m) => m.userData.proxyId === id);
+    if (i < 0) return;
+    const mesh = this.proxyMeshes[i];
+    if (this.selectedProxy === mesh) {
+      this.transform?.detach();
+      this.selectedProxy = null;
+    }
+    this.scene.remove(mesh);
+    mesh.geometry.dispose();
+    (mesh.material as THREE.Material).dispose();
+    this.proxyMeshes.splice(i, 1);
+  }
 
   private focusIndex = -1;
   private onKeyDown = (e: KeyboardEvent) => {
@@ -307,6 +445,8 @@ export class HeritageViewer {
     this.renderer.domElement.removeEventListener("pointerdown", this.onPointerDown);
     this.renderer.domElement.removeEventListener("keydown", this.onKeyDown);
     this.controls.dispose();
+    this.transform?.detach();
+    this.transform?.dispose();
     this.scene.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
       if (mesh.geometry) mesh.geometry.dispose();
