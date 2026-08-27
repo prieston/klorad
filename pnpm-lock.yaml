@@ -613,6 +613,9 @@ importers:
       '@klorad/design-system':
         specifier: workspace:^
         version: link:../../packages/design-system
+      '@klorad/engine-three':
+        specifier: workspace:*
+        version: link:../../packages/engine-three
       '@klorad/prisma':
         specifier: workspace:*
         version: link:../../packages/prisma
@@ -661,10 +664,16 @@ importers:
       swr:
         specifier: ^2.3.6
         version: 2.3.6(react@19.2.1)
+      three:
+        specifier: ^0.170.0
+        version: 0.170.0
       zod:
         specifier: ^3.24.2
         version: 3.25.76
     devDependencies:
+      '@types/three':
+        specifier: ^0.170.0
+        version: 0.170.0
       autoprefixer:
         specifier: 10.4.20
         version: 10.4.20(postcss@8.4.47)
