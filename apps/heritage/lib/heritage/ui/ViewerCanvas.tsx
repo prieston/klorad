@@ -77,7 +77,10 @@ export function ViewerCanvas({
   return (
     <div
       className={`relative overflow-hidden rounded-2xl bg-surface-2 ${className ?? ""}`}
-      style={{ height }}
+      // height={0} means "fill the parent" — the embed shell sizes itself to
+      // the iframe and the canvas has to follow, rather than the caller
+      // guessing a pixel height it cannot know.
+      style={height > 0 ? { height } : { height: "100%" }}
     >
       <div ref={hostRef} className="h-full w-full" />
 

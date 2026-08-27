@@ -60,9 +60,20 @@ export async function generateMetadata({
   const o = await load(slug, objectSlug);
   if (!o) return { title: "Not found" };
   const lang = o.venue.defaultLanguage;
+  const canonical = `/v/${o.venue.slug}/o/${o.slug}`;
   return {
     title: pickLocalized(o.title, lang, "en") ?? "Object",
     description: pickLocalized(o.description, lang, "en") ?? undefined,
+    alternates: {
+      canonical,
+      // oEmbed discovery. A consumer that has only the page URL finds the
+      // provider endpoint through this link — it is half of what "a working
+      // oEmbed discovery endpoint" in §7.4.2 actually means, and the half
+      // that is easy to forget because the endpoint works without it.
+      types: {
+        "application/json+oembed": `/api/oembed?url=${encodeURIComponent(canonical)}&format=json`,
+      },
+    },
   };
 }
 

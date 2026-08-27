@@ -5,7 +5,26 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import Providers from "./providers";
 
+/**
+ * Absolute base for generated metadata URLs.
+ *
+ * Load-bearing for oEmbed: §7.4.2 requires a working discovery endpoint, and a
+ * relative `href` on the `<link rel="alternate" type="application/json+oembed">`
+ * is resolvable in principle but is not what a consumer registry expects.
+ * `metadataBase` makes Next absolutise every `alternates` URL.
+ *
+ * Derived from the environment rather than hard-coded so preview deployments
+ * and custom domains advertise themselves correctly.
+ */
+const metadataBase = new URL(
+  process.env.NEXT_PUBLIC_APP_URL ??
+    (process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3005"),
+);
+
 export const metadata: Metadata = {
+  metadataBase,
   title: {
     default: "Klorad Heritage",
     template: "%s · Klorad Heritage",

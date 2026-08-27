@@ -63,8 +63,15 @@ export async function generateMetadata({
   const { slug, sceneSlug } = await params;
   const s = await load(slug, sceneSlug);
   if (!s) return { title: "Not found" };
+  const canonical = `/v/${s.venue.slug}/s/${s.slug}`;
   return {
     title: pickLocalized(s.title, s.venue.defaultLanguage, "en") ?? "Scene",
+    alternates: {
+      canonical,
+      types: {
+        "application/json+oembed": `/api/oembed?url=${encodeURIComponent(canonical)}&format=json`,
+      },
+    },
   };
 }
 
