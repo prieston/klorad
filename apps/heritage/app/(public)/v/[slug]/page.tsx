@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Boxes, Layers, Route } from "lucide-react";
 import { KloradMark } from "@klorad/design-system";
 import { prisma } from "@/lib/prisma";
+import { ViewBeacon } from "@/lib/heritage/ui/ViewBeacon";
 import { pickLocalized } from "@/lib/heritage/i18n";
 import { languageName, uiStrings } from "@/lib/heritage/ui-strings";
 
@@ -101,6 +102,7 @@ export default async function PublicVenuePage({
 
   return (
     <main lang={language} className="mx-auto w-full max-w-3xl px-6 py-12 md:px-10">
+      <ViewBeacon venueSlug={venue.slug} kind="venue" language={language} />
       <header className="mb-10">
         <KloradMark className="h-6 w-auto" title="Klorad" />
         <h1 className="mt-5 text-4xl font-light leading-[1.05] text-text-primary md:text-5xl">

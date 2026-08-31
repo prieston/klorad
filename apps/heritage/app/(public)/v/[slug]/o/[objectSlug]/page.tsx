@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { ViewBeacon } from "@/lib/heritage/ui/ViewBeacon";
 import { pickLocalized } from "@/lib/heritage/i18n";
 import { languageName, uiStrings, viewerStrings } from "@/lib/heritage/ui-strings";
 import { RIGHTS_LABEL, RIGHTS_URI, applyScanPolicy } from "@/lib/heritage/rights";
@@ -134,6 +135,12 @@ export default async function ArtifactViewerPage({
 
   return (
     <main lang={language} className="mx-auto w-full max-w-4xl px-6 py-10 md:px-10">
+      <ViewBeacon
+        venueSlug={o.venue.slug}
+        kind="object"
+        targetSlug={o.slug}
+        language={language}
+      />
       <Link
         href={`/v/${o.venue.slug}${lang ? `?lang=${lang}` : ""}`}
         className="inline-flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-primary"

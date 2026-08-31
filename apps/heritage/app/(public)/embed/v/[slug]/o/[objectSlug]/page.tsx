@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { ViewBeacon } from "@/lib/heritage/ui/ViewBeacon";
 import { pickLocalized } from "@/lib/heritage/i18n";
 import { RIGHTS_LABEL, RIGHTS_URI, applyScanPolicy } from "@/lib/heritage/rights";
 import { deliveryUrlFor } from "@/lib/heritage/delivery";
@@ -91,14 +92,23 @@ export default async function EmbedObjectPage({
     : object.rights;
 
   return (
-    <EmbedFrame
-      openLabel={uiStrings(language)("viewInCollection")}
-      title={t(object.title) ?? object.slug}
-      subtitle={t(object.venue.name) ?? null}
-      canonicalPath={`/v/${object.venue.slug}/o/${object.slug}`}
-      rightsLabel={rights ? RIGHTS_LABEL[rights] : null}
-      rightsUri={rights ? RIGHTS_URI[rights] : null}
-      layers={layers}
-    />
+    <>
+      <ViewBeacon
+        venueSlug={object.venue.slug}
+        kind="object"
+        targetSlug={object.slug}
+        isEmbed
+        language={language}
+      />
+      <EmbedFrame
+        openLabel={uiStrings(language)("viewInCollection")}
+        title={t(object.title) ?? object.slug}
+        subtitle={t(object.venue.name) ?? null}
+        canonicalPath={`/v/${object.venue.slug}/o/${object.slug}`}
+        rightsLabel={rights ? RIGHTS_LABEL[rights] : null}
+        rightsUri={rights ? RIGHTS_URI[rights] : null}
+        layers={layers}
+      />
+    </>
   );
 }

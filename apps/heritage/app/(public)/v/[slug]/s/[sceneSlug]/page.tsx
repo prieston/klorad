@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { ViewBeacon } from "@/lib/heritage/ui/ViewBeacon";
 import { pickLocalized } from "@/lib/heritage/i18n";
 import { uiStrings } from "@/lib/heritage/ui-strings";
 import { deliveryUrlFor } from "@/lib/heritage/delivery";
@@ -143,6 +144,12 @@ export default async function ScenePage({
 
   return (
     <main lang={language} className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10">
+      <ViewBeacon
+        venueSlug={s.venue.slug}
+        kind="scene"
+        targetSlug={s.slug}
+        language={language}
+      />
       <Link
         href={`/v/${s.venue.slug}${lang ? `?lang=${lang}` : ""}`}
         className="inline-flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-primary"

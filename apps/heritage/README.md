@@ -81,11 +81,25 @@ to re-download the model.
 6. Run `check:ingest` and `check:rights` against the deployed environment once.
    They catch exactly the misconfigurations that only appear in production.
 
+## Analytics
+
+Counts only. No per-visitor row is written — no IP address, no session
+identifier, no cookie, no timestamp finer than a day. A counter goes up.
+
+That is why the public pages carry no consent banner, and it is also why the
+numbers cannot tell you how long someone stayed or where they went next. The
+trade was made deliberately: a museum needs to justify the spend, not profile
+its audience.
+
+The one distinction worth an extra column is direct visits versus embeds.
+Reach outside the institution's own website is the figure that justifies the
+work to a board, and it disappears if the two are added together.
+
 ## Known gaps
 
 - Visitor-facing chrome is English-only. Content is multilingual; the frame
   around it is not.
-- `reach` and `analytics` are stubs — nothing emits events yet.
+- `reach` (visitor notifications) is still a stub, deliberately cut from v1.
 - Audio and video duration is not measured at ingest.
 - No splat or point-cloud delivery. §13.1 is explicit that no measured headset
   benchmark exists, and building a public promise on an unmeasured number is

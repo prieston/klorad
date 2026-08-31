@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { ViewBeacon } from "@/lib/heritage/ui/ViewBeacon";
 import { pickLocalized } from "@/lib/heritage/i18n";
 import { deliveryUrlFor } from "@/lib/heritage/delivery";
 import { uiStrings } from "@/lib/heritage/ui-strings";
@@ -75,20 +76,29 @@ export default async function EmbedScenePage({
   ).flatMap((l) => (l ? [l] : []));
 
   return (
-    <EmbedFrame
-      openLabel={uiStrings(language)("viewInCollection")}
-      title={t(scene.title) ?? scene.slug}
-      subtitle={t(scene.venue.name) ?? null}
-      canonicalPath={`/v/${scene.venue.slug}/s/${scene.slug}`}
-      rightsLabel={null}
-      rightsUri={null}
-      layers={layers}
-      proxies={scene.proxies.map((p) => ({
-        id: p.id,
-        shape: p.shape,
-        transform: p.transform,
-        label: t(p.label),
-      }))}
-    />
+    <>
+      <ViewBeacon
+        venueSlug={scene.venue.slug}
+        kind="scene"
+        targetSlug={scene.slug}
+        isEmbed
+        language={language}
+      />
+      <EmbedFrame
+        openLabel={uiStrings(language)("viewInCollection")}
+        title={t(scene.title) ?? scene.slug}
+        subtitle={t(scene.venue.name) ?? null}
+        canonicalPath={`/v/${scene.venue.slug}/s/${scene.slug}`}
+        rightsLabel={null}
+        rightsUri={null}
+        layers={layers}
+        proxies={scene.proxies.map((p) => ({
+          id: p.id,
+          shape: p.shape,
+          transform: p.transform,
+          label: t(p.label),
+        }))}
+      />
+    </>
   );
 }

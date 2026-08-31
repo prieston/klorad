@@ -1658,6 +1658,7 @@ model HeritageVenue {
   actors               HeritageActor[]
   events               HeritageEvent[]
   reconstructionStates HeritageReconstructionState[]
+  viewEvents HeritageViewEvent[]
 }
 
 /// A gallery, sector, room or scanned scene within a Venue.
@@ -2393,4 +2394,62 @@ model HeritageIngestJob {
   @@index([venueId, status])
   @@index([representationId])
   @@index([status, createdAt])
+}
+
+/// What was looked at. Coarse on purpose — the question a director asks is
+/// "is anyone using the collection", not "what did visitor 41 do next".
+enum HeritageViewKind {
+  venue
+  scene
+  object
+  tour
+}
+
+/// Daily view counts, aggregated on write.
+///
+/// There is deliberately no per-visitor row here: no IP address, no session
+/// identifier, no cookie, no timestamp finer than a day. A counter is
+/// incremented and nothing that could identify a person is ever stored, so
+/// this needs no consent banner and survives a data-protection review by
+/// having nothing to disclose. §9.1 asks for EU residency; storing less is
+/// strictly better than storing it in the right place.
+///
+/// The cost is that questions like "how long did they stay" cannot be
+/// answered. That is the trade, made knowingly: a museum needs to justify the
+/// spend, not to profile its audience.
+model HeritageViewEvent {
+  id      String  @id @default(cuid())
+  venueId String
+
+  kind     HeritageViewKind
+  /// The scene, object or tour; empty string for a venue landing page.
+  ///
+  /// Empty rather than null, and the same for the two columns below, because
+  /// this row is upserted on a unique index that spans them. Postgres treats
+  /// NULLs as distinct in a unique index, so a nullable column here would let
+  /// every view of the landing page insert its own row instead of
+  /// incrementing one — the aggregation would silently stop aggregating.
+  targetId String  @default("")
+
+  /// Whether this was the embedded viewer on somebody else's page (§7.4.2).
+  /// Reach outside the institution's own site is the number that justifies
+  /// the work, and it is invisible if embeds are counted together with direct
+  /// visits.
+  isEmbed  Boolean @default(false)
+  /// Host only — never a full URL, which can carry a search query or a path
+  /// that identifies a person. Empty when there was no referrer.
+  referrerHost String @default("")
+  /// Which translation was actually read, which is what tells a curator
+  /// whether the translation budget paid for itself.
+  language String @default("")
+
+  /// Date only. The column type matters: a timestamp would reintroduce the
+  /// per-visit precision this model exists to avoid.
+  day   DateTime @db.Date
+  count Int      @default(0)
+
+  venue HeritageVenue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@unique([venueId, kind, targetId, isEmbed, referrerHost, language, day])
+  @@index([venueId, day])
 }
