@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { pickLocalized } from "@/lib/heritage/i18n";
 import { RIGHTS_LABEL, RIGHTS_URI, applyScanPolicy } from "@/lib/heritage/rights";
+import { deliveryUrlFor } from "@/lib/heritage/delivery";
 import { EmbedFrame } from "@/lib/heritage/ui/EmbedFrame";
 
 type Params = Promise<{ slug: string; objectSlug: string }>;
@@ -57,14 +58,27 @@ export default async function EmbedObjectPage({
   const t = (v: unknown) =>
     pickLocalized(v, language, object.venue.defaultLanguage);
 
-  const layers = object.representations
+  const candidates = object.representations
     .flatMap((r) =>
       r.files
-        .filter((f) => f.url && f.purpose === "delivery")
+        .filter((f) => f.purpose === "delivery")
         .slice(0, 1)
-        .map((f) => ({ id: r.id, url: f.url as string })),
+        .map((f) => ({ representation: r, file: f })),
     )
     .slice(0, 1);
+
+  const layers = (
+    await Promise.all(
+      candidates.map(async (c) => {
+        const url = await deliveryUrlFor(c.file, {
+          objectRights: object.rights,
+          representationRights: c.representation.rights,
+          scanAssertsRights: object.venue.scanOfPublicDomainAssertsRights,
+        });
+        return url ? { id: c.representation.id, url } : null;
+      }),
+    )
+  ).filter((l): l is { id: string; url: string } => l !== null);
 
   const primary = object.representations[0];
   const rights = primary

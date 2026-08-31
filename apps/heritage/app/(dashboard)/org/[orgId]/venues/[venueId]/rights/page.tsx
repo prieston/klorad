@@ -199,6 +199,13 @@ export default async function RightsPage({ params }: { params: Params }) {
         higher content tier for a direct file URL, but only where the rights
         allow the file to be handed over at all.
       </p>
+      <p className="mt-3 text-xs leading-relaxed text-text-tertiary">
+        This column is enforced, not advisory. Captures are stored privately and
+        every delivery URL is signed and time-limited — around a day for the
+        open statements, fifteen minutes for the rest. A link copied out of a
+        “view only” page stops working; it does not become a permanent public
+        address for someone else’s copyright.
+      </p>
     </main>
   );
 }

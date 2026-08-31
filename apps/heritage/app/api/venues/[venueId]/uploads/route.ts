@@ -122,6 +122,11 @@ export async function POST(
       fileName,
       fileType,
       prefix: storagePrefixFor(venueId),
+      // Private without exception. Rights decide how long a delivery URL
+      // lives, not whether the object is world-readable — a public bucket URL
+      // cannot be un-shared once someone has it, which is the whole reason the
+      // rights console was previously making a promise it could not keep.
+      acl: "private",
     });
 
     const session = await prisma.heritageUploadSession.create({

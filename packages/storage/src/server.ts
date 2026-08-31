@@ -19,6 +19,7 @@ import type {
   PresignUploadResult,
   ObjectRangeInput,
   ObjectRangeResult,
+  PresignDownloadInput,
   StorageConfig,
   UploadAcl,
 } from "./types";
@@ -309,6 +310,44 @@ export async function getObjectRange(
   if (match) totalLength = Number(match[1]);
 
   return { body: bytes, contentLength: bytes.byteLength, totalLength };
+}
+
+/**
+ * Generate a time-limited GET URL for a private object.
+ *
+ * The interesting part is `bucketSeconds`. A naive presigned URL embeds the
+ * moment it was signed, so every page render produces a different URL for the
+ * same file — which defeats the browser cache and the CDN, and makes a
+ * returning visitor re-download a fifty-megabyte model. Rounding the signing
+ * time down to a fixed boundary makes the URL identical for every request
+ * inside that period, so it caches normally, while still expiring.
+ *
+ * The cost of that trick is that the effective lifetime varies: a URL minted
+ * at the start of a period lasts the full `expiresIn`, one minted at the end
+ * rather less. `expiresIn` is therefore set to twice the period by callers, so
+ * the *shortest* real lifetime is one full period rather than zero.
+ */
+export async function presignDownload(
+  cfg: StorageConfig,
+  input: PresignDownloadInput,
+): Promise<string> {
+  const client = makeClient(cfg);
+  const command = new GetObjectCommand({
+    Bucket: cfg.bucket,
+    Key: input.key,
+    ResponseContentDisposition: input.contentDisposition,
+  });
+
+  let signingDate: Date | undefined;
+  if (input.bucketSeconds && input.bucketSeconds > 0) {
+    const ms = input.bucketSeconds * 1000;
+    signingDate = new Date(Math.floor(Date.now() / ms) * ms);
+  }
+
+  return getSignedUrl(client, command, {
+    expiresIn: input.expiresIn ?? 900,
+    signingDate,
+  });
 }
 
 export function storageConfigFromEnv(

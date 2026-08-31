@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { pickLocalized } from "@/lib/heritage/i18n";
+import { deliveryUrlFor } from "@/lib/heritage/delivery";
 import { SceneExplorer } from "./SceneExplorer";
 
 type Params = Promise<{ slug: string; sceneSlug: string }>;
@@ -31,14 +32,25 @@ async function load(slug: string, sceneSlug: string) {
     },
     include: {
       venue: {
-        select: { slug: true, name: true, languages: true, defaultLanguage: true },
+        select: {
+          slug: true,
+          name: true,
+          languages: true,
+          defaultLanguage: true,
+          scanOfPublicDomainAssertsRights: true,
+        },
       },
       space: { select: { name: true } },
       layers: {
         orderBy: { sortOrder: "asc" },
         include: {
           representation: {
-            include: { files: true },
+            include: {
+              files: true,
+              // The depicted object's rights, which are half of the
+              // most-restrictive-wins resolution for this layer's file.
+              object: { select: { rights: true } },
+            },
           },
         },
       },
@@ -94,16 +106,24 @@ export default async function ScenePage({
   // the Phase 0a headset measurement exists. A scene composed of them shows
   // its record and says the geometry is not available yet, rather than
   // failing.
-  const layers = s.layers
-    .filter((l) => l.representation.kind === "mesh")
-    .flatMap((l) => {
-      const file = l.representation.files.find(
-        (f) => f.url && f.purpose === "delivery",
-      );
-      return file?.url
-        ? [{ id: l.id, url: file.url, transform: l.transform ?? undefined }]
-        : [];
-    });
+  // A scene mixes objects with different rights, so each layer is signed
+  // against the rights of the thing it depicts rather than the scene's.
+  const layers = (
+    await Promise.all(
+      s.layers
+        .filter((l) => l.representation.kind === "mesh")
+        .map(async (l) => {
+          const file = l.representation.files.find((f) => f.purpose === "delivery");
+          if (!file) return null;
+          const url = await deliveryUrlFor(file, {
+            objectRights: l.representation.object?.rights ?? null,
+            representationRights: l.representation.rights,
+            scanAssertsRights: s.venue.scanOfPublicDomainAssertsRights,
+          });
+          return url ? { id: l.id, url, transform: l.transform ?? undefined } : null;
+        }),
+    )
+  ).flatMap((l) => (l ? [l] : []));
 
   const skippedSplats = s.layers.filter(
     (l) => l.representation.kind === "splat",

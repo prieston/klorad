@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { pickLocalized } from "@/lib/heritage/i18n";
+import { deliveryUrlFor } from "@/lib/heritage/delivery";
 import { EmbedFrame } from "@/lib/heritage/ui/EmbedFrame";
 
 type Params = Promise<{ slug: string; sceneSlug: string }>;
@@ -27,10 +28,21 @@ export default async function EmbedScenePage({
       venue: { slug, project: { isPublished: true } },
     },
     include: {
-      venue: { select: { slug: true, name: true, defaultLanguage: true } },
+      venue: {
+        select: {
+          slug: true,
+          name: true,
+          defaultLanguage: true,
+          scanOfPublicDomainAssertsRights: true,
+        },
+      },
       layers: {
         orderBy: { sortOrder: "asc" },
-        include: { representation: { include: { files: true } } },
+        include: {
+          representation: {
+            include: { files: true, object: { select: { rights: true } } },
+          },
+        },
       },
       proxies: {
         where: { state: "published" },
@@ -44,16 +56,22 @@ export default async function EmbedScenePage({
   const language = lang ?? scene.venue.defaultLanguage;
   const t = (v: unknown) => pickLocalized(v, language, scene.venue.defaultLanguage);
 
-  const layers = scene.layers
-    .filter((l) => l.representation.kind === "mesh")
-    .flatMap((l) => {
-      const file = l.representation.files.find(
-        (f) => f.url && f.purpose === "delivery",
-      );
-      return file?.url
-        ? [{ id: l.id, url: file.url, transform: l.transform ?? undefined }]
-        : [];
-    });
+  const layers = (
+    await Promise.all(
+      scene.layers
+        .filter((l) => l.representation.kind === "mesh")
+        .map(async (l) => {
+          const file = l.representation.files.find((f) => f.purpose === "delivery");
+          if (!file) return null;
+          const url = await deliveryUrlFor(file, {
+            objectRights: l.representation.object?.rights ?? null,
+            representationRights: l.representation.rights,
+            scanAssertsRights: scene.venue.scanOfPublicDomainAssertsRights,
+          });
+          return url ? { id: l.id, url, transform: l.transform ?? undefined } : null;
+        }),
+    )
+  ).flatMap((l) => (l ? [l] : []));
 
   return (
     <EmbedFrame

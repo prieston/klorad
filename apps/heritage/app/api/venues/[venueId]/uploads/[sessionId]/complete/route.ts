@@ -136,7 +136,10 @@ export async function POST(
           representationId,
           purpose: session.purpose,
           storageKey: completed.key,
-          url: completed.publicUrl,
+          // No stored URL: the object is private, so a URL is minted per
+          // request from the key. Persisting one here would be persisting a
+          // credential with an expiry date.
+          url: null,
           format: extensionOf(session.fileName),
           mimeType: session.fileType,
           sizeBytes: session.sizeBytes,
@@ -193,7 +196,7 @@ export async function POST(
       representationId: result.representationId,
       jobId: result.jobId,
       estimatedSeconds: result.estimatedSeconds,
-      url: completed.publicUrl,
+      storageKey: completed.key,
       status: outcome?.status ?? "queued",
       /** Whether a visitor can see this now, or whether it is stored as an
        *  archival master awaiting a format Klorad can deliver. */

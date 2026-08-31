@@ -5,6 +5,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { pickLocalized } from "@/lib/heritage/i18n";
 import { RIGHTS_LABEL, RIGHTS_URI, applyScanPolicy } from "@/lib/heritage/rights";
+import { deliveryUrlFor } from "@/lib/heritage/delivery";
 import { ViewerCanvas } from "@/lib/heritage/ui/ViewerCanvas";
 
 type Params = Promise<{ slug: string; objectSlug: string }>;
@@ -94,14 +95,29 @@ export default async function ArtifactViewerPage({
 
   // Only representations that actually have a delivery file can be rendered.
   // A capture still queued for processing has a record but no geometry.
-  const layers = o.representations
+  const candidates = o.representations
     .flatMap((r) =>
       r.files
-        .filter((f) => f.url && f.purpose === "delivery")
+        .filter((f) => f.purpose === "delivery")
         .slice(0, 1)
-        .map((f) => ({ id: r.id, url: f.url as string })),
+        .map((f) => ({ representation: r, file: f })),
     )
     .slice(0, 1);
+
+  // Signed per request against private storage, with a lifetime set by the
+  // rights that actually apply to this object.
+  const layers = (
+    await Promise.all(
+      candidates.map(async (c) => {
+        const url = await deliveryUrlFor(c.file, {
+          objectRights: o.rights,
+          representationRights: c.representation.rights,
+          scanAssertsRights: o.venue.scanOfPublicDomainAssertsRights,
+        });
+        return url ? { id: c.representation.id, url } : null;
+      }),
+    )
+  ).filter((l): l is { id: string; url: string } => l !== null);
 
   const primary = o.representations[0];
   const resolvedRights = primary

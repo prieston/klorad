@@ -124,3 +124,18 @@ export interface ObjectRangeResult {
    *  provider omitted the header. */
   totalLength: number | null;
 }
+
+export interface PresignDownloadInput {
+  key: string;
+  /** Seconds the URL stays valid. */
+  expiresIn?: number;
+  /**
+   * Round the signing time down to this many seconds so repeated requests
+   * inside one period produce a byte-identical URL, which is what lets the
+   * browser and CDN cache it. Omit for a URL unique to this moment.
+   */
+  bucketSeconds?: number;
+  /** `Content-Disposition` for the response — use to force a download, or to
+   *  give the saved file a meaningful name. */
+  contentDisposition?: string;
+}

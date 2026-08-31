@@ -14,7 +14,8 @@
     "lint": "next lint --fix --dir app",
     "seed:demo": "node --env-file=../../.env --env-file-if-exists=.env.local --import tsx scripts/seed-demo.ts",
     "check:probe": "tsx scripts/check-probe.ts",
-    "check:ingest": "node --env-file=../../.env --env-file-if-exists=.env.local --import tsx scripts/check-ingest-e2e.ts"
+    "check:ingest": "node --env-file=../../.env --env-file-if-exists=.env.local --import tsx scripts/check-ingest-e2e.ts",
+    "check:rights": "node --conditions=react-server --env-file=../../.env --env-file-if-exists=.env.local --import tsx scripts/check-rights-delivery.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
@@ -35,6 +36,7 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-toastify": "^11.0.5",
+    "server-only": "^0.0.1",
     "swr": "^2.3.6",
     "three": "^0.170.0",
     "zod": "^3.24.2"
