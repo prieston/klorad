@@ -1,11 +1,44 @@
 declare module "three/examples/jsm/loaders/DRACOLoader.js" {
   export class DRACOLoader {
     setDecoderPath(path: string): this;
+    dispose(): void;
+  }
+}
+
+declare module "three/examples/jsm/loaders/KTX2Loader.js" {
+  import type { WebGLRenderer } from "three";
+  export class KTX2Loader {
+    setTranscoderPath(path: string): this;
+    detectSupport(renderer: WebGLRenderer): this;
+    dispose(): void;
   }
 }
 
 declare module "three/examples/jsm/loaders/GLTFLoader.js" {
-  export class GLTFLoader {}
+  import type { Group } from "three";
+  import type { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+  import type { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
+
+  /** Only what this workspace actually calls. These declarations shadow
+   *  @types/three, so anything used here has to be declared here. */
+  export interface GLTF {
+    scene: Group;
+    scenes: Group[];
+    animations: unknown[];
+    asset: Record<string, unknown>;
+  }
+
+  export class GLTFLoader {
+    setDRACOLoader(loader: DRACOLoader): this;
+    setKTX2Loader(loader: KTX2Loader): this;
+    loadAsync(url: string, onProgress?: (e: ProgressEvent) => void): Promise<GLTF>;
+    load(
+      url: string,
+      onLoad: (gltf: GLTF) => void,
+      onProgress?: (e: ProgressEvent) => void,
+      onError?: (e: unknown) => void,
+    ): void;
+  }
 }
 
 declare module "three/examples/jsm/loaders/3DMLoader.js" {

@@ -76,7 +76,7 @@ model Organization {
   slug                 String   @unique
   // isPersonal indicates this is a personal organization (cannot have multiple members)
   isPersonal           Boolean  @default(false)
-  // Which Klorad apps this organization has access to (e.g. "editor", "campus", "culture").
+  // Which Klorad apps this organization has access to (e.g. "editor", "campus", "heritage").
   // Each consumer app filters its org list to entries tagged with its key.
   apps                 String[] @default([])
   // Billing fields
@@ -250,6 +250,18 @@ model Project {
   mobilityCustomIcons    MobilityCustomIcon[]
   // Discovered items pending rector review.
   discoveredItems        DiscoveredItem[]
+
+  // Heritage — 1:1 marker row that makes this Project a Heritage Venue and
+  // carries the venue-specific fields. `engine` cannot play this role because
+  // Campus and Mobility both write `mapbox` into it. See the Heritage block
+  // at the end of this file.
+  //
+  // §8 also lists Story and Notification as Heritage entities; both are
+  // deliberately absent, because the spec (§6.1) says they are retained from
+  // Campus rather than rebuilt. Stories reuse `NewsPost` / `EventPost` and
+  // notifications reuse `Broadcast` / `PushSubscription`, all already scoped
+  // to this Project.
+  heritageVenue HeritageVenue?
 
   // Showcase Relation
   showcaseWorld ShowcaseWorld?
@@ -1327,7 +1339,7 @@ model MobilityDeviceStyle {
 /// arbitrary URL Mobility gave us with a shared secret). Deletion is
 /// operator-triggered via DELETE /api/webhooks/{id} on the mock.
 model MockWebhook {
-  id                 String   @id
+  id                 String    @id
   /// Absolute URL the mock POSTs each matching event to. This is
   /// mobility's `/api/webhooks/inet-atms/{sourceId}` in practice, but
   /// the table doesn't assume it — any HTTPS endpoint works.
@@ -1339,8 +1351,8 @@ model MockWebhook {
   /// echoed on the create response so the caller can persist it once.
   secret             String
   /// Auto-deactivated after 3 failed retries (see `sendWithRetry`).
-  active             Boolean  @default(true)
-  createdAt          DateTime @default(now())
+  active             Boolean   @default(true)
+  createdAt          DateTime  @default(now())
   lastDeliveryAt     DateTime?
   /// HTTP status of the most recent delivery attempt. Null before
   /// the first fire. Used only by the /api/webhooks GET list for
@@ -1385,4 +1397,994 @@ model MockStatusOverride {
   createdAt  DateTime @default(now())
 
   @@index([expiresAt])
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Klorad Heritage — the cultural heritage vertical.
+//
+// Spec: DOC-BU6-002_PRD-HER_EN §8 "Data model". Four modelling rules from that
+// section are load-bearing, so they are encoded in the shape here rather than
+// left to application code to remember:
+//
+//   1. A Representation is never conflated with the HeritageObject it depicts.
+//      Europeana's EDM draws the same line and every downstream mapping (EDM,
+//      LIDO, Linked Art) depends on it.
+//   2. Rights live on both, separately, and resolve at read time to the more
+//      restrictive of the two. See lib/heritage/rights.ts.
+//   3. Paradata attaches to the Representation, never to the object. One
+//      sculpture may carry a 2009 laser scan and a 2026 splat capture with
+//      entirely different trustworthiness, and a curator has to see which is
+//      which.
+//   4. A Proxy is content — authored, reviewed and published like anything
+//      else — because it is what a visitor actually touches, and recapturing
+//      its Scene invalidates it.
+//
+// Tenancy (§5.9) rides on the shared Organization/Project tables so auth,
+// members, invites and the dashboard shell work unchanged: Organisation =
+// `Organization`, Venue = `Project` + its 1:1 `HeritageVenue` row, Space and
+// everything below are new. The `HeritageVenue` row is also what marks a
+// Project as Heritage-shaped — `Project.engine` cannot do that job because
+// Campus and Mobility both write `mapbox` into it.
+//
+// Multilingual fields are `Json` maps of BCP-47 tag to string
+// (`{ "en": "…", "el": "…" }`). §9.1 requires a minimum of five languages per
+// tenant and explicitly "extensible", which a column-per-language or a
+// row-per-translation shape would both fight. See lib/heritage/i18n.ts.
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Draft → review → approve → publish, inherited from the Campus publishing
+/// workflow (§7.2.8). Applies to every visitor-facing entity.
+enum HeritagePublishState {
+  draft
+  in_review
+  approved
+  published
+  archived
+}
+
+enum HeritageVenueKind {
+  museum
+  archaeological_site
+  monument
+  collection
+  cultural_route
+}
+
+enum HeritageSpaceKind {
+  gallery
+  room
+  sector
+  scanned_scene
+  exterior
+  storage
+}
+
+/// What a Scene is made of. §5.2: meshes and splats coexist in one Three.js
+/// scene, but §9.2 forbids spending a full splat budget and a full mesh budget
+/// together — one representation dominates, and this records which.
+enum HeritageSceneKind {
+  mesh
+  splat
+  composite
+  panorama
+}
+
+/// Ingest/processing state for the asset pipeline (§7.2.1, §7.2.2). A curator
+/// uploading a 26 GB point cloud needs to be told what is happening and why it
+/// failed, so this is a real state machine, not a boolean.
+enum HeritageProcessingStatus {
+  pending
+  uploading
+  queued
+  processing
+  ready
+  failed
+}
+
+enum HeritageRepresentationKind {
+  mesh
+  splat
+  point_cloud
+  image
+  audio
+  video
+  panorama
+}
+
+/// Which file in the pipeline a stored object is (§5.4). Masters are archival
+/// and are never shipped to a browser; delivery files are what the runtime
+/// streams.
+enum HeritageFilePurpose {
+  master
+  delivery
+  tileset
+  lod
+  thumbnail
+  transcript
+  caption
+}
+
+enum HeritageProxyShape {
+  box
+  sphere
+  cylinder
+  plane
+  mesh
+}
+
+/// What tapping a Proxy does. `none` exists so a curator can place collision
+/// or floor proxies (§5.2 caveat 3) that carry no visitor interaction.
+enum HeritageProxyInteraction {
+  none
+  info
+  tour_stop
+  external_link
+  scene_link
+}
+
+/// The closed list of 14 rights URIs Europeana permits (§7.2.6, §10.2): CC0,
+/// the Public Domain Mark, the six Creative Commons licences and the six
+/// RightsStatements.org statements. Ordering here is meaningless — see
+/// lib/heritage/rights.ts for the restrictiveness rank used to resolve an
+/// object against its representation.
+enum HeritageRights {
+  cc0
+  public_domain_mark
+  cc_by
+  cc_by_sa
+  cc_by_nd
+  cc_by_nc
+  cc_by_nc_sa
+  cc_by_nc_nd
+  noc_nc
+  noc_oklr
+  in_c
+  in_c_edu
+  in_c_ow_eu
+  cne
+}
+
+/// How a Representation was made (§7.2.4). Feeds the CRMdig D7 Digital Machine
+/// Event that the paradata record stands for.
+enum HeritageCaptureMethod {
+  photogrammetry
+  laser_scan
+  structured_light
+  gaussian_splat
+  manual_model
+  photography
+  born_digital
+  unknown
+}
+
+/// §6.3.2: the product must distinguish what was surveyed from what was
+/// inferred and show the distinction rather than hiding it. Required on every
+/// reconstruction.
+enum HeritageEvidenceClass {
+  surveyed
+  inferred
+  conjectural
+  unknown
+}
+
+enum HeritageActorKind {
+  person
+  group
+  institution
+}
+
+/// The event-centric spine CIDOC-CRM exists for (E5 Event).
+enum HeritageEventKind {
+  creation
+  excavation
+  acquisition
+  transfer
+  conservation
+  destruction
+  exhibition
+  publication
+}
+
+/// Where a Representation sits inside a composed Scene.
+enum HeritageSceneLayerRole {
+  base
+  overlay
+  object
+  proxy_source
+  environment
+}
+
+enum HeritageTourMode {
+  screen
+  headset
+  both
+}
+
+/// A Venue: a museum, an archaeological site, a monument. 1:1 with the shared
+/// `Project`, which supplies tenancy, membership, per-tenant AI key and the
+/// publish flag. This row carries what is Heritage-specific and, by existing
+/// at all, marks the Project as a Heritage venue.
+///
+/// CIDOC-CRM: E27 Site / E22 Human-Made Object.
+model HeritageVenue {
+  id        String            @id @default(cuid())
+  projectId String            @unique
+  kind      HeritageVenueKind @default(museum)
+  /// Public URL segment — `/v/<slug>`. Global, not per-org, because the
+  /// public viewer and the oEmbed endpoint (§7.4.2) are unauthenticated and
+  /// must resolve without a tenant in the path.
+  slug      String            @unique
+
+  /// Localized. `{ "en": "…", "el": "…" }`.
+  name    Json
+  summary Json?
+
+  /// BCP-47 tags. §9.1 sets a minimum of five per tenant; nothing enforces
+  /// that here because a venue in setup legitimately starts with one.
+  languages       String[] @default(["en"])
+  defaultLanguage String   @default("en")
+
+  /// Locator only (§5.5 — Segment D gets a locator map, not a continuous
+  /// territorial twin). Not a georeference for scene content, which stays
+  /// local to its tileset per §5.7.
+  latitude  Float?
+  longitude Float?
+  timezone  String?
+  address   Json?
+
+  /// §7.2.6: whether a faithful 3D scan of a public-domain object is treated
+  /// as generating new rights. Directive 2019/790 Art. 14 says reproductions
+  /// of public-domain visual works are not protected, but its application to
+  /// scans is unsettled and institutions differ. Deliberately a per-tenant
+  /// policy rather than a hard-coded position.
+  scanOfPublicDomainAssertsRights Boolean @default(false)
+
+  /// Default applied to new representations when a curator does not choose.
+  defaultRights HeritageRights @default(in_c)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project              Project                       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  spaces               HeritageSpace[]
+  scenes               HeritageScene[]
+  objects              HeritageObject[]
+  representations      HeritageRepresentation[]
+  proxies              HeritageProxy[]
+  tours                HeritageTour[]
+  uploadSessions       HeritageUploadSession[]
+  ingestJobs           HeritageIngestJob[]
+  periods              HeritagePeriod[]
+  actors               HeritageActor[]
+  events               HeritageEvent[]
+  reconstructionStates HeritageReconstructionState[]
+}
+
+/// A gallery, sector, room or scanned scene within a Venue.
+/// CIDOC-CRM: E53 Place.
+model HeritageSpace {
+  id      String            @id @default(cuid())
+  venueId String
+  kind    HeritageSpaceKind @default(gallery)
+  slug    String
+
+  /// Localized.
+  name        Json
+  description Json?
+
+  /// Storey index for the orthographic plan view (§7.1.11). Null for outdoor
+  /// sectors that do not stack.
+  floor     Int?
+  sortOrder Int                  @default(0)
+  state     HeritagePublishState @default(draft)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue                HeritageVenue                 @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  scenes               HeritageScene[]
+  objects              HeritageObject[]
+  representations      HeritageRepresentation[]
+  reconstructionStates HeritageReconstructionState[]
+
+  @@unique([venueId, slug])
+  @@index([venueId, state])
+}
+
+/// A renderable unit: one splat capture, one mesh environment, or a
+/// composition of both (§5.2). Carries its delivery assets through
+/// `HeritageSceneLayer` and its tileset directly.
+model HeritageScene {
+  id      String            @id @default(cuid())
+  venueId String
+  spaceId String?
+  kind    HeritageSceneKind @default(mesh)
+  slug    String
+
+  /// Localized.
+  title       Json
+  description Json?
+
+  status HeritageProcessingStatus @default(pending)
+  state  HeritagePublishState     @default(draft)
+
+  /// OGC 3D Tiles 1.1 root. §5.5 routes large sites through tiling because a
+  /// gigabyte single-file download is not a product, and because per-tile
+  /// local origins solve the float32 precision problem in §5.7 for free.
+  tilesetUrl String?
+
+  /// `{ position, target, fov }` — the pose a visitor arrives at.
+  initialCamera Json?
+  /// Lighting, exposure, skybox, tone mapping. Splats ignore all of it
+  /// (§5.2 caveat 1); meshes do not.
+  environment   Json?
+
+  /// Invisible walkable surface for locomotion. Splats have no surface and so
+  /// no collision (§5.2 caveat 3), which makes this the difference between a
+  /// scene you can move through and one you can only orbit.
+  floorProxyUrl String?
+
+  /// Planning ceiling for this scene, in splats. §9.2 records these budgets as
+  /// unvalidated targets pending the Phase 0a Quest measurement, so this is a
+  /// per-scene authoring aid, not an enforced runtime limit.
+  splatBudget   Int?
+  triangleCount Int?
+
+  /// Set when the underlying capture is replaced. Modelling rule 4: a
+  /// recapture invalidates every Proxy in the scene, and the console has to
+  /// say so rather than silently leaving proxies pointing at moved geometry.
+  lastRecapturedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue                HeritageVenue                 @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  space                HeritageSpace?                @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  layers               HeritageSceneLayer[]
+  proxies              HeritageProxy[]
+  tourStops            HeritageTourStop[]
+  reconstructionStates HeritageReconstructionState[]
+
+  @@unique([venueId, slug])
+  @@index([venueId, state])
+  @@index([spaceId])
+  @@index([status])
+}
+
+/// Places one Representation into one Scene with a transform. The join exists
+/// because §5.2's strongest product story — a splat site with mesh artifacts
+/// on plinths — is a composition, and because the same capture can appear in
+/// more than one scene.
+model HeritageSceneLayer {
+  id               String                 @id @default(cuid())
+  sceneId          String
+  representationId String
+  role             HeritageSceneLayerRole @default(base)
+
+  /// `{ position: [x,y,z], rotation: [x,y,z,w], scale: [x,y,z] }`.
+  transform Json?
+  sortOrder Int     @default(0)
+  isVisible Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scene          HeritageScene          @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  representation HeritageRepresentation @relation(fields: [representationId], references: [id], onDelete: Cascade)
+
+  @@unique([sceneId, representationId, role])
+  @@index([sceneId])
+  @@index([representationId])
+}
+
+/// The physical original. Independent of any digital file — modelling rule 1.
+/// CIDOC-CRM: E22 Human-Made Object.
+model HeritageObject {
+  id      String  @id @default(cuid())
+  venueId String
+  spaceId String?
+  slug    String
+
+  /// Institutional inventory or accession number.
+  identifier String?
+
+  /// Localized.
+  title       Json
+  description Json?
+  creditLine  Json?
+
+  /// Getty AAT term where the institution uses one.
+  objectType      String?
+  materials       String[] @default([])
+  /// `{ height, width, depth, unit }`.
+  dimensions      Json?
+  /// Free-text or structured provenance narrative; the event chain lives in
+  /// `HeritageEvent`, which is the CIDOC-CRM-shaped version of the same fact.
+  provenance      Json?
+  /// Where the physical object is now, if not on display in `space`.
+  currentLocation Json?
+
+  periodId String?
+
+  /// Rights on the *original*. Modelling rule 2: representations hold their
+  /// own, and a read resolves to the more restrictive of the two.
+  rights       HeritageRights?
+  rightsHolder String?
+
+  /// Stable URI at the institution's own collections system, for
+  /// `edm:isShownAt` and for the "link to the source record" §7.1.2 requires.
+  externalUri String?
+  /// Identity of this record in the CMS it was ingested from (§7.4.6), so a
+  /// re-sync updates rather than duplicates.
+  cmsSourceId String?
+
+  state     HeritagePublishState @default(draft)
+  sortOrder Int                  @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue                HeritageVenue                 @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  space                HeritageSpace?                @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  period               HeritagePeriod?               @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  representations      HeritageRepresentation[]
+  proxies              HeritageProxy[]
+  events               HeritageEvent[]
+  tourStops            HeritageTourStop[]
+  reconstructionStates HeritageReconstructionState[]
+
+  @@unique([venueId, slug])
+  @@index([venueId, state])
+  @@index([spaceId])
+  @@index([periodId])
+  @@index([venueId, cmsSourceId])
+}
+
+/// A digital representation of an object or a space: mesh, splat capture,
+/// image, point cloud, audio, video. Many per object or space, and never
+/// conflated with what it depicts (modelling rule 1).
+/// CRMdig: D1 Digital Object.
+model HeritageRepresentation {
+  id       String  @id @default(cuid())
+  venueId  String
+  /// Exactly one of `objectId` / `spaceId` is normally set: a representation
+  /// depicts either an object or a space. Not enforced at the database level
+  /// because ingest legitimately creates an unattached representation and
+  /// binds it once the curator says what it is.
+  objectId String?
+  spaceId  String?
+
+  kind   HeritageRepresentationKind
+  status HeritageProcessingStatus   @default(pending)
+  state  HeritagePublishState       @default(draft)
+
+  label Json?
+
+  /// Delivery-side geometry statistics, populated by the pipeline (§7.2.2).
+  splatCount    Int?
+  triangleCount Int?
+  /// `{ min: [x,y,z], max: [x,y,z] }` in the representation's local frame.
+  boundingBox   Json?
+  /// Seconds, for audio and video.
+  durationSec   Float?
+
+  /// Rights on *this representation*, held separately from the original's
+  /// (modelling rule 2).
+  rights       HeritageRights?
+  rightsHolder String?
+  rightsNote   String?
+
+  /// Why processing failed, in language a curator can act on (§7.2.1).
+  failureReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue          HeritageVenue                @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  object         HeritageObject?              @relation(fields: [objectId], references: [id], onDelete: SetNull)
+  space          HeritageSpace?               @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  files          HeritageRepresentationFile[]
+  paradata       HeritageParadata?
+  layers         HeritageSceneLayer[]
+  uploadSessions HeritageUploadSession[]
+  ingestJobs     HeritageIngestJob[]
+
+  @@index([venueId, state])
+  @@index([objectId])
+  @@index([spaceId])
+  @@index([status])
+}
+
+/// One stored file belonging to a Representation. Split out from the
+/// representation because §5.4's pipeline produces several files per capture —
+/// a PLY master that is never shipped, an SPZ or SOG delivery build, a 3D
+/// Tiles tileset, level-of-detail rungs — and their sizes differ by two orders
+/// of magnitude.
+model HeritageRepresentationFile {
+  id               String              @id @default(cuid())
+  representationId String
+  purpose          HeritageFilePurpose
+
+  /// Storage key in the Klorad bucket, and the resolved public URL. Masters
+  /// keep a key but are not served publicly.
+  storageKey String
+  url        String?
+  /// `ply`, `spz`, `sog`, `glb`, `ktx2`, `las`, `e57`, `mp3`, … Free text
+  /// rather than an enum because §5.4's ingest list is deliberately open:
+  /// institutions arrive with whatever their contractor produced.
+  format     String
+  mimeType   String?
+  sizeBytes  BigInt?
+  checksum   String?
+
+  /// Level-of-detail rung, 0 being the coarsest. Null for non-LOD files.
+  lodLevel Int?
+  /// BCP-47 tag for language-bearing files — audio tracks, transcripts,
+  /// captions (§7.1.6).
+  language String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  representation HeritageRepresentation @relation(fields: [representationId], references: [id], onDelete: Cascade)
+
+  @@index([representationId, purpose])
+}
+
+/// How a Representation was made (§7.2.4). Attached to the Representation and
+/// never to the object — modelling rule 3. Partly auto-populated by the
+/// processing pipeline, which is the point: paradata that depends entirely on
+/// curator diligence does not get recorded.
+/// CRMdig: D7 Digital Machine Event, D11 Digital Measurement Event.
+model HeritageParadata {
+  id               String @id @default(cuid())
+  representationId String @unique
+
+  method          HeritageCaptureMethod @default(unknown)
+  deviceName      String?
+  /// Ordered list of `{ tool, version, parameters }` steps. The pipeline
+  /// appends its own stage here so the record is true without being typed.
+  processingChain Json?
+
+  capturedAt      DateTime?
+  processedAt     DateTime?
+  /// Who operated the capture. An Actor rather than a string because the same
+  /// contractor recurs across a collection.
+  operatorActorId String?
+
+  /// VIGIE 2020/654 complexity degree and the purpose the capture was made
+  /// for. Kept as free text rather than an enum: the study's degree labels
+  /// were not verified against the source at time of writing, and inventing
+  /// an enum here would bake a guess into the database.
+  vigieComplexity String?
+  intendedPurpose String?
+
+  /// Spatial accuracy in metres, where the capture reports one.
+  accuracyMeters Float?
+  notes          Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  representation HeritageRepresentation @relation(fields: [representationId], references: [id], onDelete: Cascade)
+  operatorActor  HeritageActor?         @relation(fields: [operatorActorId], references: [id], onDelete: SetNull)
+
+  @@index([operatorActorId])
+}
+
+/// Invisible authored geometry inside a Scene, bound to a HeritageObject.
+///
+/// §5.3 is the requirement that is easy to miss: a splat cloud contains no
+/// objects, no faces, no node names, and a raycast into it hits nothing. For a
+/// platform whose entire interaction model is "tap this thing, read its
+/// record", the proxy is not a workaround — it is the interaction layer.
+/// Authoring it is manual labour proportional to how tappable the client wants
+/// the site, which is why it is priced per object and built first (§7.2.3).
+model HeritageProxy {
+  id       String  @id @default(cuid())
+  venueId  String
+  sceneId  String
+  objectId String?
+
+  shape       HeritageProxyShape       @default(box)
+  interaction HeritageProxyInteraction @default(info)
+
+  /// `{ position: [x,y,z], rotation: [x,y,z,w], scale: [x,y,z] }` in the
+  /// scene's local frame.
+  transform   Json
+  /// Low-poly proxy mesh, when `shape = mesh`.
+  geometryUrl String?
+
+  /// Localized label shown on hover/gaze.
+  label Json?
+  /// Target for `external_link` / `scene_link` interactions.
+  href  String?
+
+  state     HeritagePublishState @default(draft)
+  sortOrder Int                  @default(0)
+
+  /// Modelling rule 4. Set when the scene's capture is replaced; a proxy that
+  /// was authored against geometry that no longer exists is worse than a
+  /// missing one, because it silently points at the wrong thing.
+  invalidatedAt     DateTime?
+  invalidatedReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue  HeritageVenue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  scene  HeritageScene   @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  object HeritageObject? @relation(fields: [objectId], references: [id], onDelete: SetNull)
+
+  @@index([sceneId, state])
+  @@index([objectId])
+  @@index([venueId])
+}
+
+/// A named time span. CIDOC-CRM: E4 Period.
+model HeritagePeriod {
+  id      String @id @default(cuid())
+  venueId String
+
+  /// Localized.
+  name Json
+  note Json?
+
+  /// Astronomical year numbering: 1 BCE is 0, 2 BCE is -1. Nullable because
+  /// "Late Bronze Age" legitimately has no crisp bound.
+  startYear Int?
+  endYear   Int?
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue                HeritageVenue                 @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  objects              HeritageObject[]
+  events               HeritageEvent[]
+  reconstructionStates HeritageReconstructionState[]
+
+  @@index([venueId])
+}
+
+/// Maker, excavator, donor, conservator, author, capture operator.
+/// CIDOC-CRM: E39 Actor.
+model HeritageActor {
+  id      String            @id @default(cuid())
+  venueId String
+  kind    HeritageActorKind @default(person)
+
+  name        Json
+  note        Json?
+  /// ULAN, VIAF or another authority URI where the institution uses one.
+  externalUri String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue    HeritageVenue      @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  events   HeritageEvent[]
+  paradata HeritageParadata[]
+
+  @@index([venueId])
+}
+
+/// Creation, excavation, transfer, conservation, destruction. The
+/// event-centric spine CIDOC-CRM exists for. CIDOC-CRM: E5 Event.
+model HeritageEvent {
+  id      String            @id @default(cuid())
+  venueId String
+  kind    HeritageEventKind
+
+  objectId String?
+  actorId  String?
+  periodId String?
+
+  /// Localized.
+  title Json?
+  note  Json?
+
+  /// A bounded span rather than a point, because "sometime in the 1890s" is
+  /// the normal case in a documentation record.
+  startDate   DateTime?
+  endDate     DateTime?
+  /// The date as the institution writes it, when it does not reduce to a
+  /// timestamp ("mid-4th century BCE").
+  dateDisplay Json?
+
+  place Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue  HeritageVenue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  object HeritageObject? @relation(fields: [objectId], references: [id], onDelete: Cascade)
+  actor  HeritageActor?  @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  period HeritagePeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+
+  @@index([venueId, kind])
+  @@index([objectId])
+  @@index([actorId])
+  @@index([periodId])
+}
+
+/// A documented state of a venue or object at a period, with an evidence
+/// class. §7.1.7: under the single-renderer decision this is usually a
+/// separate captured or authored Scene rather than a layer toggle, because
+/// splats cannot be relit or edited — hence `sceneId` rather than a diff.
+/// CIDOC-CRM: E5 Event / E52 Time-Span.
+model HeritageReconstructionState {
+  id       String  @id @default(cuid())
+  venueId  String
+  spaceId  String?
+  objectId String?
+  sceneId  String?
+  periodId String?
+
+  /// Localized.
+  label       Json
+  description Json?
+
+  /// §6.3.2 / §7.1.7: a reconstruction shown to a visitor must be
+  /// distinguishable from surviving fabric at a glance and must carry its
+  /// evidence class. Not nullable, because "we forgot to say" and "we do not
+  /// know" are different answers and only one of them is honest.
+  evidence   HeritageEvidenceClass @default(unknown)
+  /// 0–100. A coarse indication, deliberately not a false precision.
+  confidence Int?
+  /// Citations behind the reconstruction: `[{ label, uri, note }]`.
+  sources    Json?
+
+  state     HeritagePublishState @default(draft)
+  sortOrder Int                  @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue  HeritageVenue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  space  HeritageSpace?  @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  object HeritageObject? @relation(fields: [objectId], references: [id], onDelete: Cascade)
+  scene  HeritageScene?  @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+  period HeritagePeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+
+  @@index([venueId, state])
+  @@index([objectId])
+  @@index([sceneId])
+  @@index([periodId])
+  @@index([spaceId])
+}
+
+/// An ordered sequence of Stops through one or more Scenes (§7.1.4). One
+/// definition drives both the on-screen virtual tour and the in-headset guided
+/// walk — the direct answer to the "virtual tours, immersive technology"
+/// procurement language in §4.5.
+model HeritageTour {
+  id      String @id @default(cuid())
+  venueId String
+  slug    String
+
+  /// Localized.
+  title       Json
+  description Json?
+
+  mode  HeritageTourMode     @default(both)
+  state HeritagePublishState @default(draft)
+
+  estimatedMinutes  Int?
+  /// §7.1.11: an accessible route is a first-class option, not a variant —
+  /// a wheelchair user at an archaeological site needs to know about gravel
+  /// before committing to a path.
+  isAccessibleRoute Boolean @default(false)
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue HeritageVenue      @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  stops HeritageTourStop[]
+
+  @@unique([venueId, slug])
+  @@index([venueId, state])
+}
+
+/// A point in a Scene with per-language text, audio and media, and a camera
+/// pose (§7.1.4, §7.1.6).
+model HeritageTourStop {
+  id       String  @id @default(cuid())
+  tourId   String
+  sceneId  String?
+  objectId String?
+
+  sortOrder Int @default(0)
+
+  /// Localized.
+  title Json
+  body  Json?
+
+  /// `{ position, target, fov }`. On screen this is where the camera flies;
+  /// in a headset it is the authored waypoint locomotion teleports to
+  /// (§5.2 caveat 3).
+  cameraPose Json?
+
+  /// Per-language narration and supporting media. Representations rather than
+  /// raw URLs so audio inherits rights, paradata and the transcript files that
+  /// §10.1 requires.
+  audioRepresentationId  String?
+  mediaRepresentationIds String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tour   HeritageTour    @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  scene  HeritageScene?  @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+  object HeritageObject? @relation(fields: [objectId], references: [id], onDelete: SetNull)
+
+  @@index([tourId, sortOrder])
+  @@index([sceneId])
+  @@index([objectId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Heritage ingest (§7.2.1 HER-201, §7.2.2 HER-202).
+//
+// §6.3.4: "Campus assumes content is text and images. Heritage content is
+// gigabytes." A curator uploads a 26 GB point cloud, and the platform has to
+// process it into something a headset can stream, tell them how long that will
+// take, and tell them why it failed when it fails. Ingest is a pipeline with a
+// queue, a status model and legible errors — not an upload field.
+//
+// Upload state is held server-side rather than in the browser because a
+// resumable upload has to survive the tab closing, not just a flaky socket.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum HeritageUploadStatus {
+  pending
+  in_progress
+  completed
+  aborted
+  expired
+}
+
+/// Which pipeline a queued representation needs. The stages inside each are
+/// the worker's business; this records which contract applies.
+enum HeritageIngestJobKind {
+  /// Normalise to the delivery format, build the level-of-detail tree, tile.
+  splat_pipeline
+  /// Decimate if needed, compress geometry, transcode textures to KTX2, LODs.
+  mesh_pipeline
+  /// Convert to a renderable representation, or reject with a clear reason.
+  point_cloud_conversion
+  /// Extract duration, dimensions and codec for audio, video and imagery.
+  media_probe
+}
+
+enum HeritageIngestJobStatus {
+  queued
+  claimed
+  running
+  succeeded
+  failed
+  cancelled
+}
+
+/// One in-flight multipart upload.
+///
+/// Survives the browser: a curator who closes the tab three hours into a 26 GB
+/// upload can reopen the console and continue from the last completed part,
+/// which is what §7.2.1's "survives a dropped connection" actually requires.
+model HeritageUploadSession {
+  id               String  @id @default(cuid())
+  venueId          String
+  /// Set once the curator says what this file is. Null while the upload is
+  /// still just bytes arriving.
+  representationId String?
+
+  /// Storage key and the provider's opaque multipart id.
+  storageKey String
+  uploadId   String
+
+  fileName  String
+  fileType  String
+  /// Total size the client declared, used to derive the part plan. BigInt
+  /// because a point-cloud master overflows a 32-bit int.
+  sizeBytes BigInt
+  partSize  Int
+  partCount Int
+
+  purpose HeritageFilePurpose  @default(master)
+  status  HeritageUploadStatus @default(pending)
+
+  /// Why an upload was aborted, in language a curator can act on.
+  failureReason String?
+
+  /// Orphaned multipart parts are billed indefinitely by every storage
+  /// provider, so an abandoned session is a real cost. A sweep aborts
+  /// sessions past this and reclaims the parts.
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue          HeritageVenue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  representation HeritageRepresentation? @relation(fields: [representationId], references: [id], onDelete: SetNull)
+  parts          HeritageUploadPart[]
+
+  @@index([venueId, status])
+  @@index([representationId])
+  @@index([status, expiresAt])
+}
+
+/// One completed part of a multipart upload.
+///
+/// A row per part rather than a JSON array on the session: a 26 GB upload is
+/// roughly 5,000 parts finishing concurrently and out of order, and
+/// read-modify-write on a shared array loses parts under that. The unique
+/// constraint also makes a retried part idempotent.
+model HeritageUploadPart {
+  id         String @id @default(cuid())
+  sessionId  String
+  /// 1-based, per the S3 multipart API.
+  partNumber Int
+  /// The `ETag` the storage provider returned for this part. Required to
+  /// complete the upload.
+  eTag       String
+  sizeBytes  Int
+
+  createdAt DateTime @default(now())
+
+  session HeritageUploadSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, partNumber])
+  @@index([sessionId])
+}
+
+/// A unit of queued processing work against a Representation.
+///
+/// The transcoding itself — splat-tree construction, 3D Tiles tiling, Draco
+/// and KTX2 — is compute, not something a serverless request finishes
+/// (§12.2 names processing as a compute cost separate from storage). This
+/// table is the contract between the console and whatever runs that work: the
+/// console enqueues and reports, a worker claims and reports back.
+model HeritageIngestJob {
+  id               String @id @default(cuid())
+  venueId          String
+  representationId String
+
+  kind   HeritageIngestJobKind
+  status HeritageIngestJobStatus @default(queued)
+
+  /// Inputs the worker was asked to honour. §7.2.2: every output records the
+  /// parameters it was produced with, which is where paradata partly comes
+  /// from automatically rather than depending on curator diligence.
+  parameters Json?
+  /// What the worker reported back — output keys, splat counts, timings.
+  result     Json?
+
+  /// Legible failure, per §7.2.1. Distinct from `result` because a curator
+  /// reads this and a developer reads that.
+  failureReason String?
+
+  attempts   Int       @default(0)
+  /// Set when a worker takes the job; a claim older than the lease window is
+  /// treated as a dead worker and the job returns to the queue.
+  claimedAt  DateTime?
+  claimedBy  String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  /// Rough completion estimate shown to the curator — §7.2's principle is that
+  /// a pipeline taking twenty minutes must say so.
+  estimatedSeconds Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue          HeritageVenue          @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  representation HeritageRepresentation @relation(fields: [representationId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, status])
+  @@index([representationId])
+  @@index([status, createdAt])
 }

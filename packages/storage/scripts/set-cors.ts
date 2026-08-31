@@ -50,9 +50,11 @@ const DEFAULT_ORIGINS = [
   "https://campus.klorad.com",
   "https://platform.klorad.com",
   "https://mobility.klorad.com",
+  "https://heritage.klorad.com",
   "http://localhost:3001",
   "http://localhost:3003",
   "http://localhost:3004",
+  "http://localhost:3005",
 ];
 
 function parseOrigins(): string[] {
@@ -96,7 +98,13 @@ async function main() {
     // Cesium's glTF loader in the editor reads `Content-Length` for
     // load-progress UI and `Accept-Ranges` to decide whether it can
     // stream big `.glb` files — without them exposed the browser
-    // treats every byte as unknown. ETag stays for cache validation.
+    // treats every byte as unknown.
+    //
+    // `ETag` is load-bearing, not just cache validation: Heritage's
+    // resumable multipart upload has the browser read the ETag off
+    // every part's PUT response and send the list back to complete
+    // the upload. Drop it and multi-gigabyte ingest fails at the
+    // final step, after the bytes are already uploaded.
     ExposeHeaders: ["ETag", "Content-Length", "Accept-Ranges"],
     MaxAgeSeconds: 300,
   };

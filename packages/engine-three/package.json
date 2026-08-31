@@ -44,6 +44,11 @@
       "types": "./dist/utils/*.d.ts",
       "import": "./dist/utils/*.js",
       "default": "./dist/utils/*.js"
+    },
+    "./viewer": {
+      "types": "./dist/viewer/heritage-viewer.d.ts",
+      "import": "./dist/viewer/heritage-viewer.js",
+      "default": "./dist/viewer/heritage-viewer.js"
     }
   },
   "peerDependencies": {

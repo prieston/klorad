@@ -44,3 +44,66 @@ export interface StorageConfig {
    */
   publicBaseUrl?: string;
 }
+
+/**
+ * Multipart upload.
+ *
+ * A single presigned PUT caps out at 5 GB on S3-compatible storage and, more
+ * importantly, restarts from zero when the connection drops. Klorad Heritage
+ * ingests point clouds and splat masters measured in tens of gigabytes over
+ * whatever connection a documentation department has, so the upload has to be
+ * resumable. Multipart gives both: parts upload independently, a failed part
+ * retries on its own, and the browser can resume a session it already started.
+ *
+ * The create/complete/abort calls are server-side — they need the secret key.
+ * Only the per-part PUTs are presigned and handed to the browser.
+ */
+export interface CreateMultipartUploadInput {
+  fileName: string;
+  fileType: string;
+  prefix?: string;
+  acl?: UploadAcl;
+}
+
+export interface CreateMultipartUploadResult {
+  /** Opaque id from the storage provider; needed by every later call. */
+  uploadId: string;
+  key: string;
+  /** Final URL once completed. Not fetchable until then. */
+  publicUrl: string;
+  acl: UploadAcl;
+}
+
+export interface PresignUploadPartInput {
+  key: string;
+  uploadId: string;
+  /** 1-based, per the S3 API. Parts may be uploaded out of order. */
+  partNumber: number;
+  expiresIn?: number;
+}
+
+export interface CompletedPart {
+  partNumber: number;
+  /**
+   * The `ETag` response header from that part's PUT. The browser can only
+   * read it if the bucket's CORS policy exposes `ETag` — see
+   * `scripts/set-cors.ts`, which does.
+   */
+  eTag: string;
+}
+
+export interface CompleteMultipartUploadInput {
+  key: string;
+  uploadId: string;
+  parts: CompletedPart[];
+}
+
+export interface CompleteMultipartUploadResult {
+  key: string;
+  publicUrl: string;
+}
+
+export interface AbortMultipartUploadInput {
+  key: string;
+  uploadId: string;
+}
