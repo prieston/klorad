@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { pickLocalized } from "@/lib/heritage/i18n";
+import { uiStrings } from "@/lib/heritage/ui-strings";
 import { deliveryUrlFor } from "@/lib/heritage/delivery";
 import { SceneExplorer } from "./SceneExplorer";
 
@@ -100,6 +101,7 @@ export default async function ScenePage({
   if (!s) notFound();
 
   const language = lang ?? s.venue.defaultLanguage;
+  const ui = uiStrings(language);
   const t = (v: unknown) => pickLocalized(v, language, s.venue.defaultLanguage);
 
   // Splat layers are deliberately skipped: nothing splat-related renders until
@@ -140,13 +142,13 @@ export default async function ScenePage({
   }));
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10">
+    <main lang={language} className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10">
       <Link
         href={`/v/${s.venue.slug}${lang ? `?lang=${lang}` : ""}`}
         className="inline-flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-primary"
       >
         <ArrowLeft size={13} strokeWidth={1.8} aria-hidden />
-        {t(s.venue.name) ?? "Back"}
+        {t(s.venue.name) ?? ui("backToVenue")}
       </Link>
 
       <h1 className="mt-4 text-3xl font-light leading-[1.1] text-text-primary md:text-4xl">
@@ -164,6 +166,7 @@ export default async function ScenePage({
       <SceneExplorer
         venueSlug={s.venue.slug}
         language={lang ?? null}
+        uiLanguage={language}
         layers={layers}
         proxies={proxies}
         skippedSplats={skippedSplats}

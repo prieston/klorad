@@ -22,6 +22,7 @@ export function EmbedFrame({
   rightsUri,
   layers,
   proxies = [],
+  openLabel = "Open the full record",
 }: {
   title: string;
   subtitle: string | null;
@@ -29,6 +30,9 @@ export function EmbedFrame({
   rightsLabel: string | null;
   rightsUri: string | null;
   layers: { id: string; url: string; transform?: unknown }[];
+  /** Localised accessible name for the outbound link. The only chrome string
+   *  in an embed, and it is the one a screen reader announces. */
+  openLabel?: string;
   proxies?: {
     id: string;
     shape: "box" | "sphere" | "cylinder" | "plane" | "mesh";
@@ -93,7 +97,7 @@ export function EmbedFrame({
           href={canonicalPath}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="Open the full record"
+          aria-label={openLabel}
           className="flex shrink-0 items-center gap-1 text-text-tertiary hover:text-accent"
         >
           <KloradMark className="h-3.5 w-auto" title="" />

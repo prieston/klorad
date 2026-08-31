@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { pickLocalized } from "@/lib/heritage/i18n";
 import { RIGHTS_LABEL, RIGHTS_URI, applyScanPolicy } from "@/lib/heritage/rights";
 import { deliveryUrlFor } from "@/lib/heritage/delivery";
+import { uiStrings } from "@/lib/heritage/ui-strings";
 import { EmbedFrame } from "@/lib/heritage/ui/EmbedFrame";
 
 type Params = Promise<{ slug: string; objectSlug: string }>;
@@ -91,6 +92,7 @@ export default async function EmbedObjectPage({
 
   return (
     <EmbedFrame
+      openLabel={uiStrings(language)("viewInCollection")}
       title={t(object.title) ?? object.slug}
       subtitle={t(object.venue.name) ?? null}
       canonicalPath={`/v/${object.venue.slug}/o/${object.slug}`}

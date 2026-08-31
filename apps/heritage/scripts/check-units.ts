@@ -30,6 +30,14 @@ import {
   rejectionReason,
 } from "../lib/heritage/ingest";
 import { parseCanonicalUrl, clampDimension } from "../lib/heritage/oembed";
+import {
+  DICTIONARIES,
+  UI_KEYS,
+  UI_LANGUAGES,
+  uiStrings,
+  languageName,
+  viewerStrings,
+} from "../lib/heritage/ui-strings";
 import { statsFromGltf } from "../lib/heritage/pipeline/gltf-probe";
 import { probeImage } from "../lib/heritage/pipeline/image-probe";
 
@@ -198,6 +206,48 @@ const cyclic = {
   accessors: [{ count: 9 }, { count: 9, min: [0, 0, 0], max: [1, 1, 1] }],
 };
 ok("a cyclic node graph terminates", statsFromGltf(cyclic).triangleCount === 3);
+
+// ---------------------------------------------------------------------------
+describe("Interface strings");
+
+for (const language of UI_LANGUAGES) {
+  const dict = DICTIONARIES[language] as Record<string, string>;
+  const missing = UI_KEYS.filter((k) => !dict[k]);
+  ok(
+    `${language} carries every key`,
+    missing.length === 0,
+    missing.length ? `missing: ${missing.join(", ")}` : `${UI_KEYS.length} keys`,
+  );
+  const untranslated = UI_KEYS.filter(
+    (k) => language !== "en" && dict[k] === (DICTIONARIES.en as Record<string, string>)[k],
+  );
+  ok(
+    `${language} is not silently copying English`,
+    untranslated.length === 0,
+    untranslated.length ? `identical to English: ${untranslated.join(", ")}` : "",
+  );
+}
+
+eq("a regional tag finds its base language", uiStrings("el-GR")("scenes"), "Σκηνές");
+eq("an untranslated language falls back to English", uiStrings("fr")("scenes"), "Scenes");
+eq("a missing tag falls back to English", uiStrings(null)("scenes"), "Scenes");
+eq("languages are named in their own language", languageName("el"), "Ελληνικά");
+ok(
+  "the viewer hint substitutes the count",
+  viewerStrings("en", 3).hint.includes("3"),
+  viewerStrings("en", 3).hint,
+);
+ok(
+  "and does so in Greek too",
+  viewerStrings("el", 3).hint.includes("3"),
+  viewerStrings("el", 3).hint,
+);
+// A server component cannot serialise a function to a client component, and
+// that failure only shows up as a runtime 500. Assert the shape stays plain.
+ok(
+  "viewer strings are serialisable across the server boundary",
+  Object.values(viewerStrings("en", 1)).every((v) => typeof v === "string"),
+);
 
 // ---------------------------------------------------------------------------
 describe("Image headers");

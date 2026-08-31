@@ -4,6 +4,7 @@ import { Boxes, Layers, Route } from "lucide-react";
 import { KloradMark } from "@klorad/design-system";
 import { prisma } from "@/lib/prisma";
 import { pickLocalized } from "@/lib/heritage/i18n";
+import { languageName, uiStrings } from "@/lib/heritage/ui-strings";
 
 type Params = Promise<{ slug: string }>;
 type Search = Promise<{ lang?: string }>;
@@ -91,6 +92,7 @@ export default async function PublicVenuePage({
   // language. Falls back through the venue default rather than rendering
   // blank labels.
   const language = lang ?? venue.defaultLanguage;
+  const ui = uiStrings(language);
   const t = (value: unknown) =>
     pickLocalized(value, language, venue.defaultLanguage);
 
@@ -98,7 +100,7 @@ export default async function PublicVenuePage({
   const summary = t(venue.summary);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-12 md:px-10">
+    <main lang={language} className="mx-auto w-full max-w-3xl px-6 py-12 md:px-10">
       <header className="mb-10">
         <KloradMark className="h-6 w-auto" title="Klorad" />
         <h1 className="mt-5 text-4xl font-light leading-[1.05] text-text-primary md:text-5xl">
@@ -111,21 +113,29 @@ export default async function PublicVenuePage({
         ) : null}
         {venue.languages.length > 1 ? (
           <nav
-            aria-label="Language"
+            aria-label={ui("language")}
             className="mt-5 flex flex-wrap items-center gap-2"
           >
             {venue.languages.map((tag) => (
               <a
                 key={tag}
                 href={`/v/${venue.slug}?lang=${tag}`}
+                // Marks the current choice for assistive technology. Colour
+                // alone would leave a screen-reader user with no way to tell
+                // which language they are already reading.
                 aria-current={tag === language ? "true" : undefined}
+                // The link text is in the language it names, so a screen
+                // reader pronounces "Ελληνικά" as Greek rather than as
+                // English nonsense.
+                lang={tag}
+                hrefLang={tag}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                   tag === language
                     ? "bg-accent-soft text-accent"
                     : "bg-surface-2 text-text-secondary hover:text-text-primary"
                 }`}
               >
-                {tag}
+                {languageName(tag)}
               </a>
             ))}
           </nav>
@@ -134,8 +144,8 @@ export default async function PublicVenuePage({
 
       <Listing
         icon={Layers}
-        title="Scenes"
-        empty="No scenes published yet."
+        title={ui("scenes")}
+        empty={ui("noScenes")}
         items={venue.scenes.map((s) => ({
           key: s.id,
           label: t(s.title) ?? s.slug,
@@ -145,14 +155,16 @@ export default async function PublicVenuePage({
       />
       <Listing
         icon={Route}
-        title="Tours"
-        empty="No tours published yet."
+        title={ui("tours")}
+        empty={ui("noTours")}
         items={venue.tours.map((tour) => ({
           key: tour.id,
           label: t(tour.title) ?? tour.slug,
           meta: [
-            tour.estimatedMinutes ? `${tour.estimatedMinutes} min` : null,
-            tour.isAccessibleRoute ? "accessible route" : null,
+            tour.estimatedMinutes
+              ? `${tour.estimatedMinutes} ${ui("minutes")}`
+              : null,
+            tour.isAccessibleRoute ? ui("accessibleRoute") : null,
           ]
             .filter(Boolean)
             .join(" · "),
@@ -160,8 +172,8 @@ export default async function PublicVenuePage({
       />
       <Listing
         icon={Boxes}
-        title="Objects"
-        empty="No objects published yet."
+        title={ui("objects")}
+        empty={ui("noObjects")}
         items={venue.objects.map((o) => ({
           key: o.id,
           label: t(o.title) ?? o.slug,

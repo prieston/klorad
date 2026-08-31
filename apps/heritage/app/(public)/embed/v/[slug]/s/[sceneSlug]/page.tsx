@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { pickLocalized } from "@/lib/heritage/i18n";
 import { deliveryUrlFor } from "@/lib/heritage/delivery";
+import { uiStrings } from "@/lib/heritage/ui-strings";
 import { EmbedFrame } from "@/lib/heritage/ui/EmbedFrame";
 
 type Params = Promise<{ slug: string; sceneSlug: string }>;
@@ -75,6 +76,7 @@ export default async function EmbedScenePage({
 
   return (
     <EmbedFrame
+      openLabel={uiStrings(language)("viewInCollection")}
       title={t(scene.title) ?? scene.slug}
       subtitle={t(scene.venue.name) ?? null}
       canonicalPath={`/v/${scene.venue.slug}/s/${scene.slug}`}
