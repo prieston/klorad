@@ -3,8 +3,11 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { ViewBeacon } from "@/lib/heritage/ui/ViewBeacon";
 import { pickLocalized } from "@/lib/heritage/i18n";
+import { languageName, uiStrings, viewerStrings } from "@/lib/heritage/ui-strings";
 import { RIGHTS_LABEL, RIGHTS_URI, applyScanPolicy } from "@/lib/heritage/rights";
+import { deliveryUrlFor } from "@/lib/heritage/delivery";
 import { ViewerCanvas } from "@/lib/heritage/ui/ViewerCanvas";
 
 type Params = Promise<{ slug: string; objectSlug: string }>;
@@ -90,18 +93,34 @@ export default async function ArtifactViewerPage({
   if (!o) notFound();
 
   const language = lang ?? o.venue.defaultLanguage;
+  const ui = uiStrings(language);
   const t = (v: unknown) => pickLocalized(v, language, o.venue.defaultLanguage);
 
   // Only representations that actually have a delivery file can be rendered.
   // A capture still queued for processing has a record but no geometry.
-  const layers = o.representations
+  const candidates = o.representations
     .flatMap((r) =>
       r.files
-        .filter((f) => f.url && (f.purpose === "delivery" || f.purpose === "master"))
+        .filter((f) => f.purpose === "delivery")
         .slice(0, 1)
-        .map((f) => ({ id: r.id, url: f.url as string })),
+        .map((f) => ({ representation: r, file: f })),
     )
     .slice(0, 1);
+
+  // Signed per request against private storage, with a lifetime set by the
+  // rights that actually apply to this object.
+  const layers = (
+    await Promise.all(
+      candidates.map(async (c) => {
+        const url = await deliveryUrlFor(c.file, {
+          objectRights: o.rights,
+          representationRights: c.representation.rights,
+          scanAssertsRights: o.venue.scanOfPublicDomainAssertsRights,
+        });
+        return url ? { id: c.representation.id, url } : null;
+      }),
+    )
+  ).filter((l): l is { id: string; url: string } => l !== null);
 
   const primary = o.representations[0];
   const resolvedRights = primary
@@ -115,13 +134,19 @@ export default async function ArtifactViewerPage({
   const title = t(o.title) ?? o.slug;
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-6 py-10 md:px-10">
+    <main lang={language} className="mx-auto w-full max-w-4xl px-6 py-10 md:px-10">
+      <ViewBeacon
+        venueSlug={o.venue.slug}
+        kind="object"
+        targetSlug={o.slug}
+        language={language}
+      />
       <Link
         href={`/v/${o.venue.slug}${lang ? `?lang=${lang}` : ""}`}
         className="inline-flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-primary"
       >
         <ArrowLeft size={13} strokeWidth={1.8} aria-hidden />
-        {t(o.venue.name) ?? "Back"}
+        {t(o.venue.name) ?? ui("backToVenue")}
       </Link>
 
       <h1 className="mt-4 text-3xl font-light leading-[1.1] text-text-primary md:text-4xl">
@@ -132,10 +157,16 @@ export default async function ArtifactViewerPage({
       ) : null}
 
       {layers.length > 0 ? (
-        <ViewerCanvas className="mt-6" layers={layers} height={420} />
+        <ViewerCanvas
+          className="mt-6"
+          layers={layers}
+          height={420}
+          label={`${ui("modelLabel")} — ${title}`}
+          strings={viewerStrings(language, 0)}
+        />
       ) : (
         <p className="mt-6 rounded-2xl border border-dashed border-line-soft p-8 text-center text-sm text-text-tertiary">
-          No 3D model has been published for this object yet.
+          {ui("noModel")}
         </p>
       )}
 
@@ -146,13 +177,13 @@ export default async function ArtifactViewerPage({
       ) : null}
 
       <dl className="mt-8 grid gap-x-8 gap-y-4 sm:grid-cols-2">
-        {o.objectType ? <Row label="Object type" value={o.objectType} /> : null}
+        {o.objectType ? <Row label={ui("objectType")} value={o.objectType} /> : null}
         {o.materials.length > 0 ? (
-          <Row label="Materials" value={o.materials.join(", ")} />
+          <Row label={ui("materials")} value={o.materials.join(", ")} />
         ) : null}
         {o.period ? (
           <Row
-            label="Period"
+            label={ui("period")}
             value={
               [
                 t(o.period.name),
@@ -165,11 +196,11 @@ export default async function ArtifactViewerPage({
             }
           />
         ) : null}
-        {o.space ? <Row label="On display in" value={t(o.space.name) ?? "—"} /> : null}
-        {t(o.creditLine) ? <Row label="Credit" value={t(o.creditLine)!} /> : null}
+        {o.space ? <Row label={ui("onDisplayIn")} value={t(o.space.name) ?? "—"} /> : null}
+        {t(o.creditLine) ? <Row label={ui("credit")} value={t(o.creditLine)!} /> : null}
         {resolvedRights ? (
           <Row
-            label="Rights"
+            label={ui("rights")}
             value={RIGHTS_LABEL[resolvedRights]}
             href={RIGHTS_URI[resolvedRights]}
           />
@@ -189,19 +220,24 @@ export default async function ArtifactViewerPage({
       ) : null}
 
       {o.venue.languages.length > 1 ? (
-        <nav aria-label="Language" className="mt-10 flex flex-wrap items-center gap-2">
+        <nav
+          aria-label={ui("language")}
+          className="mt-10 flex flex-wrap items-center gap-2"
+        >
           {o.venue.languages.map((tag) => (
             <a
               key={tag}
               href={`/v/${o.venue.slug}/o/${o.slug}?lang=${tag}`}
               aria-current={tag === language ? "true" : undefined}
+              lang={tag}
+              hrefLang={tag}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                 tag === language
                   ? "bg-accent-soft text-accent"
                   : "bg-surface-2 text-text-secondary hover:text-text-primary"
               }`}
             >
-              {tag}
+              {languageName(tag)}
             </a>
           ))}
         </nav>

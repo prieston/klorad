@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { uiStrings, viewerStrings } from "@/lib/heritage/ui-strings";
 import { ArrowRight, Target } from "lucide-react";
 import { ViewerCanvas } from "@/lib/heritage/ui/ViewerCanvas";
 
@@ -27,12 +28,16 @@ interface Proxy {
 export function SceneExplorer({
   venueSlug,
   language,
+  uiLanguage,
   layers,
   proxies,
   skippedSplats,
 }: {
   venueSlug: string;
   language: string | null;
+  /** Resolved display language — `language` stays the querystring value so
+   *  links keep their explicit `?lang=`, which this must not inherit. */
+  uiLanguage: string;
   layers: { id: string; url: string; transform?: unknown }[];
   proxies: Proxy[];
   skippedSplats: number;
@@ -40,6 +45,7 @@ export function SceneExplorer({
   const [selected, setSelected] = useState<string | null>(null);
   const active = proxies.find((p) => p.id === selected) ?? null;
   const q = language ? `?lang=${language}` : "";
+  const ui = uiStrings(uiLanguage);
 
   return (
     <>
@@ -55,19 +61,21 @@ export function SceneExplorer({
           }))}
           onSelectProxy={setSelected}
           height={480}
+          label={ui("modelLabel")}
+          strings={viewerStrings(uiLanguage, proxies.length)}
         />
       ) : (
         <p className="mt-8 rounded-2xl border border-dashed border-line-soft p-8 text-center text-sm text-text-tertiary">
           {skippedSplats > 0
-            ? "This scene is a photorealistic capture. The renderer for it is not published yet — everything in it is listed below."
-            : "No geometry has been published for this scene yet."}
+            ? ui("splatNotPublished")
+            : ui("noGeometry")}
         </p>
       )}
 
       {active ? (
         <aside className="mt-4 rounded-2xl border border-line-soft bg-bg p-5">
           <p className="text-sm font-medium text-text-primary">
-            {active.label ?? "Point of interest"}
+            {active.label ?? ui("pointOfInterest")}
           </p>
           {active.identifier ? (
             <p className="mt-0.5 font-mono text-[11px] text-text-tertiary">
@@ -116,7 +124,7 @@ export function SceneExplorer({
                     p.id === selected ? "text-accent" : "text-text-primary hover:text-accent"
                   }`}
                 >
-                  {p.label ?? "Point of interest"}
+                  {p.label ?? ui("pointOfInterest")}
                 </button>
                 {p.description ? (
                   <p className="mt-0.5 line-clamp-2 text-xs text-text-tertiary">

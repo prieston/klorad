@@ -1,3 +1,5 @@
+import { withSentryConfig } from "@sentry/nextjs";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ["@klorad/design-system", "@klorad/ui"],
@@ -35,4 +37,24 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * Same wrapper as Campus: injects the runtime hooks from
+ * `instrumentation.ts`, tunnels browser events through /monitoring so
+ * ad-blockers do not drop them, and uploads sourcemaps only when a token is
+ * present. With `SENTRY_DSN` unset the SDK is fully inert, so a clone with no
+ * Sentry project still builds and runs.
+ *
+ * The `/monitoring` tunnel sits under `/`, not `/embed/`, so a museum's
+ * embedded viewer never issues a request to a Klorad monitoring path from a
+ * page Klorad does not control.
+ */
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+  tunnelRoute: "/monitoring",
+  sourcemaps: {
+    disable: !process.env.SENTRY_AUTH_TOKEN,
+  },
+});

@@ -12,9 +12,12 @@ export const metadata = { title: "Ingest" };
 /**
  * HER-201 / HER-202 — asset ingest and the processing queue.
  *
- * Shows what has been uploaded, what is queued, and why anything failed. The
- * transcoding worker is separate infrastructure and is not deployed, so jobs
- * rest at `queued` and the page says so rather than spinning.
+ * Shows what has been uploaded, what is deliverable, and why anything failed.
+ *
+ * Uploads are processed inline at completion, so by the time this page renders
+ * a just-finished upload it is normally already `ready`. A row resting at
+ * `queued` means the inline run was cut short and the drain endpoint has not
+ * caught up yet — a real state, not a permanent one.
  */
 export default async function RepresentationsPage({
   params,
@@ -72,6 +75,14 @@ export default async function RepresentationsPage({
           null,
         failureReason: r.failureReason,
         createdAt: r.createdAt.toISOString(),
+        /** Whether a visitor can see this, as opposed to it being stored.
+         *  Derived from the presence of a delivery file rather than from
+         *  `status`, because a successfully-processed archival master is
+         *  legitimately `ready` and still not viewable. */
+        deliverable: r.files.some((f) => f.purpose === "delivery" && f.url),
+        triangleCount: r.triangleCount,
+        widthPx: r.widthPx,
+        heightPx: r.heightPx,
         files: r.files.map((f) => ({
           id: f.id,
           purpose: f.purpose,

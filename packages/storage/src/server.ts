@@ -5,6 +5,7 @@ import {
   UploadPartCommand,
   CompleteMultipartUploadCommand,
   AbortMultipartUploadCommand,
+  GetObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type {
@@ -16,6 +17,9 @@ import type {
   PresignUploadInput,
   PresignUploadPartInput,
   PresignUploadResult,
+  ObjectRangeInput,
+  ObjectRangeResult,
+  PresignDownloadInput,
   StorageConfig,
   UploadAcl,
 } from "./types";
@@ -254,6 +258,98 @@ export async function abortMultipartUpload(
  * Read storage config from `process.env`. Throws if anything is missing.
  * Kept as a helper so route handlers don't all re-parse the same vars.
  */
+/**
+ * Read a byte range out of a stored object.
+ *
+ * Exists so a caller can inspect a file's header without paying to move the
+ * file. A glTF binary carries its whole scene description — accessor counts,
+ * per-attribute min/max — in a JSON chunk at the front, and PNG/JPEG/WebP
+ * carry their dimensions in the first few hundred bytes. Reading one megabyte
+ * of a twenty-gigabyte capture answers the same questions a full download
+ * would, at four orders of magnitude less egress.
+ *
+ * `end` is inclusive, matching HTTP Range semantics rather than JavaScript
+ * slice semantics. Getting that wrong is an off-by-one that only shows up on
+ * files whose meaningful bytes sit exactly on the boundary, so it is spelled
+ * out here rather than left to the reader.
+ */
+export async function getObjectRange(
+  cfg: StorageConfig,
+  input: ObjectRangeInput,
+): Promise<ObjectRangeResult> {
+  const { key, start, end } = input;
+  if (!Number.isInteger(start) || start < 0) {
+    throw new Error("start must be a non-negative integer");
+  }
+  if (!Number.isInteger(end) || end < start) {
+    throw new Error("end must be an integer greater than or equal to start");
+  }
+
+  const client = makeClient(cfg);
+  const res = await client.send(
+    new GetObjectCommand({
+      Bucket: cfg.bucket,
+      Key: key,
+      Range: `bytes=${start}-${end}`,
+    }),
+  );
+
+  const body = res.Body as
+    | { transformToByteArray?: () => Promise<Uint8Array> }
+    | undefined;
+  if (!body?.transformToByteArray) {
+    throw new Error(`No body returned for ${key}`);
+  }
+  const bytes = await body.transformToByteArray();
+
+  // `ContentRange` looks like `bytes 0-1048575/20401664`. The figure after the
+  // slash is the object's full size, which is the only place a ranged read
+  // reports it — `ContentLength` describes the slice, not the object.
+  let totalLength: number | null = null;
+  const match = /\/(\d+)\s*$/.exec(res.ContentRange ?? "");
+  if (match) totalLength = Number(match[1]);
+
+  return { body: bytes, contentLength: bytes.byteLength, totalLength };
+}
+
+/**
+ * Generate a time-limited GET URL for a private object.
+ *
+ * The interesting part is `bucketSeconds`. A naive presigned URL embeds the
+ * moment it was signed, so every page render produces a different URL for the
+ * same file — which defeats the browser cache and the CDN, and makes a
+ * returning visitor re-download a fifty-megabyte model. Rounding the signing
+ * time down to a fixed boundary makes the URL identical for every request
+ * inside that period, so it caches normally, while still expiring.
+ *
+ * The cost of that trick is that the effective lifetime varies: a URL minted
+ * at the start of a period lasts the full `expiresIn`, one minted at the end
+ * rather less. `expiresIn` is therefore set to twice the period by callers, so
+ * the *shortest* real lifetime is one full period rather than zero.
+ */
+export async function presignDownload(
+  cfg: StorageConfig,
+  input: PresignDownloadInput,
+): Promise<string> {
+  const client = makeClient(cfg);
+  const command = new GetObjectCommand({
+    Bucket: cfg.bucket,
+    Key: input.key,
+    ResponseContentDisposition: input.contentDisposition,
+  });
+
+  let signingDate: Date | undefined;
+  if (input.bucketSeconds && input.bucketSeconds > 0) {
+    const ms = input.bucketSeconds * 1000;
+    signingDate = new Date(Math.floor(Date.now() / ms) * ms);
+  }
+
+  return getSignedUrl(client, command, {
+    expiresIn: input.expiresIn ?? 900,
+    signingDate,
+  });
+}
+
 export function storageConfigFromEnv(
   env: NodeJS.ProcessEnv = process.env
 ): StorageConfig {

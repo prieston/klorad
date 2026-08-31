@@ -47,6 +47,9 @@ export interface StartUploadOptions {
   concurrency?: number;
   /** Resume an existing session instead of starting a new one. */
   resumeSessionId?: string;
+  /** Called as soon as the server reports the format will be kept but not
+   *  published — before the transfer begins. */
+  onArchivalNotice?: (reason: string) => void;
 }
 
 export interface UploadResult {
@@ -55,7 +58,15 @@ export interface UploadResult {
   jobId: string;
   estimatedSeconds: number | null;
   url: string;
-  note?: string;
+  note?: string | null;
+  status?: string;
+  /** False when the file is stored but cannot be shown to visitors as it
+   *  stands — an archival master. Not a failure; a different outcome. */
+  deliverable?: boolean;
+  /** Returned by the server before any bytes moved, when it already knew the
+   *  format would be archival-only. Surfaced by the caller at that point so a
+   *  curator can cancel and re-export instead of finding out afterwards. */
+  archivalNotice?: string | null;
 }
 
 async function json<T>(res: Response): Promise<T> {
@@ -79,6 +90,7 @@ export async function uploadRepresentationFile(
     signal,
     concurrency = 4,
     resumeSessionId,
+    onArchivalNotice,
   } = opts;
 
   const base = `/api/venues/${venueId}/uploads`;
@@ -86,6 +98,7 @@ export async function uploadRepresentationFile(
   // 1. Open or reopen a session.
   let sessionId: string;
   let partSize: number;
+  let archivalNotice: string | null = null;
   let partCount: number;
   let todo: number[];
 
@@ -108,6 +121,7 @@ export async function uploadRepresentationFile(
       sessionId: string;
       partSize: number;
       partCount: number;
+      archivalNotice: string | null;
     }>(
       await fetch(base, {
         method: "POST",
@@ -126,7 +140,13 @@ export async function uploadRepresentationFile(
     sessionId = started.sessionId;
     partSize = started.partSize;
     partCount = started.partCount;
+    archivalNotice = started.archivalNotice;
     todo = Array.from({ length: partCount }, (_, i) => i + 1);
+
+    // Told before the transfer rather than after it. A curator who is about to
+    // spend forty minutes pushing a file that will not render deserves the
+    // chance to abort and re-export now.
+    if (archivalNotice) onArchivalNotice?.(archivalNotice);
   }
 
   // Parts already accepted count toward progress from the first tick, so a
@@ -205,7 +225,7 @@ export async function uploadRepresentationFile(
       body: JSON.stringify({ kind, objectId, spaceId }),
     }),
   );
-  return { ...done, sessionId };
+  return { ...done, sessionId, archivalNotice };
 }
 
 /** Cancel an upload and reclaim its parts at the provider. */
