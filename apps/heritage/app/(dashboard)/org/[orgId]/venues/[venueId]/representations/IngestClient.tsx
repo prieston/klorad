@@ -47,6 +47,12 @@ interface RepRow {
   attachedTo: string | null;
   failureReason: string | null;
   createdAt: string;
+  /** A delivery file exists and has a URL — the thing that decides whether a
+   *  visitor sees this, independent of whether processing succeeded. */
+  deliverable: boolean;
+  triangleCount: number | null;
+  widthPx: number | null;
+  heightPx: number | null;
   files: FileRow[];
   job: JobRow | null;
 }
@@ -120,12 +126,24 @@ export function IngestClient({
         kind,
         onProgress: setProgress,
         signal: controller.signal,
+        // Fires before the transfer starts, so this warning arrives while
+        // cancelling is still free.
+        onArchivalNotice: (reason) => toast.warning(reason, { autoClose: 12_000 }),
       });
-      toast.success(
-        result.estimatedSeconds
-          ? `Uploaded. Queued for processing (${humanDuration(result.estimatedSeconds)}).`
-          : "Uploaded and queued.",
-      );
+
+      // Processing runs inline, so by here the outcome is known. Three
+      // genuinely different results, reported as three different things
+      // rather than flattened into one cheerful "uploaded".
+      if (result.deliverable) {
+        toast.success("Uploaded and published. Visitors can see this now.");
+      } else if (result.status === "failed") {
+        toast.error(result.note ?? "Uploaded, but processing failed.");
+      } else {
+        toast.info(
+          result.note ??
+            "Uploaded and stored. It is not viewable in this format — see the note on the row.",
+        );
+      }
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
@@ -334,15 +352,35 @@ export function IngestClient({
                       <span className="rounded-full bg-surface-2 px-2 py-0.5">
                         {r.kind}
                       </span>
-                      {r.files.map((f) => (
-                        <span key={f.id}>
-                          {f.purpose} · .{f.format} ·{" "}
-                          {humanBytes(Number(f.sizeBytes ?? 0))}
+                      {r.files
+                        .filter((f) => f.purpose !== "delivery" || r.files.length === 1)
+                        .map((f) => (
+                          <span key={f.id}>
+                            {f.purpose} · .{f.format} ·{" "}
+                            {humanBytes(Number(f.sizeBytes ?? 0))}
+                          </span>
+                        ))}
+                      {r.triangleCount ? (
+                        <span>{r.triangleCount.toLocaleString()} triangles</span>
+                      ) : null}
+                      {r.widthPx && r.heightPx ? (
+                        <span>
+                          {r.widthPx.toLocaleString()} × {r.heightPx.toLocaleString()}
                         </span>
-                      ))}
+                      ) : null}
+                      {r.status === "ready" && !r.deliverable ? (
+                        <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700">
+                          archival only
+                        </span>
+                      ) : null}
                     </p>
                   </div>
-                  <StatusPill rep={r} />
+                  <div className="flex shrink-0 items-center gap-2">
+                    <StatusPill rep={r} />
+                    {!r.deliverable && r.files.length > 0 ? (
+                      <ReprocessButton venueId={venueId} representationId={r.id} />
+                    ) : null}
+                  </div>
                 </div>
                 {(r.failureReason || r.job?.failureReason) && (
                   <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-700">
@@ -370,10 +408,11 @@ export function IngestClient({
       <p className="mt-10 flex items-start gap-2 text-xs leading-relaxed text-text-tertiary">
         <RotateCcw size={13} strokeWidth={1.7} aria-hidden className="mt-px shrink-0" />
         <span>
-          Splat-tree construction, 3D Tiles tiling, Draco and KTX2 are compute
-          jobs run by a separate worker, which is not deployed yet. Uploads
-          complete and queue correctly; they will stay queued until that worker
-          exists.
+          Web-ready formats — .glb, .gltf, JPEG, PNG, WebP, MP3, MP4 — are
+          validated, measured and published as soon as the upload finishes.
+          Anything else is kept as an archival master and marked as such:
+          nothing is discarded, but only formats a browser can open are shown
+          to visitors. Re-export as .glb to publish a mesh, then reprocess.
         </span>
       </p>
     </main>
@@ -413,5 +452,71 @@ function StatusPill({ rep }: { rep: RepRow }) {
     <span className="shrink-0 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-emerald-600">
       Ready
     </span>
+  );
+}
+
+/**
+ * Re-run the pipeline over a file that is already in storage.
+ *
+ * Offered on anything not currently deliverable, which covers both halves of
+ * the problem: a transient read failure, and an archival master whose format
+ * became deliverable after the fact. In neither case should the answer be
+ * "upload it again".
+ */
+function ReprocessButton({
+  venueId,
+  representationId,
+}: {
+  venueId: string;
+  representationId: string;
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
+  async function run() {
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/api/venues/${venueId}/representations/${representationId}/reprocess`,
+        { method: "POST" },
+      );
+      const body = (await res.json()) as {
+        error?: string;
+        deliverable?: boolean;
+        note?: string | null;
+      };
+      if (!res.ok) {
+        toast.error(body.error ?? "Reprocessing failed.");
+        return;
+      }
+      if (body.deliverable) {
+        toast.success("Processed. This is now visible to visitors.");
+      } else {
+        // Not an error: the file is stored and intact. Saying "failed" here
+        // would misrepresent an archival master as a broken upload.
+        toast.info(body.note ?? "Stored as an archival master — not viewable as it stands.");
+      }
+      router.refresh();
+    } catch {
+      toast.error("Reprocessing could not be started.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={run}
+      disabled={busy}
+      className="inline-flex items-center gap-1.5 rounded-full border border-line-soft px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-text-secondary transition hover:bg-surface-2 disabled:opacity-50"
+    >
+      {busy ? (
+        <Loader2 size={9} strokeWidth={2} aria-hidden className="animate-spin" />
+      ) : (
+        <RotateCcw size={9} strokeWidth={2} aria-hidden />
+      )}
+      {busy ? "Working" : "Reprocess"}
+    </button>
   );
 }

@@ -21,6 +21,7 @@ import { assertVenueScoped } from "@/lib/heritage/scope";
 import {
   MAX_UPLOAD_BYTES,
   UPLOAD_SESSION_TTL_MS,
+  archivalOnlyReason,
   isAcceptedFor,
   rejectionReason,
   storagePrefixFor,
@@ -150,6 +151,11 @@ export async function POST(
         /** Empty on a fresh session; a resumed one reports what it already
          *  has via GET on the session. */
         uploadedParts: [],
+        /** Set when the file will be kept but cannot be shown to visitors as
+         *  it stands. Returned *before* a byte moves so a curator can cancel
+         *  and re-export rather than discovering it after pushing 26 GB —
+         *  which is the same reason format rejection happens up here too. */
+        archivalNotice: archivalOnlyReason(kind, fileName),
       },
       { status: 201 },
     );

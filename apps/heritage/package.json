@@ -12,7 +12,9 @@
     "build": "next build",
     "start": "next start -p 3005",
     "lint": "next lint --fix --dir app",
-    "seed:demo": "node --env-file=../../.env --env-file-if-exists=.env.local --import tsx scripts/seed-demo.ts"
+    "seed:demo": "node --env-file=../../.env --env-file-if-exists=.env.local --import tsx scripts/seed-demo.ts",
+    "check:probe": "tsx scripts/check-probe.ts",
+    "check:ingest": "node --env-file=../../.env --env-file-if-exists=.env.local --import tsx scripts/check-ingest-e2e.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

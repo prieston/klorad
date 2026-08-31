@@ -60,7 +60,7 @@ export default async function EmbedObjectPage({
   const layers = object.representations
     .flatMap((r) =>
       r.files
-        .filter((f) => f.url && (f.purpose === "delivery" || f.purpose === "master"))
+        .filter((f) => f.url && f.purpose === "delivery")
         .slice(0, 1)
         .map((f) => ({ id: r.id, url: f.url as string })),
     )

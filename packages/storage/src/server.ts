@@ -5,6 +5,7 @@ import {
   UploadPartCommand,
   CompleteMultipartUploadCommand,
   AbortMultipartUploadCommand,
+  GetObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type {
@@ -16,6 +17,8 @@ import type {
   PresignUploadInput,
   PresignUploadPartInput,
   PresignUploadResult,
+  ObjectRangeInput,
+  ObjectRangeResult,
   StorageConfig,
   UploadAcl,
 } from "./types";
@@ -254,6 +257,60 @@ export async function abortMultipartUpload(
  * Read storage config from `process.env`. Throws if anything is missing.
  * Kept as a helper so route handlers don't all re-parse the same vars.
  */
+/**
+ * Read a byte range out of a stored object.
+ *
+ * Exists so a caller can inspect a file's header without paying to move the
+ * file. A glTF binary carries its whole scene description — accessor counts,
+ * per-attribute min/max — in a JSON chunk at the front, and PNG/JPEG/WebP
+ * carry their dimensions in the first few hundred bytes. Reading one megabyte
+ * of a twenty-gigabyte capture answers the same questions a full download
+ * would, at four orders of magnitude less egress.
+ *
+ * `end` is inclusive, matching HTTP Range semantics rather than JavaScript
+ * slice semantics. Getting that wrong is an off-by-one that only shows up on
+ * files whose meaningful bytes sit exactly on the boundary, so it is spelled
+ * out here rather than left to the reader.
+ */
+export async function getObjectRange(
+  cfg: StorageConfig,
+  input: ObjectRangeInput,
+): Promise<ObjectRangeResult> {
+  const { key, start, end } = input;
+  if (!Number.isInteger(start) || start < 0) {
+    throw new Error("start must be a non-negative integer");
+  }
+  if (!Number.isInteger(end) || end < start) {
+    throw new Error("end must be an integer greater than or equal to start");
+  }
+
+  const client = makeClient(cfg);
+  const res = await client.send(
+    new GetObjectCommand({
+      Bucket: cfg.bucket,
+      Key: key,
+      Range: `bytes=${start}-${end}`,
+    }),
+  );
+
+  const body = res.Body as
+    | { transformToByteArray?: () => Promise<Uint8Array> }
+    | undefined;
+  if (!body?.transformToByteArray) {
+    throw new Error(`No body returned for ${key}`);
+  }
+  const bytes = await body.transformToByteArray();
+
+  // `ContentRange` looks like `bytes 0-1048575/20401664`. The figure after the
+  // slash is the object's full size, which is the only place a ranged read
+  // reports it — `ContentLength` describes the slice, not the object.
+  let totalLength: number | null = null;
+  const match = /\/(\d+)\s*$/.exec(res.ContentRange ?? "");
+  if (match) totalLength = Number(match[1]);
+
+  return { body: bytes, contentLength: bytes.byteLength, totalLength };
+}
+
 export function storageConfigFromEnv(
   env: NodeJS.ProcessEnv = process.env
 ): StorageConfig {

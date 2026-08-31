@@ -3,7 +3,9 @@
   "devCommand": "pnpm dev:heritage",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile --prod=false",
   "framework": "nextjs",
-  "regions": ["fra1"],
+  "regions": [
+    "fra1"
+  ],
   "env": {
     "NEXT_PUBLIC_VERCEL_ENV": "production"
   },
@@ -11,7 +13,17 @@
     "app/api/**/*.ts": {
       "maxDuration": 60,
       "memory": 1024
+    },
+    "app/api/internal/ingest/drain/route.ts": {
+      "maxDuration": 300,
+      "memory": 1024
     }
   },
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "crons": [
+    {
+      "path": "/api/internal/ingest/drain",
+      "schedule": "*/10 * * * *"
+    }
+  ]
 }

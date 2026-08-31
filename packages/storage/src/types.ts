@@ -107,3 +107,20 @@ export interface AbortMultipartUploadInput {
   key: string;
   uploadId: string;
 }
+
+/** A byte range to read out of a stored object. `end` is inclusive, matching
+ *  HTTP Range rather than JavaScript slice semantics. */
+export interface ObjectRangeInput {
+  key: string;
+  start: number;
+  end: number;
+}
+
+export interface ObjectRangeResult {
+  body: Uint8Array;
+  /** Bytes actually returned — may be shorter than requested at end-of-file. */
+  contentLength: number;
+  /** Full size of the object, parsed from `Content-Range`. Null if the
+   *  provider omitted the header. */
+  totalLength: number | null;
+}

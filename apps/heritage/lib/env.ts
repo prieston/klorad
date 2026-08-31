@@ -36,6 +36,15 @@ const serverSchema = z.object({
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().optional(),
 
+  /// Shared secret for the ingest drain endpoint. Without it the endpoint
+  /// refuses every request rather than defaulting to open — an unauthenticated
+  /// queue drain is a way to make a tenant's pipeline run on demand.
+  /// `CRON_SECRET` is accepted as well because that is the variable Vercel
+  /// Cron sends automatically, and requiring a second name for the same job
+  /// would be friction with no security gain.
+  HERITAGE_INGEST_SECRET: z.string().min(16).optional(),
+  CRON_SECRET: z.string().min(16).optional(),
+
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   SKIP_ENV_VALIDATION: z.string().optional(),
 });
@@ -89,6 +98,10 @@ export const features = {
     (serverEnv.GOOGLE_CLIENT_ID && serverEnv.GOOGLE_CLIENT_SECRET) ||
       (serverEnv.GITHUB_CLIENT_ID && serverEnv.GITHUB_CLIENT_SECRET),
   ),
+  /** A secret is configured, so the drain endpoint can authenticate a
+   *  caller. Inline processing at upload time does not depend on this; the
+   *  endpoint exists for retries and for jobs whose inline run was cut short. */
+  ingestWorker: Boolean(serverEnv.HERITAGE_INGEST_SECRET || serverEnv.CRON_SECRET),
   /** VAPID configured — gates the visitor push opt-in + fanout (§7.1.9). */
   push: Boolean(
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY &&

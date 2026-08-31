@@ -1867,6 +1867,12 @@ model HeritageRepresentation {
   boundingBox   Json?
   /// Seconds, for audio and video.
   durationSec   Float?
+  /// Pixel dimensions for imagery and panoramas, read from the file header at
+  /// ingest. Kept here rather than only in the job result because the embed
+  /// endpoint needs an aspect ratio, and asking it to join through the
+  /// pipeline's audit trail to lay out a thumbnail would be the wrong shape.
+  widthPx       Int?
+  heightPx      Int?
 
   /// Rights on *this representation*, held separately from the original's
   /// (modelling rule 2).

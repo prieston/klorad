@@ -48,7 +48,7 @@ export default async function EmbedScenePage({
     .filter((l) => l.representation.kind === "mesh")
     .flatMap((l) => {
       const file = l.representation.files.find(
-        (f) => f.url && (f.purpose === "delivery" || f.purpose === "master"),
+        (f) => f.url && f.purpose === "delivery",
       );
       return file?.url
         ? [{ id: l.id, url: file.url, transform: l.transform ?? undefined }]
