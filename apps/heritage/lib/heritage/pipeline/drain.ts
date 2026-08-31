@@ -9,6 +9,7 @@
  * engineer has to notice.
  */
 import { randomUUID } from "node:crypto";
+import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 import { JOB_LEASE_MS } from "@/lib/heritage/ingest";
 import { MAX_ATTEMPTS, runIngestJob, type JobOutcome } from "./run";
@@ -94,8 +95,15 @@ export async function drainIngestQueue(limit = 5): Promise<DrainSummary> {
     try {
       outcomes.push(await runIngestJob(id));
     } catch (error) {
-      // The runner itself broke rather than the job. Release the claim so the
-      // next drain picks it up instead of waiting out the whole lease.
+      // The runner itself broke rather than the job. Nobody is watching this
+      // endpoint, so it is reported rather than only written to a row a
+      // curator will never open.
+      Sentry.captureException(error, {
+        tags: { area: "heritage-ingest" },
+        extra: { jobId: id, workerId },
+      });
+      // Release the claim so the next drain picks it up instead of waiting out
+      // the whole lease.
       await prisma.heritageIngestJob.update({
         where: { id },
         data: {

@@ -81,7 +81,7 @@ export function canonicalPathFor(target: EmbedTarget): string {
   return `/v/${target.venueSlug}/${segment}/${target.slug}`;
 }
 
-function clampDimension(
+export function clampDimension(
   requested: string | null,
   fallback: number,
   min: number,

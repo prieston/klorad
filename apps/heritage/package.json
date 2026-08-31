@@ -15,7 +15,10 @@
     "seed:demo": "node --env-file=../../.env --env-file-if-exists=.env.local --import tsx scripts/seed-demo.ts",
     "check:probe": "tsx scripts/check-probe.ts",
     "check:ingest": "node --env-file=../../.env --env-file-if-exists=.env.local --import tsx scripts/check-ingest-e2e.ts",
-    "check:rights": "node --conditions=react-server --env-file=../../.env --env-file-if-exists=.env.local --import tsx scripts/check-rights-delivery.ts"
+    "check:rights": "node --conditions=react-server --env-file=../../.env --env-file-if-exists=.env.local --import tsx scripts/check-rights-delivery.ts",
+    "check:units": "node --conditions=react-server --import tsx scripts/check-units.ts",
+    "check:authz": "bash scripts/check-authz.sh",
+    "check:oembed": "bash scripts/check-oembed.sh"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
@@ -27,6 +30,7 @@
     "@klorad/ui": "workspace:^",
     "@prisma/client": "^5.22.0",
     "@prisma/extension-accelerate": "^1.0.0",
+    "@sentry/nextjs": "^10.56.0",
     "@types/node": "^20.11.30",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

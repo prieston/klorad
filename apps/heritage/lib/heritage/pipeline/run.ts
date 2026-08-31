@@ -11,6 +11,7 @@
  *
  * That split is what lets the loop close now instead of after a render farm.
  */
+import * as Sentry from "@sentry/nextjs";
 import { getObjectRange, storageConfigFromEnv } from "@klorad/storage/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -133,6 +134,17 @@ export async function runIngestJob(jobId: string): Promise<JobOutcome> {
       : "Processing did not finish because of a temporary problem reading the file. It will be retried automatically.";
 
     const exhausted = !terminal && job.attempts + 1 >= MAX_ATTEMPTS;
+
+    // Terminal failures are the curator's to fix and are already shown to
+    // them. Everything else is ours, and an upload that quietly stops being
+    // retried is exactly the kind of thing nobody notices without this.
+    if (!terminal) {
+      Sentry.captureException(error, {
+        level: exhausted ? "error" : "warning",
+        tags: { area: "heritage-ingest", jobKind: job.kind },
+        extra: { jobId, representationId: job.representationId, attempts: job.attempts + 1 },
+      });
+    }
 
     await prisma.$transaction(async (tx) => {
       await tx.heritageIngestJob.update({
