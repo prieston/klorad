@@ -30,6 +30,7 @@ import {
   estimateProcessingSeconds,
   extensionOf,
 } from "@/lib/heritage/ingest";
+import { runIngestJob } from "@/lib/heritage/pipeline/run";
 
 type Params = Promise<{ venueId: string; sessionId: string }>;
 
@@ -135,7 +136,10 @@ export async function POST(
           representationId,
           purpose: session.purpose,
           storageKey: completed.key,
-          url: completed.publicUrl,
+          // No stored URL: the object is private, so a URL is minted per
+          // request from the key. Persisting one here would be persisting a
+          // credential with an expiry date.
+          url: null,
           format: extensionOf(session.fileName),
           mimeType: session.fileType,
           sizeBytes: session.sizeBytes,
@@ -173,14 +177,35 @@ export async function POST(
       return { representationId, jobId: job.id, estimatedSeconds: job.estimatedSeconds };
     });
 
+    // 3. Process now, while the curator is still on the page.
+    //
+    //    v1's pipeline reads a file header and writes a row — a second or two
+    //    of work — so making the curator poll for it would be ceremony around
+    //    nothing. A failure here is deliberately not fatal to the request: the
+    //    bytes are safely stored and the job stays queued, so the drain
+    //    endpoint finishes what this started rather than the upload being lost
+    //    to a transient read error.
+    let outcome: Awaited<ReturnType<typeof runIngestJob>> | null = null;
+    try {
+      outcome = await runIngestJob(result.jobId);
+    } catch {
+      outcome = null;
+    }
+
     return NextResponse.json({
       representationId: result.representationId,
       jobId: result.jobId,
       estimatedSeconds: result.estimatedSeconds,
-      url: completed.publicUrl,
-      /** No worker is deployed yet, so the job will sit at `queued`. Said
-       *  plainly rather than implied by a spinner that never resolves. */
-      note: "Queued for processing. No processing worker is deployed yet, so this will remain queued.",
+      storageKey: completed.key,
+      status: outcome?.status ?? "queued",
+      /** Whether a visitor can see this now, or whether it is stored as an
+       *  archival master awaiting a format Klorad can deliver. */
+      deliverable: outcome?.deliverable ?? false,
+      note:
+        outcome?.detail ??
+        (outcome
+          ? null
+          : "Stored. Processing did not finish in this request and will be retried shortly."),
     });
   });
 }

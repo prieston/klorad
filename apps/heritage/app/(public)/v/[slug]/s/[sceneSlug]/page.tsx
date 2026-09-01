@@ -3,7 +3,10 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { ViewBeacon } from "@/lib/heritage/ui/ViewBeacon";
 import { pickLocalized } from "@/lib/heritage/i18n";
+import { uiStrings } from "@/lib/heritage/ui-strings";
+import { deliveryUrlFor } from "@/lib/heritage/delivery";
 import { SceneExplorer } from "./SceneExplorer";
 
 type Params = Promise<{ slug: string; sceneSlug: string }>;
@@ -31,14 +34,25 @@ async function load(slug: string, sceneSlug: string) {
     },
     include: {
       venue: {
-        select: { slug: true, name: true, languages: true, defaultLanguage: true },
+        select: {
+          slug: true,
+          name: true,
+          languages: true,
+          defaultLanguage: true,
+          scanOfPublicDomainAssertsRights: true,
+        },
       },
       space: { select: { name: true } },
       layers: {
         orderBy: { sortOrder: "asc" },
         include: {
           representation: {
-            include: { files: true },
+            include: {
+              files: true,
+              // The depicted object's rights, which are half of the
+              // most-restrictive-wins resolution for this layer's file.
+              object: { select: { rights: true } },
+            },
           },
         },
       },
@@ -88,22 +102,31 @@ export default async function ScenePage({
   if (!s) notFound();
 
   const language = lang ?? s.venue.defaultLanguage;
+  const ui = uiStrings(language);
   const t = (v: unknown) => pickLocalized(v, language, s.venue.defaultLanguage);
 
   // Splat layers are deliberately skipped: nothing splat-related renders until
   // the Phase 0a headset measurement exists. A scene composed of them shows
   // its record and says the geometry is not available yet, rather than
   // failing.
-  const layers = s.layers
-    .filter((l) => l.representation.kind === "mesh")
-    .flatMap((l) => {
-      const file = l.representation.files.find(
-        (f) => f.url && (f.purpose === "delivery" || f.purpose === "master"),
-      );
-      return file?.url
-        ? [{ id: l.id, url: file.url, transform: l.transform ?? undefined }]
-        : [];
-    });
+  // A scene mixes objects with different rights, so each layer is signed
+  // against the rights of the thing it depicts rather than the scene's.
+  const layers = (
+    await Promise.all(
+      s.layers
+        .filter((l) => l.representation.kind === "mesh")
+        .map(async (l) => {
+          const file = l.representation.files.find((f) => f.purpose === "delivery");
+          if (!file) return null;
+          const url = await deliveryUrlFor(file, {
+            objectRights: l.representation.object?.rights ?? null,
+            representationRights: l.representation.rights,
+            scanAssertsRights: s.venue.scanOfPublicDomainAssertsRights,
+          });
+          return url ? { id: l.id, url, transform: l.transform ?? undefined } : null;
+        }),
+    )
+  ).flatMap((l) => (l ? [l] : []));
 
   const skippedSplats = s.layers.filter(
     (l) => l.representation.kind === "splat",
@@ -120,13 +143,19 @@ export default async function ScenePage({
   }));
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10">
+    <main lang={language} className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10">
+      <ViewBeacon
+        venueSlug={s.venue.slug}
+        kind="scene"
+        targetSlug={s.slug}
+        language={language}
+      />
       <Link
         href={`/v/${s.venue.slug}${lang ? `?lang=${lang}` : ""}`}
         className="inline-flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-primary"
       >
         <ArrowLeft size={13} strokeWidth={1.8} aria-hidden />
-        {t(s.venue.name) ?? "Back"}
+        {t(s.venue.name) ?? ui("backToVenue")}
       </Link>
 
       <h1 className="mt-4 text-3xl font-light leading-[1.1] text-text-primary md:text-4xl">
@@ -144,6 +173,7 @@ export default async function ScenePage({
       <SceneExplorer
         venueSlug={s.venue.slug}
         language={lang ?? null}
+        uiLanguage={language}
         layers={layers}
         proxies={proxies}
         skippedSplats={skippedSplats}

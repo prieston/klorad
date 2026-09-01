@@ -25,8 +25,11 @@ jobs:
       - name: Build packages and editor
         run: pnpm build:editor
 
+      # Was `pnpm audit:ci`, which is not a script — the step failed on every
+      # run, so this job never reached type checking, linting or the tests
+      # below it. `audits:light` is the CI-shaped variant of `pnpm audits`.
       - name: Run all audits
-        run: pnpm audit:ci
+        run: pnpm audits:light
 
       - name: Type check
         run: pnpm typecheck
@@ -37,3 +40,33 @@ jobs:
       - name: E2E tests
         run: pnpm e2e:ci:editor
         continue-on-error: true
+
+  heritage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Rights resolution, the scan policy, format deliverability, multilingual
+      # fallback, oEmbed parsing and the glTF statistics. No network or
+      # database, so it runs on a pull request with no credentials — unlike
+      # `check:ingest` and `check:rights`, which are run deliberately against
+      # real storage.
+      - name: Unit checks
+        run: pnpm --filter @klorad/heritage check:units
+
+      # No database or storage credentials in CI, and none needed: every
+      # heritage route is dynamic, so nothing is rendered at build time.
+      - name: Build
+        run: pnpm build:heritage
+        env:
+          SKIP_ENV_VALIDATION: '1'

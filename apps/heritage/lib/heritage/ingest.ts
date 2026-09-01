@@ -139,3 +139,71 @@ export function estimateProcessingSeconds(
 export function storagePrefixFor(venueId: string): string {
   return `heritage/${venueId}/masters`;
 }
+
+/**
+ * Which of the accepted formats Klorad can actually put in front of a visitor.
+ *
+ * `ACCEPTED_EXTENSIONS` is deliberately wide because institutions arrive with
+ * whatever their contractor produced, and refusing an archival master at the
+ * door would make Klorad worse than the hard drive it replaces. But accepting
+ * a file and *publishing* it are different promises. A `.fbx` is a legitimate
+ * thing for a museum to keep and an impossible thing for a browser to open.
+ *
+ * So the two lists are separate, and the gap between them is communicated at
+ * the start of an upload rather than discovered when a curator hits publish.
+ */
+export const DELIVERABLE_EXTENSIONS: Record<
+  HeritageRepresentationKind,
+  readonly string[]
+> = {
+  mesh: ["gltf", "glb"],
+  image: ["jpg", "jpeg", "png", "webp"],
+  panorama: ["jpg", "jpeg", "png", "webp"],
+  audio: ["mp3", "m4a", "aac", "ogg", "wav"],
+  video: ["mp4", "webm"],
+  // Both await work that is scoped but not built. Listed as empty rather than
+  // omitted so that adding a format here is the only change needed later.
+  splat: [],
+  point_cloud: [],
+};
+
+export function isDeliverable(
+  kind: HeritageRepresentationKind,
+  fileName: string,
+): boolean {
+  return DELIVERABLE_EXTENSIONS[kind].includes(extensionOf(fileName));
+}
+
+/**
+ * Why an accepted file will be kept but not published, or null when it will be.
+ *
+ * Every branch names the next action. §7.2.1 asks for errors a curator can act
+ * on, and "unsupported format" is not an action — "re-export as .glb" is.
+ */
+export function archivalOnlyReason(
+  kind: HeritageRepresentationKind,
+  fileName: string,
+): string | null {
+  if (isDeliverable(kind, fileName)) return null;
+  const ext = extensionOf(fileName);
+
+  if (kind === "splat") {
+    return "Gaussian-splat delivery is not published yet — it depends on a headset performance benchmark that has not been run. The capture is stored as an archival master and will render once that renderer ships.";
+  }
+  if (kind === "point_cloud") {
+    return "Point clouds are stored as archival masters. Klorad does not convert them to a renderable form yet — export a mesh from your processing software to publish the geometry.";
+  }
+  if (kind === "mesh") {
+    if (ext === "obj") {
+      return "An OBJ needs its .mtl and texture files alongside it, and this uploader takes one file at a time. Re-export as .glb, which packs geometry and textures into a single file. The OBJ is kept as an archival master.";
+    }
+    return `Klorad delivers glTF, so a .${ext} cannot be shown to visitors as it stands. Re-export as .glb to publish it — the .${ext} is kept as an archival master either way.`;
+  }
+  if (kind === "image" || kind === "panorama") {
+    return `Browsers cannot display .${ext}. Re-export as JPEG, PNG or WebP to publish it. The original is kept as an archival master.`;
+  }
+  if (kind === "audio") {
+    return `.${ext} playback is inconsistent across browsers. Re-export as MP3 or M4A to publish it. The original is kept as an archival master.`;
+  }
+  return `.${ext} does not play reliably in browsers. Re-export as MP4 (H.264) or WebM to publish it. The original is kept as an archival master.`;
+}

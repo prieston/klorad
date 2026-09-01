@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireVenueAccess } from "@/lib/authz";
+import { deliveryUrlFor } from "@/lib/heritage/delivery";
 import { pickLocalized } from "@/lib/heritage/i18n";
 import { ProxyAuthoring } from "./ProxyAuthoring";
 
@@ -38,7 +39,11 @@ export default async function ProxiesPage({
 
   const venue = await prisma.heritageVenue.findUnique({
     where: { id: venueId },
-    select: { languages: true, defaultLanguage: true },
+    select: {
+      languages: true,
+      defaultLanguage: true,
+      scanOfPublicDomainAssertsRights: true,
+    },
   });
   if (!venue) notFound();
 
@@ -62,7 +67,11 @@ export default async function ProxiesPage({
         prisma.heritageSceneLayer.findMany({
           where: { sceneId: activeSceneId },
           orderBy: { sortOrder: "asc" },
-          include: { representation: { include: { files: true } } },
+          include: {
+            representation: {
+              include: { files: true, object: { select: { rights: true } } },
+            },
+          },
         }),
         prisma.heritageProxy.findMany({
           where: { sceneId: activeSceneId, venueId },
@@ -77,6 +86,26 @@ export default async function ProxiesPage({
       ])
     : [[], [], []];
 
+  // Signed the same way the public pages sign, so an author is positioning
+  // proxies against exactly the asset a visitor will load — not a privileged
+  // view of it that might differ.
+  const authorLayers = (
+    await Promise.all(
+      layers
+        .filter((l) => l.representation.kind === "mesh")
+        .map(async (l) => {
+          const file = l.representation.files.find((f) => f.purpose === "delivery");
+          if (!file) return null;
+          const url = await deliveryUrlFor(file, {
+            objectRights: l.representation.object?.rights ?? null,
+            representationRights: l.representation.rights,
+            scanAssertsRights: venue.scanOfPublicDomainAssertsRights,
+          });
+          return url ? { id: l.id, url, transform: l.transform ?? undefined } : null;
+        }),
+    )
+  ).flatMap((l) => (l ? [l] : []));
+
   return (
     <ProxyAuthoring
       venueId={venueId}
@@ -89,16 +118,7 @@ export default async function ProxiesPage({
         lastRecapturedAt: s.lastRecapturedAt?.toISOString() ?? null,
       }))}
       activeSceneId={activeSceneId}
-      layers={layers
-        .filter((l) => l.representation.kind === "mesh")
-        .flatMap((l) => {
-          const file = l.representation.files.find(
-            (f) => f.url && (f.purpose === "delivery" || f.purpose === "master"),
-          );
-          return file?.url
-            ? [{ id: l.id, url: file.url, transform: l.transform ?? undefined }]
-            : [];
-        })}
+      layers={authorLayers}
       hasSplatLayers={layers.some((l) => l.representation.kind === "splat")}
       objects={objects.map((o) => ({
         id: o.id,

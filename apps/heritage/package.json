@@ -12,7 +12,13 @@
     "build": "next build",
     "start": "next start -p 3005",
     "lint": "next lint --fix --dir app",
-    "seed:demo": "node --env-file=../../.env --env-file-if-exists=.env.local --import tsx scripts/seed-demo.ts"
+    "seed:demo": "node --env-file=../../.env --env-file-if-exists=.env.local --import tsx scripts/seed-demo.ts",
+    "check:probe": "tsx scripts/check-probe.ts",
+    "check:ingest": "node --env-file=../../.env --env-file-if-exists=.env.local --import tsx scripts/check-ingest-e2e.ts",
+    "check:rights": "node --conditions=react-server --env-file=../../.env --env-file-if-exists=.env.local --import tsx scripts/check-rights-delivery.ts",
+    "check:units": "node --conditions=react-server --import tsx scripts/check-units.ts",
+    "check:authz": "bash scripts/check-authz.sh",
+    "check:oembed": "bash scripts/check-oembed.sh"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
@@ -24,6 +30,7 @@
     "@klorad/ui": "workspace:^",
     "@prisma/client": "^5.22.0",
     "@prisma/extension-accelerate": "^1.0.0",
+    "@sentry/nextjs": "^10.56.0",
     "@types/node": "^20.11.30",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
@@ -33,6 +40,7 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-toastify": "^11.0.5",
+    "server-only": "^0.0.1",
     "swr": "^2.3.6",
     "three": "^0.170.0",
     "zod": "^3.24.2"

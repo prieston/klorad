@@ -107,3 +107,35 @@ export interface AbortMultipartUploadInput {
   key: string;
   uploadId: string;
 }
+
+/** A byte range to read out of a stored object. `end` is inclusive, matching
+ *  HTTP Range rather than JavaScript slice semantics. */
+export interface ObjectRangeInput {
+  key: string;
+  start: number;
+  end: number;
+}
+
+export interface ObjectRangeResult {
+  body: Uint8Array;
+  /** Bytes actually returned — may be shorter than requested at end-of-file. */
+  contentLength: number;
+  /** Full size of the object, parsed from `Content-Range`. Null if the
+   *  provider omitted the header. */
+  totalLength: number | null;
+}
+
+export interface PresignDownloadInput {
+  key: string;
+  /** Seconds the URL stays valid. */
+  expiresIn?: number;
+  /**
+   * Round the signing time down to this many seconds so repeated requests
+   * inside one period produce a byte-identical URL, which is what lets the
+   * browser and CDN cache it. Omit for a URL unique to this moment.
+   */
+  bucketSeconds?: number;
+  /** `Content-Disposition` for the response — use to force a download, or to
+   *  give the saved file a meaningful name. */
+  contentDisposition?: string;
+}

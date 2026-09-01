@@ -55,7 +55,7 @@ const data: ProductData = {
     },
   ],
   builtOn:
-    "Klorad Virtual Heritage is a world built on the Klorad platform. It runs on the same World model, the three renderers, and the immersive XR layer behind every Klorad product.",
+    "Klorad Virtual Heritage is a world built on the Klorad platform. It runs on the same World model, rendering pipeline and publishing layer behind every Klorad product.",
   ctaTitle: "Bring a site back to life.",
 };
 
