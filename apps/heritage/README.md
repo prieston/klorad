@@ -70,10 +70,24 @@ to re-download the model.
 
 1. **Vercel project** pointed at `apps/heritage`. `vercel.json` pins `fra1` for
    the EU residency claim in §9.1 — do not let the region drift.
-2. **Environment**: everything in `.env.example`. `NEXTAUTH_URL` and
-   `NEXT_PUBLIC_APP_URL` must be the deployed origin, and
-   `HERITAGE_INGEST_SECRET` must be set or the cron sweep is disabled.
-3. **`pnpm prisma:migrate:deploy`** — all heritage migrations are additive.
+2. **Environment**: everything in `.env.example`. Two of them fail the
+   *build*, not the app, so they are worth setting first:
+
+   | Variable | Why it stops the build |
+   | --- | --- |
+   | `DIRECT_DATABASE_URL` | `vercel:build:heritage` runs `prisma migrate deploy` before `next build`. Migrations need a direct connection — an Accelerate URL cannot run them, which is why this is a second variable rather than a reuse of `DATABASE_URL`. |
+   | `DATABASE_URL` | Runtime connection. Validated at module load, so a production build evaluating a route's imports trips on it. |
+
+   Both are the same values Campus and Mobility already use — this is the
+   shared platform database, so copy them across rather than minting new ones.
+
+   Then `SECRET`, the `DO_SPACES_*` set, and the OAuth client. `NEXTAUTH_URL`
+   and `NEXT_PUBLIC_APP_URL` must be the deployed origin, and
+   `HERITAGE_INGEST_SECRET` must be set or the cron sweep stays disabled.
+3. **Migrations run themselves.** `vercel:build:heritage` applies them before
+   building, so a deploy is the migration. All heritage migrations are
+   additive with no `DROP`s, which is what makes that safe — a destructive
+   migration in a build step would be a deploy that cannot be rolled back.
 4. **`pnpm spaces:set-cors`** — adds the origin and exposes `ETag`, which
    multipart completion depends on. Uploads fail without it.
 5. **Google OAuth redirect URIs** — add `<origin>/api/auth/callback/google`.
