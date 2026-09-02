@@ -40,7 +40,7 @@ export default async function RepresentationsPage({
       take: 100,
       include: {
         files: { orderBy: { createdAt: "asc" } },
-        object: { select: { id: true, title: true } },
+        object: { select: { id: true, title: true, rights: true } },
         space: { select: { id: true, name: true } },
       },
     }),
@@ -103,6 +103,11 @@ export default async function RepresentationsPage({
         createdAt: r.createdAt.toISOString(),
         objectId: r.object?.id ?? null,
         spaceId: r.space?.id ?? null,
+        rights: r.rights,
+        /** The depicted object's statement, shown so a curator can see what
+         *  this capture would resolve to if left unset — the answer is rarely
+         *  what they assume. */
+        objectRights: r.object?.rights ?? null,
         /** Whether a visitor can see this, as opposed to it being stored.
          *  Derived from the presence of a delivery file rather than from
          *  `status`, because a successfully-processed archival master is

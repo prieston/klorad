@@ -10,6 +10,7 @@ import {
   Link2,
   Loader2,
   RotateCcw,
+  Scale,
   Upload,
   X,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import {
   type UploadProgress,
 } from "@/lib/heritage/upload-client";
 import { ACCEPTED_EXTENSIONS } from "@/lib/heritage/ingest";
+import { ALL_RIGHTS, RIGHTS_LABEL } from "@/lib/heritage/rights";
 
 type Kind = keyof typeof ACCEPTED_EXTENSIONS;
 
@@ -53,6 +55,8 @@ interface RepRow {
   deliverable: boolean;
   objectId: string | null;
   spaceId: string | null;
+  rights: string | null;
+  objectRights: string | null;
   triangleCount: number | null;
   widthPx: number | null;
   heightPx: number | null;
@@ -405,6 +409,7 @@ export function IngestClient({
                       objects={objects}
                       spaces={spaces}
                     />
+                    <RightsControl venueId={venueId} rep={r} />
                     <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-text-tertiary">
                       <span className="rounded-full bg-surface-2 px-2 py-0.5">
                         {r.kind}
@@ -682,6 +687,79 @@ function AttachControl({
             ))}
           </optgroup>
         )}
+      </select>
+    </label>
+  );
+}
+
+/**
+ * Set the rights that govern this capture, as distinct from the original.
+ *
+ * Modelling rule 2: a capture holds its own statement. A public-domain marble
+ * head photographed under a commercial licence produces a restricted capture
+ * of an unrestricted object, and §10.2 resolves that by taking the more
+ * restrictive of the two. None of which functions if the capture's own
+ * statement can never be set — the resolution silently degrades to "whatever
+ * the object says", and the venue's public-domain-scan policy has nothing to
+ * act on.
+ *
+ * Leaving it unset is a legitimate answer and the common one, so the control
+ * says what unset actually means here rather than showing an empty box: the
+ * capture takes on the object's statement, and if the object has none either,
+ * both resolve to in copyright.
+ */
+function RightsControl({ venueId, rep }: { venueId: string; rep: RepRow }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
+  async function set(value: string) {
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/api/venues/${venueId}/representations/${rep.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rights: value === "" ? null : value }),
+        },
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        toast.error(body.error ?? "Could not save the rights statement.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      toast.error("Could not save the rights statement.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const inherited = rep.objectRights
+    ? RIGHTS_LABEL[rep.objectRights as keyof typeof RIGHTS_LABEL]
+    : null;
+
+  return (
+    <label className="mt-1.5 flex items-center gap-1.5 text-[11px] text-text-tertiary">
+      <Scale size={11} strokeWidth={1.9} aria-hidden className="shrink-0" />
+      <span className="sr-only">Rights on this capture</span>
+      <select
+        value={rep.rights ?? ""}
+        disabled={busy}
+        onChange={(e) => set(e.target.value)}
+        className="max-w-[22rem] truncate rounded-full border border-line-soft bg-surface-2 px-2 py-0.5 text-[11px] text-text-secondary transition disabled:opacity-50"
+      >
+        <option value="">
+          {inherited
+            ? `Same as the object — ${inherited}`
+            : "Unset — resolves to in copyright"}
+        </option>
+        {ALL_RIGHTS.map((r) => (
+          <option key={r} value={r}>
+            {RIGHTS_LABEL[r]}
+          </option>
+        ))}
       </select>
     </label>
   );
