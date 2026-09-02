@@ -31,6 +31,12 @@ export function ViewerCanvas({
   label,
   strings,
   onViewerReady,
+  editable = false,
+  mode,
+  onSelectLayer,
+  onTransformLayer,
+  onPlaceProxy,
+  onTransformProxy,
 }: {
   layers: ViewerLayer[];
   proxies?: ProxyHotspot[];
@@ -52,6 +58,33 @@ export function ViewerCanvas({
    *  asynchronously inside an effect, so there is no instance to forward at
    *  the moment React would wire a ref up. */
   onViewerReady?: (viewer: HeritageViewer) => void;
+  /** Turns on the transform gizmo and canvas selection. */
+  editable?: boolean;
+  /** What a click means when editable — placing hotspots, or selecting whole
+   *  models to arrange a scene. */
+  mode?: "proxies" | "layers";
+  onSelectLayer?: (id: string | null) => void;
+  onTransformLayer?: (
+    id: string,
+    transform: {
+      position: [number, number, number];
+      rotation: [number, number, number, number];
+      scale: [number, number, number];
+    },
+  ) => void;
+  onPlaceProxy?: (transform: {
+    position: [number, number, number];
+    rotation: [number, number, number, number];
+    scale: [number, number, number];
+  }) => void;
+  onTransformProxy?: (
+    id: string,
+    transform: {
+      position: [number, number, number];
+      rotation: [number, number, number, number];
+      scale: [number, number, number];
+    },
+  ) => void;
 }) {
   const copy = strings ?? {
     loading: "Loading the model…",
@@ -80,6 +113,12 @@ export function ViewerCanvas({
         proxies,
         showProxies,
         onSelectProxy,
+        editable,
+        mode,
+        onSelectLayer,
+        onTransformLayer,
+        onPlaceProxy,
+        onTransformProxy,
         onReady: () => {
           setState("ready");
           if (viewerRef.current) onViewerReady?.(viewerRef.current);
