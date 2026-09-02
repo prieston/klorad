@@ -50,6 +50,12 @@ const DEFAULT_ORIGINS = [
   "https://campus.klorad.com",
   "https://platform.klorad.com",
   "https://mobility.klorad.com",
+  // Heritage is deployed at culture.klorad.com. The app key, the package name
+  // and the subdomain deliberately do not all agree — the internal key is
+  // `heritage` and the published name is Virtual Heritage — so the origin is
+  // listed by the domain that actually reaches the browser, not by the one the
+  // codebase is named after. `heritage.klorad.com` is kept for the alias.
+  "https://culture.klorad.com",
   "https://heritage.klorad.com",
   "http://localhost:3001",
   "http://localhost:3003",
