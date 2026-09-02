@@ -36,6 +36,50 @@ editor's callback without an override. See `.env.example`.
 The last two write to whichever database `DATABASE_URL` points at and upload a
 few megabytes. They clean up their rows; they leave their objects.
 
+## The workflow
+
+The order a curator actually works in. Every step is reachable from the left
+navigation; nothing here needs the API.
+
+1. **Create the venue** — `/org/<org>` → New venue. A venue is a `Project`
+   with a `HeritageVenue` row; it starts unpublished, so nothing is public
+   until step 8.
+2. **Set the venue up** — Settings. Languages, default language, and the
+   public-domain-scan policy (does scanning a public-domain work assert new
+   rights over the scan?). Set the languages first: every later field asks for
+   one box per language, and adding a language afterwards means revisiting
+   everything already written.
+3. **Describe the spaces** — Spaces. Rooms, galleries, sites. Optional, but a
+   capture can depict a space as well as an object.
+4. **Create the objects** — Objects. Title, identifier, description, period,
+   materials, and the object's own rights statement.
+5. **Upload the captures** — Representations. Choose the format, choose what
+   it shows, choose the file. It uploads resumably, processes inline, and is
+   viewable within a second or two if it is a deliverable format.
+
+   Set the capture's own rights on the row if they differ from the object's —
+   a public-domain marble photographed under a commercial licence is a
+   restricted capture of an unrestricted object. The more restrictive of the
+   two always wins.
+6. **Record how it was made** — Paradata. Method, instrument, operator, date,
+   and the intended purpose. §7.2.2 fills in some of this automatically from
+   the ingest parameters.
+7. **Compose and annotate** — Scenes, then Proxies. A scene stacks captures as
+   layers; proxies are the tappable regions inside one. Click the model and a
+   proxy lands where you clicked. Then Tours, to string scenes and objects
+   into a route.
+8. **Publish** — each object, scene and tour has its own draft/published
+   state, and the venue has one in Settings. **Both** must be published for a
+   visitor to see anything: the venue gate exists so a collection can be built
+   in the open without leaking half-finished records.
+
+Then check the venue's public page at `/v/<slug>`, and Analytics a day later.
+
+Two screens are reports rather than editors, and deliberately so: **Rights**
+shows what each capture resolves to once object and capture are reconciled,
+and **Languages** shows what is missing a translation. Both link back to the
+page where the value is actually set.
+
 ## How ingest works
 
 Most of what a curator uploads is already deliverable. A `.glb`, a JPEG, an MP4
@@ -70,10 +114,24 @@ to re-download the model.
 
 1. **Vercel project** pointed at `apps/heritage`. `vercel.json` pins `fra1` for
    the EU residency claim in §9.1 — do not let the region drift.
-2. **Environment**: everything in `.env.example`. `NEXTAUTH_URL` and
-   `NEXT_PUBLIC_APP_URL` must be the deployed origin, and
-   `HERITAGE_INGEST_SECRET` must be set or the cron sweep is disabled.
-3. **`pnpm prisma:migrate:deploy`** — all heritage migrations are additive.
+2. **Environment**: everything in `.env.example`. Two of them fail the
+   *build*, not the app, so they are worth setting first:
+
+   | Variable | Why it stops the build |
+   | --- | --- |
+   | `DIRECT_DATABASE_URL` | `vercel:build:heritage` runs `prisma migrate deploy` before `next build`. Migrations need a direct connection — an Accelerate URL cannot run them, which is why this is a second variable rather than a reuse of `DATABASE_URL`. |
+   | `DATABASE_URL` | Runtime connection. Validated at module load, so a production build evaluating a route's imports trips on it. |
+
+   Both are the same values Campus and Mobility already use — this is the
+   shared platform database, so copy them across rather than minting new ones.
+
+   Then `SECRET`, the `DO_SPACES_*` set, and the OAuth client. `NEXTAUTH_URL`
+   and `NEXT_PUBLIC_APP_URL` must be the deployed origin, and
+   `HERITAGE_INGEST_SECRET` must be set or the cron sweep stays disabled.
+3. **Migrations run themselves.** `vercel:build:heritage` applies them before
+   building, so a deploy is the migration. All heritage migrations are
+   additive with no `DROP`s, which is what makes that safe — a destructive
+   migration in a build step would be a deploy that cannot be rolled back.
 4. **`pnpm spaces:set-cors`** — adds the origin and exposes `ETag`, which
    multipart completion depends on. Uploads fail without it.
 5. **Google OAuth redirect URIs** — add `<origin>/api/auth/callback/google`.

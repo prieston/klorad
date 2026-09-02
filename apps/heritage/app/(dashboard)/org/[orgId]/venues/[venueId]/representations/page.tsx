@@ -28,7 +28,8 @@ export default async function RepresentationsPage({
   const access = await requireVenueAccess(venueId, "read");
   if (access.denied) notFound();
 
-  const [venue, representations, jobs, liveSessions] = await Promise.all([
+  const [venue, representations, jobs, liveSessions, objects, spaces] =
+    await Promise.all([
     prisma.heritageVenue.findUnique({
       where: { id: venueId },
       select: { defaultLanguage: true },
@@ -39,7 +40,7 @@ export default async function RepresentationsPage({
       take: 100,
       include: {
         files: { orderBy: { createdAt: "asc" } },
-        object: { select: { id: true, title: true } },
+        object: { select: { id: true, title: true, rights: true } },
         space: { select: { id: true, name: true } },
       },
     }),
@@ -53,6 +54,20 @@ export default async function RepresentationsPage({
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { parts: true } } },
     }),
+    // The pickers for attaching a capture to what it depicts. Loaded here
+    // rather than fetched on demand: a curator who has just uploaded is about
+    // to attach, and a spinner between those two moments is friction on the
+    // single most common next action.
+    prisma.heritageObject.findMany({
+      where: { venueId },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, title: true, identifier: true },
+    }),
+    prisma.heritageSpace.findMany({
+      where: { venueId },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, name: true },
+    }),
   ]);
   if (!venue) notFound();
 
@@ -63,6 +78,17 @@ export default async function RepresentationsPage({
     <IngestClient
       venueId={venueId}
       storageConfigured={features.uploads}
+      objects={objects.map((o) => ({
+        id: o.id,
+        label:
+          [pickLocalized(o.title, lang, "en"), o.identifier]
+            .filter(Boolean)
+            .join(" · ") || "Untitled object",
+      }))}
+      spaces={spaces.map((sp) => ({
+        id: sp.id,
+        label: pickLocalized(sp.name, lang, "en") ?? "Untitled space",
+      }))}
       initialRepresentations={representations.map((r) => ({
         id: r.id,
         kind: r.kind,
@@ -75,6 +101,13 @@ export default async function RepresentationsPage({
           null,
         failureReason: r.failureReason,
         createdAt: r.createdAt.toISOString(),
+        objectId: r.object?.id ?? null,
+        spaceId: r.space?.id ?? null,
+        rights: r.rights,
+        /** The depicted object's statement, shown so a curator can see what
+         *  this capture would resolve to if left unset — the answer is rarely
+         *  what they assume. */
+        objectRights: r.object?.rights ?? null,
         /** Whether a visitor can see this, as opposed to it being stored.
          *  Derived from the presence of a delivery file rather than from
          *  `status`, because a successfully-processed archival master is

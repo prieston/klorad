@@ -123,6 +123,18 @@ export class HeritageViewer {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
+  /** Set when the visitor has asked for reduced motion; suppresses camera
+   *  flights in favour of instant cuts. */
+  private reducedMotion = false;
+  /** In-progress camera flight, advanced by `tick`. */
+  private flight: {
+    from: THREE.Vector3;
+    to: THREE.Vector3;
+    fromTarget: THREE.Vector3;
+    toTarget: THREE.Vector3;
+    startedAt: number;
+    duration: number;
+  } | null = null;
   private readonly controls: OrbitControls;
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointer = new THREE.Vector2();
@@ -164,6 +176,7 @@ export class HeritageViewer {
     // animation. Damping is camera animation.
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
       this.controls.enableDamping = false;
+      this.reducedMotion = true;
     }
 
     if (opts.editable) this.setupGizmo();
@@ -428,9 +441,76 @@ export class HeritageViewer {
     }
   };
 
+  /**
+   * Move the camera to an authored viewpoint.
+   *
+   * This is what makes a guided tour a tour rather than a list of links: a
+   * curator chose where to stand for each stop, and arriving at the default
+   * framing instead would discard that decision. The same pose drives headset
+   * teleport waypoints (§5.2, caveat 3).
+   *
+   * Animated by default, because a cut between two viewpoints leaves a visitor
+   * with no idea whether they moved or the model changed. Under
+   * prefers-reduced-motion it jumps: §10.1 makes that mandatory, and vestibular
+   * discomfort is exactly what a swooping camera causes.
+   */
+  flyTo(
+    pose: {
+      position: [number, number, number];
+      target?: [number, number, number];
+      fov?: number;
+    },
+    opts: { animate?: boolean } = {},
+  ) {
+    const to = new THREE.Vector3(...pose.position);
+    const toTarget = pose.target
+      ? new THREE.Vector3(...pose.target)
+      : this.controls.target.clone();
+
+    if (pose.fov && pose.fov !== this.camera.fov) {
+      this.camera.fov = pose.fov;
+      this.camera.updateProjectionMatrix();
+    }
+
+    const animate = (opts.animate ?? true) && !this.reducedMotion;
+    if (!animate) {
+      this.flight = null;
+      this.camera.position.copy(to);
+      this.controls.target.copy(toTarget);
+      this.controls.update();
+      return;
+    }
+
+    this.flight = {
+      from: this.camera.position.clone(),
+      to,
+      fromTarget: this.controls.target.clone(),
+      toTarget,
+      startedAt: performance.now(),
+      duration: 900,
+    };
+  }
+
   private tick = () => {
     if (this.destroyed) return;
     this.frame = requestAnimationFrame(this.tick);
+
+    if (this.flight) {
+      const elapsed = performance.now() - this.flight.startedAt;
+      const t = Math.min(1, elapsed / this.flight.duration);
+      // Ease in and out. A linear flight starts and stops abruptly, which
+      // reads as a glitch rather than as movement.
+      const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+      this.camera.position.lerpVectors(this.flight.from, this.flight.to, eased);
+      this.controls.target.lerpVectors(
+        this.flight.fromTarget,
+        this.flight.toTarget,
+        eased,
+      );
+      if (t >= 1) this.flight = null;
+    }
+
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
   };

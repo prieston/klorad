@@ -162,6 +162,7 @@ export default async function PublicVenuePage({
         items={venue.tours.map((tour) => ({
           key: tour.id,
           label: t(tour.title) ?? tour.slug,
+          href: `/v/${venue.slug}/t/${tour.slug}${lang ? `?lang=${lang}` : ""}`,
           meta: [
             tour.estimatedMinutes
               ? `${tour.estimatedMinutes} ${ui("minutes")}`
