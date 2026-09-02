@@ -113,7 +113,7 @@ export function ParadataClient({
   return (
     <main className="mx-auto w-full max-w-[1100px] px-6 py-10 md:px-10">
       <PageHeader
-        title="Paradata."
+        title="How it was made."
         lede="How each capture was made. Attached to the capture, never to the object — one sculpture may carry a 2009 laser scan and a 2026 splat capture with entirely different trustworthiness, and a curator has to be able to see which is which."
       />
 

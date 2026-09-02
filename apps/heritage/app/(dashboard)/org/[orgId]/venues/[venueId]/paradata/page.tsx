@@ -6,7 +6,7 @@ import { ParadataClient } from "./ParadataClient";
 
 type Params = Promise<{ orgId: string; venueId: string }>;
 
-export const metadata = { title: "Paradata" };
+export const metadata = { title: "How it was made" };
 
 /**
  * HER-204 — paradata.

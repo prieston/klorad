@@ -6,7 +6,7 @@ import { ObjectsClient } from "./ObjectsClient";
 
 type Params = Promise<{ orgId: string; venueId: string }>;
 
-export const metadata = { title: "Objects" };
+export const metadata = { title: "Items" };
 
 /**
  * HER-205 — object records.
@@ -17,7 +17,7 @@ export const metadata = { title: "Objects" };
  * more restrictive of the two.
  */
 export default async function ObjectsPage({ params }: { params: Params }) {
-  const { venueId } = await params;
+  const { orgId, venueId } = await params;
   const access = await requireVenueAccess(venueId, "read");
   if (access.denied) notFound();
 
@@ -52,6 +52,7 @@ export default async function ObjectsPage({ params }: { params: Params }) {
   return (
     <ObjectsClient
       venueId={venueId}
+      orgId={orgId}
       languages={venue.languages}
       defaultLanguage={lang}
       spaces={spaces.map((s) => ({

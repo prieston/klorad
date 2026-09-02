@@ -103,12 +103,12 @@ export default async function CompliancePage({ params }: { params: Params }) {
       {
         label: "no 3D capture",
         count: objects.length - with3d.length,
-        href: `/org/${orgId}/venues/${venue.id}/representations`,
+        href: `/org/${orgId}/venues/${venue.id}/files`,
       },
       {
         label: "capture not processed",
         count: with3d.length - deliverable.length,
-        href: `/org/${orgId}/venues/${venue.id}/representations`,
+        href: `/org/${orgId}/venues/${venue.id}/files`,
       },
       {
         label: "missing a translation",
@@ -118,7 +118,7 @@ export default async function CompliancePage({ params }: { params: Params }) {
       {
         label: "still a draft",
         count: objects.length - published.length,
-        href: `/org/${orgId}/venues/${venue.id}/objects`,
+        href: `/org/${orgId}/venues/${venue.id}/items`,
       },
     ].filter((b) => b.count > 0);
 

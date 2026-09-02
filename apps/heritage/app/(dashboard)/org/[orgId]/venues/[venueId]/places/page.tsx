@@ -5,7 +5,7 @@ import { SpacesClient } from "./SpacesClient";
 
 type Params = Promise<{ orgId: string; venueId: string }>;
 
-export const metadata = { title: "Spaces" };
+export const metadata = { title: "Places" };
 
 /**
  * Spaces — galleries, sectors, rooms and scanned scenes within a venue

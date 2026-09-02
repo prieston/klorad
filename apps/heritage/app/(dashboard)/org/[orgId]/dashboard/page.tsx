@@ -78,7 +78,7 @@ export default async function OrgDashboard({ params }: { params: Params }) {
     {
       count: failed,
       label: failed === 1 ? "capture failed to process" : "captures failed to process",
-      href: venues[0] ? `/org/${orgId}/venues/${venues[0].id}/representations` : null,
+      href: venues[0] ? `/org/${orgId}/venues/${venues[0].id}/files` : null,
       tone: "amber" as const,
       icon: UploadCloud,
     },
@@ -95,7 +95,7 @@ export default async function OrgDashboard({ params }: { params: Params }) {
     {
       count: needsProcessing,
       label: needsProcessing === 1 ? "capture is processing" : "captures are processing",
-      href: venues[0] ? `/org/${orgId}/venues/${venues[0].id}/representations` : null,
+      href: venues[0] ? `/org/${orgId}/venues/${venues[0].id}/files` : null,
       tone: "neutral" as const,
       icon: Layers,
     },

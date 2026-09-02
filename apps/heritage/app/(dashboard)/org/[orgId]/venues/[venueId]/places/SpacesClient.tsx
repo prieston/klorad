@@ -147,7 +147,7 @@ export function SpacesClient({
   return (
     <main className="mx-auto w-full max-w-[1100px] px-6 py-10 md:px-10">
       <PageHeader
-        title="Spaces."
+        title="Places."
         lede="A gallery, a sector, a room, or one scanned scene. Objects live in a space, and scenes are captured of one."
         actions={
           <Button onClick={() => (open ? close() : setCreating(true))}>
@@ -246,7 +246,7 @@ export function SpacesClient({
         <EmptyState
           tone="dashed"
           icon={Building2}
-          title="No spaces yet."
+          title="No places yet."
           body="Add the galleries, sectors or scanned areas this venue is divided into."
           action={
             <Button onClick={() => setCreating(true)}>

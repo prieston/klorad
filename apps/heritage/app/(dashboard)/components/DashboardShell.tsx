@@ -42,6 +42,7 @@ import {
   Boxes,
   Building2,
   ChevronLeft,
+  Compass,
   Landmark,
   LayoutDashboard,
   Languages,
@@ -54,7 +55,6 @@ import {
   Settings,
   ShieldCheck,
   Sun,
-  Target,
   Users,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
@@ -202,12 +202,22 @@ function orgNavGroups(orgId: string, pathname: string): NavGroup[] {
 }
 
 /**
- * Venue-scope nav groups. The grouping mirrors §7.2's curator console: the
- * record first (what the institution owns), then the captures of it, then the
- * scenes those captures compose into, then what a visitor is shown, then the
- * standards surface. Several of these routes render `ComingSoon` and name
- * their requirement ID — the IA is deliberately complete ahead of the
- * implementations so the shape of the product is visible.
+ * Venue-scope navigation, in the order the work actually happens.
+ *
+ * The previous grouping — Record, Capture, Experience, Publish — mirrored the
+ * data model: the abstract record first, the captures of it second, the scenes
+ * third. That is the right shape for a CIDOC-CRM database and the wrong shape
+ * for a person. Nobody arrives thinking "I will create a record and later
+ * associate a depiction with it". They arrive thinking "I have a model of a
+ * statue".
+ *
+ * So the spine is now: bring something in, describe it, arrange it, guide
+ * people through it. Everything that is a report rather than a task drops
+ * below into Manage, where it can be found and is not in the way.
+ *
+ * Every item carries a `hint`. The names of the concepts here are the product;
+ * a curator who cannot tell what "Scenes" means from the sidebar will not find
+ * out by clicking, and a tooltip they have to hunt for is not an answer.
  */
 function venueNavGroups(
   orgId: string,
@@ -220,65 +230,29 @@ function venueNavGroups(
     pathname.startsWith(`${prefix}${segment}/`);
   return [
     {
-      label: "Record",
       items: [
         {
-          label: "Overview",
+          label: "Start here",
           href: prefix,
-          icon: <LayoutDashboard size={16} strokeWidth={1.7} />,
+          icon: <Compass size={16} strokeWidth={1.7} />,
           active: pathname === prefix,
         },
+      ],
+    },
+    {
+      label: "Build",
+      items: [
         {
-          label: "Objects",
-          href: `${prefix}/objects`,
+          label: "Items",
+          href: `${prefix}/items`,
           icon: <Boxes size={16} strokeWidth={1.7} />,
-          active: is("/objects"),
+          active: is("/items"),
         },
-        {
-          label: "Spaces",
-          href: `${prefix}/spaces`,
-          icon: <Building2 size={16} strokeWidth={1.7} />,
-          active: is("/spaces"),
-        },
-        {
-          label: "Rights",
-          href: `${prefix}/rights`,
-          icon: <Scale size={16} strokeWidth={1.7} />,
-          active: is("/rights"),
-        },
-      ],
-    },
-    {
-      label: "Capture",
-      items: [
-        {
-          label: "Representations",
-          href: `${prefix}/representations`,
-          icon: <ScanLine size={16} strokeWidth={1.7} />,
-          active: is("/representations"),
-        },
-        {
-          label: "Paradata",
-          href: `${prefix}/paradata`,
-          icon: <ShieldCheck size={16} strokeWidth={1.7} />,
-          active: is("/paradata"),
-        },
-      ],
-    },
-    {
-      label: "Experience",
-      items: [
         {
           label: "Scenes",
           href: `${prefix}/scenes`,
           icon: <Layers size={16} strokeWidth={1.7} />,
           active: is("/scenes"),
-        },
-        {
-          label: "Proxies",
-          href: `${prefix}/proxies`,
-          icon: <Target size={16} strokeWidth={1.7} />,
-          active: is("/proxies"),
         },
         {
           label: "Tours",
@@ -289,25 +263,54 @@ function venueNavGroups(
       ],
     },
     {
-      label: "Publish",
+      label: "Manage",
       items: [
         {
-          label: "Reach",
-          href: `${prefix}/reach`,
-          icon: <Megaphone size={16} strokeWidth={1.7} />,
-          active: is("/reach"),
+          label: "Files",
+          href: `${prefix}/files`,
+          icon: <ScanLine size={16} strokeWidth={1.7} />,
+          active: is("/files"),
         },
         {
-          label: "Languages",
+          label: "Places",
+          href: `${prefix}/places`,
+          icon: <Building2 size={16} strokeWidth={1.7} />,
+          active: is("/places"),
+        },
+        {
+          label: "Copyright",
+          href: `${prefix}/rights`,
+          icon: <Scale size={16} strokeWidth={1.7} />,
+          active: is("/rights"),
+        },
+        {
+          label: "Translations",
           href: `${prefix}/languages`,
           icon: <Languages size={16} strokeWidth={1.7} />,
           active: is("/languages"),
         },
         {
-          label: "Analytics",
+          label: "How it was made",
+          href: `${prefix}/paradata`,
+          icon: <ShieldCheck size={16} strokeWidth={1.7} />,
+          active: is("/paradata"),
+        },
+      ],
+    },
+    {
+      label: "Audience",
+      items: [
+        {
+          label: "Visitors",
           href: `${prefix}/analytics`,
           icon: <BarChart3 size={16} strokeWidth={1.7} />,
           active: is("/analytics"),
+        },
+        {
+          label: "Notifications",
+          href: `${prefix}/reach`,
+          icon: <Megaphone size={16} strokeWidth={1.7} />,
+          active: is("/reach"),
         },
         {
           label: "Settings",
