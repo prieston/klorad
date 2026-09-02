@@ -44,7 +44,22 @@ export type UiKey =
   | "viewerLoading"
   | "viewerFailed"
   | "viewerHint"
-  | "modelLabel";
+  | "modelLabel"
+  | "tour"
+  | "stops"
+  | "stopOf"
+  | "previous"
+  | "next"
+  | "startTour"
+  | "beginAt"
+  | "endOfTour"
+  | "backToTour"
+  | "narration"
+  | "allStops"
+  | "accessibleRouteNote"
+  | "screenOnly"
+  | "headsetOnly"
+  | "noStops";
 
 type Dictionary = Record<UiKey, string>;
 
@@ -81,6 +96,22 @@ const en: Dictionary = {
   // `{n}` is substituted with the number of points of interest.
   viewerHint: "Drag to orbit · arrow keys to step through {n} points of interest",
   modelLabel: "Interactive 3D model",
+  tour: "Tour",
+  stops: "stops",
+  // `{n}` and `{total}` are substituted.
+  stopOf: "Stop {n} of {total}",
+  previous: "Previous",
+  next: "Next",
+  startTour: "Start the tour",
+  beginAt: "Begins at",
+  endOfTour: "That is the end of the tour.",
+  backToTour: "Back to the tour",
+  narration: "Narration",
+  allStops: "Every stop",
+  accessibleRouteNote: "Step-free route",
+  screenOnly: "Designed for screen",
+  headsetOnly: "Designed for a headset",
+  noStops: "This tour has no stops yet.",
 };
 
 const el: Dictionary = {
@@ -115,6 +146,21 @@ const el: Dictionary = {
   viewerFailed: "Το μοντέλο δεν ήταν δυνατό να φορτωθεί.",
   viewerHint: "Σύρετε για περιστροφή · βέλη για μετάβαση σε {n} σημεία ενδιαφέροντος",
   modelLabel: "Διαδραστικό τρισδιάστατο μοντέλο",
+  tour: "Διαδρομή",
+  stops: "στάσεις",
+  stopOf: "Στάση {n} από {total}",
+  previous: "Προηγούμενη",
+  next: "Επόμενη",
+  startTour: "Έναρξη διαδρομής",
+  beginAt: "Ξεκινά από",
+  endOfTour: "Εδώ ολοκληρώνεται η διαδρομή.",
+  backToTour: "Επιστροφή στη διαδρομή",
+  narration: "Αφήγηση",
+  allStops: "Όλες οι στάσεις",
+  accessibleRouteNote: "Διαδρομή χωρίς σκαλοπάτια",
+  screenOnly: "Σχεδιασμένη για οθόνη",
+  headsetOnly: "Σχεδιασμένη για headset",
+  noStops: "Αυτή η διαδρομή δεν έχει στάσεις ακόμη.",
 };
 
 export const DICTIONARIES: Record<string, Dictionary> = { en, el };

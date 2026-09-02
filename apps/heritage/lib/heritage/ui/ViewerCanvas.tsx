@@ -30,6 +30,7 @@ export function ViewerCanvas({
   height = 460,
   label,
   strings,
+  onViewerReady,
 }: {
   layers: ViewerLayer[];
   proxies?: ProxyHotspot[];
@@ -45,6 +46,12 @@ export function ViewerCanvas({
    *  type checker does not catch. Optional so the console can keep using
    *  English without threading a language through every authoring screen. */
   strings?: { loading: string; failed: string; hint: string };
+  /** Handed the live viewer once it exists, for callers that need to drive the
+   *  camera — a guided tour flying to each stop's authored viewpoint. A
+   *  callback rather than a forwarded ref because the viewer is created
+   *  asynchronously inside an effect, so there is no instance to forward at
+   *  the moment React would wire a ref up. */
+  onViewerReady?: (viewer: HeritageViewer) => void;
 }) {
   const copy = strings ?? {
     loading: "Loading the model…",
@@ -73,7 +80,10 @@ export function ViewerCanvas({
         proxies,
         showProxies,
         onSelectProxy,
-        onReady: () => setState("ready"),
+        onReady: () => {
+          setState("ready");
+          if (viewerRef.current) onViewerReady?.(viewerRef.current);
+        },
         onError: (m) => {
           setState("error");
           setMessage(m);
