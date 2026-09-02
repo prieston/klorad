@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Clock,
   FileUp,
+  Link2,
   Loader2,
   RotateCcw,
   Upload,
@@ -50,11 +51,18 @@ interface RepRow {
   /** A delivery file exists and has a URL — the thing that decides whether a
    *  visitor sees this, independent of whether processing succeeded. */
   deliverable: boolean;
+  objectId: string | null;
+  spaceId: string | null;
   triangleCount: number | null;
   widthPx: number | null;
   heightPx: number | null;
   files: FileRow[];
   job: JobRow | null;
+}
+
+interface Option {
+  id: string;
+  label: string;
 }
 
 interface SessionRow {
@@ -95,11 +103,15 @@ const KIND_LABEL: Record<Kind, string> = {
 export function IngestClient({
   venueId,
   storageConfigured,
+  objects,
+  spaces,
   initialRepresentations,
   initialSessions,
 }: {
   venueId: string;
   storageConfigured: boolean;
+  objects: Option[];
+  spaces: Option[];
   initialRepresentations: RepRow[];
   initialSessions: SessionRow[];
 }) {
@@ -108,6 +120,8 @@ export function IngestClient({
   const abortRef = useRef<AbortController | null>(null);
 
   const [kind, setKind] = useState<Kind>("mesh");
+  /** `object:<id>` or `space:<id>`; empty means attach afterwards. */
+  const [attachTo, setAttachTo] = useState("");
   const [progress, setProgress] = useState<UploadProgress | null>(null);
   const [busyName, setBusyName] = useState<string | null>(null);
 
@@ -120,10 +134,13 @@ export function IngestClient({
     setBusyName(file.name);
     setProgress(null);
     try {
+      const [attachKind, attachId] = attachTo.split(":");
       const result = await uploadRepresentationFile({
         venueId,
         file,
         kind,
+        objectId: attachKind === "object" ? attachId : null,
+        spaceId: attachKind === "space" ? attachId : null,
         onProgress: setProgress,
         signal: controller.signal,
         // Fires before the transfer starts, so this warning arrives while
@@ -216,6 +233,45 @@ export function IngestClient({
               ))}
             </select>
           </label>
+          {objects.length > 0 || spaces.length > 0 ? (
+            <label className="text-sm">
+              <span className="mb-1 block text-text-tertiary">
+                What does it show?
+              </span>
+              <select
+                value={attachTo}
+                onChange={(e) => setAttachTo(e.target.value)}
+                disabled={!!busyName}
+                className="rounded-md border border-line-strong bg-bg px-3 py-2 text-text-primary disabled:opacity-50"
+              >
+                {/* Attaching here rather than afterwards. A capture that
+                    arrives already joined to its object can inherit that
+                    object's rights immediately, which is what the
+                    most-restrictive-wins resolution needs to be correct from
+                    the first second rather than from whenever someone
+                    remembers. */}
+                <option value="">Decide later</option>
+                {objects.length > 0 && (
+                  <optgroup label="Objects">
+                    {objects.map((o) => (
+                      <option key={o.id} value={`object:${o.id}`}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {spaces.length > 0 && (
+                  <optgroup label="Spaces">
+                    {spaces.map((sp) => (
+                      <option key={sp.id} value={`space:${sp.id}`}>
+                        {sp.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </label>
+          ) : null}
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
@@ -342,12 +398,13 @@ export function IngestClient({
                   <div className="min-w-0">
                     <p className="text-sm text-text-primary">
                       {r.label ?? r.files[0]?.format?.toUpperCase() ?? r.kind}
-                      {r.attachedTo ? (
-                        <span className="text-text-tertiary"> · {r.attachedTo}</span>
-                      ) : (
-                        <span className="text-amber-600"> · not attached to an object</span>
-                      )}
                     </p>
+                    <AttachControl
+                      venueId={venueId}
+                      rep={r}
+                      objects={objects}
+                      spaces={spaces}
+                    />
                     <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-text-tertiary">
                       <span className="rounded-full bg-surface-2 px-2 py-0.5">
                         {r.kind}
@@ -518,5 +575,114 @@ function ReprocessButton({
       )}
       {busy ? "Working" : "Reprocess"}
     </button>
+  );
+}
+
+/**
+ * Attach a capture to the thing it depicts.
+ *
+ * The join that makes a capture useful. Until it exists a representation is
+ * bytes in a bucket: it cannot appear on an object's page, cannot inherit the
+ * object's rights for the most-restrictive-wins resolution, and cannot be
+ * placed in a scene.
+ *
+ * Both targets are offered in one control because a representation depicts
+ * either an object or a space, never both — §8's model allows both columns but
+ * the meaning is exclusive, and two separate pickers would invite a curator to
+ * set both and produce a record nothing knows how to render. Choosing one here
+ * clears the other.
+ */
+function AttachControl({
+  venueId,
+  rep,
+  objects,
+  spaces,
+}: {
+  venueId: string;
+  rep: RepRow;
+  objects: Option[];
+  spaces: Option[];
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
+  const current = rep.objectId
+    ? `object:${rep.objectId}`
+    : rep.spaceId
+      ? `space:${rep.spaceId}`
+      : "";
+
+  async function attach(value: string) {
+    const [kind, id] = value.split(":");
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/api/venues/${venueId}/representations/${rep.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            objectId: kind === "object" ? id : null,
+            spaceId: kind === "space" ? id : null,
+          }),
+        },
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        toast.error(body.error ?? "Could not attach this capture.");
+        return;
+      }
+      toast.success(value ? "Attached." : "Detached.");
+      router.refresh();
+    } catch {
+      toast.error("Could not attach this capture.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (objects.length === 0 && spaces.length === 0) {
+    return (
+      <p className="mt-1 text-[11px] text-amber-600">
+        Create an object first — a capture has nothing to attach to yet.
+      </p>
+    );
+  }
+
+  return (
+    <label className="mt-1.5 flex items-center gap-1.5 text-[11px] text-text-tertiary">
+      <Link2 size={11} strokeWidth={1.9} aria-hidden className="shrink-0" />
+      <span className="sr-only">What this capture depicts</span>
+      <select
+        value={current}
+        disabled={busy}
+        onChange={(e) => attach(e.target.value)}
+        className={`rounded-full border px-2 py-0.5 text-[11px] transition disabled:opacity-50 ${
+          current
+            ? "border-line-soft bg-surface-2 text-text-secondary"
+            : "border-amber-500/40 bg-amber-500/[0.06] text-amber-700"
+        }`}
+      >
+        <option value="">Not attached — pick what this shows</option>
+        {objects.length > 0 && (
+          <optgroup label="Objects">
+            {objects.map((o) => (
+              <option key={o.id} value={`object:${o.id}`}>
+                {o.label}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {spaces.length > 0 && (
+          <optgroup label="Spaces">
+            {spaces.map((sp) => (
+              <option key={sp.id} value={`space:${sp.id}`}>
+                {sp.label}
+              </option>
+            ))}
+          </optgroup>
+        )}
+      </select>
+    </label>
   );
 }
