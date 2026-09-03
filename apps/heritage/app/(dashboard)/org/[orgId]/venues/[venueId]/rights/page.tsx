@@ -14,7 +14,7 @@ import {
 
 type Params = Promise<{ orgId: string; venueId: string }>;
 
-export const metadata = { title: "Rights" };
+export const metadata = { title: "Copyright" };
 
 /**
  * HER-206 — rights, resolved.
@@ -85,7 +85,7 @@ export default async function RightsPage({ params }: { params: Params }) {
   return (
     <main className="mx-auto w-full max-w-[1100px] px-6 py-10 md:px-10">
       <PageHeader
-        title="Rights."
+        title="Copyright."
         lede="Set on the page for each object and each capture. Resolved here — the more restrictive of the two always wins, so this is what an aggregator would actually receive."
       />
 

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { AlertTriangle, Layers, Plus, Trash2, X } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, Layers, Move3d, Plus, Trash2, X } from "lucide-react";
 import { Button, EmptyState, Field, Input, Panel, Select } from "@klorad/design-system";
 import { PageHeader } from "@/lib/heritage/ui/page-header";
 import {
@@ -74,12 +75,14 @@ const blank = (): Draft => ({
 
 export function ScenesClient({
   venueId,
+  orgId,
   languages,
   defaultLanguage,
   spaces,
   representations,
   initial,
 }: {
+  orgId: string;
   venueId: string;
   languages: string[];
   defaultLanguage: string;
@@ -308,10 +311,21 @@ export function ScenesClient({
                     </p>
                     <p className="mt-0.5 text-xs text-text-tertiary">
                       {SCENE_KINDS.find(([v]) => v === s.kind)?.[1]} ·{" "}
-                      {s.layers.length} layers · {s.proxyCount} proxies
+                      {s.layers.length} item{s.layers.length === 1 ? "" : "s"} ·{" "}
+                      {s.proxyCount} point{s.proxyCount === 1 ? "" : "s"} of interest
                     </p>
                   </button>
                   <StateBadge state={s.state} />
+                  {/* The primary action on a scene is opening it, not editing
+                      its metadata. This row expands to a settings form, which
+                      is the secondary job. */}
+                  <Link
+                    href={`/org/${orgId}/venues/${venueId}/scenes/${s.id}`}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-xs font-medium text-accent-contrast transition-opacity hover:opacity-90"
+                  >
+                    <Move3d size={12} strokeWidth={2} aria-hidden />
+                    Open
+                  </Link>
                   <button
                     type="button"
                     onClick={() => void removeScene(s)}

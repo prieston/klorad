@@ -17,7 +17,7 @@ export const metadata = { title: "Scenes" };
  * viewer that renders it is a later arc.
  */
 export default async function ScenesPage({ params }: { params: Params }) {
-  const { venueId } = await params;
+  const { orgId, venueId } = await params;
   const access = await requireVenueAccess(venueId, "read");
   if (access.denied) notFound();
 
@@ -60,6 +60,7 @@ export default async function ScenesPage({ params }: { params: Params }) {
   return (
     <ScenesClient
       venueId={venueId}
+      orgId={orgId}
       languages={venue.languages}
       defaultLanguage={lang}
       spaces={spaces.map((s) => ({

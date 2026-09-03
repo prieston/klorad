@@ -7,7 +7,7 @@ import { IngestClient } from "./IngestClient";
 
 type Params = Promise<{ orgId: string; venueId: string }>;
 
-export const metadata = { title: "Ingest" };
+export const metadata = { title: "Files" };
 
 /**
  * HER-201 / HER-202 — asset ingest and the processing queue.

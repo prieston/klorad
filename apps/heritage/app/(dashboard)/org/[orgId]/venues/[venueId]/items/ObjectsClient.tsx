@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "react-toastify";
 import { Boxes, Plus, Search, Trash2 } from "lucide-react";
 import {
@@ -66,12 +67,14 @@ const blank = (): Draft => ({
 
 export function ObjectsClient({
   venueId,
+  orgId,
   languages,
   defaultLanguage,
   spaces,
   periods,
   initial,
 }: {
+  orgId: string;
   venueId: string;
   languages: string[];
   defaultLanguage: string;
@@ -187,13 +190,29 @@ export function ObjectsClient({
   return (
     <main className="mx-auto w-full max-w-[1100px] px-6 py-10 md:px-10">
       <PageHeader
-        title="Objects."
-        lede="The physical originals. A capture of one is a separate record with its own rights and its own provenance — this is the thing itself."
+        title="Items."
+        lede="Everything in your collection. Each one can carry a 3D model, photos, audio and video — and the record stays yours even if the model is replaced."
         actions={
-          <Button onClick={() => (open ? close() : setCreating(true))}>
-            <Plus size={14} strokeWidth={1.8} aria-hidden />
-            {open ? "Cancel" : "New object"}
-          </Button>
+          // The primary action is the upload-first flow, because that is how
+          // an item is normally born. The blank-record form stays available
+          // for a curator cataloguing ahead of the scanning, but it is no
+          // longer the only door.
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => (open ? close() : setCreating(true))}
+              className="rounded-full border border-line-soft px-4 py-2 text-xs text-text-secondary transition hover:bg-surface-2"
+            >
+              {open ? "Cancel" : "Add without a file"}
+            </button>
+            <Link
+              href={`/org/${orgId}/venues/${venueId}/items/new`}
+              className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-xs font-medium text-accent-contrast transition-opacity hover:opacity-90"
+            >
+              <Plus size={13} strokeWidth={2} aria-hidden />
+              Add an item
+            </Link>
+          </div>
         }
       />
 
@@ -380,7 +399,7 @@ export function ObjectsClient({
         <EmptyState
           tone="dashed"
           icon={Boxes}
-          title="No objects yet."
+          title="No items yet."
           body="Record the physical originals first. Captures attach to them, never the other way round."
           action={
             <Button onClick={() => setCreating(true)}>

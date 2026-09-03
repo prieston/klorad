@@ -68,6 +68,22 @@ export interface HeritageViewerOptions {
     scale: [number, number, number];
   }) => void;
   /** Fired continuously while a gizmo is dragged, and once on release. */
+  /** Fired while a whole layer is dragged in the scene composer. */
+  onTransformLayer?: (
+    id: string,
+    transform: {
+      position: [number, number, number];
+      rotation: [number, number, number, number];
+      scale: [number, number, number];
+    },
+  ) => void;
+  /** Clicking a model reports which layer was hit, so the composer can select
+   *  from the canvas as well as from its list. */
+  onSelectLayer?: (id: string | null) => void;
+  /** What a click on the model means. `proxies` places hotspots — the default,
+   *  and what the annotation screen wants. `layers` selects whole models, for
+   *  arranging a scene. */
+  mode?: "proxies" | "layers";
   onTransformProxy?: (
     id: string,
     transform: {
@@ -146,6 +162,10 @@ export class HeritageViewer {
   private resizeObserver?: ResizeObserver;
   private transform?: TransformControls;
   private contentRoot?: THREE.Object3D;
+  /** Layer id to its root node, so a scene can be rearranged by moving whole
+   *  models rather than the meshes inside them. */
+  private readonly layerNodes = new Map<string, THREE.Object3D>();
+  private selectedLayerId: string | null = null;
   private selectedProxy: THREE.Mesh | null = null;
 
   constructor(opts: HeritageViewerOptions) {
@@ -243,6 +263,11 @@ export class HeritageViewer {
           node.quaternion.copy(t.quaternion);
           node.scale.copy(t.scale);
         }
+        // Stamped so a click can be traced back from whichever mesh deep in
+        // the imported hierarchy was actually hit, up to the layer a curator
+        // thinks they are moving.
+        node.userData.layerId = layer.id;
+        this.layerNodes.set(layer.id, node);
         root.add(node);
       } catch {
         this.opts.onError?.(
@@ -288,6 +313,45 @@ export class HeritageViewer {
     return mesh;
   }
 
+  /**
+   * Attach the gizmo to a whole layer, for arranging a scene.
+   *
+   * Distinct from proxy selection: a proxy is a hotspot inside a model, a
+   * layer *is* a model. Composing a gallery means moving the statue, not the
+   * marker on the statue, so the two selections are deliberately separate
+   * modes rather than one list of clickable things.
+   */
+  selectLayer(id: string | null) {
+    this.selectedLayerId = id;
+    if (!this.transform) return;
+    const node = id ? this.layerNodes.get(id) : undefined;
+    if (node) this.transform.attach(node);
+    else this.transform.detach();
+  }
+
+  /** Which layer the gizmo currently holds, if any. */
+  get selectedLayer(): string | null {
+    return this.selectedLayerId;
+  }
+
+  /** Apply a transform to a layer from outside — used to reset one, or to
+   *  reflect a numeric edit made in a form. */
+  setLayerTransform(id: string, transform: unknown) {
+    const node = this.layerNodes.get(id);
+    if (!node) return;
+    const t = readTransform(transform);
+    node.position.copy(t.position);
+    node.quaternion.copy(t.quaternion);
+    node.scale.copy(t.scale);
+  }
+
+  /** Frame a single layer. Composing a scene means working on one thing at a
+   *  time, and hunting for the piece you just selected is friction. */
+  focusLayer(id: string) {
+    const node = this.layerNodes.get(id);
+    if (node) this.frameAll(node);
+  }
+
   /** Fit the camera to the loaded content so a visitor never arrives staring
    *  at the inside of a model or at empty space. */
   private frameAll(root: THREE.Object3D) {
@@ -325,6 +389,20 @@ export class HeritageViewer {
 
     if (!this.opts.editable || !this.contentRoot) return;
 
+    // Scene-composition mode: a click selects the model it landed on rather
+    // than dropping a hotspot onto it. Two different jobs happen on the same
+    // canvas, so which one a click means has to be an explicit mode rather
+    // than a guess.
+    if (this.opts.mode === "layers") {
+      const hit = this.raycaster.intersectObject(this.contentRoot, true)[0];
+      let node: THREE.Object3D | null = hit?.object ?? null;
+      while (node && node.userData.layerId === undefined) node = node.parent;
+      const id = (node?.userData.layerId as string | undefined) ?? null;
+      this.opts.onSelectLayer?.(id);
+      this.selectLayer(id);
+      return;
+    }
+
     // Nothing hit: place a new proxy where the ray meets the geometry. Placing
     // at the surface rather than at the origin is the difference between an
     // authoring tool and a coordinate entry form — a curator marking forty
@@ -357,6 +435,25 @@ export class HeritageViewer {
   }
 
   private emitTransform() {
+    // A layer selection takes priority: when the gizmo holds a whole model,
+    // reporting its move as a proxy move would write a hotspot's position
+    // from the statue's coordinates.
+    if (this.selectedLayerId) {
+      const node = this.layerNodes.get(this.selectedLayerId);
+      if (!node) return;
+      this.opts.onTransformLayer?.(this.selectedLayerId, {
+        position: [node.position.x, node.position.y, node.position.z],
+        rotation: [
+          node.quaternion.x,
+          node.quaternion.y,
+          node.quaternion.z,
+          node.quaternion.w,
+        ],
+        scale: [node.scale.x, node.scale.y, node.scale.z],
+      });
+      return;
+    }
+
     const mesh = this.selectedProxy;
     if (!mesh) return;
     this.opts.onTransformProxy?.(mesh.userData.proxyId as string, {

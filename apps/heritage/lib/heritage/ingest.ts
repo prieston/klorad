@@ -207,3 +207,49 @@ export function archivalOnlyReason(
   }
   return `.${ext} does not play reliably in browsers. Re-export as MP4 (H.264) or WebM to publish it. The original is kept as an archival master.`;
 }
+
+/**
+ * Guess what kind of thing a file is from its name.
+ *
+ * The upload flow asks a curator for a file first and a taxonomy never. Making
+ * someone choose between "mesh", "point cloud" and "panorama" before they can
+ * upload a `.glb` is asking them to learn the data model in order to use the
+ * product.
+ *
+ * Two extensions are genuinely ambiguous and are resolved by which answer is
+ * more often right, not by which is more interesting: a `.ply` is treated as a
+ * mesh, because meshes are what museums export and splats are not deliverable
+ * yet; a `.jpg` is an image rather than a panorama, because most photographs
+ * are not 360°. Both remain overridable — the guess is a default, not a
+ * verdict.
+ */
+export function inferKind(fileName: string): HeritageRepresentationKind | null {
+  const ext = extensionOf(fileName);
+  if (!ext) return null;
+
+  const PREFERRED: HeritageRepresentationKind[] = [
+    "mesh",
+    "image",
+    "video",
+    "audio",
+    "point_cloud",
+    "splat",
+    "panorama",
+  ];
+  for (const kind of PREFERRED) {
+    if (ACCEPTED_EXTENSIONS[kind].includes(ext)) return kind;
+  }
+  return null;
+}
+
+/** Plain-language name for a representation kind, for people who have never
+ *  read the schema. */
+export const KIND_PLAIN: Record<HeritageRepresentationKind, string> = {
+  mesh: "3D model",
+  splat: "Photorealistic capture",
+  point_cloud: "Point cloud",
+  image: "Image",
+  panorama: "360° panorama",
+  audio: "Audio",
+  video: "Video",
+};

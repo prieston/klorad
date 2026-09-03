@@ -78,7 +78,7 @@ export default async function LanguagesPage({ params }: { params: Params }) {
     add(
       `Space · ${pickLocalized(s.name, venue.defaultLanguage) ?? s.slug}`,
       [s.name, s.description],
-      `${base}/spaces`,
+      `${base}/places`,
       s.state,
     );
   }
@@ -86,7 +86,7 @@ export default async function LanguagesPage({ params }: { params: Params }) {
     add(
       `Object · ${pickLocalized(o.title, venue.defaultLanguage) ?? o.slug}`,
       [o.title, o.description],
-      `${base}/objects`,
+      `${base}/items`,
       o.state,
     );
   }
