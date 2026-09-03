@@ -305,7 +305,7 @@ export function ProxyAuthoring({
   const staleCount = proxies.filter((p) => p.invalidatedAt).length;
 
   return (
-    <main className="mx-auto w-full max-w-[1280px] px-6 py-10 md:px-10">
+    <main className="mx-auto flex w-full max-w-[1280px] flex-col px-6 py-6 md:px-10 lg:h-full">
       <PageHeader
         title="Proxies."
         lede="A captured surface has no objects in it — a tap has to land on something a curator placed. These are that something."
@@ -366,15 +366,21 @@ export function ProxyAuthoring({
             </div>
           )}
 
-          <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-            <div>
+          {/* `min-h-0` lets these columns shrink inside the flex page. Without
+              it a flex child keeps its content height and the canvas grows the
+              page instead of fitting it. */}
+          <div className="grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[1fr_320px]">
+            <div className="flex min-h-0 flex-col">
               {layers.length > 0 ? (
                 <>
                   <div
                     ref={hostRef}
-                    className="h-[520px] w-full overflow-hidden rounded-2xl bg-surface-2"
+                    // Fills whatever the layout leaves, with a floor so the
+                    // canvas stays usable on a short laptop screen rather than
+                    // collapsing to a strip.
+                    className="h-[55vh] min-h-[320px] w-full overflow-hidden rounded-2xl bg-surface-2 lg:h-auto lg:flex-1"
                   />
-                  <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-text-tertiary">
+                  <p className="mt-3 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-text-tertiary">
                     <span>Click the model to place a proxy · click a proxy to select</span>
                     <span className="inline-flex items-center gap-1">
                       <Move3d size={11} strokeWidth={1.8} aria-hidden /> W move
@@ -404,7 +410,7 @@ export function ProxyAuthoring({
               )}
             </div>
 
-            <aside className="space-y-4">
+            <aside className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
               <div>
                 <h2 className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.28em] text-text-tertiary">
                   <Target size={12} strokeWidth={1.8} aria-hidden />

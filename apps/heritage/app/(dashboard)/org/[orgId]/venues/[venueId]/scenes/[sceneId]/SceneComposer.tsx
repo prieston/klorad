@@ -186,7 +186,7 @@ export function SceneComposer({
   }
 
   return (
-    <main className="mx-auto w-full max-w-[1400px] px-6 py-10 md:px-10">
+    <main className="mx-auto flex w-full max-w-[1400px] flex-col px-6 py-6 md:px-10 lg:h-full">
       <Link
         href={`${base}/scenes`}
         className="inline-flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-primary"
@@ -261,8 +261,11 @@ export function SceneComposer({
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div>
+      {/* `min-h-0` is load-bearing: a flex child defaults to min-height:auto,
+          which refuses to shrink below its content and lets the canvas push
+          the page taller instead of fitting inside it. */}
+      <div className="grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[1fr_320px]">
+        <div className="h-[55vh] min-h-[320px] lg:h-full lg:min-h-0">
           {renderable.length > 0 ? (
             <ViewerCanvas
               key={renderable.map((l) => l.url).join("|")}
@@ -275,7 +278,12 @@ export function SceneComposer({
               showProxies={mode === "proxies"}
               editable
               mode={mode}
-              height={520}
+              // 0 means "fill the parent". The viewer sizes itself to the box
+              // it is given, so the layout decides how tall it is rather than
+              // the component guessing a number that is wrong on every screen
+              // except the one it was written on.
+              height={0}
+              className="h-full"
               label={`Editing ${sceneTitle}`}
               onSelectLayer={setSelected}
               onTransformLayer={onTransformLayer}
@@ -284,7 +292,7 @@ export function SceneComposer({
               }}
             />
           ) : (
-            <div className="rounded-2xl border border-dashed border-line-soft p-12 text-center">
+            <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-line-soft p-12 text-center">
               <p className="text-sm text-text-primary">
                 Nothing in this scene yet.
               </p>
@@ -297,7 +305,7 @@ export function SceneComposer({
           )}
         </div>
 
-        <aside className="space-y-6">
+        <aside className="space-y-6 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
           <section>
             <h2 className="mb-2.5 text-xs font-medium uppercase tracking-[0.28em] text-text-tertiary">
               In this scene
