@@ -39,4 +39,12 @@ Run the full gate suite against the current `main` and catch regressions early.
   itself a bug: every run ends with either green, a PR, or an issue, never an error with nothing to
   read.
 
+## Turn budget (run #1 burned 40 turns and produced nothing)
+
+Diagnosis is not the deliverable; the issue or the PR is. Run the six gate commands with output
+redirected to files (`> /tmp/gate-N.log 2>&1; echo EXIT:$?`) and read only the tail of each, do not
+re-run a failing command to "see it again". **If anything is red once you have run the suite, or if
+you have used about 30 turns, stop diagnosing and open the issue now** with what you have; a
+partial issue beats a silent run. Never end a run without a green summary, a PR, or an issue.
+
 Keep the diff minimal and scoped. If more than ~15 files would change, stop and open an issue instead.

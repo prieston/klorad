@@ -54,7 +54,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1  # pin to a SHA once validated
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: '--allowedTools Bash,Read,Write,Edit,Grep,Glob --max-turns 40'
+          claude_args: '--allowedTools Bash,Read,Write,Edit,Grep,Glob --max-turns 80'  # raised from 40: run #1 hit the cap with no output
           prompt: |
             Read and follow `.agents/nightly-regression.md` exactly. Work on branch
             `agents/nightly-regression-${{ github.run_id }}` (never main). Follow `.agents/CLAUDE.md`.
