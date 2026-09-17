@@ -94,10 +94,18 @@ touches tenancy, or anything requiring production data/creds.
 **D. Nothing green in time →** no PR; post an update on the item (Greek) with what was tried and where it
 stuck, and **leave it in `Ready for agent`** for the next run.
 
+**E. Blocked by pre-existing red gates →** if the item cannot go green for reasons that predate it
+(CI already red on `main`, a typecheck error elsewhere, a missing env var), open an **issue** with the
+exact failures, then still do the board step: post an update on the item (Greek) linking the issue
+and saying what you did and did not ship, and **move the item to `Needs decision`**. If you shipped a
+partial slice, open the draft PR as A-partial as well. An issue without a board update is a silent
+run from the board's point of view (run #4 did exactly this).
+
 **C. Empty queue →** stop, touch nothing (from §1).
 
 There is no silent outcome: every run ends in a PR + board move (A/A-partial), a `Needs decision` note
-(B), a `Ready for agent` note (D), or a clean empty-queue exit (C).
+(B or E), a `Ready for agent` note (D), or a clean empty-queue exit (C). Push the branch only once
+there is a commit on it; an empty pushed branch is noise.
 
 **Never** merge, never migrate, never publish a world, never send a push, never change prices, never
 message a customer or partner. If a monday call fails (non-200 or a GraphQL `errors` field), don't
