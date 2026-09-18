@@ -8,9 +8,7 @@ Stack: pnpm workspaces, Next.js 15 App Router, TypeScript strict, Prisma + Postg
 
 ## Gates (run them yourself before you say "done")
 
-- `pnpm validate` = `syncpack:check` + `typecheck` + `lint`. Must pass.
-- `pnpm audits:light` = the CI-shaped audit pack from `packages/dev-audits`. Must pass.
-- `pnpm build:packages` must succeed if you touched anything under `packages/`.
+- `pnpm check` = `pnpm validate` (`syncpack:check` + `typecheck` + `lint`) + `pnpm audits:light` (the CI-shaped audit pack from `packages/dev-audits`) + `pnpm build:packages`. Must pass.
 - `pnpm --filter @klorad/heritage check:units` if you touched Heritage.
 - Bundle budgets (`size-limit`) apply to editor, website and admin; do not raise a budget to make a build pass.
 

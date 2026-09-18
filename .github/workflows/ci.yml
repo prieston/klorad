@@ -25,17 +25,10 @@ jobs:
       - name: Build packages and editor
         run: pnpm build:editor
 
-      # Was `pnpm audit:ci`, which is not a script — the step failed on every
-      # run, so this job never reached type checking, linting or the tests
-      # below it. `audits:light` is the CI-shaped variant of `pnpm audits`.
-      - name: Run all audits
-        run: pnpm audits:light
-
-      - name: Type check
-        run: pnpm typecheck
-
-      - name: Lint
-        run: pnpm lint
+      # `pnpm check` = validate (syncpack + typecheck + lint) + audits:light + build:packages,
+      # the same gate root CLAUDE.md asks every session to run before calling work done.
+      - name: pnpm check
+        run: pnpm check
 
       - name: E2E tests
         run: pnpm e2e:ci:editor
