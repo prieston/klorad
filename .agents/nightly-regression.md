@@ -11,11 +11,10 @@ Read `.agents/CLAUDE.md` first and honour every gate (fixture mode only, no prod
 Run the full gate suite against the current `main` and catch regressions early.
 
 1. `pnpm install --frozen-lockfile` (the `postinstall` runs `prisma generate`; it needs no database).
-2. `pnpm validate`  (syncpack + typecheck + lint)
-3. `pnpm audits:light`
-4. `pnpm build:packages`
-5. `pnpm --filter @klorad/heritage check:units`
-6. `pnpm build:campus`, `pnpm build:mobility`, `pnpm build:heritage` with `SKIP_ENV_VALIDATION=1`
+2. `pnpm check` (`pnpm validate` = syncpack + typecheck + lint, then `pnpm audits:light`, then
+   `pnpm build:packages`)
+3. `pnpm --filter @klorad/heritage check:units`
+4. `pnpm build:campus`, `pnpm build:mobility`, `pnpm build:heritage` with `SKIP_ENV_VALIDATION=1`
    (no database, no storage; every vertical route is dynamic so nothing renders at build time). If a
    build needs an env var to even start, that is a finding, not a reason to add a secret.
 
@@ -41,7 +40,7 @@ Run the full gate suite against the current `main` and catch regressions early.
 
 ## Turn budget (run #1 burned 40 turns and produced nothing)
 
-Diagnosis is not the deliverable; the issue or the PR is. Run the six gate commands with output
+Diagnosis is not the deliverable; the issue or the PR is. Run the four gate commands with output
 redirected to files (`> /tmp/gate-N.log 2>&1; echo EXIT:$?`) and read only the tail of each, do not
 re-run a failing command to "see it again". **If anything is red once you have run the suite, or if
 you have used about 30 turns, stop diagnosing and open the issue now** with what you have; a

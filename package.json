@@ -47,6 +47,7 @@
     "syncpack:fix": "syncpack fix-mismatches",
     "validate:core": "pnpm why next react typescript | grep -E '(next|react|typescript)' && echo '✓ Core dependencies locked'",
     "validate": "pnpm syncpack:check && pnpm typecheck && pnpm -r lint",
+    "check": "pnpm validate && pnpm audits:light && pnpm build:packages",
     "check:clean": "pnpm clean && git diff --quiet || (echo '❌ Working tree dirty after clean' && git status --short && exit 1)",
     "verify:deps": "node scripts/verify-workspace-deps.mjs",
     "audits": "pnpm --filter @klorad/dev-audits audits:core",

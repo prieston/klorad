@@ -67,8 +67,7 @@ On `agents/nightly-build-<run-id>`, implement exactly one slice. **A run must ne
 Verification, in this order, **skip work the slice doesn't need**:
 
 - While iterating, run only the affected app/package: `pnpm --filter @klorad/<pkg> typecheck` / `lint`.
-- Then one final **`pnpm validate`**, must pass.
-- **`pnpm audits:light`**: must pass. **`pnpm build:packages`** if `packages/` changed.
+- Then one final **`pnpm check`** (`pnpm validate` + `pnpm audits:light` + `pnpm build:packages`), must pass.
 - **Only if you changed the schema:** a migration folder + `pnpm prisma:generate` + a one-page ADR
   for structural changes. **Never migrate any database.**
 
