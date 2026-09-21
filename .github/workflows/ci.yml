@@ -7,7 +7,51 @@ on:
     branches: [main]
 
 jobs:
+  # The truth gates: everything that needs no secret, no database and no built
+  # app. `pnpm build:editor` used to be the first step of this job and it fails
+  # without the editor's 19 build-time env vars, so from 2026-09-01 this job
+  # never reached the audits, the type check or the lint at all (#286 point 1).
+  # The editor build now lives in its own job below and can no longer hide them.
   audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `pnpm check` = validate (syncpack + typecheck + lint) + audits:light + build:packages,
+      # the same gate root CLAUDE.md asks every session to run before calling work done.
+      # SKIP_ENV_VALIDATION marks this as a fixture run: no database, no secrets, which
+      # is what a GitHub Actions runner is. The env audit reads that flag and stops
+      # demanding a DATABASE_URL it was never going to be given; a DATABASE_URL that IS
+      # set is still pattern-checked, and the Vercel production build still enforces
+      # presence.
+      - name: pnpm check
+        run: pnpm check
+        env:
+          SKIP_ENV_VALIDATION: '1'
+
+  # The editor build and its e2e, after the gates and never in front of them.
+  # `if: always()` so a red gate above still lets this job run and report: the two
+  # results are independent and both are wanted on every run.
+  #
+  # This job is expected to stay red for now. SKIP_ENV_VALIDATION is set the way
+  # the heritage job sets it, but apps/editor/lib/env/server.ts does not honour the
+  # flag: it calls safeParse and throws unconditionally, unlike apps/campus,
+  # apps/heritage and apps/mobility, which all check it. Teaching the editor the
+  # same breakglass is a separate decision and a separate slice, so the build keeps
+  # failing here, visibly, instead of failing silently in front of the gates.
+  editor:
+    needs: audit
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,11 +68,8 @@ jobs:
 
       - name: Build packages and editor
         run: pnpm build:editor
-
-      # `pnpm check` = validate (syncpack + typecheck + lint) + audits:light + build:packages,
-      # the same gate root CLAUDE.md asks every session to run before calling work done.
-      - name: pnpm check
-        run: pnpm check
+        env:
+          SKIP_ENV_VALIDATION: '1'
 
       - name: E2E tests
         run: pnpm e2e:ci:editor
