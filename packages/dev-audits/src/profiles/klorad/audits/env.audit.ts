@@ -75,7 +75,7 @@ export const envAudit: AuditDefinition = {
     const finalEnv = { ...env, ...process.env };
 
     // In CI, require env vars. In local dev, allow missing if .env.local doesn't exist.
-    // Vercel preview/development builds legitimately lack production secrets — don't
+    // Vercel preview/development builds legitimately lack production secrets, don't
     // hard-fail those; GitHub CI and Vercel production deployments still enforce.
     const isVercelPreview =
       process.env.VERCEL_ENV === "preview" ||
@@ -84,12 +84,23 @@ export const envAudit: AuditDefinition = {
       (!!process.env.CI || !!process.env.VERCEL) && !isVercelPreview;
     const hasEnvFile = actualEnvFile !== null;
 
+    // why: SKIP_ENV_VALIDATION=1 is this repo's existing "fixture mode" signal, meaning
+    // no database and no secrets in this run. apps/campus, apps/heritage and
+    // apps/mobility all honour it in their own env.ts, and the heritage CI job and every
+    // vertical build set it. Honour it here too: a GitHub Actions run has no database by
+    // design, so demanding a DATABASE_URL from it only teaches people to paste a fake
+    // one. Presence is relaxed; a value that IS set is still pattern-checked below, and
+    // the Vercel production build (VERCEL set, SKIP_ENV_VALIDATION unset) still enforces.
+    const isFixtureMode = process.env.SKIP_ENV_VALIDATION === "1";
+    const requirePresence = (isCI || hasEnvFile) && !isFixtureMode;
+
     // Validate required vars
     for (const [key, schema] of Object.entries(REQUIRED_ENV_VARS)) {
       const value = finalEnv[key];
 
-      // Only fail if in CI or if env file exists but var is missing
-      if (schema.required && !value && (isCI || hasEnvFile)) {
+      // Only fail if in CI or if env file exists but var is missing, and this is
+      // not a fixture-mode run
+      if (schema.required && !value && requirePresence) {
         items.push({
           message: `Missing required env var: ${key} (${schema.description})`,
           file: actualEnvFile || envFile, // Use actual file read, fallback to production
