@@ -15,6 +15,12 @@ issue that says why, never silently substitute.
 - **Never publish a world, send a push, or message a tenant, customer or partner.**
 - **Never change prices, plans, or anything on the public website that states a capability** without
   the item on the board saying so explicitly.
+- **Never edit a file under `.github/workflows/`.** The `claude[bot]` GitHub App token has no
+  `workflows` scope, so the push is rejected outright and the whole slice is lost with it:
+  `refusing to allow a GitHub App to create or update workflow ... without 'workflows' permission`
+  (#288). Do not attempt the edit and then revert it. When a task needs a workflow change, **write
+  the prepared diff into an issue** for a human with the right scope to apply, ship the rest of the
+  slice without it, and say in the PR body which part is waiting on that issue.
 - **Anything you cannot do behind these gates: list it** in the PR/issue with the reason.
 - **Stop and ask (open an issue, or move the board item to `Needs decision`) if a decision turns out
   to be impossible; do not silently substitute.**
