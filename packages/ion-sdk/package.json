@@ -20,7 +20,7 @@
     "dist"
   ],
   "dependencies": {
-    "react-toastify": "^11.0.3",
+    "react-toastify": "^11.0.5",
     "@types/three": "^0.170.0",
     "@types/uuid": "^9.0.8"
   },

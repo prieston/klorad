@@ -7,6 +7,11 @@
       "isRequired": true
     },
     {
+      "label": "Two majors genuinely in use, see docs/SYNCPACK-MAJORS.md. Ignored until Teo decides; do not let syncpack fix these, it would bump a major",
+      "dependencies": ["zod", "zustand", "uuid", "@mui/icons-material"],
+      "isIgnored": true
+    },
+    {
       "label": "Ignore workspace protocol variations",
       "dependencies": ["@klorad/*"],
       "isIgnored": true
