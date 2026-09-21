@@ -19,7 +19,7 @@ Gather, for the last 24h:
    exit code to `$GITHUB_STEP_SUMMARY`; that table is the only thing that says whether the gates
    passed. A job can conclude `success` with a gate inside it never reached, which is exactly how
    `main` stayed red for two and a half weeks without anyone noticing (#286), so a green tick here
-   means six zeros in the table and nothing else.
+   means four zeros in the table and nothing else.
 
    ```bash
    RUN_ID=$(gh run list --workflow agents.yml --json databaseId,name,conclusion,createdAt \
@@ -27,7 +27,7 @@ Gather, for the last 24h:
    gh run view "$RUN_ID" --job "$(gh run view "$RUN_ID" --json jobs --jq '.jobs[0].databaseId')"
    ```
 
-   Report the table's own numbers: `✓` only when all six rows are `0`, otherwise name the failing
+   Report the table's own numbers: `✓` only when all four rows are `0`, otherwise name the failing
    gates and their exit codes. **If the table is missing entirely, that is a finding, not a pass.**
    Say so in the digest («λείπει ο πίνακας gates από το step summary») and treat the regression line
    as unknown, never as green.

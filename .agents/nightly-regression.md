@@ -21,7 +21,7 @@ Run the full gate suite against the current `main` and catch regressions early.
 
 ## Report the exit codes to the step summary. This is not optional.
 
-After you have run the six gate commands above, **append a markdown table of command and exit code
+After you have run the four gate commands above, **append a markdown table of command and exit code
 to the file named by `$GITHUB_STEP_SUMMARY`.** One row per command, in the order above, with the
 exit code you actually captured, never a remembered or assumed one. Write it even when the run is
 red, even when a command died early, even when you are about to open an issue. A command you did
@@ -32,24 +32,27 @@ not get to is reported as `not run`, not omitted.
   echo "| Gate | Exit |"
   echo "|---|---|"
   echo "| pnpm install --frozen-lockfile | $EXIT_1 |"
-  echo "| pnpm validate | $EXIT_2 |"
-  echo "| pnpm audits:light | $EXIT_3 |"
-  echo "| pnpm build:packages | $EXIT_4 |"
-  echo "| pnpm --filter @klorad/heritage check:units | $EXIT_5 |"
-  echo "| pnpm build:campus, build:mobility, build:heritage | $EXIT_6 |"
+  echo "| pnpm check | $EXIT_2 |"
+  echo "| pnpm --filter @klorad/heritage check:units | $EXIT_3 |"
+  echo "| pnpm build:campus, build:mobility, build:heritage | $EXIT_4 |"
 } >> "$GITHUB_STEP_SUMMARY"
 ```
 
-**You may claim "all green" only when that table shows six zeros.** Not when the job is about to
+**You may claim "all green" only when that table shows four zeros.** Not when the job is about to
 succeed, not when the last command you happened to run passed, not when nothing looked broken.
-Six rows, six zeros, or the run is not green. `morning-digest` reads this table rather than the
+Four rows, four zeros, or the run is not green. `morning-digest` reads this table rather than the
 job's conclusion, because a job can conclude successfully while a gate inside it was never reached,
 which is exactly how `main` stayed red for two and a half weeks without anyone seeing it (#286).
+
+`pnpm check` is one row and one exit code on purpose, but it is three gates inside
+(`pnpm validate`, then `pnpm audits:light`, then `pnpm build:packages`, and `validate` is itself
+syncpack, typecheck and lint in that order). It stops at the first failure, so a non-zero here names
+the first gate that broke, not the only one. When it is red, say which of the three it died in.
 
 ## What to do with the result
 
 - **All green:** stop. Print a one-line summary (`✓ all gates green`) and exit 0. Do not open a PR.
-  The step summary table must show six zeros first; see the section above.
+  The step summary table must show four zeros first; see the section above.
 - **Red, and the fix is small + obviously safe** (a flaky assertion, an import, a lint autofix, a
   syncpack mismatch that `syncpack:fix` resolves within the existing ranges): fix it, re-run the full
   suite until green, open a **PR** titled `fix(regression): <what>` describing the failure and the fix.
@@ -69,7 +72,7 @@ which is exactly how `main` stayed red for two and a half weeks without anyone s
 
 ## Turn budget (run #1 burned 40 turns and produced nothing)
 
-Diagnosis is not the deliverable; the issue or the PR is. Run the six gate commands with output
+Diagnosis is not the deliverable; the issue or the PR is. Run the four gate commands with output
 redirected to files (`> /tmp/gate-N.log 2>&1; echo EXIT:$?`) and read only the tail of each, do not
 re-run a failing command to "see it again". **If anything is red once you have run the suite, or if
 you have used about 30 turns, stop diagnosing and open the issue now** with what you have; a
