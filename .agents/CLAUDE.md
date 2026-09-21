@@ -27,8 +27,9 @@ issue that says why, never silently substitute.
 
 ## Gates every change must clear (run them yourself before you say done)
 
-- `pnpm check`: `pnpm validate` (syncpack + typecheck + lint) + `pnpm audits:light` (the CI-shaped audit
-  pack) + `pnpm build:packages`.
+- `pnpm check`: `pnpm build:packages` first, then `pnpm validate` (syncpack + typecheck + lint), then
+  `pnpm audits:light` (the CI-shaped audit pack). The build leads because the two gates after it read
+  what it produces; on a fresh checkout with no `dist`, any other order fails before it can build.
 - `pnpm --filter @klorad/heritage check:units`: if Heritage changed.
 - Conventions from the root `CLAUDE.md`: small files, no `any`, no duplicated helpers, no dead code,
   **no new dependency without an ADR**, no 3D libraries in server files, every vertical query scoped

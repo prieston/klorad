@@ -8,7 +8,7 @@ Stack: pnpm workspaces, Next.js 15 App Router, TypeScript strict, Prisma + Postg
 
 ## Gates (run them yourself before you say "done")
 
-- `pnpm check` = `pnpm validate` (`syncpack:check` + `typecheck` + `lint`) + `pnpm audits:light` (the CI-shaped audit pack from `packages/dev-audits`) + `pnpm build:packages`. Must pass.
+- `pnpm check` = `pnpm build:packages` first, then `pnpm validate` (`syncpack:check` + `typecheck` + `lint`), then `pnpm audits:light` (the CI-shaped audit pack from `packages/dev-audits`). Must pass. The build comes first because both of the gates after it read what it produces: packages resolve each other through `dist/*.d.ts`, and the audit pack runs out of `packages/dev-audits/dist`.
 - `pnpm --filter @klorad/heritage check:units` if you touched Heritage.
 - Bundle budgets (`size-limit`) apply to editor, website and admin; do not raise a budget to make a build pass.
 
