@@ -1,6 +1,6 @@
 # Agent: nightly-regression
 
-**Cadence:** nightly (~01:00 UTC). **Output:** a PR if you fixed something; otherwise an issue if the
+**Cadence:** nightly (01:17 UTC). **Output:** a PR if you fixed something; otherwise an issue if the
 suite is red and you could not safely fix it; nothing if everything is green (post a one-line run
 summary in the job log). **Branch:** `agents/nightly-regression-<run-id>`, never `main`.
 
@@ -19,9 +19,37 @@ Run the full gate suite against the current `main` and catch regressions early.
    (no database, no storage; every vertical route is dynamic so nothing renders at build time). If a
    build needs an env var to even start, that is a finding, not a reason to add a secret.
 
+## Report the exit codes to the step summary. This is not optional.
+
+After you have run the six gate commands above, **append a markdown table of command and exit code
+to the file named by `$GITHUB_STEP_SUMMARY`.** One row per command, in the order above, with the
+exit code you actually captured, never a remembered or assumed one. Write it even when the run is
+red, even when a command died early, even when you are about to open an issue. A command you did
+not get to is reported as `not run`, not omitted.
+
+```bash
+{
+  echo "| Gate | Exit |"
+  echo "|---|---|"
+  echo "| pnpm install --frozen-lockfile | $EXIT_1 |"
+  echo "| pnpm validate | $EXIT_2 |"
+  echo "| pnpm audits:light | $EXIT_3 |"
+  echo "| pnpm build:packages | $EXIT_4 |"
+  echo "| pnpm --filter @klorad/heritage check:units | $EXIT_5 |"
+  echo "| pnpm build:campus, build:mobility, build:heritage | $EXIT_6 |"
+} >> "$GITHUB_STEP_SUMMARY"
+```
+
+**You may claim "all green" only when that table shows six zeros.** Not when the job is about to
+succeed, not when the last command you happened to run passed, not when nothing looked broken.
+Six rows, six zeros, or the run is not green. `morning-digest` reads this table rather than the
+job's conclusion, because a job can conclude successfully while a gate inside it was never reached,
+which is exactly how `main` stayed red for two and a half weeks without anyone seeing it (#286).
+
 ## What to do with the result
 
 - **All green:** stop. Print a one-line summary (`✓ all gates green`) and exit 0. Do not open a PR.
+  The step summary table must show six zeros first; see the section above.
 - **Red, and the fix is small + obviously safe** (a flaky assertion, an import, a lint autofix, a
   syncpack mismatch that `syncpack:fix` resolves within the existing ranges): fix it, re-run the full
   suite until green, open a **PR** titled `fix(regression): <what>` describing the failure and the fix.
