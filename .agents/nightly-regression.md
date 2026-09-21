@@ -10,9 +10,20 @@ Read `.agents/CLAUDE.md` first and honour every gate (fixture mode only, no prod
 
 Run the full gate suite against the current `main` and catch regressions early.
 
+**Run every gate in the foreground and wait for it to exit. This is the whole job.**
+
+Never background a gate: no `&`, no `nohup`, no `disown`, and never the tool's
+`run_in_background` option. Run one command, wait for it to finish, record its exit code, then run
+the next. These are slow (`pnpm install` alone is about 40 seconds, `pnpm check` is minutes); that
+is expected and you wait. Sleeping, polling, or answering "waiting for the background run to
+complete" is not a result, and **a run that ends while a gate is still running has failed**, whatever
+the job conclusion says. That is exactly how run 35604245695 produced nothing: it started gates 1 and
+2 in the background, idled, then ended its turn after 41 seconds with the gates still going and no
+table written.
+
 1. `pnpm install --frozen-lockfile` (the `postinstall` runs `prisma generate`; it needs no database).
-2. `pnpm check` (`pnpm validate` = syncpack + typecheck + lint, then `pnpm audits:light`, then
-   `pnpm build:packages`)
+2. `pnpm check` (`pnpm build:packages` first, then `pnpm validate` = syncpack + typecheck + lint,
+   then `pnpm audits:light`)
 3. `pnpm --filter @klorad/heritage check:units`
 4. `pnpm build:campus`, `pnpm build:mobility`, `pnpm build:heritage` with `SKIP_ENV_VALIDATION=1`
    (no database, no storage; every vertical route is dynamic so nothing renders at build time). If a
@@ -44,9 +55,10 @@ job's conclusion, because a job can conclude successfully while a gate inside it
 which is exactly how `main` stayed red for two and a half weeks without anyone seeing it (#286).
 
 `pnpm check` is one row and one exit code on purpose, but it is three gates inside
-(`pnpm validate`, then `pnpm audits:light`, then `pnpm build:packages`, and `validate` is itself
-syncpack, typecheck and lint in that order). It stops at the first failure, so a non-zero here names
-the first gate that broke, not the only one. When it is red, say which of the three it died in.
+(`pnpm build:packages` first, then `pnpm validate`, which is itself syncpack, typecheck and lint in
+that order, then `pnpm audits:light`). It stops at the first failure, so a non-zero here names the
+first gate that broke, not the only one. When it is red, say which of the three it died in. The
+build leads because the two gates after it read what it produces; see #302.
 
 ## What to do with the result
 
@@ -71,10 +83,14 @@ the first gate that broke, not the only one. When it is red, say which of the th
 
 ## Turn budget (run #1 burned 40 turns and produced nothing)
 
-Diagnosis is not the deliverable; the issue or the PR is. Run the four gate commands with output
-redirected to files (`> /tmp/gate-N.log 2>&1; echo EXIT:$?`) and read only the tail of each, do not
-re-run a failing command to "see it again". **If anything is red once you have run the suite, or if
-you have used about 30 turns, stop diagnosing and open the issue now** with what you have; a
-partial issue beats a silent run. Never end a run without a green summary, a PR, or an issue.
+Diagnosis is not the deliverable; the issue or the PR is. Run the four gate commands in the
+foreground, one after another, with output redirected to files
+(`> /tmp/gate-N.log 2>&1; echo EXIT:$?`) and read only the tail of each, do not re-run a failing
+command to "see it again". Redirecting output to a file is not the same as backgrounding it: you
+still wait for the command to exit before you do anything else. **If anything is red once you have
+run the suite, or if you have used about 30 turns, stop diagnosing and open the issue now** with
+what you have; a
+partial issue beats a silent run. Never end a run without a green summary, a PR, or an issue, and
+never end one with a gate still running.
 
 Keep the diff minimal and scoped. If more than ~15 files would change, stop and open an issue instead.
