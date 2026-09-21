@@ -1,4 +1,5 @@
 import { useSceneStore } from "@klorad/core";
+import type { Model } from "@klorad/core";
 import { v4 as uuidv4 } from "uuid";
 import type {
   CampusAPI,
@@ -21,7 +22,12 @@ import type { POI, POIInput, DataLayer } from "../types/campus";
 
 type PoiMeta = Omit<POI, "id" | "name" | "objectId" | "position">;
 
-function readPoiMeta(obj: { meta?: unknown }): PoiMeta | null {
+// why: both call sites pass a scene object, and `Model` declares no `meta` of
+// its own (it reaches `meta` through its index signature), so the old
+// `{ meta?: unknown }` parameter tripped weak type detection: TS2559, no
+// properties in common. Naming the real argument type fixes it without
+// widening anything public.
+function readPoiMeta(obj: Model): PoiMeta | null {
   const meta = obj.meta as Record<string, unknown> | undefined;
   const poi = meta?.poi as PoiMeta | undefined;
   return poi ?? null;
