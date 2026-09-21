@@ -9,6 +9,13 @@ import type { Model } from "@klorad/core";
 import { InteractionRay } from "./InteractionRay";
 import { findInteractableModel } from "./utils/interactionUtils";
 import { useHapticFeedback } from "./hooks/useHapticFeedback";
+import { isFiniteVector3 } from "./utils/vector";
+
+// why: useXREvent does not hand the handler a DOM XRInputSourceEvent. It wraps it
+// as `{ type, data: e.inputSource }` (@react-three/xr 6.6.27,
+// dist/deprecated/hooks.js). Deriving the parameter type from the hook keeps this
+// correct if the library changes it. See issue #295.
+type XRControllerEvent = Parameters<Parameters<typeof useXREvent>[1]>[0];
 
 export const InteractionController: React.FC = () => {
   useXR();
@@ -40,8 +47,8 @@ export const InteractionController: React.FC = () => {
   const frameCountRef = useRef(0);
 
   // Handle select events using useXREvent (modern API)
-  useXREvent("selectend", (event: XRInputSourceEvent) => {
-    const inputSource = event.inputSource;
+  useXREvent("selectend", (event: XRControllerEvent) => {
+    const inputSource = event.data;
 
     if (
       inputSource?.handedness === "right" &&
@@ -81,7 +88,7 @@ export const InteractionController: React.FC = () => {
       rightObj.getWorldPosition(controllerWorldPosRef.current);
       
       // Validate position before using
-      if (!controllerWorldPosRef.current.isFinite()) {
+      if (!isFiniteVector3(controllerWorldPosRef.current)) {
         if (process.env.NODE_ENV === "development") {
           console.warn("Invalid controller position detected");
         }
@@ -117,7 +124,7 @@ export const InteractionController: React.FC = () => {
 
       if (interactableResult) {
         // Validate intersection point
-        if (!interactableResult.hitPoint.isFinite()) {
+        if (!isFiniteVector3(interactableResult.hitPoint)) {
           if (process.env.NODE_ENV === "development") {
             console.warn("Invalid intersection point detected");
           }
@@ -136,7 +143,7 @@ export const InteractionController: React.FC = () => {
       }
 
       // Validate hitPoint before using
-      if (hitPoint && !hitPoint.isFinite()) {
+      if (hitPoint && !isFiniteVector3(hitPoint)) {
         if (process.env.NODE_ENV === "development") {
           console.warn("Invalid hit point calculated");
         }

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { isFiniteVector3 } from "./vector";
 
 // Cache for teleportable meshes keyed by scene UUID
 const teleportableMeshesCache = new Map<
@@ -64,7 +65,7 @@ export function findGroundIntersection(
     const hit = intersections[0];
     
     // Validate hit point
-    if (!hit.point.isFinite()) {
+    if (!isFiniteVector3(hit.point)) {
       return null;
     }
 
@@ -73,7 +74,7 @@ export function findGroundIntersection(
     if (hit.face) {
       normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
       // Validate normal
-      if (!normal.isFinite() || normal.length() < 0.1) {
+      if (!isFiniteVector3(normal) || normal.length() < 0.1) {
         normal = new THREE.Vector3(0, 1, 0); // Fallback to up
       }
       normal.normalize();
@@ -96,7 +97,7 @@ export function findGroundIntersection(
     intersectionPoint
   );
 
-  if (intersection && intersectionPoint.isFinite()) {
+  if (intersection && isFiniteVector3(intersectionPoint)) {
     return {
       point: intersectionPoint,
       normal: new THREE.Vector3(0, 1, 0),
@@ -123,17 +124,17 @@ export function isValidTeleportLocation(
   startPosition?: THREE.Vector3
 ): boolean {
   // Validate position
-  if (!position.isFinite()) {
+  if (!isFiniteVector3(position)) {
     return false;
   }
 
   // Validate normal
-  if (!normal.isFinite() || normal.length() < 0.1) {
+  if (!isFiniteVector3(normal) || normal.length() < 0.1) {
     return false;
   }
 
   // Check distance constraints if start position provided
-  if (startPosition && startPosition.isFinite()) {
+  if (startPosition && isFiniteVector3(startPosition)) {
     const distance = position.distanceTo(startPosition);
     if (distance < MIN_TELEPORT_DISTANCE) {
       return false; // Too close

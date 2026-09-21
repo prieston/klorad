@@ -11,6 +11,13 @@ import {
   isValidTeleportLocation,
 } from "./utils/teleportationUtils";
 import { useHapticFeedback } from "./hooks/useHapticFeedback";
+import { isFiniteVector3 } from "./utils/vector";
+
+// why: useXREvent does not hand the handler a DOM XRInputSourceEvent. It wraps it
+// as `{ type, data: e.inputSource }` (@react-three/xr 6.6.27,
+// dist/deprecated/hooks.js). Deriving the parameter type from the hook keeps this
+// correct if the library changes it. See issue #295.
+type XRControllerEvent = Parameters<Parameters<typeof useXREvent>[1]>[0];
 
 export const TeleportationController: React.FC = () => {
   const xr = useXR();
@@ -40,8 +47,8 @@ export const TeleportationController: React.FC = () => {
   }, [left]);
 
   // Handle XR select events using useXREvent (modern API)
-  useXREvent("selectstart", (event: XRInputSourceEvent) => {
-    const inputSource = event.inputSource;
+  useXREvent("selectstart", (event: XRControllerEvent) => {
+    const inputSource = event.data;
 
     if (inputSource?.handedness === "left") {
       selectStartRef.current = true;
@@ -49,8 +56,8 @@ export const TeleportationController: React.FC = () => {
     }
   });
 
-  useXREvent("selectend", (event: XRInputSourceEvent) => {
-    const inputSource = event.inputSource;
+  useXREvent("selectend", (event: XRControllerEvent) => {
+    const inputSource = event.data;
 
     // Only process left-handed selectend events
     if (!inputSource || inputSource.handedness !== "left") return;
@@ -82,7 +89,7 @@ export const TeleportationController: React.FC = () => {
 
       // Validate delta before applying
       if (
-        !delta.isFinite() ||
+        !isFiniteVector3(delta) ||
         delta.length() > 50 ||
         delta.length() < 0.1
       ) {
@@ -139,7 +146,7 @@ export const TeleportationController: React.FC = () => {
       leftObj.getWorldPosition(controllerWorldPosRef.current);
       
       // Validate position before using
-      if (!controllerWorldPosRef.current.isFinite()) {
+      if (!isFiniteVector3(controllerWorldPosRef.current)) {
         if (process.env.NODE_ENV === "development") {
           console.warn("Invalid controller position detected");
         }
@@ -194,7 +201,7 @@ export const TeleportationController: React.FC = () => {
 
       if (groundHit) {
         // Validate hit point
-        if (!groundHit.point.isFinite()) {
+        if (!isFiniteVector3(groundHit.point)) {
           if (process.env.NODE_ENV === "development") {
             console.warn("Invalid ground hit point detected");
           }
@@ -222,7 +229,7 @@ export const TeleportationController: React.FC = () => {
       }
 
       // Validate endPoint before using
-      if (endPoint && !endPoint.isFinite()) {
+      if (endPoint && !isFiniteVector3(endPoint)) {
         if (process.env.NODE_ENV === "development") {
           console.warn("Invalid end point calculated");
         }
