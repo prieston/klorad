@@ -3,6 +3,7 @@
 import { useRef, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { ThreeLine } from "./ThreeLine";
 
 interface TeleportationArcProps {
   start: THREE.Vector3;
@@ -98,7 +99,7 @@ export const TeleportationArc: React.FC<TeleportationArcProps> = ({
   return (
     <>
       {/* Arc line */}
-      <line ref={lineRef}>
+      <ThreeLine ref={lineRef}>
         <bufferGeometry />
         <lineBasicMaterial
           color={lineColor}
@@ -106,7 +107,7 @@ export const TeleportationArc: React.FC<TeleportationArcProps> = ({
           transparent
           opacity={isValid ? 0.8 : 0.5}
         />
-      </line>
+      </ThreeLine>
 
       {/* Ring indicator - only show when there's an actual intersection (LEFT CONTROLLER ONLY - NO SPHERE) */}
       {end && hasIntersection && (

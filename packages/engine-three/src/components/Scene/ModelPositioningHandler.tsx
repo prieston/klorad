@@ -23,6 +23,14 @@ const ModelPositioningHandler = () => {
     if (!onPositionSelectedRef.current) return;
 
     const handleClick = (e: MouseEvent) => {
+      // why: reading the ref once per click narrows it for the whole handler
+      // (TS2721 otherwise: a mutable ref property cannot stay narrowed across
+      // the closure). It is also the safer read: the effect's setup-time guard
+      // says nothing about whether the callback is still set by the time a
+      // click arrives. Issue #295.
+      const onPositionSelected = onPositionSelectedRef.current;
+      if (!onPositionSelected) return;
+
       if (e.target !== (gl as any).domElement) return;
       // Ignore right-click (button 2) and middle-click (button 1)
       if (e.button === 2 || e.button === 1) return;
@@ -50,7 +58,7 @@ const ModelPositioningHandler = () => {
       const intersects = raycaster.intersectObjects(meshes, false);
       if (intersects.length > 0) {
         const point = intersects[0].point;
-        onPositionSelectedRef.current([point.x, point.y, point.z]);
+        onPositionSelected([point.x, point.y, point.z]);
       } else {
         // Fallback: intersect with an invisible ground plane at y=0
         const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -61,14 +69,14 @@ const ModelPositioningHandler = () => {
         );
 
         if (intersection) {
-          onPositionSelectedRef.current([
+          onPositionSelected([
             intersectionPoint.x,
             intersectionPoint.y,
             intersectionPoint.z,
           ]);
         } else {
           // Final fallback: use origin if plane intersection fails
-          onPositionSelectedRef.current([0, 0, 0]);
+          onPositionSelected([0, 0, 0]);
         }
       }
     };

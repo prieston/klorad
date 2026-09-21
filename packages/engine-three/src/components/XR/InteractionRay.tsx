@@ -3,6 +3,7 @@
 import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { ThreeLine } from "./ThreeLine";
 
 interface InteractionRayProps {
   start: THREE.Vector3;
@@ -80,7 +81,7 @@ export const InteractionRay: React.FC<InteractionRayProps> = ({
   return (
     <>
       {/* Ray line */}
-      <line ref={lineRef}>
+      <ThreeLine ref={lineRef}>
         <bufferGeometry />
         <lineBasicMaterial
           color={rayColor}
@@ -88,7 +89,7 @@ export const InteractionRay: React.FC<InteractionRayProps> = ({
           transparent
           opacity={isInteractable ? 0.9 : 0.8}
         />
-      </line>
+      </ThreeLine>
 
       {/* Hit point indicator - only show sphere at actual intersections (RIGHT CONTROLLER ONLY) */}
       {end && hasIntersection && (
