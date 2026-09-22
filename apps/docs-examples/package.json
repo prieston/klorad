@@ -1,0 +1,21 @@
+{
+  "name": "@klorad/docs-examples",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Compiled code samples for docs/guides/building-a-klorad-app.md. Typechecked by pnpm typecheck; never run, built, or deployed.",
+  "dependencies": {
+    "@klorad/api": "workspace:*",
+    "@klorad/connectors": "workspace:*",
+    "@klorad/core": "workspace:*",
+    "@klorad/engine-cesium": "workspace:*",
+    "@klorad/engine-mapbox": "workspace:*",
+    "@klorad/engine-three": "workspace:*",
+    "react": "^19.2.1",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.9.0"
+  }
+}
