@@ -66,7 +66,7 @@ Deferred from Phase 1: the Twin (two-way) path, Actions, Entitlements and Behavi
 
 ## Decisions open (on the Command board with dates)
 
-ADR-0001 approval (30 September; drafted from the revised `docs/WORLD-MODEL.md`, including the homes for surfaces not in the diagram). npm public or private registry for the first releases (30 September). Homepage H1 and research route (30 September). First external builder target (15 October). Legacy editor and admin: reference builder app or frozen (15 October). Fix in place versus rebuild core, after DEBT.md (31 October). Pricing model (15 December).
+ADR-0001 approval (30 September; drafted from the revised `docs/WORLD-MODEL.md`, including the homes for surfaces not in the diagram). npm public or private registry for the first releases (30 September). Homepage H1 and research route (30 September). First external builder target (15 October). Legacy editor and admin: reference builder app or frozen (15 October). How much of DEBT.md is paid before version 1 goes online, after DEBT.md (31 October). Pricing model (15 December).
 
 Decided 21 September: fix in place, no rewrite of `@klorad/core`; version 1 ships from the existing core, see `docs/ARCHITECTURE.md`.
 
