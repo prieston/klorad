@@ -1,6 +1,6 @@
 # Klorad: Plan of record
 
-Written 16 September 2026, rewritten 17 September 2026 after the direction changed from "four vertical products" to "one SDK, four demonstration apps". This file is the single source of truth for what we are building and in what order. Every Claude Code session reads it before its first edit (root `CLAUDE.md` says so). The monday Development board (5104329450) mirrors this file; when the two disagree, this file wins and the board gets corrected. Change the plan here first. The longer narrative is the Klorad Launch Plan and Execution Runbook (v2, 17 Sep) in the Klorad folder of the Prieston Technologies shared drive.
+Written 16 September 2026, rewritten 17 September 2026 after the direction changed from "four vertical products" to "one SDK, four demonstration apps". This file is the single source of truth for what we are building and in what order. Every Claude Code session reads it before its first edit (root `CLAUDE.md` says so). The monday Development board (5104329450) mirrors this file; when the two disagree, this file wins and the board gets corrected. Change the plan here first. The longer narrative is the Klorad Launch Plan and Execution Runbook (v2, 17 Sep) in the 03 Prieston Technologies > Klorad Drive folder.
 
 ## Direction (17 September 2026)
 
@@ -67,6 +67,8 @@ Deferred from Phase 1: the Twin (two-way) path, Actions, Entitlements and Behavi
 ## Decisions open (on the Command board with dates)
 
 ADR-0001 approval (30 September; drafted from the revised `docs/WORLD-MODEL.md`, including the homes for surfaces not in the diagram). npm public or private registry for the first releases (30 September). Homepage H1 and research route (30 September). First external builder target (15 October). Legacy editor and admin: reference builder app or frozen (15 October). Fix in place versus rebuild core, after DEBT.md (31 October). Pricing model (15 December).
+
+Decided 21 September: fix in place, no rewrite of `@klorad/core`; version 1 ships from the existing core, see `docs/ARCHITECTURE.md`.
 
 ## Kill and narrow criteria (end of February 2027)
 
