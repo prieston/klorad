@@ -95,7 +95,7 @@ const verticals = [
 const codeSample = `import { createSceneAPI } from "@klorad/api";
 
 // define a world once, render with any engine
-const world = createSceneAPI({ engine: "cesium" });
+const world = createSceneAPI("cesium", "viewer");
 
 world.objects.add(model);
 world.events.on("select", inspect);`;
