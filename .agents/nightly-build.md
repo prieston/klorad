@@ -63,6 +63,12 @@ On `agents/nightly-build-<run-id>`, implement exactly one slice. **A run must ne
 - **If nothing is green** by the time you must stop: do **not** open a PR. Post an update on the item
   (Greek) saying what you tried and where it got stuck, and **leave it in `Ready for agent`** so the
   next run retries. Still never silent.
+- **For a large research item (a document, an inventory) do not try to cover everything in one
+  night.** Cover the sections in the order the spec gives, commit and push after each section, and
+  when you reach about 100 turns open the draft PR titled `board: <item> (partial)` listing the
+  sections that remain. A partial document that exists beats a complete one that was never written.
+- **Before your first Bash call print one line:** item id, item name, which sections you will cover
+  tonight.
 
 Verification, in this order, **skip work the slice doesn't need**:
 

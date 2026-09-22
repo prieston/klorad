@@ -21,6 +21,10 @@ issue that says why, never silently substitute.
   (#288). Do not attempt the edit and then revert it. When a task needs a workflow change, **write
   the prepared diff into an issue** for a human with the right scope to apply, ship the rest of the
   slice without it, and say in the PR body which part is waiting on that issue.
+- **You are running headless in GitHub Actions. Nothing arrives after your turn ends.** Never launch
+  background subagents (the Agent tool, Explore, Task) and never run commands with
+  `run_in_background` or `&`. Do the research yourself, sequentially, inside the turn. A run that
+  ends while any work is in flight has failed, whatever the job conclusion says.
 - **Anything you cannot do behind these gates: list it** in the PR/issue with the reason.
 - **Stop and ask (open an issue, or move the board item to `Needs decision`) if a decision turns out
   to be impossible; do not silently substitute.**
