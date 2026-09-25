@@ -6,7 +6,11 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: process.env.CI ? 'line' : 'html',
+  // why: 'line' alone leaves nothing to upload as a CI artifact (#3228669753);
+  // the html report is written even when nobody looks at the line output live.
+  reporter: process.env.CI
+    ? [['line'], ['html', { outputFolder: 'playwright-report', open: 'never' }]]
+    : 'html',
   use: {
     trace: 'on-first-retry',
   },
