@@ -1,0 +1,29 @@
+@import "@klorad/design-system/tokens.css";
+@import "tailwindcss";
+@import "fumadocs-ui/css/preset.css";
+
+/* why: reuse the design-system's own tokens instead of a stock fumadocs
+   theme, so the docs site is Klorad's actual palette (dark by default,
+   teal accent), not a copy that can drift from apps/website. */
+@theme {
+  --color-fd-background: var(--bg);
+  --color-fd-foreground: var(--text-primary);
+  --color-fd-muted: var(--surface-2);
+  --color-fd-muted-foreground: var(--text-secondary);
+  --color-fd-popover: var(--surface-1);
+  --color-fd-popover-foreground: var(--text-primary);
+  --color-fd-card: var(--surface-1);
+  --color-fd-card-foreground: var(--text-primary);
+  --color-fd-border: var(--line-soft);
+  --color-fd-primary: var(--accent);
+  --color-fd-primary-foreground: var(--accent-contrast);
+  --color-fd-secondary: var(--surface-2);
+  --color-fd-secondary-foreground: var(--text-primary);
+  --color-fd-accent: var(--accent-soft);
+  --color-fd-accent-foreground: var(--text-primary);
+  --color-fd-ring: var(--accent);
+}
+
+body {
+  font-family: var(--font-inter), "Inter", system-ui, sans-serif;
+}

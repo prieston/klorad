@@ -19,6 +19,13 @@ node_modules/
 # Cesium assets (generated at build time)
 public/cesium/
 
+# apps/docs: generated at build time (apps/docs/scripts/generate-content.mjs),
+# never hand-edited, see docs/adr/0002-docs-site.md
+apps/docs/.source/
+apps/docs/content/docs/index.mdx
+apps/docs/content/docs/reference/index.mdx
+apps/docs/public/llms.txt
+
 # Misc
 .DS_Store
 *.pem
