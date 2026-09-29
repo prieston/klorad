@@ -16,6 +16,7 @@ Two of the four turn out not to be real conflicts at all. They are dependencies 
 | `@mui/icons-material` | 5 and 6 | **No** | Delete 1 unused declaration, which also fixes an unmet peer warning |
 | `zustand` | 4 and 5 | Yes | Decide whether `@klorad/core` moves to 5 |
 | `zod` | 3 and 4 | Yes | Decide whether `apps/website` moves back to 3, or everything moves to 4 |
+| `tailwindcss` / `@tailwindcss/postcss` | 3 and 4 | Yes, but isolated | See below, added 29 September 2026 |
 
 Import counts below are files that reference the package, counted with `grep -rl` over `*.ts` and `*.tsx`, excluding `node_modules`, `.next` and `dist`.
 
@@ -104,6 +105,22 @@ This is the most lopsided of the four and the easiest to get wrong. 57 of the 58
 - First, delete the two unused declarations (`apps/admin`, `packages/dev-audits`). That does not end the conflict, but it stops two packages carrying a dependency they do not use.
 - Then decide the direction, and it is worth deciding deliberately rather than by inertia. Moving one file in `apps/website` down to zod 3 ends the split today, at the cost of that file. Moving 57 files up to zod 4 is a real migration: read every `z.*` call in `apps/heritage` and `apps/mobility` against zod 4's API (the error shape in particular, since heritage and mobility both surface validation errors to operators), plus the `packages/connectors` peer range and the connector boundary schemas behind it.
 - Do not do it as a sweep. Whichever direction is chosen, it is its own board item with the verticals built and their unit checks run.
+
+## tailwindcss / @tailwindcss/postcss: 3 and 4, isolated to one app
+
+| Package | Declared | Type |
+|---|---|---|
+| every other app (`website`, `editor`, `admin`, `campus`, `mobility`, `heritage`) | `^3.4.14` | dependency, via `@klorad/design-system/tailwind-preset` |
+| `apps/docs` | `^4.3.3` | dependency, CSS-native `@theme` config |
+
+Added scaffolding `apps/docs` (board item, ADR-0002). `fumadocs-ui@~15.7`, the version pinned for
+Next 15 compatibility, ships its component styles as Tailwind v4 `@theme`/`@plugin` CSS, not a v3
+JS plugin; there is no v3-compatible fumadocs-ui release recent enough to pin against. Unlike
+`zustand` and `zod`, the two majors never share a bundle or a page: `apps/docs` is a standalone
+Next app, and it reuses `@klorad/design-system`'s plain CSS custom properties
+(`tokens.css`), not the JS `tailwind-preset`, so nothing about this pulls the rest of the
+workspace toward v4. Revisit if/when `fumadocs-ui` ships a v3-compatible line, or when the
+workspace as a whole decides to move to Tailwind v4.
 
 ## How to close one out
 
