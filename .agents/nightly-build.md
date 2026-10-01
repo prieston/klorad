@@ -57,16 +57,23 @@ On `agents/nightly-build-<run-id>`, implement exactly one slice. **A run must ne
   wait for the slice to be finished. Push again as you go.
 - **Draft the PR as soon as `pnpm validate` is green**, even if the slice isn't polished. Then keep
   refining on the same branch.
-- **Watch the turn budget.** If you've used **more than ~100 turns**, stop implementing now: commit
-  whatever is green, push, open the draft PR **titled with `(partial)`** (`board: <item> (partial)`),
-  say in the body what's done and what remains, post the board update, and move the item to `In review`.
-- **If nothing is green** by the time you must stop: do **not** open a PR. Post an update on the item
-  (Greek) saying what you tried and where it got stuck, and **leave it in `Ready for agent`** so the
-  next run retries. Still never silent.
+- **At turn 90, whatever state you are in: commit, push, open the draft PR titled `(partial)`
+  (`board: <item> (partial)`) with what exists and what remains, post the board update, move the
+  item to `In review`. Only then continue if turns remain.** This is a step in the run, not advice
+  about pacing. It is not conditional on the slice being finished, on the gates being green, on the
+  work feeling presentable, or on your judgement that a few more turns would wrap it up. Turn 90 was
+  ignored three nights running on the scaffold item and each night produced nothing; the partial PR
+  is what stops that. Count your turns, and when you are near 90, stop and ship before you continue.
+- **If nothing is green and you are stopping before turn 90** (a blocker, not the budget): do
+  **not** open a PR. Post an update on the item (Greek) saying what you tried and where it got
+  stuck, and **leave it in `Ready for agent`** so the next run retries. Still never silent. This is
+  the only path that ends a run without a PR, and it does not apply at turn 90: there, the partial
+  PR goes up whatever the state of the work, and "nothing is green" is something you write in its
+  body, not a reason to skip it.
 - **For a large research item (a document, an inventory) do not try to cover everything in one
   night.** Cover the sections in the order the spec gives, commit and push after each section, and
-  when you reach about 100 turns open the draft PR titled `board: <item> (partial)` listing the
-  sections that remain. A partial document that exists beats a complete one that was never written.
+  at turn 90 open the draft PR titled `board: <item> (partial)` listing the sections that remain,
+  per the rule above. A partial document that exists beats a complete one that was never written.
 - **Before your first Bash call print one line:** item id, item name, which sections you will cover
   tonight.
 
