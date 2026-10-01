@@ -55,7 +55,7 @@ Integration then couples these semantics to reality (IoT, APIs, location service
 | Web Browsers | Next.js apps; `AppShell` in `@klorad/ui` | live (implicit) |
 | Interactable | Selection, transform modes, click handling in engines and `ObjectsAPI` | partial |
 | WebXR Device API | `core/state/xr-store` | partial |
-| WebSocket API | none in SDK (SSE dev-only in Mobility) | absent |
+| WebSocket API | none in SDK (SSE dev-only in the `apps/mock-inet` fixture) | absent |
 | WebRTC API | none | absent |
 | Notifications API | web push pipeline in Campus and Mobility apps | app-only |
 | Authorisation Process | NextAuth + `requireProjectAccess` per app | app-only |
