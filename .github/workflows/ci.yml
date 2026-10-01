@@ -71,9 +71,42 @@ jobs:
         env:
           SKIP_ENV_VALIDATION: '1'
 
+  # The editor e2e suite, in its own job so a red editor build (see the editor
+  # job above) or a flaky e2e run never touches the audit gates. Not a
+  # required status check yet: Teo decides if/when it becomes one (board item
+  # 3228669753, Gate: Needs my approval).
+  e2e-editor:
+    needs: audit
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages and editor
+        run: pnpm build:editor
+        env:
+          SKIP_ENV_VALIDATION: '1'
+
       - name: E2E tests
         run: pnpm e2e:ci:editor
-        continue-on-error: true
+
+      - name: Upload playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
 
   heritage:
     runs-on: ubuntu-latest
