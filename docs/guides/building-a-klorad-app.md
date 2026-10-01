@@ -76,7 +76,7 @@ await scene.camera.flyToPosition(cityHall, { radius: 200 });
 const scene = createSceneAPI("three", "editor", {
   coordinateSystem: { longitude: 23.7275, latitude: 37.9838, altitude: 0 },
 });
-scene.coordinateSystem; // GeoPosition — the scene's own anchor
+scene.coordinateSystem; // GeoPosition, the scene's own anchor
 ```
 
 Smallest change: an optional third `coordinateSystem: GeoPosition` argument to `createSceneAPI`,
@@ -157,9 +157,9 @@ connector" in this section's heading is literally true.
 
 ## 6. Render
 
-`Scene` (three.js), `CesiumViewer` and `MapboxViewer` all read the same `@klorad/core` store that
-`@klorad/api` writes to (`docs/ARCHITECTURE.md` sections 3 and 6), so mounting one next to the
-calls above renders them with no wiring in between.
+`Scene` (three.js) and `CesiumViewer` read the same `@klorad/core` store that `@klorad/api`
+writes to (`docs/ARCHITECTURE.md` sections 3 and 6), so mounting either one next to the calls
+above renders them with no wiring in between. `MapboxViewer` is the exception; see below.
 
 ```tsx
 "use client";
@@ -176,12 +176,26 @@ One-line change for Cesium:
 import { CesiumViewer as Scene } from "@klorad/engine-cesium";
 ```
 
-One-line change for Mapbox:
+Mapbox is **not** a one-line change, because it does not render the general Scene Object model.
+Its primary scene shape is `mapboxSceneData` (rooms, nav nodes, walls, floor plan rasters),
+a shape parallel to `useSceneStore.objects` rather than unified with it
+(`docs/ARCHITECTURE.md` section 3). The only objects it draws are those backed by a fetchable
+glb or gltf, lifted onto the map by a Threebox layer
+(`packages/engine-mapbox/src/hooks/useMapboxThreeboxModels.ts:40,227`); the lamp post of
+section 4 happens to qualify, an object without a model URL does not appear at all.
 
 ```tsx
+// TARGET API, not implemented yet, see ADR-0001
 import { MapboxViewer as Scene } from "@klorad/engine-mapbox";
-// <Scene accessToken="..." /> — Scene and CesiumViewer need no token, MapboxViewer does.
+// <Scene accessToken="..." /> MapboxViewer needs a token; Scene and CesiumViewer do not.
 ```
+
+Smallest change: `MapboxViewer` renders `useSceneStore.objects` as markers or models at their
+`position`, alongside its own `mapboxSceneData`, in `packages/engine-mapbox`. The hook that
+already walks `objects` is `packages/engine-mapbox/src/hooks/useMapboxThreeboxModels.ts` (it
+reads `useSceneStore.getState().objects` at line 227 and filters to glb/gltf at line 40), so the
+change is widening that filter and giving the rejected objects a non-model representation, not
+introducing a store subscription. No `@klorad/core` and no `@klorad/api` change.
 
 Once `@klorad/react` exists, this section becomes the react-three-fiber-idiom form the rest of
 the guide would otherwise use throughout:
@@ -209,7 +223,7 @@ export function Viewer() {
 Smallest change: a new package, `@klorad/react`, no core or engine change
 (`docs/ARCHITECTURE.md` section 6). `KloradProvider` calls `createSceneAPI` and puts it in React
 context; `Scene` and `SceneObject` are thin wrappers over `objects.add` / `.update` / `.remove`
-from that context, called from mount/update/unmount effects — exactly what
+from that context, called from mount/update/unmount effects, exactly what
 `packages/api/src/react/index.ts`'s `useObjects` already does for the read side, just unwired to
 a Provider today. `useScene()` (return the context value) and `useSceneObject(id)` (a selector
 keyed by id) are small additions on top of that binding, no core change. `useShadow(id)` cannot
@@ -224,7 +238,7 @@ Mobility's own alert and rule engine is the nearest app-only analogue. This is k
 scheduled for Phase 2 (`docs/PLAN.md`), not version 1.
 
 ```tsx
-// TARGET API, not implemented yet, see ADR-0001 — Phase 2, kernel step 4
+// TARGET API, not implemented yet, see ADR-0001. Phase 2, kernel step 4
 import { useAction } from "@klorad/react";
 
 function LampSwitch({ objectId }: { objectId: string }) {
