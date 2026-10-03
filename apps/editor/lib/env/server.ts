@@ -1,6 +1,11 @@
 /**
  * Server environment configuration with Zod validation
  * This file centralizes all server-side environment variables and provides type safety.
+ *
+ * `SKIP_ENV_VALIDATION=1` is honoured the same way apps/campus, apps/heritage
+ * and apps/mobility honour it: a breakglass for CI and Vercel build
+ * containers that never had the 19 required vars below, not a default to
+ * set anywhere real traffic is served.
  */
 import { z } from "zod";
 
@@ -66,21 +71,57 @@ const serverEnvSchema = z.object({
   STRIPE_PRO_PRODUCT_ID: z.string().optional(),
   STRIPE_PRO_PRICE_ID_MONTHLY: z.string().optional(),
   STRIPE_PRO_PRICE_ID_YEARLY: z.string().optional(),
+
+  SKIP_ENV_VALIDATION: z.string().optional(),
 });
 
-// Parse and validate the environment variables
-const parsedEnv = serverEnvSchema.safeParse(process.env);
+/** True when validation was bypassed via SKIP_ENV_VALIDATION. */
+export let envValidationSkipped = false;
 
-if (!parsedEnv.success) {
-  console.error(
-    "Invalid server environment variables:",
-    parsedEnv.error.format()
-  );
-  // It is common to throw an error in production to immediately indicate the misconfiguration.
-  throw new Error("Invalid server environment variables");
+// Stub values for the required vars above, used only when
+// SKIP_ENV_VALIDATION=1 — a build container that never had secrets, not a
+// runtime that will serve traffic.
+const skipStubs = {
+  DATABASE_URL: "postgres://skip@skip/skip",
+  NEXT_PUBLIC_WEBSITE_URL: "https://skip.invalid",
+  NEXT_PUBLIC_APP_URL: "https://skip.invalid",
+  SECRET: "skip-skip-skip-skip-skip-skip-skip-skip",
+  NEXTAUTH_COOKIE_DOMAIN: "skip.invalid",
+  DO_SPACES_REGION: "skip",
+  DO_SPACES_ENDPOINT: "https://skip.invalid",
+  DO_SPACES_KEY: "skip",
+  DO_SPACES_SECRET: "skip",
+  DO_SPACES_BUCKET: "skip",
+  NEXT_PUBLIC_DO_SPACES_FOLDER: "skip",
+  NEXT_PUBLIC_DO_SPACES_ENDPOINT: "https://skip.invalid",
+  NEXT_PUBLIC_DO_SPACES_BUCKET: "skip",
+  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "skip",
+  NEXT_PUBLIC_CESIUM_ION_KEY: "skip",
+  RESEND_API_KEY: "skip",
+  EMAIL_FROM: "skip@skip.invalid",
+  STRIPE_SECRET_KEY: "skip",
+  STRIPE_WEBHOOK_SECRET: "skip",
+} as const;
+
+function parse(): z.infer<typeof serverEnvSchema> {
+  if (process.env.SKIP_ENV_VALIDATION === "1") {
+    envValidationSkipped = true;
+    return serverEnvSchema.parse({ ...skipStubs, ...process.env });
+  }
+
+  const parsedEnv = serverEnvSchema.safeParse(process.env);
+  if (!parsedEnv.success) {
+    console.error(
+      "Invalid server environment variables:",
+      parsedEnv.error.format()
+    );
+    // It is common to throw an error in production to immediately indicate the misconfiguration.
+    throw new Error("Invalid server environment variables");
+  }
+  return parsedEnv.data;
 }
 
-export const serverEnv = parsedEnv.data;
+export const serverEnv = parse();
 
 // Optionally, you can export specific configurations for Digital Ocean Spaces
 export const doSpacesConfig = {
